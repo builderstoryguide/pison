@@ -1,0 +1,494 @@
+"use client"
+
+import { useState } from 'react'
+import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, UserX, UserCheck, RotateCcw, Eye, Download, Users, UserPlus, Activity } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+
+import { useUserManagement, User, UserFilters } from '@/lib/user-management-context'
+import { CreateUserForm } from './create-user-form'
+import { EditUserForm } from './edit-user-form'
+import { UserDetailsDialog } from './user-details-dialog'
+import { ActivityLogsView } from './activity-logs-view'
+
+const roleColors = {
+  admin: 'bg-red-100 text-red-800',
+  teacher: 'bg-blue-100 text-blue-800',
+  student: 'bg-green-100 text-green-800',
+  parent: 'bg-purple-100 text-purple-800',
+  burser: 'bg-orange-100 text-orange-800'
+}
+
+const statusColors = {
+  active: 'bg-green-100 text-green-800',
+  inactive: 'bg-gray-100 text-gray-800',
+  suspended: 'bg-red-100 text-red-800'
+}
+
+export function UserManagement() {
+  const {
+    users,
+    searchUsers,
+    filterUsers,
+    toggleUserStatus,
+    deleteUser,
+    resetUserPassword,
+    isLoading
+  } = useUserManagement()
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState<UserFilters>({})
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false)
+
+  // Get filtered and searched users
+  const filteredUsers = filterUsers(filters)
+  const displayUsers = searchQuery ? searchUsers(searchQuery) : filteredUsers
+
+  const handleStatusChange = async (userId: string, status: 'active' | 'inactive' | 'suspended') => {
+    await toggleUserStatus(userId, status)
+  }
+
+  const handleDeleteUser = async (userId: string) => {
+    await deleteUser(userId)
+  }
+
+  const handleResetPassword = async (userId: string) => {
+    await resetUserPassword(userId)
+  }
+
+  const exportUsers = () => {
+    const csvContent = [
+      ['Name', 'Email', 'Role', 'Status', 'ID/Code', 'Created At'].join(','),
+      ...displayUsers.map(user => [
+        user.name,
+        user.email,
+        user.role,
+        user.status,
+        user.studentId || user.teacherRegNo || user.parentCode || 'N/A',
+        new Date(user.createdAt).toLocaleDateString()
+      ].join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'users.csv'
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
+  const userStats = {
+    total: users.length,
+    active: users.filter(u => u.status === 'active').length,
+    inactive: users.filter(u => u.status === 'inactive').length,
+    suspended: users.filter(u => u.status === 'suspended').length,
+    teachers: users.filter(u => u.role === 'teacher').length,
+    students: users.filter(u => u.role === 'student').length,
+    parents: users.filter(u => u.role === 'parent').length
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">User Management</h2>
+          <p className="text-muted-foreground">
+            Manage user accounts, roles, and permissions
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportUsers}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add User
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create New User</DialogTitle>
+                <DialogDescription>
+                  Add a new user to the school management system
+                </DialogDescription>
+              </DialogHeader>
+              <CreateUserForm onSuccess={() => setShowCreateDialog(false)} />
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{userStats.total}</div>
+            <p className="text-xs text-muted-foreground">
+              {userStats.active} active, {userStats.inactive} inactive
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Teachers</CardTitle>
+            <UserPlus className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{userStats.teachers}</div>
+            <p className="text-xs text-muted-foreground">
+              Teaching staff members
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Students</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{userStats.students}</div>
+            <p className="text-xs text-muted-foreground">
+              Enrolled students
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Parents</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{userStats.parents}</div>
+            <p className="text-xs text-muted-foreground">
+              Parent accounts
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="users" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="activity">Activity Logs</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users" className="space-y-4">
+          {/* Filters and Search */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Search & Filter</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search users by name, email, or ID..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Select
+                    value={filters.role || 'all'}
+                    onValueChange={(value) => setFilters(prev => ({ ...prev, role: value === 'all' ? undefined : value }))}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Roles</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="teacher">Teacher</SelectItem>
+                      <SelectItem value="student">Student</SelectItem>
+                      <SelectItem value="parent">Parent</SelectItem>
+                      <SelectItem value="burser">Burser</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={filters.status || 'all'}
+                    onValueChange={(value) => setFilters(prev => ({ ...prev, status: value === 'all' ? undefined : value }))}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={filters.subsystem || 'all'}
+                    onValueChange={(value) => setFilters(prev => ({ ...prev, subsystem: value === 'all' ? undefined : value }))}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue placeholder="Subsystem" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Systems</SelectItem>
+                      <SelectItem value="english">English</SelectItem>
+                      <SelectItem value="french">French</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Users Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Users ({displayUsers.length})</CardTitle>
+              <CardDescription>
+                Manage user accounts and permissions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>ID/Code</TableHead>
+                    <TableHead>Last Login</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {displayUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={user.avatar || "/placeholder.svg"} />
+                            <AvatarFallback>
+                              {user.name.split(' ').map(n => n[0]).join('')}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{user.name}</div>
+                            <div className="text-sm text-muted-foreground">{user.email}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={roleColors[user.role]}>
+                          {user.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={statusColors[user.status]}>
+                          {user.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-mono text-sm">
+                          {user.studentId || user.teacherRegNo || user.parentCode || 'N/A'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {user.lastLogin ? (
+                          <span className="text-sm">
+                            {new Date(user.lastLogin).toLocaleDateString()}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Never</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedUser(user)
+                                setShowDetailsDialog(true)
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedUser(user)
+                                setShowEditDialog(true)
+                              }}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit User
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleResetPassword(user.id)}
+                            >
+                              <RotateCcw className="h-4 w-4 mr-2" />
+                              Reset Password
+                            </DropdownMenuItem>
+                            {user.status === 'active' ? (
+                              <DropdownMenuItem
+                                onClick={() => handleStatusChange(user.id, 'inactive')}
+                              >
+                                <UserX className="h-4 w-4 mr-2" />
+                                Deactivate
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                onClick={() => handleStatusChange(user.id, 'active')}
+                              >
+                                <UserCheck className="h-4 w-4 mr-2" />
+                                Activate
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onSelect={(e) => e.preventDefault()}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete User
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete {user.name}? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteUser(user.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="activity">
+          <ActivityLogsView />
+        </TabsContent>
+      </Tabs>
+
+      {/* Dialogs */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update user information and settings
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUser && (
+            <EditUserForm
+              user={selectedUser}
+              onSuccess={() => {
+                setShowEditDialog(false)
+                setSelectedUser(null)
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+            <DialogDescription>
+              Complete user information and activity
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUser && (
+            <UserDetailsDialog user={selectedUser} />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
