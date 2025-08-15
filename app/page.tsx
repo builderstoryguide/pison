@@ -11,9 +11,10 @@ import { AttendanceProvider } from "@/lib/attendance-context"
 import { ReportsAnalyticsProvider } from "@/lib/reports-analytics-context"
 import { ProfileProvider } from "@/lib/profile-context"
 import { TeacherAttendanceProvider } from "@/lib/teacher-attendance-context"
-import { AuthPage } from "@/components/auth/auth-page"
+import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 import { Dashboard } from "@/components/dashboard"
 import { Loader2 } from "lucide-react"
+import { ThemeProvider } from "@/components/theme-provider"
 
 function AppContent() {
   const { user, isLoading } = useAuth()
@@ -30,7 +31,7 @@ function AppContent() {
   }
 
   if (!user) {
-    return <AuthPage />
+    return <Dashboard />
   }
 
   return (
@@ -43,11 +44,13 @@ function AppContent() {
                 <FinancialProvider>
                   <AttendanceProvider>
                     <TeacherAttendanceProvider>
-                      <ReportsAnalyticsProvider>
-                        <ProfileProvider>
-                          <Dashboard user={user} />
-                        </ProfileProvider>
-                      </ReportsAnalyticsProvider>
+                      <TeacherGradesProvider>
+                        <ReportsAnalyticsProvider>
+                          <ProfileProvider>
+                            <Dashboard user={user} />
+                          </ProfileProvider>
+                        </ReportsAnalyticsProvider>
+                      </TeacherGradesProvider>
                     </TeacherAttendanceProvider>
                   </AttendanceProvider>
                 </FinancialProvider>
@@ -62,8 +65,10 @@ function AppContent() {
 
 export default function Home() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   )
 }

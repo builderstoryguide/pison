@@ -15,6 +15,7 @@ import {
   UserCheck,
   TrendingUp,
   FileText,
+  Eye,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,7 +26,11 @@ import { useTeacherAttendance } from "@/lib/teacher-attendance-context"
 import { TeacherAttendanceForm } from "./teacher-attendance-form"
 import { useAuth } from "@/lib/auth-context"
 
-export function TeacherDashboard() {
+interface TeacherDashboardProps {
+  onNavigate?: (view: string) => void
+}
+
+export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
   const { user } = useAuth()
   const { teacherClasses, attendanceSessions, getTeacherClasses, getTodaySchedule, isLoading } = useTeacherAttendance()
 
@@ -43,6 +48,10 @@ export function TeacherDashboard() {
   const todaySessions = attendanceSessions.filter((session) => session.date === new Date().toISOString().split("T")[0])
   const completedToday = todaySessions.filter((session) => session.status === "completed").length
   const pendingToday = todaySessions.filter((session) => session.status === "pending").length
+
+  // Add grades statistics
+  const totalGrades = 45 // Mock data - in real app, get from grades context
+  const pendingGrades = 12 // Mock data
 
   // Recent attendance sessions
   const recentSessions = attendanceSessions
@@ -117,12 +126,12 @@ export function TeacherDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Sessions</CardTitle>
-            <AlertCircle className="h-4 w-4 text-yellow-600" />
+            <CardTitle className="text-sm font-medium">Pending Grades</CardTitle>
+            <FileText className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{pendingToday}</div>
-            <p className="text-xs text-muted-foreground">Sessions awaiting attendance</p>
+            <div className="text-2xl font-bold text-yellow-600">{pendingGrades}</div>
+            <p className="text-xs text-muted-foreground">Assessments to grade</p>
           </CardContent>
         </Card>
       </div>
@@ -175,6 +184,14 @@ export function TeacherDashboard() {
             <Button
               variant="outline"
               className="w-full justify-start bg-transparent"
+              onClick={() => onNavigate?.("classes")}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              View My Classes
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start bg-transparent"
               onClick={() => setShowAttendanceForm(true)}
             >
               <UserCheck className="h-4 w-4 mr-2" />
@@ -185,12 +202,12 @@ export function TeacherDashboard() {
               Enter Grades
             </Button>
             <Button variant="outline" className="w-full justify-start bg-transparent">
-              <TrendingUp className="h-4 w-4 mr-2" />
-              View Reports
+              <Plus className="h-4 w-4 mr-2" />
+              Create Assessment
             </Button>
             <Button variant="outline" className="w-full justify-start bg-transparent">
-              <Calendar className="h-4 w-4 mr-2" />
-              View Schedule
+              <TrendingUp className="h-4 w-4 mr-2" />
+              View Reports
             </Button>
           </CardContent>
         </Card>
@@ -199,12 +216,20 @@ export function TeacherDashboard() {
       {/* My Classes */}
       <Card>
         <CardHeader>
-          <CardTitle>My Classes</CardTitle>
-          <CardDescription>Classes you are teaching this academic year</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>My Classes</CardTitle>
+              <CardDescription>Classes you are teaching this academic year</CardDescription>
+            </div>
+            <Button variant="outline" onClick={() => onNavigate?.("classes")}>
+              <Eye className="h-4 w-4 mr-2" />
+              View All
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {teacherClasses.map((cls) => (
+            {teacherClasses.slice(0, 3).map((cls) => (
               <Card key={cls.id} className="border-2">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -243,6 +268,13 @@ export function TeacherDashboard() {
               </Card>
             ))}
           </div>
+          {teacherClasses.length > 3 && (
+            <div className="text-center mt-4">
+              <Button variant="outline" onClick={() => onNavigate?.("classes")}>
+                View {teacherClasses.length - 3} More Classes
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
