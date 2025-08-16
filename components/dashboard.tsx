@@ -16,6 +16,7 @@ import { ProfileProvider } from "@/lib/profile-context"
 import { TeacherAttendanceProvider } from "@/lib/teacher-attendance-context"
 import { TeacherClassesProvider } from "@/lib/teacher-classes-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
+import { BursarProvider } from "@/lib/bursar-context"
 
 // Admin Components
 import { UserManagement } from "./admin/user-management"
@@ -33,7 +34,14 @@ import { TeacherDashboard } from "./teacher/teacher-dashboard"
 import { TeacherClassesView } from "./teacher/teacher-classes-view"
 import { GradesManagement } from "./teacher/grades-management"
 
-// UI Components
+// Parent Components
+import { ParentDashboard } from "./parent/parent-dashboard"
+import { ParentCommunication } from "./parent/parent-communication"
+import { ParentChildRecords } from "./parent/parent-child-records"
+
+// Bursar Components
+import { BursarDashboard } from "./bursar/bursar-dashboard"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -61,8 +69,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 // Icons
 import {
@@ -83,6 +93,13 @@ import {
   ClipboardList,
   CreditCard,
   CalendarCheck,
+  MessageSquare,
+  Bell,
+  User,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  X,
 } from "lucide-react"
 
 type AdminView =
@@ -99,10 +116,241 @@ type AdminView =
 
 type TeacherView = "dashboard" | "classes" | "attendance" | "grades" | "profile"
 
+type ParentView = "dashboard" | "records" | "communication" | "profile"
+
+type BursarView = "dashboard" | "financial" | "reports" | "profile"
+
+// Mock notifications data
+const mockNotifications = [
+  {
+    id: 1,
+    title: "New Student Enrollment",
+    message: "John Doe has been enrolled in Form 5A",
+    type: "info" as const,
+    time: "2 minutes ago",
+    read: false,
+  },
+  {
+    id: 2,
+    title: "Payment Received",
+    message: "School fees payment of XAF 150,000 received from Marie Ngozi",
+    type: "success" as const,
+    time: "1 hour ago",
+    read: false,
+  },
+  {
+    id: 3,
+    title: "Attendance Alert",
+    message: "Low attendance rate detected in Form 3B (78%)",
+    type: "warning" as const,
+    time: "3 hours ago",
+    read: true,
+  },
+  {
+    id: 4,
+    title: "Exam Schedule Updated",
+    message: "First term examination dates have been modified",
+    type: "info" as const,
+    time: "1 day ago",
+    read: true,
+  },
+  {
+    id: 5,
+    title: "System Maintenance",
+    message: "Scheduled maintenance completed successfully",
+    type: "success" as const,
+    time: "2 days ago",
+    read: true,
+  },
+]
+
+// Notification Component
+function NotificationDropdown() {
+  const [notifications, setNotifications] = useState(mockNotifications)
+  const [isOpen, setIsOpen] = useState(false)
+
+  const unreadCount = notifications.filter((n) => !n.read).length
+
+  const markAsRead = (id: number) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+  }
+
+  const markAllAsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+  }
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case "success":
+        return <CheckCircle className="h-4 w-4 text-green-500" />
+      case "warning":
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />
+      case "error":
+        return <X className="h-4 w-4 text-red-500" />
+      default:
+        return <Clock className="h-4 w-4 text-blue-500" />
+    }
+  }
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="sm" className="relative">
+          <Bell className="h-4 w-4" />
+          {unreadCount > 0 && (
+            <Badge
+              variant="destructive"
+              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
+            >
+              {unreadCount}
+            </Badge>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0" align="end">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h4 className="font-semibold">Notifications</h4>
+          {unreadCount > 0 && (
+            <Button variant="ghost" size="sm" onClick={markAllAsRead}>
+              Mark all as read
+            </Button>
+          )}
+        </div>
+        <ScrollArea className="h-80">
+          <div className="p-2">
+            {notifications.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No notifications</p>
+              </div>
+            ) : (
+              notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className={`p-3 rounded-lg mb-2 cursor-pointer transition-colors ${
+                    notification.read
+                      ? "bg-muted/50 hover:bg-muted"
+                      : "bg-blue-50 hover:bg-blue-100 border border-blue-200"
+                  }`}
+                  onClick={() => markAsRead(notification.id)}
+                >
+                  <div className="flex items-start gap-3">
+                    {getNotificationIcon(notification.type)}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium ${!notification.read ? "text-blue-900" : ""}`}>
+                        {notification.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">{notification.message}</p>
+                      <p className="text-xs text-muted-foreground mt-2">{notification.time}</p>
+                    </div>
+                    {!notification.read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-1" />}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+        <div className="p-3 border-t">
+          <Button variant="outline" className="w-full bg-transparent" size="sm">
+            View All Notifications
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// User Profile Dropdown Component
+function UserProfileDropdown({
+  user,
+  onProfileClick,
+  onLogout,
+}: {
+  user: any
+  onProfileClick: () => void
+  onLogout: () => void
+}) {
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">{user.name}</p>
+            <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+            <Badge variant="secondary" className="w-fit mt-1 capitalize">
+              {user.role}
+            </Badge>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onProfileClick}>
+          <User className="mr-2 h-4 w-4" />
+          <span>Profile Settings</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <Settings className="mr-2 h-4 w-4" />
+          <span>Account Settings</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Log out</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+// Enhanced Header Component
+function DashboardHeader({
+  user,
+  onProfileClick,
+  onLogout,
+}: {
+  user: any
+  onProfileClick: () => void
+  onLogout: () => void
+}) {
+  return (
+    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex items-center gap-2 px-4">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="mr-2 h-4" />
+        <Badge variant="outline" className="capitalize">
+          {user.role}
+        </Badge>
+      </div>
+
+      <div className="ml-auto flex items-center gap-2 px-4">
+        <NotificationDropdown />
+        <UserProfileDropdown user={user} onProfileClick={onProfileClick} onLogout={onLogout} />
+      </div>
+    </header>
+  )
+}
+
 export function Dashboard() {
   const { user, logout } = useAuth()
   const [adminCurrentView, setAdminCurrentView] = useState<AdminView>("dashboard")
   const [teacherCurrentView, setTeacherCurrentView] = useState<TeacherView>("dashboard")
+  const [parentCurrentView, setParentCurrentView] = useState<ParentView>("dashboard")
+  const [bursarCurrentView, setBursarCurrentView] = useState<BursarView>("dashboard")
 
   if (!user) {
     return <AuthPage />
@@ -114,6 +362,130 @@ export function Dashboard() {
       .map((n) => n[0])
       .join("")
       .toUpperCase()
+  }
+
+  // Parent Dashboard
+  if (user.role === "parent") {
+    const parentMenuItems = [
+      { id: "dashboard", label: "Dashboard", icon: Home },
+      { id: "records", label: "Child's Records", icon: FileText },
+      { id: "communication", label: "Communication", icon: MessageSquare },
+    ]
+
+    const renderParentContent = () => {
+      switch (parentCurrentView) {
+        case "records":
+          return <ParentChildRecords />
+        case "communication":
+          return <ParentCommunication />
+        case "profile":
+          return <ProfileSettings />
+        default:
+          return <ParentDashboard onNavigate={setParentCurrentView} />
+      }
+    }
+
+    return (
+      <ProfileProvider>
+        <SidebarProvider>
+          <Sidebar variant="inset">
+            <SidebarHeader>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <div className="flex items-center gap-2 px-2 py-1">
+                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                      <School className="size-4" />
+                    </div>
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-semibold">GBHS Yaoundé</span>
+                      <span className="truncate text-xs">Parent Portal</span>
+                    </div>
+                  </div>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarHeader>
+            <SidebarContent>
+              <SidebarGroup>
+                <SidebarGroupLabel>Parent Tools</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {parentMenuItems.map((item) => (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton
+                          onClick={() => setParentCurrentView(item.id as ParentView)}
+                          isActive={parentCurrentView === item.id}
+                        >
+                          <item.icon />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </SidebarContent>
+            <SidebarFooter>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <SidebarMenuButton
+                        size="lg"
+                        className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                      >
+                        <Avatar className="h-8 w-8 rounded-lg">
+                          <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                          <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
+                        </Avatar>
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                          <span className="truncate font-semibold">{user.name}</span>
+                          <span className="truncate text-xs">{user.email}</span>
+                        </div>
+                        <ChevronUp className="ml-auto size-4" />
+                      </SidebarMenuButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                      side="bottom"
+                      align="end"
+                      sideOffset={4}
+                    >
+                      <DropdownMenuLabel className="p-0 font-normal">
+                        <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                          <Avatar className="h-8 w-8 rounded-lg">
+                            <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                            <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
+                          </Avatar>
+                          <div className="grid flex-1 text-left text-sm leading-tight">
+                            <span className="truncate font-semibold">{user.name}</span>
+                            <span className="truncate text-xs">{user.email}</span>
+                          </div>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setParentCurrentView("profile")}>
+                        <Settings />
+                        Profile Settings
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={logout}>
+                        <LogOut />
+                        Log out
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarFooter>
+            <SidebarRail />
+          </Sidebar>
+          <SidebarInset>
+            <DashboardHeader user={user} onProfileClick={() => setParentCurrentView("profile")} onLogout={logout} />
+            <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderParentContent()}</div>
+          </SidebarInset>
+        </SidebarProvider>
+      </ProfileProvider>
+    )
   }
 
   // Admin Dashboard
@@ -193,9 +565,8 @@ export function Dashboard() {
                 </Card>
 
                 <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <CardHeader>
+                    <CardTitle>Revenue</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">$45,231</div>
@@ -392,15 +763,11 @@ export function Dashboard() {
                               <SidebarRail />
                             </Sidebar>
                             <SidebarInset>
-                              <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-                                <div className="flex items-center gap-2 px-4">
-                                  <SidebarTrigger className="-ml-1" />
-                                  <Separator orientation="vertical" className="mr-2 h-4" />
-                                  <Badge variant="outline" className="capitalize">
-                                    {user.role}
-                                  </Badge>
-                                </div>
-                              </header>
+                              <DashboardHeader
+                                user={user}
+                                onProfileClick={() => setAdminCurrentView("profile")}
+                                onLogout={logout}
+                              />
                               <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderAdminContent()}</div>
                             </SidebarInset>
                           </SidebarProvider>
@@ -537,15 +904,11 @@ export function Dashboard() {
                   <SidebarRail />
                 </Sidebar>
                 <SidebarInset>
-                  <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-                    <div className="flex items-center gap-2 px-4">
-                      <SidebarTrigger className="-ml-1" />
-                      <Separator orientation="vertical" className="mr-2 h-4" />
-                      <Badge variant="outline" className="capitalize">
-                        {user.role}
-                      </Badge>
-                    </div>
-                  </header>
+                  <DashboardHeader
+                    user={user}
+                    onProfileClick={() => setTeacherCurrentView("profile")}
+                    onLogout={logout}
+                  />
                   <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderTeacherContent()}</div>
                 </SidebarInset>
               </SidebarProvider>
@@ -553,6 +916,153 @@ export function Dashboard() {
           </TeacherGradesProvider>
         </TeacherClassesProvider>
       </TeacherAttendanceProvider>
+    )
+  }
+
+  // Bursar Dashboard
+  if (user.role === "bursar") {
+    const bursarMenuItems = [
+      { id: "dashboard", label: "Dashboard", icon: Home },
+      { id: "financial", label: "Fee Management", icon: DollarSign },
+      { id: "reports", label: "Financial Reports", icon: BarChart3 },
+    ]
+
+    const renderBursarContent = () => {
+      switch (bursarCurrentView) {
+        case "financial":
+          return (
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-3xl font-bold">Fee Management</h1>
+                <p className="text-muted-foreground">Comprehensive tuition fee and payment management</p>
+              </div>
+              <BursarDashboard />
+            </div>
+          )
+        case "reports":
+          return (
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-3xl font-bold">Financial Reports</h1>
+                <p className="text-muted-foreground">Generate comprehensive financial reports and analytics</p>
+              </div>
+              <div className="text-center py-12">
+                <BarChart3 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Advanced Reporting</h3>
+                <p className="text-muted-foreground mb-4">Detailed financial reporting features coming soon</p>
+                <Button variant="outline">Request Feature</Button>
+              </div>
+            </div>
+          )
+        case "profile":
+          return <ProfileSettings />
+        default:
+          return <BursarDashboard onNavigate={setBursarCurrentView} />
+      }
+    }
+
+    return (
+      <BursarProvider>
+        <ProfileProvider>
+          <SidebarProvider>
+            <Sidebar variant="inset">
+              <SidebarHeader>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <div className="flex items-center gap-2 px-2 py-1">
+                      <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                        <School className="size-4" />
+                      </div>
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-semibold">GBHS Yaoundé</span>
+                        <span className="truncate text-xs">Bursar Portal</span>
+                      </div>
+                    </div>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarHeader>
+              <SidebarContent>
+                <SidebarGroup>
+                  <SidebarGroupLabel>Financial Management</SidebarGroupLabel>
+                  <SidebarGroupContent>
+                    <SidebarMenu>
+                      {bursarMenuItems.map((item) => (
+                        <SidebarMenuItem key={item.id}>
+                          <SidebarMenuButton
+                            onClick={() => setBursarCurrentView(item.id as BursarView)}
+                            isActive={bursarCurrentView === item.id}
+                          >
+                            <item.icon />
+                            <span>{item.label}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              </SidebarContent>
+              <SidebarFooter>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <SidebarMenuButton
+                          size="lg"
+                          className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                        >
+                          <Avatar className="h-8 w-8 rounded-lg">
+                            <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                            <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
+                          </Avatar>
+                          <div className="grid flex-1 text-left text-sm leading-tight">
+                            <span className="truncate font-semibold">{user.name}</span>
+                            <span className="truncate text-xs">{user.email}</span>
+                          </div>
+                          <ChevronUp className="ml-auto size-4" />
+                        </SidebarMenuButton>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                        side="bottom"
+                        align="end"
+                        sideOffset={4}
+                      >
+                        <DropdownMenuLabel className="p-0 font-normal">
+                          <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                            <Avatar className="h-8 w-8 rounded-lg">
+                              <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                              <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
+                            </Avatar>
+                            <div className="grid flex-1 text-left text-sm leading-tight">
+                              <span className="truncate font-semibold">{user.name}</span>
+                              <span className="truncate text-xs">{user.email}</span>
+                            </div>
+                          </div>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setBursarCurrentView("profile")}>
+                          <Settings />
+                          Profile Settings
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={logout}>
+                          <LogOut />
+                          Log out
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarFooter>
+              <SidebarRail />
+            </Sidebar>
+            <SidebarInset>
+              <DashboardHeader user={user} onProfileClick={() => setBursarCurrentView("profile")} onLogout={logout} />
+              <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderBursarContent()}</div>
+            </SidebarInset>
+          </SidebarProvider>
+        </ProfileProvider>
+      </BursarProvider>
     )
   }
 
@@ -565,7 +1075,7 @@ export function Dashboard() {
           <CardDescription>Your role ({user.role}) does not have access to this dashboard yet.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={logout} className="w-full">
+          <Button onClick={logout} className="w-full justify-start bg-transparent">
             <LogOut className="mr-2 h-4 w-4" />
             Logout
           </Button>
