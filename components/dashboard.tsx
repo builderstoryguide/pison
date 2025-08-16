@@ -920,7 +920,7 @@ export function Dashboard() {
   }
 
   // Bursar Dashboard
-  if (user.role === "bursar") {
+  if (user.role === "burser") {
     const bursarMenuItems = [
       { id: "dashboard", label: "Dashboard", icon: Home },
       { id: "financial", label: "Fee Management", icon: DollarSign },
