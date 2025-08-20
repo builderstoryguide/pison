@@ -12,6 +12,7 @@ import { ReportsAnalyticsProvider } from "@/lib/reports-analytics-context"
 import { ProfileProvider } from "@/lib/profile-context"
 import { TeacherAttendanceProvider } from "@/lib/teacher-attendance-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
+import { NotificationProvider } from "@/lib/notification-context"
 import { Dashboard } from "@/components/dashboard"
 import { Loader2 } from "lucide-react"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -35,31 +36,33 @@ function AppContent() {
   }
 
   return (
-    <UserManagementProvider>
-      <StudentEnrollmentProvider>
-        <StudentManagementProvider>
-          <TeacherManagementProvider>
-            <ClassManagementProvider>
-              <ExaminationProvider>
-                <FinancialProvider>
-                  <AttendanceProvider>
-                    <TeacherAttendanceProvider>
-                      <TeacherGradesProvider>
-                        <ReportsAnalyticsProvider>
-                          <ProfileProvider>
-                            <Dashboard user={user} />
-                          </ProfileProvider>
-                        </ReportsAnalyticsProvider>
-                      </TeacherGradesProvider>
-                    </TeacherAttendanceProvider>
-                  </AttendanceProvider>
-                </FinancialProvider>
-              </ExaminationProvider>
-            </ClassManagementProvider>
-          </TeacherManagementProvider>
-        </StudentManagementProvider>
-      </StudentEnrollmentProvider>
-    </UserManagementProvider>
+    <NotificationProvider>
+      <UserManagementProvider>
+        <StudentEnrollmentProvider>
+          <StudentManagementProvider>
+            <TeacherManagementProvider>
+              <ClassManagementProvider>
+                <ExaminationProvider>
+                  <FinancialProvider>
+                    <AttendanceProvider>
+                      <TeacherAttendanceProvider>
+                        <TeacherGradesProvider>
+                          <ReportsAnalyticsProvider>
+                            <ProfileProvider>
+                              <Dashboard user={user} />
+                            </ProfileProvider>
+                          </ReportsAnalyticsProvider>
+                        </TeacherGradesProvider>
+                      </TeacherAttendanceProvider>
+                    </AttendanceProvider>
+                  </FinancialProvider>
+                </ExaminationProvider>
+              </ClassManagementProvider>
+            </TeacherManagementProvider>
+          </StudentManagementProvider>
+        </StudentEnrollmentProvider>
+      </UserManagementProvider>
+    </NotificationProvider>
   )
 }
 

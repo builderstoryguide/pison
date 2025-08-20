@@ -27,9 +27,10 @@ const feesStatusColors = {
 interface StudentDetailsDialogProps {
   student: Student
   onClose: () => void
+  onEdit?: (student: Student) => void
 }
 
-export function StudentDetailsDialog({ student, onClose }: StudentDetailsDialogProps) {
+export function StudentDetailsDialog({ student, onClose, onEdit }: StudentDetailsDialogProps) {
   return (
     <div className="space-y-6">
       {/* Student Header */}
@@ -37,23 +38,23 @@ export function StudentDetailsDialog({ student, onClose }: StudentDetailsDialogP
         <Avatar className="h-16 w-16">
           <AvatarImage src={student.avatar || "/placeholder.svg"} />
           <AvatarFallback className="text-lg">
-            {student.name.split(' ').map(n => n[0]).join('')}
+            {`${student.first_name.charAt(0)}${student.last_name.charAt(0)}`.toUpperCase()}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-xl font-semibold">{student.name}</h3>
-            {student.isNewStudent && (
+            <h3 className="text-xl font-semibold">{student.first_name} {student.last_name}</h3>
+            {student.is_new_student && (
               <Badge variant="secondary">New Student</Badge>
             )}
           </div>
           <p className="text-muted-foreground mb-2">{student.email}</p>
           <div className="flex gap-2">
-            <Badge className={enrollmentStatusColors[student.enrollmentStatus]}>
-              {student.enrollmentStatus}
+            <Badge className={enrollmentStatusColors[student.enrollment_status]}>
+              {student.enrollment_status}
             </Badge>
-            <Badge className={feesStatusColors[student.feesStatus]}>
-              Fees: {student.feesStatus}
+            <Badge className={feesStatusColors[student.fees_status]}>
+              Fees: {student.fees_status}
             </Badge>
           </div>
         </div>
@@ -73,11 +74,11 @@ export function StudentDetailsDialog({ student, onClose }: StudentDetailsDialogP
           <div className="grid gap-3 md:grid-cols-2">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Student ID</p>
-              <p className="font-mono">{student.studentId}</p>
+              <p className="font-mono">{student.student_id}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Admission Number</p>
-              <p className="font-mono">{student.admissionNumber}</p>
+              <p className="font-mono">{student.student_id}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Class</p>
@@ -93,12 +94,12 @@ export function StudentDetailsDialog({ student, onClose }: StudentDetailsDialogP
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Academic Year</p>
-              <p>{student.academicYear}</p>
+              <p>{student.academic_year || '2024-25'}</p>
             </div>
           </div>
           <div>
             <p className="text-sm font-medium text-muted-foreground">Previous School</p>
-            <p>{student.previousSchool || 'Not provided'}</p>
+            <p>{student.previous_school || 'Not provided'}</p>
           </div>
         </CardContent>
       </Card>
@@ -115,7 +116,7 @@ export function StudentDetailsDialog({ student, onClose }: StudentDetailsDialogP
           <div className="grid gap-3 md:grid-cols-2">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Date of Birth</p>
-              <p>{student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString() : 'Not provided'}</p>
+              <p>{student.date_of_birth ? new Date(student.date_of_birth).toLocaleDateString() : 'Not provided'}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Gender</p>
@@ -127,7 +128,7 @@ export function StudentDetailsDialog({ student, onClose }: StudentDetailsDialogP
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Enrollment Date</p>
-              <p>{new Date(student.enrollmentDate).toLocaleDateString()}</p>
+              <p>{student.enrollment_date ? new Date(student.enrollment_date).toLocaleDateString() : 'Not provided'}</p>
             </div>
           </div>
           <div>
@@ -137,87 +138,35 @@ export function StudentDetailsDialog({ student, onClose }: StudentDetailsDialogP
         </CardContent>
       </Card>
 
-      {/* Guardian Information */}
+      {/* Additional Information */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Guardian Information
+            <FileText className="h-5 w-5" />
+            Additional Information
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 md:grid-cols-2">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Guardian Name</p>
-              <p>{student.guardianName || 'Not provided'}</p>
+              <p className="text-sm font-medium text-muted-foreground">Place of Birth</p>
+              <p>{student.place_of_birth || 'Not provided'}</p>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Guardian Phone</p>
-              <p>{student.guardianPhone || 'Not provided'}</p>
+              <p className="text-sm font-medium text-muted-foreground">Nationality</p>
+              <p>{student.nationality || 'Not provided'}</p>
             </div>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Guardian Email</p>
-            <p>{student.guardianEmail || 'Not provided'}</p>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Religion</p>
+              <p>{student.religion || 'Not provided'}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Previous Class</p>
+              <p>{student.previous_class || 'Not provided'}</p>
+            </div>
           </div>
         </CardContent>
       </Card>
-
-      {/* Emergency Contact */}
-      {student.emergencyContact && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Heart className="h-5 w-5" />
-              Emergency Contact
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid gap-3 md:grid-cols-2">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Contact Name</p>
-                <p>{student.emergencyContact.name}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                <p>{student.emergencyContact.phone}</p>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Relationship</p>
-              <p>{student.emergencyContact.relationship}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Medical Information */}
-      {student.medicalInfo && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Heart className="h-5 w-5" />
-              Medical Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid gap-3 md:grid-cols-3">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Blood Group</p>
-                <p>{student.medicalInfo.bloodGroup || 'Not provided'}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Allergies</p>
-                <p>{student.medicalInfo.allergies || 'None'}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Medical Conditions</p>
-                <p>{student.medicalInfo.conditions || 'None'}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Fees Information */}
       <Card>
@@ -231,26 +180,26 @@ export function StudentDetailsDialog({ student, onClose }: StudentDetailsDialogP
           <div className="grid gap-3 md:grid-cols-3">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Fees</p>
-              <p className="text-lg font-semibold">₦{student.totalFees.toLocaleString()}</p>
+              <p className="text-lg font-semibold">{student.total_fees.toLocaleString()} XAF</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Paid Amount</p>
-              <p className="text-lg font-semibold text-green-600">₦{student.paidFees.toLocaleString()}</p>
+              <p className="text-lg font-semibold text-green-600">{student.paid_fees.toLocaleString()} XAF</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Outstanding</p>
-              <p className="text-lg font-semibold text-red-600">₦{(student.totalFees - student.paidFees).toLocaleString()}</p>
+              <p className="text-lg font-semibold text-red-600">{(student.total_fees - student.paid_fees).toLocaleString()} XAF</p>
             </div>
           </div>
           <div className="mt-4">
             <div className="flex justify-between text-sm mb-1">
               <span>Payment Progress</span>
-              <span>{Math.round((student.paidFees / student.totalFees) * 100)}%</span>
+              <span>{student.total_fees > 0 ? Math.round((student.paid_fees / student.total_fees) * 100) : 0}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
                 className="bg-green-600 h-2 rounded-full" 
-                style={{ width: `${(student.paidFees / student.totalFees) * 100}%` }}
+                style={{ width: `${student.total_fees > 0 ? (student.paid_fees / student.total_fees) * 100 : 0}%` }}
               ></div>
             </div>
           </div>
@@ -262,9 +211,11 @@ export function StudentDetailsDialog({ student, onClose }: StudentDetailsDialogP
         <Button variant="outline" onClick={onClose}>
           Close
         </Button>
-        <Button>
-          Edit Student
-        </Button>
+        {onEdit && (
+          <Button onClick={() => onEdit(student)}>
+            Edit Student
+          </Button>
+        )}
       </div>
     </div>
   )

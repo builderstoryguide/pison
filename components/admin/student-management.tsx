@@ -6,6 +6,7 @@ import {
   Plus,
   Filter,
   Download,
+  Upload,
   Users,
   GraduationCap,
   DollarSign,
@@ -15,6 +16,7 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -34,6 +36,8 @@ import { StudentEnrollmentForm } from "./student-enrollment-form"
 import { EnrollmentSuccessDialog } from "./enrollment-success-dialog"
 import { StudentDetailsDialog } from "./student-details-dialog"
 import { StudentFeesDialog } from "./student-fees-dialog"
+import { EditStudentForm } from "./edit-student-form"
+import { StudentBulkUpload } from "./student-bulk-upload"
 
 const classes = {
   english: {
@@ -56,6 +60,7 @@ export function StudentManagement() {
     isUsingDatabase,
     filters,
     setFilters,
+    clearFilters,
     loadStudents,
     updateStudent,
     deleteStudent,
@@ -67,10 +72,12 @@ export function StudentManagement() {
   } = useStudentManagement()
 
   const [showEnrollmentForm, setShowEnrollmentForm] = useState(false)
-  const [enrollmentSuccess, setEnrollmentSuccess] = useState<{ studentId: string; parentCode: string } | null>(null)
+  const [showBulkUpload, setShowBulkUpload] = useState(false)
+  const [enrollmentSuccess, setEnrollmentSuccess] = useState<{ studentId: string; parentCode: string; studentName: string } | null>(null)
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [showStudentDetails, setShowStudentDetails] = useState(false)
   const [showFeesDialog, setShowFeesDialog] = useState(false)
+  const [showEditForm, setShowEditForm] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
 
   const stats = getStudentStats()
@@ -93,7 +100,7 @@ export function StudentManagement() {
 
   const tabStudents = getTabStudents(activeTab)
 
-  const handleEnrollmentSuccess = (result: { studentId: string; parentCode: string }) => {
+  const handleEnrollmentSuccess = (result: { studentId: string; parentCode: string; studentName: string }) => {
     setEnrollmentSuccess(result)
     setShowEnrollmentForm(false)
     loadStudents() // Refresh the students list
@@ -117,6 +124,25 @@ export function StudentManagement() {
         loadStudents() // Refresh the list
       }
     }
+  }
+
+  const handleEditStudent = (student: Student) => {
+    setSelectedStudent(student)
+    setShowEditForm(true)
+    setShowStudentDetails(false)
+  }
+
+  const handleSaveStudent = async (updatedData: Partial<Student>) => {
+    if (!selectedStudent) return false
+    
+    const success = await updateStudent(selectedStudent.id, updatedData)
+    if (success) {
+      loadStudents() // Refresh the list
+      setShowEditForm(false)
+      setSelectedStudent(null)
+      return true
+    }
+    return false
   }
 
   const exportToCSV = () => {
@@ -219,6 +245,22 @@ export function StudentManagement() {
     testDatabaseConnection()
   }, [])
 
+  // Global keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        const searchInput = document.getElementById('search') as HTMLInputElement
+        if (searchInput) {
+          searchInput.focus()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -239,9 +281,17 @@ export function StudentManagement() {
           <p className="text-muted-foreground">Manage student enrollment, records, and information</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => loadStudents()}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
           <Button variant="outline" onClick={exportToCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export CSV
+          </Button>
+          <Button variant="outline" onClick={() => setShowBulkUpload(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Bulk Upload
           </Button>
           <Button onClick={() => setShowEnrollmentForm(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -252,9 +302,9 @@ export function StudentManagement() {
 
       {/* Database Status */}
       {!isUsingDatabase && (
-        <Alert>
+        <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Using local storage. Connect to database for full functionality.</AlertDescription>
+          <AlertDescription>Database connection is required for student management. Please check your database configuration.</AlertDescription>
         </Alert>
       )}
 
@@ -265,6 +315,14 @@ export function StudentManagement() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+
+      {/* Debug Information */}
+      <div className="text-sm text-muted-foreground">
+        <p>Total students loaded: {students.length}</p>
+        <p>Filtered students: {filteredStudents.length}</p>
+        <p>New students: {newStudents.length}</p>
+        <p>Using database: {isUsingDatabase ? 'Yes' : 'No'}</p>
+      </div>
 
       {/* Statistics Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -320,10 +378,20 @@ export function StudentManagement() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filters
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filters
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearFilters}
+              className="text-xs"
+            >
+              Clear All Filters
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-6">
@@ -333,12 +401,32 @@ export function StudentManagement() {
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="search"
-                  placeholder="Name, ID, or email..."
+                  placeholder="Search by name, ID, email, phone, address... (Ctrl+K)"
                   value={filters.search}
                   onChange={(e) => handleUpdateFilters("search", e.target.value)}
                   className="pl-8"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      handleUpdateFilters("search", "")
+                    }
+                  }}
                 />
+                {filters.search && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1 top-1 h-6 w-6 p-0"
+                    onClick={() => handleUpdateFilters("search", "")}
+                  >
+                    ×
+                  </Button>
+                )}
               </div>
+              {filters.search && (
+                <p className="text-xs text-muted-foreground">
+                  Searching in: name, ID, email, phone, address, city, region, nationality, previous school
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -423,16 +511,69 @@ export function StudentManagement() {
               </Select>
             </div>
           </div>
+          
+          {/* Quick Filters */}
+          <div className="mt-4 pt-4 border-t">
+            <Label className="text-sm font-medium mb-2 block">Quick Filters:</Label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFilters({ ...filters, status: "enrolled", feesStatus: "paid" })}
+                className="text-xs"
+              >
+                Fully Enrolled & Paid
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFilters({ ...filters, feesStatus: "pending" })}
+                className="text-xs"
+              >
+                Pending Fees
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFilters({ ...filters, status: "pending" })}
+                className="text-xs"
+              >
+                Pending Enrollment
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFilters({ ...filters, feesStatus: "overdue" })}
+                className="text-xs"
+              >
+                Overdue Fees
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
       {/* Students Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Students</CardTitle>
-          <CardDescription>
-            {tabStudents.length} student{tabStudents.length !== 1 ? "s" : ""} found
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Students</CardTitle>
+              <CardDescription>
+                {tabStudents.length} student{tabStudents.length !== 1 ? "s" : ""} found
+                {filters.search && (
+                  <span className="ml-2 text-blue-600">
+                    • Searching for "{filters.search}"
+                  </span>
+                )}
+              </CardDescription>
+            </div>
+            {filters.search && (
+              <Badge variant="outline" className="text-xs">
+                Search Results
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -472,19 +613,63 @@ export function StudentManagement() {
             </TabsList>
 
             <TabsContent value={activeTab} className="mt-4">
+              {/* Search Results Summary */}
+              {(filters.search || filters.subsystem !== "all" || filters.branch !== "all" || filters.class !== "all" || filters.status !== "all" || filters.feesStatus !== "all") && (
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg text-sm">
+                  <p className="font-medium mb-1">Active Filters:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {filters.search && (
+                      <Badge variant="secondary">Search: "{filters.search}"</Badge>
+                    )}
+                    {filters.subsystem !== "all" && (
+                      <Badge variant="secondary">System: {filters.subsystem}</Badge>
+                    )}
+                    {filters.branch !== "all" && (
+                      <Badge variant="secondary">Branch: {filters.branch}</Badge>
+                    )}
+                    {filters.class !== "all" && (
+                      <Badge variant="secondary">Class: {filters.class}</Badge>
+                    )}
+                    {filters.status !== "all" && (
+                      <Badge variant="secondary">Status: {filters.status}</Badge>
+                    )}
+                    {filters.feesStatus !== "all" && (
+                      <Badge variant="secondary">Fees: {filters.feesStatus}</Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {tabStudents.length === 0 ? (
                 <div className="text-center py-8">
                   <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium mb-2">No students found</h3>
                   <p className="text-muted-foreground mb-4">
-                    {activeTab === "all"
+                    {filters.search 
+                      ? `No students found matching "${filters.search}". Try adjusting your search terms or filters.`
+                      : activeTab === "all"
                       ? "No students match your current filters."
                       : `No ${activeTab} students found.`}
                   </p>
-                  {activeTab === "all" && (
+                  {filters.search && (
+                    <div className="mb-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
+                      <p className="font-medium mb-1">Search Tips:</p>
+                      <ul className="text-left space-y-1">
+                        <li>• Try searching by student name, ID, or email</li>
+                        <li>• Check spelling and try partial matches</li>
+                        <li>• Clear filters to see all students</li>
+                      </ul>
+                    </div>
+                  )}
+                  {activeTab === "all" && !filters.search && (
                     <Button onClick={() => setShowEnrollmentForm(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Enroll First Student
+                    </Button>
+                  )}
+                  {(filters.search || activeTab !== "all") && (
+                    <Button variant="outline" onClick={clearFilters}>
+                      Clear Filters
                     </Button>
                   )}
                 </div>
@@ -621,41 +806,113 @@ export function StudentManagement() {
 
       {/* Enrollment Success Dialog */}
       {enrollmentSuccess && (
-        <EnrollmentSuccessDialog
-          studentId={enrollmentSuccess.studentId}
-          parentCode={enrollmentSuccess.parentCode}
-          onClose={() => setEnrollmentSuccess(null)}
-        />
+        <Dialog open={!!enrollmentSuccess} onOpenChange={() => setEnrollmentSuccess(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Enrollment Successful!</DialogTitle>
+              <DialogDescription>
+                {enrollmentSuccess.studentName} has been successfully enrolled
+              </DialogDescription>
+            </DialogHeader>
+            <EnrollmentSuccessDialog
+              studentId={enrollmentSuccess.studentId}
+              parentCode={enrollmentSuccess.parentCode}
+              studentName={enrollmentSuccess.studentName}
+              onClose={() => setEnrollmentSuccess(null)}
+            />
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Student Details Dialog */}
       {selectedStudent && (
-        <StudentDetailsDialog
-          student={selectedStudent}
-          open={showStudentDetails}
-          onClose={() => {
-            setShowStudentDetails(false)
-            setSelectedStudent(null)
-          }}
-        />
+        <Dialog open={showStudentDetails} onOpenChange={() => {
+          setShowStudentDetails(false)
+          setSelectedStudent(null)
+        }}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Student Details</DialogTitle>
+              <DialogDescription>View detailed information about {selectedStudent.first_name} {selectedStudent.last_name}</DialogDescription>
+            </DialogHeader>
+            <StudentDetailsDialog
+              student={selectedStudent}
+              onClose={() => {
+                setShowStudentDetails(false)
+                setSelectedStudent(null)
+              }}
+              onEdit={handleEditStudent}
+            />
+          </DialogContent>
+        </Dialog>
       )}
 
       {/* Student Fees Dialog */}
       {selectedStudent && (
-        <StudentFeesDialog
-          student={selectedStudent}
-          open={showFeesDialog}
-          onClose={() => {
-            setShowFeesDialog(false)
-            setSelectedStudent(null)
-          }}
-          onUpdate={() => {
-            loadStudents()
-            setShowFeesDialog(false)
-            setSelectedStudent(null)
-          }}
-        />
+        <Dialog open={showFeesDialog} onOpenChange={() => {
+          setShowFeesDialog(false)
+          setSelectedStudent(null)
+        }}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Student Fees</DialogTitle>
+              <DialogDescription>Manage fees for {selectedStudent.first_name} {selectedStudent.last_name}</DialogDescription>
+            </DialogHeader>
+            <StudentFeesDialog
+              student={selectedStudent}
+              onClose={() => {
+                loadStudents()
+                setShowFeesDialog(false)
+                setSelectedStudent(null)
+              }}
+            />
+          </DialogContent>
+        </Dialog>
       )}
+
+      {/* Edit Student Form Dialog */}
+      {selectedStudent && (
+        <Dialog open={showEditForm} onOpenChange={() => {
+          setShowEditForm(false)
+          setSelectedStudent(null)
+        }}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Student</DialogTitle>
+              <DialogDescription>
+                Update information for {selectedStudent.first_name} {selectedStudent.last_name}
+              </DialogDescription>
+            </DialogHeader>
+            <EditStudentForm
+              student={selectedStudent}
+              onSave={handleSaveStudent}
+              onCancel={() => {
+                setShowEditForm(false)
+                setSelectedStudent(null)
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Bulk Upload Dialog */}
+      <Dialog open={showBulkUpload} onOpenChange={setShowBulkUpload}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Bulk Student Upload</DialogTitle>
+            <DialogDescription>
+              Upload Excel or CSV files to enroll multiple students at once
+            </DialogDescription>
+          </DialogHeader>
+          <StudentBulkUpload
+            onSuccess={() => {
+              setShowBulkUpload(false)
+              loadStudents()
+            }}
+            onCancel={() => setShowBulkUpload(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from 'react'
-import { DollarSign, Plus, History } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { DollarSign, Plus, History, RefreshCw } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 
 import { Student, useStudentManagement } from '@/lib/student-management-context'
+import { supabase } from '@/lib/supabase'
 
 const feesStatusColors = {
   paid: 'bg-green-100 text-green-800',
@@ -26,15 +27,51 @@ interface StudentFeesDialogProps {
 }
 
 export function StudentFeesDialog({ student, onClose }: StudentFeesDialogProps) {
-  const { updateFeesStatus, isLoading } = useStudentManagement()
+  const { updateStudent, isLoading } = useStudentManagement()
   const [paymentAmount, setPaymentAmount] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [currentStudent, setCurrentStudent] = useState<Student>(student)
 
-  const outstandingAmount = student.totalFees - student.paidFees
-  const paymentPercentage = (student.paidFees / student.totalFees) * 100
+  // Fetch real-time student data from database
+  const fetchStudentData = async () => {
+    setIsRefreshing(true)
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('id', student.id)
+        .single()
+
+      if (error) {
+        console.error('Error fetching student data:', error)
+        return
+      }
+
+      if (data) {
+        setCurrentStudent(data as Student)
+      }
+    } catch (err) {
+      console.error('Error fetching student data:', err)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  // Fetch data on component mount and when student changes
+  useEffect(() => {
+    fetchStudentData()
+  }, [student.id])
+
+  const outstandingAmount = (currentStudent.total_fees || 0) - (currentStudent.paid_fees || 0)
+  const paymentPercentage = currentStudent.total_fees > 0 
+    ? ((currentStudent.paid_fees || 0) / currentStudent.total_fees) * 100 
+    : 0
 
   const handlePayment = async () => {
     setError(null)
+    setSuccess(null)
     
     const amount = parseFloat(paymentAmount)
     if (isNaN(amount) || amount <= 0) {
@@ -42,23 +79,54 @@ export function StudentFeesDialog({ student, onClose }: StudentFeesDialogProps) 
       return
     }
 
-    const newTotalPaid = student.paidFees + amount
-    if (newTotalPaid > student.totalFees) {
+    const newTotalPaid = (currentStudent.paid_fees || 0) + amount
+    if (newTotalPaid > (currentStudent.total_fees || 0)) {
       setError('Payment amount exceeds outstanding balance')
       return
     }
 
-    const success = await updateFeesStatus(student.id, newTotalPaid)
-    if (success) {
+    // Determine new fees status
+    let newFeesStatus = currentStudent.fees_status
+    if (newTotalPaid >= (currentStudent.total_fees || 0)) {
+      newFeesStatus = 'paid'
+    } else if (newTotalPaid > 0) {
+      newFeesStatus = 'partial'
+    }
+
+    const updateSuccess = await updateStudent(student.id, {
+      paid_fees: newTotalPaid,
+      fees_status: newFeesStatus
+    })
+    
+    if (updateSuccess) {
       setPaymentAmount('')
-      onClose()
+      setSuccess(`Payment of ${amount.toLocaleString()} XAF recorded successfully!`)
+      // Refresh data from database
+      await fetchStudentData()
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000)
+    } else {
+      setError('Failed to update payment. Please try again.')
     }
   }
 
   const handleFullPayment = async () => {
-    const success = await updateFeesStatus(student.id, student.totalFees)
-    if (success) {
-      onClose()
+    setError(null)
+    setSuccess(null)
+    
+    const updateSuccess = await updateStudent(student.id, {
+      paid_fees: currentStudent.total_fees,
+      fees_status: 'paid'
+    })
+    
+    if (updateSuccess) {
+      setSuccess(`Full payment of ${(currentStudent.total_fees || 0).toLocaleString()} XAF recorded successfully!`)
+      // Refresh data from database
+      await fetchStudentData()
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000)
+    } else {
+      setError('Failed to update payment. Please try again.')
     }
   }
 
@@ -66,10 +134,10 @@ export function StudentFeesDialog({ student, onClose }: StudentFeesDialogProps) 
     <div className="space-y-6">
       {/* Student Info */}
       <div className="text-center">
-        <h3 className="text-lg font-semibold">{student.name}</h3>
-        <p className="text-sm text-muted-foreground">{student.studentId}</p>
-        <Badge className={feesStatusColors[student.feesStatus]} variant="outline">
-          {student.feesStatus}
+        <h3 className="text-lg font-semibold">{currentStudent.first_name} {currentStudent.last_name}</h3>
+        <p className="text-sm text-muted-foreground">{currentStudent.student_id}</p>
+        <Badge className={feesStatusColors[currentStudent.fees_status]} variant="outline">
+          {currentStudent.fees_status}
         </Badge>
       </div>
 
@@ -81,21 +149,30 @@ export function StudentFeesDialog({ student, onClose }: StudentFeesDialogProps) 
           <CardTitle className="flex items-center gap-2">
             <DollarSign className="h-5 w-5" />
             Fees Summary
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fetchStudentData}
+              disabled={isRefreshing}
+              className="ml-auto"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Total Fees</p>
-              <p className="text-2xl font-bold">₦{student.totalFees.toLocaleString()}</p>
+              <p className="text-2xl font-bold">{(currentStudent.total_fees || 0).toLocaleString()} XAF</p>
             </div>
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Paid Amount</p>
-              <p className="text-2xl font-bold text-green-600">₦{student.paidFees.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-green-600">{(currentStudent.paid_fees || 0).toLocaleString()} XAF</p>
             </div>
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Outstanding</p>
-              <p className="text-2xl font-bold text-red-600">₦{outstandingAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-red-600">{outstandingAmount.toLocaleString()} XAF</p>
             </div>
           </div>
 
@@ -128,7 +205,7 @@ export function StudentFeesDialog({ student, onClose }: StudentFeesDialogProps) 
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="paymentAmount">Payment Amount (₦)</Label>
+              <Label htmlFor="paymentAmount">Payment Amount (XAF)</Label>
               <Input
                 id="paymentAmount"
                 type="number"
@@ -138,13 +215,20 @@ export function StudentFeesDialog({ student, onClose }: StudentFeesDialogProps) 
                 max={outstandingAmount}
               />
               <p className="text-xs text-muted-foreground">
-                Maximum: ₦{outstandingAmount.toLocaleString()}
+                Maximum: {outstandingAmount.toLocaleString()} XAF
               </p>
             </div>
 
             {error && (
               <Alert variant="destructive">
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {success && (
+              <Alert className="border-green-200 bg-green-50">
+                <DollarSign className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">{success}</AlertDescription>
               </Alert>
             )}
 

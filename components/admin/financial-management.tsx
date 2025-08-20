@@ -130,7 +130,7 @@ export function FinancialManagement() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₦{financialSummary.totalCollections.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{financialSummary.totalCollections.toLocaleString()} XAF</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600">+12%</span> from last month
             </p>
@@ -143,7 +143,7 @@ export function FinancialManagement() {
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₦{financialSummary.totalOutstanding.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{financialSummary.totalOutstanding.toLocaleString()} XAF</div>
             <p className="text-xs text-muted-foreground">
               <span className="text-red-600">-8%</span> from last month
             </p>
@@ -245,9 +245,9 @@ export function FinancialManagement() {
                           {payment.term} Term {payment.academicYear}
                         </div>
                       </TableCell>
-                      <TableCell>₦{payment.amount.toLocaleString()}</TableCell>
-                      <TableCell>₦{payment.amountPaid.toLocaleString()}</TableCell>
-                      <TableCell>₦{payment.balance.toLocaleString()}</TableCell>
+                                      <TableCell>{payment.amount.toLocaleString()} XAF</TableCell>
+                <TableCell>{payment.amountPaid.toLocaleString()} XAF</TableCell>
+                <TableCell>{payment.balance.toLocaleString()} XAF</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {getStatusIcon(payment.status)}
@@ -337,7 +337,7 @@ export function FinancialManagement() {
                         <Badge variant="outline">{fee.subsystem === "english" ? "English" : "French"}</Badge>
                       </TableCell>
                       <TableCell>{fee.level}</TableCell>
-                      <TableCell>₦{fee.amount.toLocaleString()}</TableCell>
+                      <TableCell>{fee.amount.toLocaleString()} XAF</TableCell>
                       <TableCell>{fee.dueDate}</TableCell>
                       <TableCell>
                         <Badge variant={fee.isActive ? "default" : "secondary"}>
@@ -421,8 +421,8 @@ export function FinancialManagement() {
                         <TableCell>
                           <div className="font-medium">{plan.studentName}</div>
                         </TableCell>
-                        <TableCell>₦{plan.totalAmount.toLocaleString()}</TableCell>
-                        <TableCell>₦{plan.amountPaid.toLocaleString()}</TableCell>
+                                        <TableCell>{plan.totalAmount.toLocaleString()} XAF</TableCell>
+                <TableCell>{plan.amountPaid.toLocaleString()} XAF</TableCell>
                         <TableCell>
                           <div className="space-y-1">
                             <Progress value={progress} className="w-20" />

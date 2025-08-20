@@ -3,7 +3,6 @@
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { supabase, testConnection } from "./supabase"
-import { StorageUtils } from "./storage-utils"
 
 export interface Student {
   id: string
@@ -64,6 +63,7 @@ interface StudentManagementContextType {
   isUsingDatabase: boolean
   filters: StudentFilters
   setFilters: (filters: StudentFilters) => void
+  clearFilters: () => void
   loadStudents: () => Promise<void>
   getStudent: (id: string) => Student | undefined
   updateStudent: (id: string, updates: Partial<Student>) => Promise<boolean>
@@ -84,11 +84,11 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
   const [isUsingDatabase, setIsUsingDatabase] = useState(false)
   const [filters, setFilters] = useState<StudentFilters>({
     search: "",
-    class: "",
-    branch: "",
-    subsystem: "",
-    status: "",
-    feesStatus: "",
+    class: "all",
+    branch: "all",
+    subsystem: "all",
+    status: "all",
+    feesStatus: "all",
   })
 
   const testDatabaseConnection = async (): Promise<boolean> => {
@@ -105,23 +105,22 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
       const dbConnected = await testConnection()
       setIsUsingDatabase(dbConnected)
 
-      if (dbConnected) {
-        // Load from Supabase
-        const { data, error: fetchError } = await supabase
-          .from("students")
-          .select("*")
-          .order("created_at", { ascending: false })
-
-        if (fetchError) {
-          throw new Error(`Failed to load students: ${fetchError.message}`)
-        }
-
-        setStudents(data || [])
-      } else {
-        // Load from localStorage
-        const savedStudents = StorageUtils.getItem("students") || []
-        setStudents(savedStudents)
+      if (!dbConnected) {
+        throw new Error("Database connection is required for student management. Please check your database configuration.")
       }
+
+      // Load from Supabase
+      const { data, error: fetchError } = await supabase
+        .from("students")
+        .select("*")
+        .order("created_at", { ascending: false })
+
+      if (fetchError) {
+        throw new Error(`Failed to load students: ${fetchError.message}`)
+      }
+
+      setStudents(data || [])
+      console.log("Loaded students from database:", data?.length || 0)
     } catch (err) {
       console.error("Error loading students:", err)
       setError(err instanceof Error ? err.message : "Failed to load students")
@@ -138,26 +137,21 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
     try {
       const dbConnected = await testConnection()
 
-      if (dbConnected) {
-        // Update in Supabase
-        const { error: updateError } = await supabase
-          .from("students")
-          .update({
-            ...updates,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", id)
+      if (!dbConnected) {
+        throw new Error("Database connection is required for student management. Please check your database configuration.")
+      }
 
-        if (updateError) {
-          throw new Error(`Failed to update student: ${updateError.message}`)
-        }
-      } else {
-        // Update in localStorage
-        const savedStudents = StorageUtils.getItem("students") || []
-        const updatedStudents = savedStudents.map((student: Student) =>
-          student.id === id ? { ...student, ...updates, updated_at: new Date().toISOString() } : student,
-        )
-        StorageUtils.setItem("students", updatedStudents)
+      // Update in Supabase
+      const { error: updateError } = await supabase
+        .from("students")
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+
+      if (updateError) {
+        throw new Error(`Failed to update student: ${updateError.message}`)
       }
 
       // Update local state
@@ -179,18 +173,15 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
     try {
       const dbConnected = await testConnection()
 
-      if (dbConnected) {
-        // Delete from Supabase
-        const { error: deleteError } = await supabase.from("students").delete().eq("id", id)
+      if (!dbConnected) {
+        throw new Error("Database connection is required for student management. Please check your database configuration.")
+      }
 
-        if (deleteError) {
-          throw new Error(`Failed to delete student: ${deleteError.message}`)
-        }
-      } else {
-        // Delete from localStorage
-        const savedStudents = StorageUtils.getItem("students") || []
-        const filteredStudents = savedStudents.filter((student: Student) => student.id !== id)
-        StorageUtils.setItem("students", filteredStudents)
+      // Delete from Supabase
+      const { error: deleteError } = await supabase.from("students").delete().eq("id", id)
+
+      if (deleteError) {
+        throw new Error(`Failed to delete student: ${deleteError.message}`)
       }
 
       // Update local state
@@ -205,17 +196,35 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
 
   const getFilteredStudents = (): Student[] => {
     return students.filter((student) => {
-      const matchesSearch =
-        !filters.search ||
-        `${student.first_name} ${student.last_name}`.toLowerCase().includes(filters.search.toLowerCase()) ||
-        student.student_id.toLowerCase().includes(filters.search.toLowerCase()) ||
-        student.email.toLowerCase().includes(filters.search.toLowerCase())
+      // Enhanced search functionality
+      const searchTerm = filters.search.toLowerCase().trim()
+      const matchesSearch = !searchTerm || [
+        `${student.first_name} ${student.last_name}`,
+        student.student_id,
+        student.email,
+        student.phone || '',
+        student.middle_name || '',
+        student.address || '',
+        student.city || '',
+        student.region || '',
+        student.nationality || '',
+        student.previous_school || ''
+      ].some(field => field.toLowerCase().includes(searchTerm))
 
-      const matchesClass = !filters.class || student.class === filters.class
-      const matchesBranch = !filters.branch || student.branch === filters.branch
-      const matchesSubsystem = !filters.subsystem || student.subsystem === filters.subsystem
-      const matchesStatus = !filters.status || student.enrollment_status === filters.status
-      const matchesFeesStatus = !filters.feesStatus || student.fees_status === filters.feesStatus
+      // Filter by class (handle "all" value)
+      const matchesClass = !filters.class || filters.class === "all" || student.class === filters.class
+      
+      // Filter by branch (handle "all" value)
+      const matchesBranch = !filters.branch || filters.branch === "all" || student.branch === filters.branch
+      
+      // Filter by subsystem (handle "all" value)
+      const matchesSubsystem = !filters.subsystem || filters.subsystem === "all" || student.subsystem === filters.subsystem
+      
+      // Filter by status (handle "all" value)
+      const matchesStatus = !filters.status || filters.status === "all" || student.enrollment_status === filters.status
+      
+      // Filter by fees status (handle "all" value)
+      const matchesFeesStatus = !filters.feesStatus || filters.feesStatus === "all" || student.fees_status === filters.feesStatus
 
       return matchesSearch && matchesClass && matchesBranch && matchesSubsystem && matchesStatus && matchesFeesStatus
     })
@@ -264,9 +273,34 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
     return await updateStudent(id, { enrollment_status: status as any })
   }
 
+  const clearFilters = () => {
+    setFilters({
+      search: "",
+      class: "all",
+      branch: "all",
+      subsystem: "all",
+      status: "all",
+      feesStatus: "all",
+    })
+  }
+
   // Load students on mount
   useEffect(() => {
     loadStudents()
+  }, [])
+
+  // Listen for student enrollment events and refresh the list
+  useEffect(() => {
+    const handleStudentEnrolled = () => {
+      console.log("Student enrolled event received, refreshing student list...")
+      loadStudents()
+    }
+
+    window.addEventListener('studentEnrolled', handleStudentEnrolled)
+    
+    return () => {
+      window.removeEventListener('studentEnrolled', handleStudentEnrolled)
+    }
   }, [])
 
   const value: StudentManagementContextType = {
@@ -276,6 +310,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
     isUsingDatabase,
     filters,
     setFilters,
+    clearFilters,
     loadStudents,
     getStudent,
     updateStudent,

@@ -1,30 +1,139 @@
-# Cameroon school software rules
+# School Management App
 
-*Automatically synced with your [v0.app](https://v0.app) deployments*
+A comprehensive school management system built with Next.js, TypeScript, and Tailwind CSS, designed for Government Bilingual High School Yaoundé.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/builderstoryguide-3125s-projects/v0-cameroon-school-software-rules)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/projects/uCFsBlfjbgl)
+## Features
 
-## Overview
+### Student Management
+- **Student Enrollment**: Complete multi-step enrollment process for new students
+- **Student Records**: Comprehensive student information management
+- **Parent Information**: Store and manage parent/guardian details
+- **Medical Information**: Track student medical conditions and allergies
+- **Emergency Contacts**: Manage emergency contact information
+- **Fee Management**: Track student fees and payment status
 
-This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
+### Database Support
+- **Supabase Integration**: Full database support with PostgreSQL
+- **Database-Only Storage**: All student data is stored in the database
+- **Automatic Sync**: Seamless data synchronization between local and remote storage
 
-## Deployment
+### User Interface
+- **Modern Design**: Clean, responsive interface built with Tailwind CSS
+- **Multi-step Forms**: Intuitive enrollment process with progress tracking
+- **Real-time Validation**: Form validation with helpful error messages
+- **Success Notifications**: Clear feedback for completed actions
 
-Your project is live at:
+## Getting Started
 
-**[https://vercel.com/builderstoryguide-3125s-projects/v0-cameroon-school-software-rules](https://vercel.com/builderstoryguide-3125s-projects/v0-cameroon-school-software-rules)**
+### Prerequisites
 
-## Build your app
+- Node.js 18+ 
+- npm or pnpm
+- Supabase account (optional, for database functionality)
 
-Continue building your app on:
+### Installation
 
-**[https://v0.app/chat/projects/uCFsBlfjbgl](https://v0.app/chat/projects/uCFsBlfjbgl)**
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd school-management-app
+```
 
-## How It Works
+2. Install dependencies:
+```bash
+npm install
+# or
+pnpm install
+```
 
-1. Create and modify your project using [v0.app](https://v0.app)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+3. Set up environment variables (optional for database):
+```bash
+cp .env.example .env.local
+```
+
+Add your Supabase credentials:
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+4. Run the development server:
+```bash
+npm run dev
+# or
+pnpm dev
+```
+
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Database Setup
+
+For full functionality with database support:
+
+1. Create a Supabase project at [supabase.com](https://supabase.com)
+2. Run the SQL script in `scripts/create-tables.sql` in your Supabase SQL Editor
+3. Add your Supabase credentials to `.env.local`
+
+See `scripts/setup-database.md` for detailed setup instructions.
+
+## Student Enrollment Process
+
+### For Administrators
+
+1. Navigate to **Student Management** in the admin dashboard
+2. Click **"Enroll Student"** button
+3. Complete the 6-step enrollment form:
+   - **Step 1**: Personal Information (name, birth details, etc.)
+   - **Step 2**: Contact Information (email, address, etc.)
+   - **Step 3**: Academic Information (subsystem, branch, class)
+   - **Step 4**: Parent/Guardian Information
+   - **Step 5**: Emergency & Medical Information
+   - **Step 6**: Required Documents confirmation
+4. Submit the form to complete enrollment
+5. Receive student ID and parent access code
+
+### Data Storage
+
+- **Database Required**: All student data is stored in Supabase PostgreSQL database
+- **No Local Storage**: Student enrollment and management requires database connection
+- **Error Handling**: Clear error messages when database is unavailable
+
+## Project Structure
+
+```
+school-management-app/
+├── app/                    # Next.js app directory
+├── components/             # React components
+│   ├── admin/             # Admin-specific components
+│   ├── auth/              # Authentication components
+│   ├── ui/                # Reusable UI components
+│   └── ...
+├── lib/                   # Utility functions and contexts
+├── scripts/               # Database setup scripts
+└── public/                # Static assets
+```
+
+## Technology Stack
+
+- **Frontend**: Next.js 14, React, TypeScript
+- **Styling**: Tailwind CSS, shadcn/ui components
+- **Database**: Supabase (PostgreSQL)
+- **State Management**: React Context API
+- **Form Handling**: React Hook Form
+- **Validation**: Zod schema validation
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
+
+## Support
+
+For support and questions, please open an issue in the repository.

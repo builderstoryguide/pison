@@ -10,14 +10,32 @@ export const isSupabaseAvailable = (): boolean => {
 }
 
 export const testConnection = async (): Promise<boolean> => {
-  if (!supabase) return false
-
-  try {
-    const { error } = await supabase.from("users").select("count", { count: "exact", head: true })
-    return !error
-  } catch {
+  if (!supabase) {
+    console.error('Supabase client not initialized - missing environment variables')
     return false
   }
+
+  try {
+    // Test with a simple query to check if the connection works
+    const { error } = await supabase.from("users").select("count", { count: "exact", head: true })
+    
+    if (error) {
+      console.error('Database connection test failed:', error.message)
+      return false
+    }
+    
+    return true
+  } catch (error) {
+    console.error('Database connection test failed with exception:', error)
+    return false
+  }
+}
+
+export const getConnectionError = (): string | null => {
+  if (!supabaseUrl) return 'NEXT_PUBLIC_SUPABASE_URL is not set'
+  if (!supabaseAnonKey) return 'NEXT_PUBLIC_SUPABASE_ANON_KEY is not set'
+  if (!supabase) return 'Failed to create Supabase client'
+  return null
 }
 
 // Database types

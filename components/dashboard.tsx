@@ -17,6 +17,7 @@ import { TeacherAttendanceProvider } from "@/lib/teacher-attendance-context"
 import { TeacherClassesProvider } from "@/lib/teacher-classes-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 import { BursarProvider } from "@/lib/bursar-context"
+import { useNotifications } from "@/lib/notification-context"
 
 // Admin Components
 import { UserManagement } from "./admin/user-management"
@@ -166,18 +167,8 @@ const mockNotifications = [
 
 // Notification Component
 function NotificationDropdown() {
-  const [notifications, setNotifications] = useState(mockNotifications)
+  const { notifications, markAsRead, markAllAsRead, unreadCount } = useNotifications()
   const [isOpen, setIsOpen] = useState(false)
-
-  const unreadCount = notifications.filter((n) => !n.read).length
-
-  const markAsRead = (id: number) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
-  }
-
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-  }
 
   const getNotificationIcon = (type: string) => {
     switch (type) {

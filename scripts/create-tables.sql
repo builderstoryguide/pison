@@ -13,25 +13,176 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Students table
+-- Students table (complete schema with all required fields)
 CREATE TABLE IF NOT EXISTS students (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     student_id VARCHAR(50) UNIQUE NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
+    middle_name VARCHAR(100),
     email VARCHAR(255),
     phone VARCHAR(20),
     date_of_birth DATE,
     gender VARCHAR(10),
-    nationality VARCHAR(100),
+    place_of_birth VARCHAR(100),
+    nationality VARCHAR(100) DEFAULT 'Cameroonian',
+    religion VARCHAR(100),
     address TEXT,
     city VARCHAR(100),
     region VARCHAR(100),
     postal_code VARCHAR(20),
     subsystem VARCHAR(20) NOT NULL CHECK (subsystem IN ('english', 'french')),
-    class_level VARCHAR(50) NOT NULL,
-    stream VARCHAR(50),
+    branch VARCHAR(20) NOT NULL CHECK (branch IN ('grammar', 'technical', 'commercial')),
+    class VARCHAR(50) NOT NULL,
+    previous_school VARCHAR(255),
+    previous_class VARCHAR(50),
+    is_new_student BOOLEAN DEFAULT true,
+    total_fees DECIMAL(10,2) DEFAULT 0,
+    paid_fees DECIMAL(10,2) DEFAULT 0,
+    fees_status VARCHAR(20) DEFAULT 'pending' CHECK (fees_status IN ('pending', 'partial', 'paid', 'overdue')),
+    enrollment_status VARCHAR(20) DEFAULT 'pending' CHECK (enrollment_status IN ('pending', 'enrolled', 'transferred', 'graduated')),
+    academic_year VARCHAR(20) DEFAULT '2024-2025',
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'graduated', 'transferred')),
+    enrollment_date DATE DEFAULT CURRENT_DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Add any missing columns to existing students table (for backward compatibility)
+DO $$
+BEGIN
+    -- Add columns if they don't exist (for existing databases)
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'email') THEN
+        ALTER TABLE students ADD COLUMN email VARCHAR(255);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'middle_name') THEN
+        ALTER TABLE students ADD COLUMN middle_name VARCHAR(100);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'phone') THEN
+        ALTER TABLE students ADD COLUMN phone VARCHAR(20);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'date_of_birth') THEN
+        ALTER TABLE students ADD COLUMN date_of_birth DATE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'gender') THEN
+        ALTER TABLE students ADD COLUMN gender VARCHAR(10);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'place_of_birth') THEN
+        ALTER TABLE students ADD COLUMN place_of_birth VARCHAR(100);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'nationality') THEN
+        ALTER TABLE students ADD COLUMN nationality VARCHAR(100) DEFAULT 'Cameroonian';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'religion') THEN
+        ALTER TABLE students ADD COLUMN religion VARCHAR(100);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'address') THEN
+        ALTER TABLE students ADD COLUMN address TEXT;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'city') THEN
+        ALTER TABLE students ADD COLUMN city VARCHAR(100);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'region') THEN
+        ALTER TABLE students ADD COLUMN region VARCHAR(100);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'postal_code') THEN
+        ALTER TABLE students ADD COLUMN postal_code VARCHAR(20);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'previous_school') THEN
+        ALTER TABLE students ADD COLUMN previous_school VARCHAR(255);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'previous_class') THEN
+        ALTER TABLE students ADD COLUMN previous_class VARCHAR(50);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'is_new_student') THEN
+        ALTER TABLE students ADD COLUMN is_new_student BOOLEAN DEFAULT true;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'total_fees') THEN
+        ALTER TABLE students ADD COLUMN total_fees DECIMAL(10,2) DEFAULT 0;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'paid_fees') THEN
+        ALTER TABLE students ADD COLUMN paid_fees DECIMAL(10,2) DEFAULT 0;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'fees_status') THEN
+        ALTER TABLE students ADD COLUMN fees_status VARCHAR(20) DEFAULT 'pending';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'enrollment_status') THEN
+        ALTER TABLE students ADD COLUMN enrollment_status VARCHAR(20) DEFAULT 'pending';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'academic_year') THEN
+        ALTER TABLE students ADD COLUMN academic_year VARCHAR(20) DEFAULT '2024-2025';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'status') THEN
+        ALTER TABLE students ADD COLUMN status VARCHAR(20) DEFAULT 'active';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'enrollment_date') THEN
+        ALTER TABLE students ADD COLUMN enrollment_date DATE DEFAULT CURRENT_DATE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'created_at') THEN
+        ALTER TABLE students ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'updated_at') THEN
+        ALTER TABLE students ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    END IF;
+END $$;
+
+-- Parents table
+CREATE TABLE IF NOT EXISTS parents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    parent_code VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    address TEXT,
+    occupation VARCHAR(255),
+    relationship VARCHAR(20) NOT NULL CHECK (relationship IN ('father', 'mother', 'guardian', 'other')),
+    student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Emergency contacts table
+CREATE TABLE IF NOT EXISTS emergency_contacts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    relationship VARCHAR(100),
+    email VARCHAR(255),
+    is_primary BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Medical information table
+CREATE TABLE IF NOT EXISTS medical_info (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+    blood_group VARCHAR(5),
+    allergies TEXT,
+    medical_conditions TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -68,7 +219,7 @@ CREATE TABLE IF NOT EXISTS teachers (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Student emergency contacts
+-- Student emergency contacts (legacy table - keeping for backward compatibility)
 CREATE TABLE IF NOT EXISTS student_emergency_contacts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     student_id UUID REFERENCES students(id) ON DELETE CASCADE,
@@ -229,8 +380,18 @@ CREATE TABLE IF NOT EXISTS exam_results (
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_students_student_id ON students(student_id);
 CREATE INDEX IF NOT EXISTS idx_students_status ON students(status);
-CREATE INDEX IF NOT EXISTS idx_students_class_level ON students(class_level);
+CREATE INDEX IF NOT EXISTS idx_students_enrollment_status ON students(enrollment_status);
+CREATE INDEX IF NOT EXISTS idx_students_fees_status ON students(fees_status);
+CREATE INDEX IF NOT EXISTS idx_students_class ON students(class);
 CREATE INDEX IF NOT EXISTS idx_students_subsystem ON students(subsystem);
+CREATE INDEX IF NOT EXISTS idx_students_branch ON students(branch);
+
+CREATE INDEX IF NOT EXISTS idx_parents_parent_code ON parents(parent_code);
+CREATE INDEX IF NOT EXISTS idx_parents_student_id ON parents(student_id);
+CREATE INDEX IF NOT EXISTS idx_parents_email ON parents(email);
+
+CREATE INDEX IF NOT EXISTS idx_emergency_contacts_student_id ON emergency_contacts(student_id);
+CREATE INDEX IF NOT EXISTS idx_medical_info_student_id ON medical_info(student_id);
 
 CREATE INDEX IF NOT EXISTS idx_teachers_teacher_id ON teachers(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_teachers_status ON teachers(status);
@@ -267,6 +428,8 @@ $$ language 'plpgsql';
 -- Apply triggers to tables with updated_at columns
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_students_updated_at BEFORE UPDATE ON students FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_parents_updated_at BEFORE UPDATE ON parents FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_medical_info_updated_at BEFORE UPDATE ON medical_info FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_teachers_updated_at BEFORE UPDATE ON teachers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_student_fees_updated_at BEFORE UPDATE ON student_fees FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_classes_updated_at BEFORE UPDATE ON classes FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -303,3 +466,41 @@ INSERT INTO subjects (subject_name, subject_code, subsystem, class_levels, is_co
 ('Histoire-Géographie', 'HIST_GEO', 'french', '{"6ème", "5ème", "4ème", "3ème", "2nde", "1ère", "Terminale"}', false),
 ('Anglais', 'ANG', 'french', '{"6ème", "5ème", "4ème", "3ème", "2nde", "1ère", "Terminale"}', true)
 ON CONFLICT (subject_code) DO NOTHING;
+
+-- Ensure all constraints are properly applied to students table
+DO $$
+BEGIN
+    -- Add constraints if they don't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.check_constraints WHERE constraint_name = 'students_subsystem_check') THEN
+        ALTER TABLE students ADD CONSTRAINT students_subsystem_check CHECK (subsystem IN ('english', 'french'));
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.check_constraints WHERE constraint_name = 'students_branch_check') THEN
+        ALTER TABLE students ADD CONSTRAINT students_branch_check CHECK (branch IN ('grammar', 'technical', 'commercial'));
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.check_constraints WHERE constraint_name = 'students_fees_status_check') THEN
+        ALTER TABLE students ADD CONSTRAINT students_fees_status_check CHECK (fees_status IN ('pending', 'partial', 'paid', 'overdue'));
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.check_constraints WHERE constraint_name = 'students_enrollment_status_check') THEN
+        ALTER TABLE students ADD CONSTRAINT students_enrollment_status_check CHECK (enrollment_status IN ('pending', 'enrolled', 'transferred', 'graduated'));
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.check_constraints WHERE constraint_name = 'students_status_check') THEN
+        ALTER TABLE students ADD CONSTRAINT students_status_check CHECK (status IN ('active', 'inactive', 'graduated', 'transferred'));
+    END IF;
+END $$;
+
+-- Verify the students table structure
+SELECT 'STUDENTS TABLE VERIFICATION:' as info;
+SELECT 
+    column_name,
+    data_type,
+    is_nullable,
+    column_default
+FROM information_schema.columns 
+WHERE table_name = 'students' 
+ORDER BY ordinal_position;
+
+SELECT 'Database setup completed successfully!' as result;

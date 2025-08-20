@@ -184,7 +184,7 @@ const mockActivityLogs: ActivityLog[] = [
     userId: '5',
     userName: 'Grace Tabi',
     action: 'PAYMENT_RECORDED',
-    details: 'Recorded fee payment of ₦50,000',
+            details: 'Recorded fee payment of 50,000 XAF',
     timestamp: '2024-01-20T09:00:00Z',
     ipAddress: '192.168.1.103',
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'

@@ -3,7 +3,21 @@
 import type React from "react"
 import { createContext, useContext, useState } from "react"
 import { supabase, testConnection } from "./supabase"
-import { StorageUtils } from "./storage-utils"
+import { useNotifications } from "./notification-context"
+
+// Fallback UUID generation function
+const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  
+  // Fallback for environments without crypto.randomUUID
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0
+    const v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
 
 export interface StudentEnrollmentData {
   firstName: string
@@ -59,11 +73,26 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isUsingDatabase, setIsUsingDatabase] = useState(false)
+  const [students, setStudents] = useState<any[]>([])
+  const [parents, setParents] = useState<any[]>([])
+  const { addNotification } = useNotifications()
+
+  // Create a custom event to notify other contexts when a student is enrolled
+  const notifyStudentEnrolled = (studentData: any) => {
+    const event = new CustomEvent('studentEnrolled', { detail: studentData })
+    window.dispatchEvent(event)
+  }
 
   const testDatabaseConnection = async (): Promise<boolean> => {
-    const connected = await testConnection()
-    setIsUsingDatabase(connected)
-    return connected
+    try {
+      const connected = await testConnection()
+      setIsUsingDatabase(connected)
+      return connected
+    } catch (error) {
+      console.error("Database connection test failed:", error)
+      setIsUsingDatabase(false)
+      return false
+    }
   }
 
   const generateStudentId = (): string => {
@@ -78,37 +107,23 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
     const year = new Date().getFullYear()
     let nextNumber = 1
 
-    const dbConnected = await testConnection()
+    try {
+      // Get existing student IDs for this year from database
+      const { data } = await supabase
+        .from("students")
+        .select("student_id")
+        .like("student_id", `STU${year}%`)
+        .order("student_id", { ascending: false })
+        .limit(1)
 
-    if (dbConnected) {
-      try {
-        // Get existing student IDs for this year from database
-        const { data } = await supabase
-          .from("students")
-          .select("student_id")
-          .like("student_id", `STU${year}%`)
-          .order("student_id", { ascending: false })
-          .limit(1)
-
-        if (data && data.length > 0) {
-          const lastId = data[0].student_id
-          const lastNumber = Number.parseInt(lastId.substring(7)) // Extract number after STU2024
-          nextNumber = lastNumber + 1
-        }
-      } catch (error) {
-        console.error("Error generating student ID from database:", error)
+      if (data && data.length > 0) {
+        const lastId = data[0].student_id
+        const lastNumber = Number.parseInt(lastId.substring(7)) // Extract number after STU2024
+        nextNumber = lastNumber + 1
       }
-    } else {
-      // Generate from localStorage data
-      try {
-        const savedStudents = StorageUtils.getItem("students") || []
-        const existingIds = savedStudents
-          .map((s: any) => s.studentId || s.student_id)
-          .filter((id: string) => id.startsWith(`STU${year}`))
-        nextNumber = existingIds.length + 1
-      } catch (error) {
-        console.error("Error generating student ID from localStorage:", error)
-      }
+    } catch (error) {
+      console.error("Error generating student ID from database:", error)
+      throw new Error("Failed to generate student ID from database")
     }
 
     return `STU${year}${nextNumber.toString().padStart(3, "0")}`
@@ -118,37 +133,23 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
     const year = new Date().getFullYear()
     let nextNumber = 1
 
-    const dbConnected = await testConnection()
+    try {
+      // Get existing parent codes for this year from database
+      const { data } = await supabase
+        .from("parents")
+        .select("parent_code")
+        .like("parent_code", `PAR${year}%`)
+        .order("parent_code", { ascending: false })
+        .limit(1)
 
-    if (dbConnected) {
-      try {
-        // Get existing parent codes for this year from database
-        const { data } = await supabase
-          .from("parents")
-          .select("parent_code")
-          .like("parent_code", `PAR${year}%`)
-          .order("parent_code", { ascending: false })
-          .limit(1)
-
-        if (data && data.length > 0) {
-          const lastCode = data[0].parent_code
-          const lastNumber = Number.parseInt(lastCode.substring(7)) // Extract number after PAR2024
-          nextNumber = lastNumber + 1
-        }
-      } catch (error) {
-        console.error("Error generating parent code from database:", error)
+      if (data && data.length > 0) {
+        const lastCode = data[0].parent_code
+        const lastNumber = Number.parseInt(lastCode.substring(7)) // Extract number after PAR2024
+        nextNumber = lastNumber + 1
       }
-    } else {
-      // Generate from localStorage data
-      try {
-        const savedParents = StorageUtils.getItem("parents") || []
-        const existingCodes = savedParents
-          .map((p: any) => p.parentCode || p.parent_code)
-          .filter((code: string) => code.startsWith(`PAR${year}`))
-        nextNumber = existingCodes.length + 1
-      } catch (error) {
-        console.error("Error generating parent code from localStorage:", error)
-      }
+    } catch (error) {
+      console.error("Error generating parent code from database:", error)
+      throw new Error("Failed to generate parent code from database")
     }
 
     return `PAR${year}${nextNumber.toString().padStart(3, "0")}`
@@ -161,111 +162,53 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
     setError(null)
 
     try {
-      const studentId = await generateActualStudentId()
-      const parentCode = await generateParentCode()
+      // Test database connection first
       const dbConnected = await testConnection()
       setIsUsingDatabase(dbConnected)
 
-      if (dbConnected) {
-        // Save to Supabase
-        const { data: student, error: studentError } = await supabase
-          .from("students")
-          .insert({
-            student_id: studentId,
-            first_name: studentData.firstName,
-            last_name: studentData.lastName,
-            middle_name: studentData.middleName,
-            email: studentData.email,
-            phone: studentData.phone,
-            date_of_birth: studentData.dateOfBirth,
-            gender: studentData.gender,
-            place_of_birth: studentData.placeOfBirth,
-            nationality: studentData.nationality || "Cameroonian",
-            religion: studentData.religion,
-            address: studentData.address,
-            city: studentData.city,
-            region: studentData.region,
-            subsystem: studentData.subsystem,
-            branch: studentData.branch,
-            class: studentData.class,
-            previous_school: studentData.previousSchool,
-            previous_class: studentData.previousClass,
-            is_new_student: true,
-            total_fees: 0,
-            paid_fees: 0,
-            fees_status: "pending",
-            enrollment_status: "pending",
-            academic_year: "2024-2025",
-            status: "active",
-          })
-          .select()
-          .single()
+      if (!dbConnected) {
+        throw new Error("Database connection is required for student enrollment. Please check your database configuration.")
+      }
 
-        if (studentError) {
-          throw new Error(`Failed to create student: ${studentError.message}`)
-        }
+      const studentId = await generateActualStudentId()
+      const parentCode = await generateParentCode()
 
-        // Insert parent
-        const { error: parentError } = await supabase.from("parents").insert({
-          parent_code: parentCode,
-          name: studentData.parentName,
-          email: studentData.parentEmail,
-          phone: studentData.parentPhone,
-          address: studentData.parentAddress,
-          occupation: studentData.parentOccupation,
-          relationship: studentData.relationship,
-          student_id: student.id,
-        })
+      console.log("Database connected, attempting to save to Supabase...")
+      
+      // First, let's check if the students table exists and is accessible
+      const { data: tableCheckData, error: tableCheckError } = await supabase
+        .from("students")
+        .select("student_id")
+        .limit(1)
+      
+      if (tableCheckError) {
+        console.error("Table check error:", tableCheckError)
+        throw new Error(`Database table not accessible: ${tableCheckError.message}`)
+      }
+      
+      console.log("Table check successful, proceeding with student insertion...")
+      // Save to Supabase
+      console.log("Attempting to insert student with data:", {
+        student_id: studentId,
+        first_name: studentData.firstName,
+        last_name: studentData.lastName,
+        subsystem: studentData.subsystem,
+        branch: studentData.branch,
+        class: studentData.class
+      })
 
-        if (parentError) {
-          console.warn("Failed to create parent:", parentError.message)
-        }
-
-        // Insert emergency contact
-        if (studentData.emergencyContactName && studentData.emergencyContactPhone) {
-          const { error: emergencyError } = await supabase.from("emergency_contacts").insert({
-            student_id: student.id,
-            name: studentData.emergencyContactName,
-            phone: studentData.emergencyContactPhone,
-            relationship: studentData.emergencyContactRelationship,
-          })
-
-          if (emergencyError) {
-            console.warn("Failed to create emergency contact:", emergencyError.message)
-          }
-        }
-
-        // Insert medical info
-        if (studentData.bloodGroup || studentData.allergies || studentData.medicalConditions) {
-          const { error: medicalError } = await supabase.from("medical_info").insert({
-            student_id: student.id,
-            blood_group: studentData.bloodGroup,
-            allergies: studentData.allergies,
-            medical_conditions: studentData.medicalConditions,
-          })
-
-          if (medicalError) {
-            console.warn("Failed to create medical info:", medicalError.message)
-          }
-        }
-      } else {
-        // Save to localStorage as fallback
-        const newStudent = {
-          id: crypto.randomUUID(),
-          studentId,
+      // Insert student into database
+      const { data: student, error: studentError } = await supabase
+        .from("students")
+        .insert({
           student_id: studentId,
-          firstName: studentData.firstName,
           first_name: studentData.firstName,
-          lastName: studentData.lastName,
           last_name: studentData.lastName,
-          middleName: studentData.middleName,
           middle_name: studentData.middleName,
           email: studentData.email,
           phone: studentData.phone,
-          dateOfBirth: studentData.dateOfBirth,
           date_of_birth: studentData.dateOfBirth,
           gender: studentData.gender,
-          placeOfBirth: studentData.placeOfBirth,
           place_of_birth: studentData.placeOfBirth,
           nationality: studentData.nationality || "Cameroonian",
           religion: studentData.religion,
@@ -275,94 +218,111 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
           subsystem: studentData.subsystem,
           branch: studentData.branch,
           class: studentData.class,
-          previousSchool: studentData.previousSchool,
           previous_school: studentData.previousSchool,
-          previousClass: studentData.previousClass,
           previous_class: studentData.previousClass,
-          isNewStudent: true,
           is_new_student: true,
-          totalFees: 0,
           total_fees: 0,
-          paidFees: 0,
           paid_fees: 0,
-          feesStatus: "pending",
           fees_status: "pending",
-          enrollmentStatus: "pending",
           enrollment_status: "pending",
-          academicYear: "2024-2025",
           academic_year: "2024-2025",
           status: "active",
-          enrollmentDate: new Date().toISOString(),
-          enrollment_date: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          enrollment_date: new Date().toISOString().split('T')[0],
+        })
+        .select()
+        .single()
+
+      if (studentError) {
+        console.error("Student creation error:", studentError)
+        console.log("Student error details:", JSON.stringify(studentError, null, 2))
+        console.log("Student data being inserted:", {
+          student_id: studentId,
+          first_name: studentData.firstName,
+          last_name: studentData.lastName,
+          email: studentData.email,
+          class: studentData.class,
+          address: studentData.address,
+          branch: studentData.branch,
+          subsystem: studentData.subsystem
+        })
+        
+        // Provide more specific error messages
+        let errorMessage = studentError.message || 'Unknown database error'
+        if (errorMessage.includes('address') || errorMessage.includes('branch')) {
+          errorMessage = `Database schema issue: ${errorMessage}. Please run the database setup script to create the required columns.`
         }
+        
+        throw new Error(`Failed to create student: ${errorMessage}`)
+      }
 
-        const newParent = {
-          id: crypto.randomUUID(),
-          parentCode,
-          parent_code: parentCode,
-          name: studentData.parentName,
-          email: studentData.parentEmail,
-          phone: studentData.parentPhone,
-          address: studentData.parentAddress,
-          occupation: studentData.parentOccupation,
-          relationship: studentData.relationship,
-          studentId: newStudent.id,
-          student_id: newStudent.id,
-          createdAt: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
+      if (!student) {
+        throw new Error("Student was not created successfully")
+      }
 
-        // Save to localStorage
-        const existingStudents = StorageUtils.getItem("students") || []
-        const existingParents = StorageUtils.getItem("parents") || []
+      // Insert parent
+      const { error: parentError } = await supabase.from("parents").insert({
+        parent_code: parentCode,
+        name: studentData.parentName,
+        email: studentData.parentEmail,
+        phone: studentData.parentPhone,
+        address: studentData.parentAddress,
+        occupation: studentData.parentOccupation,
+        relationship: studentData.relationship,
+        student_id: student.id,
+      })
 
-        StorageUtils.setItem("students", [...existingStudents, newStudent])
-        StorageUtils.setItem("parents", [...existingParents, newParent])
+      if (parentError) {
+        console.warn("Failed to create parent:", parentError.message)
+        // Continue with enrollment even if parent creation fails
+      }
 
-        if (studentData.emergencyContactName && studentData.emergencyContactPhone) {
-          const newEmergencyContact = {
-            id: crypto.randomUUID(),
-            studentId: newStudent.id,
-            student_id: newStudent.id,
-            name: studentData.emergencyContactName,
-            phone: studentData.emergencyContactPhone,
-            relationship: studentData.emergencyContactRelationship,
-            createdAt: new Date().toISOString(),
-            created_at: new Date().toISOString(),
-          }
+      // Insert emergency contact
+      if (studentData.emergencyContactName && studentData.emergencyContactPhone) {
+        const { error: emergencyError } = await supabase.from("emergency_contacts").insert({
+          student_id: student.id,
+          name: studentData.emergencyContactName,
+          phone: studentData.emergencyContactPhone,
+          relationship: studentData.emergencyContactRelationship,
+        })
 
-          const existingEmergencyContacts = StorageUtils.getItem("emergency_contacts") || []
-          StorageUtils.setItem("emergency_contacts", [...existingEmergencyContacts, newEmergencyContact])
-        }
-
-        if (studentData.bloodGroup || studentData.allergies || studentData.medicalConditions) {
-          const newMedicalInfo = {
-            id: crypto.randomUUID(),
-            studentId: newStudent.id,
-            student_id: newStudent.id,
-            bloodGroup: studentData.bloodGroup,
-            blood_group: studentData.bloodGroup,
-            allergies: studentData.allergies,
-            medicalConditions: studentData.medicalConditions,
-            medical_conditions: studentData.medicalConditions,
-            createdAt: new Date().toISOString(),
-            created_at: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }
-
-          const existingMedicalInfo = StorageUtils.getItem("medical_info") || []
-          StorageUtils.setItem("medical_info", [...existingMedicalInfo, newMedicalInfo])
+        if (emergencyError) {
+          console.warn("Failed to create emergency contact:", emergencyError.message)
         }
       }
 
-      return { success: true, studentId, parentCode }
+      // Insert medical info
+      if (studentData.bloodGroup || studentData.allergies || studentData.medicalConditions) {
+        const { error: medicalError } = await supabase.from("medical_info").insert({
+          student_id: student.id,
+          blood_group: studentData.bloodGroup,
+          allergies: studentData.allergies,
+          medical_conditions: studentData.medicalConditions,
+        })
+
+        if (medicalError) {
+          console.warn("Failed to create medical info:", medicalError.message)
+        }
+      }
+
+      // Update state with the new student
+      setStudents(prev => [...prev, student])
+      
+      // Add notification for successful enrollment
+      addNotification({
+        title: "Student Enrollment Successful",
+        message: `${studentData.firstName} ${studentData.lastName} has been successfully enrolled with ID ${studentId}`,
+        type: "success"
+      })
+      
+      // Notify other contexts about the new student
+      notifyStudentEnrolled(student)
+      
+      return {
+        success: true,
+        studentId,
+        parentCode
+      }
+
     } catch (error) {
       console.error("Error enrolling student:", error)
       const errorMessage = error instanceof Error ? error.message : "Failed to enroll student"

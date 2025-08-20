@@ -45,7 +45,7 @@ const classes = {
 }
 
 interface StudentEnrollmentFormProps {
-  onSuccess: (result: { studentId: string; parentCode: string }) => void
+  onSuccess: (result: { studentId: string; parentCode: string; studentName: string }) => void
   onCancel: () => void
 }
 
@@ -111,7 +111,8 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
   const handleSubmit = async () => {
     const result = await enrollStudent(formData)
     if (result.success && result.studentId && result.parentCode) {
-      onSuccess({ studentId: result.studentId, parentCode: result.parentCode })
+      const studentName = `${formData.firstName} ${formData.lastName}`
+      onSuccess({ studentId: result.studentId, parentCode: result.parentCode, studentName })
     }
   }
 
@@ -132,6 +133,39 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
       default:
         return true
     }
+  }
+
+  const getStepValidationMessage = (step: number): string | null => {
+    switch (step) {
+      case 1:
+        if (!formData.firstName) return "First name is required"
+        if (!formData.lastName) return "Last name is required"
+        if (!formData.dateOfBirth) return "Date of birth is required"
+        if (!formData.placeOfBirth) return "Place of birth is required"
+        break
+      case 2:
+        if (!formData.email) return "Email address is required"
+        if (!formData.address) return "Home address is required"
+        if (!formData.city) return "City is required"
+        break
+      case 3:
+        if (!formData.class) return "Class selection is required"
+        break
+      case 4:
+        if (!formData.parentName) return "Parent/guardian name is required"
+        if (!formData.parentEmail) return "Parent email is required"
+        if (!formData.parentPhone) return "Parent phone is required"
+        break
+      case 5:
+        if (!formData.emergencyContactName) return "Emergency contact name is required"
+        if (!formData.emergencyContactPhone) return "Emergency contact phone is required"
+        break
+      case 6:
+        if (!formData.birthCertificate) return "Birth certificate confirmation is required"
+        if (!formData.passportPhoto) return "Passport photo confirmation is required"
+        break
+    }
+    return null
   }
 
   const availableClasses = classes[formData.subsystem]?.[formData.branch] || []
@@ -656,36 +690,46 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
         </CardContent>
       </Card>
 
-      {/* Navigation Buttons */}
-      <div className="flex justify-between">
-        <div>
-          {currentStep > 1 && (
-            <Button variant="outline" onClick={prevStep}>
-              Previous
-            </Button>
+                {/* Validation Message */}
+          {!isStepValid(currentStep) && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {getStepValidationMessage(currentStep)}
+              </AlertDescription>
+            </Alert>
           )}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          {currentStep < totalSteps ? (
-            <Button 
-              onClick={nextStep} 
-              disabled={!isStepValid(currentStep)}
-            >
-              Next
-            </Button>
-          ) : (
-            <Button 
-              onClick={handleSubmit} 
-              disabled={!isStepValid(currentStep) || isLoading}
-            >
-              {isLoading ? 'Enrolling...' : 'Complete Enrollment'}
-            </Button>
-          )}
-        </div>
-      </div>
+
+          {/* Navigation Buttons */}
+          <div className="flex justify-between">
+            <div>
+              {currentStep > 1 && (
+                <Button variant="outline" onClick={prevStep}>
+                  Previous
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+              {currentStep < totalSteps ? (
+                <Button 
+                  onClick={nextStep} 
+                  disabled={!isStepValid(currentStep)}
+                >
+                  Next
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleSubmit} 
+                  disabled={!isStepValid(currentStep) || isLoading}
+                >
+                  {isLoading ? 'Enrolling...' : 'Complete Enrollment'}
+                </Button>
+              )}
+            </div>
+          </div>
     </div>
   )
 }
