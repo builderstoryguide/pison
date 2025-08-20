@@ -6,7 +6,7 @@ export interface User {
   id: string
   name: string
   email: string
-  role: 'admin' | 'teacher' | 'student' | 'parent' | 'burser'
+  role: 'admin' | 'teacher' | 'student' | 'parent' | 'bursar'
   status: 'active' | 'inactive' | 'suspended'
   avatar?: string
   studentId?: string
@@ -133,7 +133,7 @@ const mockUsers: User[] = [
     id: '5',
     name: 'Grace Tabi',
     email: 'g.tabi@gbhs-yaounde.cm',
-    role: 'burser',
+    role: 'bursar',
     status: 'active',
     permissions: ['manage_finances', 'track_payments', 'generate_reports'],
     subsystem: 'english',

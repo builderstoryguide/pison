@@ -6,7 +6,7 @@ interface User {
   id: string
   name: string
   email: string
-  role: 'admin' | 'teacher' | 'student' | 'parent' | 'burser'
+  role: 'admin' | 'teacher' | 'student' | 'parent' | 'bursar'
   avatar?: string
   studentId?: string
   teacherRegNo?: string
@@ -92,7 +92,7 @@ const mockUsers: User[] = [
     id: '5',
     name: 'Grace Tabi',
     email: 'g.tabi@gbhs-yaounde.cm',
-    role: 'burser',
+    role: 'bursar',
     permissions: ['manage_finances', 'track_payments', 'generate_reports'],
     subsystem: 'english'
   }
@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         switch (credentials.role) {
           case 'admin':
           case 'teacher':
-          case 'burser':
+          case 'bursar':
             return u.email === credentials.identifier || u.teacherRegNo === credentials.identifier
           case 'student':
             return u.studentId === credentials.identifier || u.email === credentials.identifier

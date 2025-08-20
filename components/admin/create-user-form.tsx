@@ -18,7 +18,7 @@ const roleIcons = {
   teacher: GraduationCap,
   student: Users,
   parent: UserCheck,
-  burser: DollarSign
+  bursar: DollarSign
 }
 
 const rolePermissions = {
@@ -26,7 +26,7 @@ const rolePermissions = {
   teacher: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents'],
   student: ['view_grades', 'view_schedule', 'submit_assignments', 'communicate_teachers'],
   parent: ['view_child_progress', 'communicate_teachers', 'view_financial_records'],
-  burser: ['manage_finances', 'track_payments', 'generate_reports', 'send_fee_notices']
+  bursar: ['manage_finances', 'track_payments', 'generate_reports', 'send_fee_notices']
 }
 
 interface CreateUserFormProps {

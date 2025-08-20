@@ -17,7 +17,7 @@ const roleIcons = {
   teacher: GraduationCap,
   student: Users,
   parent: UserCheck,
-  burser: DollarSign
+  bursar: DollarSign
 }
 
 const roleLabels = {
@@ -25,7 +25,7 @@ const roleLabels = {
   teacher: 'Teacher',
   student: 'Student',
   parent: 'Parent',
-  burser: 'Burser'
+  bursar: 'Bursar'
 }
 
 const placeholderTexts = {
@@ -33,7 +33,7 @@ const placeholderTexts = {
   teacher: 'Enter email or teacher registration number',
   student: 'Enter student ID or email',
   parent: 'Enter parent code or email',
-  burser: 'Enter your email address'
+  bursar: 'Enter your email address'
 }
 
 const demoCredentials = {
@@ -41,7 +41,7 @@ const demoCredentials = {
   teacher: { identifier: 'TCH2024001', password: 'password123' },
   student: { identifier: 'STU2024001', password: 'password123' },
   parent: { identifier: 'PAR2024001', password: 'password123' },
-  burser: { identifier: 'g.tabi@gbhs-yaounde.cm', password: 'password123' }
+  bursar: { identifier: 'g.tabi@gbhs-yaounde.cm', password: 'password123' }
 }
 
 export function LoginForm() {

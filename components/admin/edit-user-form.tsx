@@ -16,7 +16,7 @@ const rolePermissions = {
   teacher: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents'],
   student: ['view_grades', 'view_schedule', 'submit_assignments', 'communicate_teachers'],
   parent: ['view_child_progress', 'communicate_teachers', 'view_financial_records'],
-  burser: ['manage_finances', 'track_payments', 'generate_reports', 'send_fee_notices']
+  bursar: ['manage_finances', 'track_payments', 'generate_reports', 'send_fee_notices']
 }
 
 interface EditUserFormProps {
@@ -147,7 +147,7 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
               <SelectItem value="teacher">Teacher</SelectItem>
               <SelectItem value="student">Student</SelectItem>
               <SelectItem value="parent">Parent</SelectItem>
-              <SelectItem value="burser">Burser</SelectItem>
+                              <SelectItem value="bursar">Bursar</SelectItem>
             </SelectContent>
           </Select>
         </div>

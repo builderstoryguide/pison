@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Mail, Phone } from "lucide-react"
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Mail, Phone, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,15 +21,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useTeacherManagement } from "@/lib/teacher-management-context"
 import { TeacherEnrollmentForm } from "./teacher-enrollment-form"
 import { TeacherEnrollmentSuccessDialog } from "./teacher-enrollment-success-dialog"
+import { EditTeacherForm } from "./edit-teacher-form"
+import { TeacherExportForm } from "./teacher-export-form"
 
 export function TeacherManagement() {
-  const { teachers, isLoading } = useTeacherManagement()
+  const { teachers, isLoading, deleteTeacher } = useTeacherManagement()
   const [searchTerm, setSearchTerm] = useState("")
   const [filterSubsystem, setFilterSubsystem] = useState("all")
   const [filterStatus, setFilterStatus] = useState("all")
   const [showAddTeacherForm, setShowAddTeacherForm] = useState(false)
   const [selectedTeacher, setSelectedTeacher] = useState<any>(null)
   const [showTeacherDetails, setShowTeacherDetails] = useState(false)
+  const [showEditTeacherForm, setShowEditTeacherForm] = useState(false)
+  const [showExportForm, setShowExportForm] = useState(false)
+  const [selectedTeachers, setSelectedTeachers] = useState<string[]>([])
   const [teacherEnrollmentSuccess, setTeacherEnrollmentSuccess] = useState<{
     teacherId: string
     teacherName: string
@@ -73,6 +78,27 @@ export function TeacherManagement() {
     setShowTeacherDetails(true)
   }
 
+  const handleEditTeacher = (teacher: any) => {
+    setSelectedTeacher(teacher)
+    setShowEditTeacherForm(true)
+  }
+
+  const handleEditSuccess = () => {
+    setShowEditTeacherForm(false)
+    setSelectedTeacher(null)
+  }
+
+  const handleDeleteTeacher = async (teacher: any) => {
+    if (confirm(`Are you sure you want to delete ${teacher.firstName} ${teacher.lastName}? This action cannot be undone.`)) {
+      try {
+        await deleteTeacher(teacher.id)
+      } catch (error) {
+        console.error("Error deleting teacher:", error)
+        alert("Failed to delete teacher. Please try again.")
+      }
+    }
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
@@ -102,10 +128,16 @@ export function TeacherManagement() {
           <h1 className="text-2xl font-bold">Teacher Management</h1>
           <p className="text-muted-foreground">Manage teachers and their information</p>
         </div>
-        <Button onClick={() => setShowAddTeacherForm(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Teacher
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" onClick={() => setShowExportForm(true)}>
+            <Download className="h-4 w-4 mr-2" />
+            Export Data
+          </Button>
+          <Button onClick={() => setShowAddTeacherForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Teacher
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -131,7 +163,7 @@ export function TeacherManagement() {
             <CardTitle className="text-sm font-medium">English Subsystem</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{teachers.filter((t) => t.subsystem === "English").length}</div>
+            <div className="text-2xl font-bold">{teachers.filter((t) => t.subsystem === "english").length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -139,7 +171,7 @@ export function TeacherManagement() {
             <CardTitle className="text-sm font-medium">French Subsystem</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{teachers.filter((t) => t.subsystem === "French").length}</div>
+            <div className="text-2xl font-bold">{teachers.filter((t) => t.subsystem === "french").length}</div>
           </CardContent>
         </Card>
       </div>
@@ -169,8 +201,8 @@ export function TeacherManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Subsystems</SelectItem>
-                <SelectItem value="English">English</SelectItem>
-                <SelectItem value="French">French</SelectItem>
+                <SelectItem value="english">English</SelectItem>
+                <SelectItem value="french">French</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -184,6 +216,20 @@ export function TeacherManagement() {
                 <SelectItem value="suspended">Suspended</SelectItem>
               </SelectContent>
             </Select>
+            {filteredTeachers.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedTeachers(filteredTeachers.map(t => t.id))
+                  setShowExportForm(true)
+                }}
+                className="flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Export Filtered ({filteredTeachers.length})
+              </Button>
+            )}
           </div>
 
           {/* Teachers Table */}
@@ -269,12 +315,22 @@ export function TeacherManagement() {
                               <Eye className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditTeacher(teacher)}>
                               <Edit className="mr-2 h-4 w-4" />
                               Edit Teacher
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedTeacher(teacher)
+                              setShowExportForm(true)
+                            }}>
+                              <Download className="mr-2 h-4 w-4" />
+                              Export Data
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600">
+                            <DropdownMenuItem 
+                              className="text-red-600"
+                              onClick={() => handleDeleteTeacher(teacher)}
+                            >
                               <Trash2 className="mr-2 h-4 w-4" />
                               Delete Teacher
                             </DropdownMenuItem>
@@ -389,6 +445,22 @@ export function TeacherManagement() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Teacher Dialog */}
+      <Dialog open={showEditTeacherForm} onOpenChange={setShowEditTeacherForm}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Teacher</DialogTitle>
+          </DialogHeader>
+          {selectedTeacher && (
+            <EditTeacherForm
+              teacher={selectedTeacher}
+              onSuccess={handleEditSuccess}
+              onCancel={() => setShowEditTeacherForm(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Teacher Enrollment Success Dialog */}
       {teacherEnrollmentSuccess && (
         <TeacherEnrollmentSuccessDialog
@@ -410,6 +482,29 @@ export function TeacherManagement() {
           }}
         />
       )}
+
+      {/* Export Teacher Data Dialog */}
+      <Dialog open={showExportForm} onOpenChange={setShowExportForm}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Export Teacher Data</DialogTitle>
+          </DialogHeader>
+          <TeacherExportForm
+            preSelectedTeacher={selectedTeacher}
+            preSelectedTeachers={selectedTeachers.length > 0 ? selectedTeachers : undefined}
+            onCancel={() => {
+              setShowExportForm(false)
+              setSelectedTeacher(null)
+              setSelectedTeachers([])
+            }}
+            onSuccess={() => {
+              setShowExportForm(false)
+              setSelectedTeacher(null)
+              setSelectedTeachers([])
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -188,10 +188,6 @@ export function ClassCreationForm({ onSuccess, onCancel }: ClassCreationFormProp
 
   return (
     <div className="space-y-6">
-      <DialogHeader>
-        <DialogTitle>Create New Class</DialogTitle>
-      </DialogHeader>
-
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid gap-6 md:grid-cols-2">
           {/* Basic Information */}

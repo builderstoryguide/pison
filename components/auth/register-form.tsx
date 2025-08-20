@@ -196,10 +196,10 @@ export function RegisterForm({ onBack }: RegisterFormProps) {
                     Parent
                   </div>
                 </SelectItem>
-                <SelectItem value="burser">
+                <SelectItem value="bursar">
                   <div className="flex items-center gap-2">
                     <DollarSign className="h-4 w-4" />
-                    Burser
+                    Bursar
                   </div>
                 </SelectItem>
               </SelectContent>

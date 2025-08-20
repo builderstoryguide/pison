@@ -166,16 +166,32 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
   }
 
   const handleSubmit = async () => {
-    if (!validateStep(currentStep)) return
+    console.log("🚀 Starting form submission...")
+    console.log("📋 Current step:", currentStep)
+    console.log("✅ Step validation:", validateStep(currentStep))
+    
+    if (!validateStep(currentStep)) {
+      console.log("❌ Step validation failed")
+      return
+    }
 
     setIsSubmitting(true)
     setError(null)
 
     try {
+      console.log("📤 Submitting teacher data...")
+      console.log("📊 Form data:", formData)
+      
       const teacherId = await addTeacher(formData)
+      console.log("✅ Teacher added successfully with ID:", teacherId)
+      
       onSuccess({ teacherId, teacherData: formData })
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to enroll teacher"
+      console.error("❌ Error in form submission:", err)
+      const errorMessage = err instanceof Error ? err.message : 
+        typeof err === 'string' ? err : 
+        err && typeof err === 'object' && 'message' in err ? String(err.message) :
+        "Failed to enroll teacher"
       setError(errorMessage)
       console.error("Error enrolling teacher:", err)
     } finally {

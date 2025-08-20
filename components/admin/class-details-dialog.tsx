@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,23 +20,57 @@ interface ClassDetailsDialogProps {
 export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDelete }: ClassDetailsDialogProps) {
   const { getClassStudents } = useClassManagement()
   const [activeTab, setActiveTab] = useState("overview")
+  const [students, setStudents] = useState<any[]>([])
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false)
 
-  const students = getClassStudents(classData.id)
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch {
+      return dateString
+    }
+  }
+
+  // Load students when dialog opens
+  useEffect(() => {
+    if (open) {
+      const loadStudents = async () => {
+        setIsLoadingStudents(true)
+        try {
+          const classStudents = await getClassStudents(classData.id)
+          setStudents(classStudents)
+        } catch (error) {
+          console.error("Error loading students:", error)
+        } finally {
+          setIsLoadingStudents(false)
+        }
+      }
+      loadStudents()
+    }
+  }, [open, classData.id, getClassStudents])
   const utilizationPercentage = Math.round((classData.currentEnrollment / classData.capacity) * 100)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-xl">{classData.name}</DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <DialogTitle className="text-xl break-words">{classData.name}</DialogTitle>
+              <p className="text-sm text-muted-foreground mt-1 break-words">
                 {classData.level} • {classData.subsystem === "english" ? "English" : "French"} Subsystem •{" "}
                 {classData.branch}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <Badge variant={classData.status === "active" ? "default" : "secondary"}>{classData.status}</Badge>
               <Button variant="outline" size="sm" onClick={() => onEdit(classData)}>
                 <Edit className="h-4 w-4 mr-2" />
@@ -79,7 +113,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                   <GraduationCap className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-sm font-medium">{classData.classTeacher}</div>
+                  <div className="text-sm font-medium break-words">{classData.classTeacher}</div>
                   <p className="text-xs text-muted-foreground">Primary instructor</p>
                 </CardContent>
               </Card>
@@ -101,7 +135,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-sm font-medium">{classData.academicYear}</div>
+                  <div className="text-sm font-medium break-words">{classData.academicYear}</div>
                   <p className="text-xs text-muted-foreground">Current session</p>
                 </CardContent>
               </Card>
@@ -113,36 +147,36 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                 <CardDescription>Detailed information about this class</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-6 md:grid-cols-2">
                   <div>
                     <h4 className="font-medium mb-2">System Configuration</h4>
                     <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Subsystem:</span>
-                        <span className="capitalize">{classData.subsystem}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground flex-shrink-0">Subsystem:</span>
+                        <span className="capitalize text-right ml-2">{classData.subsystem}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Branch:</span>
-                        <span className="capitalize">{classData.branch}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground flex-shrink-0">Branch:</span>
+                        <span className="capitalize text-right ml-2">{classData.branch}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Level:</span>
-                        <span>{classData.level}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground flex-shrink-0">Level:</span>
+                        <span className="text-right ml-2">{classData.level}</span>
                       </div>
                     </div>
                   </div>
                   <div>
                     <h4 className="font-medium mb-2">Class Details</h4>
                     <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Created:</span>
-                        <span>{classData.createdAt}</span>
+                      <div className="flex justify-between items-start">
+                        <span className="text-muted-foreground flex-shrink-0">Created:</span>
+                        <span className="text-right ml-2 break-words">{formatDate(classData.createdAt)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Last Updated:</span>
-                        <span>{classData.updatedAt}</span>
+                      <div className="flex justify-between items-start">
+                        <span className="text-muted-foreground flex-shrink-0">Last Updated:</span>
+                        <span className="text-right ml-2 break-words">{formatDate(classData.updatedAt)}</span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="flex justify-between items-center">
                         <span className="text-muted-foreground">Status:</span>
                         <Badge variant={classData.status === "active" ? "default" : "secondary"}>
                           {classData.status}

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   DropdownMenu,
@@ -303,6 +303,9 @@ export function ClassManagement() {
       {/* Create Class Dialog */}
       <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Class</DialogTitle>
+          </DialogHeader>
           <ClassCreationForm onSuccess={handleCreateSuccess} onCancel={() => setShowCreateForm(false)} />
         </DialogContent>
       </Dialog>
@@ -322,12 +325,14 @@ export function ClassManagement() {
       {createSuccess && (
         <Dialog open={!!createSuccess} onOpenChange={() => setCreateSuccess(null)}>
           <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Class Created Successfully!</DialogTitle>
+            </DialogHeader>
             <div className="text-center space-y-4">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
                 <School className="h-6 w-6 text-green-600" />
               </div>
               <div>
-                <h3 className="text-lg font-medium">Class Created Successfully!</h3>
                 <p className="text-muted-foreground">
                   {createSuccess.classData.name} has been created with ID: {createSuccess.classId}
                 </p>

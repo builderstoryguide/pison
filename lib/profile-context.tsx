@@ -8,7 +8,7 @@ export interface ProfileData {
   id: string
   name: string
   email: string
-  role: "admin" | "teacher" | "student" | "parent" | "burser"
+  role: "admin" | "teacher" | "student" | "parent" | "bursar"
   avatar?: string
   phone?: string
   address?: string
