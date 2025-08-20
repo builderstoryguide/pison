@@ -17,6 +17,8 @@ import {
   Clock,
   AlertCircle,
   RefreshCw,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -30,8 +32,21 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Pagination } from "@/components/ui/pagination"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 import { useStudentManagement, type Student, type StudentFilters } from "@/lib/student-management-context"
+import { useToast } from "@/hooks/use-toast"
 import { StudentEnrollmentForm } from "./student-enrollment-form"
 import { EnrollmentSuccessDialog } from "./enrollment-success-dialog"
 import { StudentDetailsDialog } from "./student-details-dialog"
@@ -71,6 +86,8 @@ export function StudentManagement() {
     testDatabaseConnection,
   } = useStudentManagement()
 
+  const { success, error: showError } = useToast()
+
   const [showEnrollmentForm, setShowEnrollmentForm] = useState(false)
   const [showBulkUpload, setShowBulkUpload] = useState(false)
   const [enrollmentSuccess, setEnrollmentSuccess] = useState<{ studentId: string; parentCode: string; studentName: string } | null>(null)
@@ -79,6 +96,11 @@ export function StudentManagement() {
   const [showFeesDialog, setShowFeesDialog] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
+  const [studentToDelete, setStudentToDelete] = useState<{ id: string; name: string } | null>(null)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   const stats = getStudentStats()
   const filteredStudents = getFilteredStudents()
@@ -98,12 +120,31 @@ export function StudentManagement() {
     }
   }
 
+  // Pagination logic
   const tabStudents = getTabStudents(activeTab)
+  const totalPages = Math.ceil(tabStudents.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedStudents = tabStudents.slice(startIndex, endIndex)
+
+
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage)
+    setCurrentPage(1) // Reset to first page
+  }
 
   const handleEnrollmentSuccess = (result: { studentId: string; parentCode: string; studentName: string }) => {
     setEnrollmentSuccess(result)
     setShowEnrollmentForm(false)
     loadStudents() // Refresh the students list
+    success("Student enrolled successfully", `${result.studentName} has been successfully enrolled in the system.`)
   }
 
   const handleUpdateFilters = (field: keyof StudentFilters, value: string) => {
@@ -111,18 +152,45 @@ export function StudentManagement() {
   }
 
   const handleStatusUpdate = async (studentId: string, newStatus: string) => {
-    const success = await updateStudentStatus(studentId, newStatus)
-    if (success) {
+    const student = students.find(s => s.id === studentId)
+    const studentName = student ? `${student.first_name} ${student.last_name}` : "Student"
+    
+    const updateSuccess = await updateStudentStatus(studentId, newStatus)
+    if (updateSuccess) {
       loadStudents() // Refresh the list
+      success("Status updated successfully", `${studentName}'s enrollment status has been updated to ${newStatus}.`)
+    } else {
+      showError("Failed to update status", "There was an error updating the student's status. Please try again.")
     }
   }
 
   const handleDeleteStudent = async (studentId: string) => {
-    if (window.confirm("Are you sure you want to delete this student? This action cannot be undone.")) {
-      const success = await deleteStudent(studentId)
-      if (success) {
+    // Find the student to get their name for the confirmation dialog
+    const student = students.find(s => s.id === studentId)
+    if (!student) {
+      showError("Student not found", "The student you're trying to delete could not be found.")
+      return
+    }
+
+    // The actual deletion will be handled by the AlertDialog
+    setStudentToDelete({ id: studentId, name: `${student.first_name} ${student.last_name}` })
+  }
+
+  const confirmDeleteStudent = async () => {
+    if (!studentToDelete) return
+
+    try {
+      const deleteSuccess = await deleteStudent(studentToDelete.id)
+      if (deleteSuccess) {
+        success("Student deleted successfully", `${studentToDelete.name} has been permanently removed from the system.`)
         loadStudents() // Refresh the list
+      } else {
+        showError("Failed to delete student", "There was an error deleting the student. Please try again.")
       }
+    } catch (err) {
+      showError("Error deleting student", "An unexpected error occurred while deleting the student.")
+    } finally {
+      setStudentToDelete(null)
     }
   }
 
@@ -135,14 +203,17 @@ export function StudentManagement() {
   const handleSaveStudent = async (updatedData: Partial<Student>) => {
     if (!selectedStudent) return false
     
-    const success = await updateStudent(selectedStudent.id, updatedData)
-    if (success) {
+    const updateSuccess = await updateStudent(selectedStudent.id, updatedData)
+    if (updateSuccess) {
       loadStudents() // Refresh the list
       setShowEditForm(false)
       setSelectedStudent(null)
+      success("Student updated successfully", `${selectedStudent.first_name} ${selectedStudent.last_name}'s information has been updated.`)
       return true
+    } else {
+      showError("Failed to update student", "There was an error updating the student's information. Please try again.")
+      return false
     }
-    return false
   }
 
   const exportToCSV = () => {
@@ -689,7 +760,7 @@ export function StudentManagement() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {tabStudents.map((student) => (
+                      {paginatedStudents.map((student) => (
                         <TableRow key={student.id}>
                           <TableCell>
                             <div className="flex items-center gap-3">
@@ -772,14 +843,14 @@ export function StudentManagement() {
                                   <CheckCircle className="h-4 w-4" />
                                 </Button>
                               )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteStudent(student.id)}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                                                             <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 onClick={() => handleDeleteStudent(student.id)}
+                                 className="text-red-600 hover:text-red-700"
+                               >
+                                 <Trash2 className="h-4 w-4" />
+                               </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -787,6 +858,20 @@ export function StudentManagement() {
                     </TableBody>
                   </Table>
                 </div>
+              )}
+                
+              {/* Pagination Controls */}
+              {tabStudents.length > 0 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={tabStudents.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={handlePageChange}
+                  onItemsPerPageChange={handleItemsPerPageChange}
+                  startIndex={startIndex}
+                  endIndex={endIndex}
+                />
               )}
             </TabsContent>
           </Tabs>
@@ -904,15 +989,37 @@ export function StudentManagement() {
               Upload Excel or CSV files to enroll multiple students at once
             </DialogDescription>
           </DialogHeader>
-          <StudentBulkUpload
-            onSuccess={() => {
-              setShowBulkUpload(false)
-              loadStudents()
-            }}
-            onCancel={() => setShowBulkUpload(false)}
-          />
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
-}
+                     <StudentBulkUpload
+             onSuccess={(result) => {
+               setShowBulkUpload(false)
+               loadStudents()
+               success("Bulk upload successful", `${result.count} students have been successfully uploaded to the system.`)
+             }}
+             onCancel={() => setShowBulkUpload(false)}
+           />
+         </DialogContent>
+       </Dialog>
+
+       {/* Delete Confirmation Dialog */}
+       <AlertDialog open={!!studentToDelete} onOpenChange={(open) => !open && setStudentToDelete(null)}>
+         <AlertDialogContent>
+           <AlertDialogHeader>
+             <AlertDialogTitle>Delete Student</AlertDialogTitle>
+             <AlertDialogDescription>
+               Are you sure you want to delete {studentToDelete?.name}? This action cannot be undone and will permanently remove all their data from the system.
+             </AlertDialogDescription>
+           </AlertDialogHeader>
+           <AlertDialogFooter>
+             <AlertDialogCancel onClick={() => setStudentToDelete(null)}>Cancel</AlertDialogCancel>
+             <AlertDialogAction
+               onClick={confirmDeleteStudent}
+               className="bg-red-600 hover:bg-red-700"
+             >
+               Delete Student
+             </AlertDialogAction>
+           </AlertDialogFooter>
+         </AlertDialogContent>
+       </AlertDialog>
+     </div>
+   )
+ }

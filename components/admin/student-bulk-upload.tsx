@@ -124,11 +124,19 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
   const [currentStep, setCurrentStep] = useState<'upload' | 'validate' | 'process'>('upload')
   const [progress, setProgress] = useState(0)
   const [showPreview, setShowPreview] = useState(false)
+  const [isFileProcessing, setIsFileProcessing] = useState(false)
+  const [currentProcessingIndex, setCurrentProcessingIndex] = useState(0)
+  const [processingStatus, setProcessingStatus] = useState<string>('')
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('File select event triggered:', event)
     event.preventDefault() // Prevent any form submission
     const selectedFile = event.target.files?.[0]
-    if (!selectedFile) return
+    console.log('Selected file:', selectedFile)
+    if (!selectedFile) {
+      console.log('No file selected')
+      return
+    }
 
     const allowedTypes = [
       'application/vnd.ms-excel',
@@ -147,7 +155,18 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
     }
 
     setFile(selectedFile)
-    parseFile(selectedFile)
+    setIsFileProcessing(true)
+    try {
+      parseFile(selectedFile)
+    } catch (error) {
+      console.error('Error parsing file:', error)
+      setIsFileProcessing(false)
+      addNotification({
+        type: 'error',
+        title: 'File processing error',
+        message: 'Failed to process the selected file. Please try again.'
+      })
+    }
   }
 
   const parseFile = (file: File) => {
@@ -290,6 +309,7 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
     setParsedData(processedData)
     setValidationErrors(errors)
     setCurrentStep('validate')
+    setIsFileProcessing(false)
   }
 
   const isValidEmail = (email: string): boolean => {
@@ -310,10 +330,14 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
     setIsProcessing(true)
     setCurrentStep('process')
     setProgress(0)
+    setCurrentProcessingIndex(0)
+    setProcessingStatus('Starting upload process...')
     const results: UploadResult[] = []
 
     for (let i = 0; i < parsedData.length; i++) {
       const studentData = parsedData[i]
+      setCurrentProcessingIndex(i + 1)
+      setProcessingStatus(`Processing student ${i + 1} of ${parsedData.length}: ${studentData.firstName} ${studentData.lastName}`)
       
       try {
         // Add default values for required boolean fields
@@ -355,6 +379,7 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
 
     setUploadResults(results)
     setIsProcessing(false)
+    setProcessingStatus('Upload completed!')
 
     const successCount = results.filter(r => r.success).length
     if (successCount > 0) {
@@ -374,6 +399,8 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
     setUploadResults([])
     setCurrentStep('upload')
     setProgress(0)
+    setCurrentProcessingIndex(0)
+    setProcessingStatus('')
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -461,7 +488,10 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                <div 
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   <div className="flex flex-col items-center space-y-4">
                     {file ? (
                       <>
@@ -489,14 +519,33 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
                       </>
                     )}
                   </div>
-                  <Input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".xls,.xlsx,.csv"
-                    onChange={handleFileSelect}
-                    className="mt-4"
-                    onClick={(e) => e.preventDefault()} // Prevent any form submission
-                  />
+                  <div className="relative">
+                    <Input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".xls,.xlsx,.csv"
+                      onChange={handleFileSelect}
+                      className="mt-4 opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                    />
+                    <Button 
+                      variant="outline" 
+                      className="mt-4 w-full"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isFileProcessing}
+                    >
+                      {isFileProcessing ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                          Processing File...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Choose File to Upload
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
 
                 <Alert>
@@ -576,14 +625,73 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Progress</span>
-                    <span>{Math.round(progress)}%</span>
+                {/* Progress Section */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Upload Progress</span>
+                      <span>{Math.round(progress)}%</span>
+                    </div>
+                    <Progress value={progress} className="w-full h-3" />
                   </div>
-                  <Progress value={progress} className="w-full" />
+                  
+                  {/* Processing Status */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>Processing Status</span>
+                      <span className="text-muted-foreground">
+                        {currentProcessingIndex} of {parsedData.length} students
+                      </span>
+                    </div>
+                                         <div className="p-3 bg-blue-50 rounded-lg">
+                       <div className="text-sm text-blue-700">
+                         {isProcessing ? (
+                           <div className="flex items-center gap-2">
+                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                             {processingStatus}
+                           </div>
+                         ) : (
+                           processingStatus
+                         )}
+                       </div>
+                     </div>
+                  </div>
                 </div>
 
+                {/* Real-time Progress */}
+                {isProcessing && (
+                  <div className="space-y-2">
+                    <h4 className="font-medium">Current Progress</h4>
+                    <div className="grid grid-cols-4 gap-4">
+                      <div className="text-center p-3 bg-blue-50 rounded-lg">
+                        <div className="text-lg font-bold text-blue-600">
+                          {currentProcessingIndex}
+                        </div>
+                        <div className="text-xs text-blue-600">Processing</div>
+                      </div>
+                      <div className="text-center p-3 bg-green-50 rounded-lg">
+                        <div className="text-lg font-bold text-green-600">
+                          {uploadResults.filter(r => r.success).length}
+                        </div>
+                        <div className="text-xs text-green-600">Successful</div>
+                      </div>
+                      <div className="text-center p-3 bg-red-50 rounded-lg">
+                        <div className="text-lg font-bold text-red-600">
+                          {uploadResults.filter(r => !r.success).length}
+                        </div>
+                        <div className="text-xs text-red-600">Failed</div>
+                      </div>
+                      <div className="text-center p-3 bg-gray-50 rounded-lg">
+                        <div className="text-lg font-bold text-gray-600">
+                          {parsedData.length}
+                        </div>
+                        <div className="text-xs text-gray-600">Total</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Final Results */}
                 {!isProcessing && uploadResults.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="font-medium">Upload Results</h4>
@@ -665,6 +773,25 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
         validationErrors={validationErrors}
         uploadResults={uploadResults}
       />
+      
+             {/* Additional Debug Info */}
+       <div className="mt-4 p-4 bg-gray-50 rounded-lg text-sm">
+         <h4 className="font-medium mb-2">Debug Information:</h4>
+         <div className="space-y-1">
+           <p>File selected: {file ? file.name : 'None'}</p>
+           <p>File size: {file ? `${(file.size / 1024).toFixed(2)} KB` : 'N/A'}</p>
+           <p>File type: {file ? file.type : 'N/A'}</p>
+           <p>Current step: {currentStep}</p>
+           <p>Is file processing: {isFileProcessing ? 'Yes' : 'No'}</p>
+           <p>Is upload processing: {isProcessing ? 'Yes' : 'No'}</p>
+           <p>Progress: {Math.round(progress)}%</p>
+           <p>Current processing index: {currentProcessingIndex}</p>
+           <p>Processing status: {processingStatus}</p>
+           <p>Parsed records: {parsedData.length}</p>
+           <p>Validation errors: {validationErrors.length}</p>
+           <p>Upload results: {uploadResults.length}</p>
+         </div>
+       </div>
     </div>
   )
 }

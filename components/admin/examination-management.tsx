@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
+import { Pagination } from "@/components/ui/pagination"
 import { useExamination, type Examination } from "@/lib/examination-context"
 import { ExaminationCreationForm } from "./examination-creation-form"
 import { ExaminationDetailsDialog } from "./examination-details-dialog"
@@ -50,6 +51,10 @@ export function ExaminationManagement() {
   const [selectedExamination, setSelectedExamination] = useState<Examination | null>(null)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+
   // Filter examinations based on search and filters
   const filteredExaminations = examinations.filter((exam) => {
     const matchesSearch =
@@ -63,6 +68,23 @@ export function ExaminationManagement() {
 
     return matchesSearch && matchesStatus && matchesType && matchesSubsystem
   })
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredExaminations.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedExaminations = filteredExaminations.slice(startIndex, endIndex)
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage)
+    setCurrentPage(1) // Reset to first page
+  }
 
   // Calculate statistics
   const totalExaminations = examinations.length
@@ -292,7 +314,7 @@ export function ExaminationManagement() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredExaminations.map((examination) => {
+                  paginatedExaminations.map((examination) => {
                     const completionRate =
                       examination.enrolledStudents > 0
                         ? (examination.completedStudents / examination.enrolledStudents) * 100
@@ -395,6 +417,20 @@ export function ExaminationManagement() {
               </TableBody>
             </Table>
           </div>
+          
+          {/* Pagination Controls */}
+          {filteredExaminations.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredExaminations.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              startIndex={startIndex}
+              endIndex={endIndex}
+            />
+          )}
         </CardContent>
       </Card>
 

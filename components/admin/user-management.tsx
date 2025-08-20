@@ -51,6 +51,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Pagination } from '@/components/ui/pagination'
 
 import { useUserManagement, User, UserFilters } from '@/lib/user-management-context'
 import { CreateUserForm } from './create-user-form'
@@ -90,9 +91,30 @@ export function UserManagement() {
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+
   // Get filtered and searched users
   const filteredUsers = filterUsers(filters)
   const displayUsers = searchQuery ? searchUsers(searchQuery) : filteredUsers
+
+  // Pagination logic
+  const totalPages = Math.ceil(displayUsers.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedUsers = displayUsers.slice(startIndex, endIndex)
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage)
+    setCurrentPage(1) // Reset to first page
+  }
 
   const handleStatusChange = async (userId: string, status: 'active' | 'inactive' | 'suspended') => {
     await toggleUserStatus(userId, status)
@@ -321,7 +343,7 @@ export function UserManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {displayUsers.map((user) => (
+                  {paginatedUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -446,6 +468,20 @@ export function UserManagement() {
                   ))}
                 </TableBody>
               </Table>
+              
+              {/* Pagination Controls */}
+              {displayUsers.length > 0 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={displayUsers.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={handlePageChange}
+                  onItemsPerPageChange={handleItemsPerPageChange}
+                  startIndex={startIndex}
+                  endIndex={endIndex}
+                />
+              )}
             </CardContent>
           </Card>
         </TabsContent>
