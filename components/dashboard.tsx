@@ -18,6 +18,7 @@ import { TeacherClassesProvider } from "@/lib/teacher-classes-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 import { BursarProvider } from "@/lib/bursar-context"
 import { useNotifications } from "@/lib/notification-context"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 // Admin Components
 import { UserManagement } from "./admin/user-management"
@@ -329,6 +330,7 @@ function DashboardHeader({
       </div>
 
       <div className="ml-auto flex items-center gap-2 px-4">
+        <ThemeToggle />
         <NotificationDropdown />
         <UserProfileDropdown user={user} onProfileClick={onProfileClick} onLogout={onLogout} />
       </div>
