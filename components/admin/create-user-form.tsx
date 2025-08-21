@@ -93,7 +93,9 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
 
     const userData = {
       ...formData,
-      role: formData.role as UserType['role']
+      role: formData.role as UserType['role'],
+      branch: formData.branch === '' ? undefined : formData.branch as 'grammar' | 'technical' | 'commercial',
+      gender: formData.gender === '' ? undefined : formData.gender as 'male' | 'female'
     }
 
     const success = await createUser(userData)

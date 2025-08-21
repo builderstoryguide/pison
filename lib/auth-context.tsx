@@ -7,11 +7,7 @@ interface User {
   id: string
   name: string
   email: string
-<<<<<<< HEAD
   role: 'admin' | 'teacher' | 'student' | 'parent' | 'bursar'
-=======
-  role: "admin" | "teacher" | "student" | "parent" | "burser"
->>>>>>> 248cbfaf103dd29d6cdf5cd19583d27a7d3b5222
   avatar?: string
   studentId?: string
   teacherRegNo?: string
@@ -94,7 +90,6 @@ const mockUsers: User[] = [
     subsystem: "english",
   },
   {
-<<<<<<< HEAD
     id: '5',
     name: 'Grace Tabi',
     email: 'g.tabi@gbhs-yaounde.cm',
@@ -102,15 +97,6 @@ const mockUsers: User[] = [
     permissions: ['manage_finances', 'track_payments', 'generate_reports'],
     subsystem: 'english'
   }
-=======
-    id: "5",
-    name: "Grace Tabi",
-    email: "g.tabi@gbhs-yaounde.cm",
-    role: "burser",
-    permissions: ["manage_finances", "track_payments", "generate_reports"],
-    subsystem: "english",
-  },
->>>>>>> 248cbfaf103dd29d6cdf5cd19583d27a7d3b5222
 ]
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -140,15 +126,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (u.role !== credentials.role) return false
 
         switch (credentials.role) {
-<<<<<<< HEAD
           case 'admin':
           case 'teacher':
           case 'bursar':
-=======
-          case "admin":
-          case "teacher":
-          case "burser":
->>>>>>> 248cbfaf103dd29d6cdf5cd19583d27a7d3b5222
             return u.email === credentials.identifier || u.teacherRegNo === credentials.identifier
           case "student":
             return u.studentId === credentials.identifier || u.email === credentials.identifier

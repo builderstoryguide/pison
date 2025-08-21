@@ -509,7 +509,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
               </div>
 
               {/* Fees Summary */}
-              {formData.total_fees > 0 && (
+              {(formData.total_fees || 0) > 0 && (
                 <div className="p-4 bg-muted rounded-lg">
                   <h4 className="font-medium mb-2">Fees Summary</h4>
                   <div className="grid gap-2 text-sm">
@@ -531,8 +531,8 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                     <div className="flex justify-between">
                       <span>Payment Progress:</span>
                       <span className="font-medium">
-                        {formData.total_fees > 0 
-                          ? Math.round(((formData.paid_fees || 0) / formData.total_fees) * 100) 
+                        {(formData.total_fees || 0) > 0 
+                          ? Math.round(((formData.paid_fees || 0) / (formData.total_fees || 1)) * 100) 
                           : 0}%
                       </span>
                     </div>

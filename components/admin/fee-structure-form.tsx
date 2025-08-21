@@ -30,7 +30,7 @@ const feeStructureSchema = z.object({
   term: z.enum(["first", "second", "third"]),
   academicYear: z.string().min(1, "Academic year is required"),
   description: z.string().optional(),
-  isActive: z.boolean().default(true),
+  isActive: z.boolean(),
 })
 
 type FeeStructureFormData = z.infer<typeof feeStructureSchema>

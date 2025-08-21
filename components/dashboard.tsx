@@ -506,7 +506,11 @@ export function Dashboard() {
         case "classes":
           return <ClassManagement />
         case "examinations":
-          return <ExaminationManagement />
+          return (
+            <ExaminationProvider>
+              <ExaminationManagement />
+            </ExaminationProvider>
+          )
         case "financial":
           return <FinancialManagement />
         case "attendance":

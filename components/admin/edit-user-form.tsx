@@ -35,12 +35,12 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
     teacherRegNo: user.teacherRegNo || '',
     parentCode: user.parentCode || '',
     subsystem: user.subsystem || 'english',
-    branch: user.branch || '',
+    branch: user.branch,
     class: user.class || '',
     phone: user.phone || '',
     address: user.address || '',
     dateOfBirth: user.dateOfBirth || '',
-    gender: user.gender || '',
+    gender: user.gender,
     permissions: user.permissions
   })
 
@@ -96,7 +96,7 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
 
           <div className="space-y-2">
             <Label htmlFor="gender">Gender</Label>
-            <Select value={formData.gender || 'none'} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value === 'none' ? '' : value as any }))}>
+            <Select value={formData.gender || 'none'} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value === 'none' ? undefined : value as 'male' | 'female' }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
@@ -177,10 +177,10 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="branch">Branch</Label>
-              <Select 
-                value={formData.branch || 'none'} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, branch: value === 'none' ? '' : value as any }))}
-              >
+            <Select 
+              value={formData.branch || 'none'} 
+              onValueChange={(value) => setFormData(prev => ({ ...prev, branch: value === 'none' ? undefined : value as 'grammar' | 'technical' | 'commercial' }))}
+            >
                 <SelectTrigger>
                   <SelectValue placeholder="Select branch" />
                 </SelectTrigger>

@@ -76,10 +76,8 @@ export function AddStudentToClassDialog({
 
   const handleAddStudents = async () => {
     if (selectedStudents.length === 0) {
-      toast({
-        title: "No students selected",
+      toast("No students selected", {
         description: "Please select at least one student to add to the class.",
-        variant: "destructive",
       })
       return
     }
@@ -92,8 +90,7 @@ export function AddStudentToClassDialog({
       
       onSuccess(addedStudents)
       
-      toast({
-        title: "Students added successfully",
+      toast("Students added successfully", {
         description: `${selectedStudents.length} student${selectedStudents.length === 1 ? '' : 's'} added to ${className}`,
       })
       
@@ -101,10 +98,8 @@ export function AddStudentToClassDialog({
       setSearchQuery("")
       onOpenChange(false)
     } catch (error) {
-      toast({
-        title: "Error adding students",
+      toast("Error adding students", {
         description: "Failed to add students to the class. Please try again.",
-        variant: "destructive",
       })
     } finally {
       setIsAdding(false)

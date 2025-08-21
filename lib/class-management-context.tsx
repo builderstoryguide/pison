@@ -51,6 +51,7 @@ interface ClassManagementContextType {
   assignStudentToClass: (studentId: string, classId: string) => Promise<{ success: boolean; error?: string }>
   removeStudentFromClass: (studentId: string, classId: string) => Promise<{ success: boolean; error?: string }>
   getClassStudents: (classId: string) => Promise<any[]>
+  updateClassSchedule: (classId: string, schedule: ClassData['schedule']) => Promise<{ success: boolean; error?: string }>
   refreshClasses: () => Promise<void>
   testDatabaseConnection: () => Promise<boolean>
 }
@@ -528,6 +529,48 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
     }
   }, [])
 
+  const updateClassSchedule = useCallback(async (classId: string, schedule: ClassData['schedule']): Promise<{ success: boolean; error?: string }> => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      if (isUsingDatabase && supabase) {
+        const { error } = await supabase
+          .from("classes")
+          .update({ 
+            schedule: schedule,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", classId)
+
+        if (error) {
+          throw new Error(`Failed to update class schedule: ${error.message}`)
+        }
+      }
+
+      // Update local state
+      setClasses((prev) =>
+        prev.map((cls) =>
+          cls.id === classId
+            ? {
+                ...cls,
+                schedule: schedule,
+                updatedAt: new Date().toISOString().split("T")[0],
+              }
+            : cls,
+        ),
+      )
+
+      setIsLoading(false)
+      return { success: true }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to update class schedule"
+      setError(errorMessage)
+      setIsLoading(false)
+      return { success: false, error: errorMessage }
+    }
+  }, [isUsingDatabase])
+
   const refreshClasses = useCallback(async (): Promise<void> => {
     if (isUsingDatabase) {
       await loadClasses()
@@ -546,6 +589,7 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
     assignStudentToClass,
     removeStudentFromClass,
     getClassStudents,
+    updateClassSchedule,
     refreshClasses,
     testDatabaseConnection,
   }

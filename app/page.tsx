@@ -15,8 +15,6 @@ import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 import { NotificationProvider } from "@/lib/notification-context"
 import { Dashboard } from "@/components/dashboard"
 import { Loader2 } from "lucide-react"
-import { ThemeProvider } from "@/components/theme-provider"
-
 function AppContent() {
   const { user, isLoading } = useAuth()
 
@@ -49,7 +47,7 @@ function AppContent() {
                         <TeacherGradesProvider>
                           <ReportsAnalyticsProvider>
                             <ProfileProvider>
-                              <Dashboard user={user} />
+                              <Dashboard />
                             </ProfileProvider>
                           </ReportsAnalyticsProvider>
                         </TeacherGradesProvider>
@@ -68,10 +66,8 @@ function AppContent() {
 
 export default function Home() {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ThemeProvider>
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   )
 }

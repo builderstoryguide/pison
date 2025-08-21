@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,10 +29,15 @@ import {
   Edit,
   Trash2,
   UserPlus,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react"
 import { useClassManagement, type ClassData, type ClassFormData } from "@/lib/class-management-context"
-import { ClassCreationForm } from "./class-creation-form"
+import { ClassForm } from "./class-form"
 import { ClassDetailsDialog } from "./class-details-dialog"
+import { ClassStudentManagement } from "./class-student-management"
 
 export function ClassManagement() {
   const { classes, isLoading, deleteClass } = useClassManagement()
@@ -42,11 +47,18 @@ export function ClassManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
+  const [showStudentManagement, setShowStudentManagement] = useState(false)
   const [selectedClass, setSelectedClass] = useState<ClassData | null>(null)
-  const [createSuccess, setCreateSuccess] = useState<{
+  const [successMessage, setSuccessMessage] = useState<{
+    type: 'create' | 'update'
     classId: string
     classData: ClassFormData
   } | null>(null)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([])
 
   // Filter classes based on search and filters
   const filteredClasses = classes.filter((cls) => {
@@ -62,6 +74,18 @@ export function ClassManagement() {
     return matchesSearch && matchesSubsystem && matchesBranch && matchesStatus
   })
 
+  // Pagination logic
+  const totalItems = filteredClasses.length
+  const totalPages = Math.ceil(totalItems / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedClasses = filteredClasses.slice(startIndex, endIndex)
+
+  // Reset to first page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, subsystemFilter, branchFilter, statusFilter])
+
   // Calculate statistics
   const totalClasses = classes.length
   const activeClasses = classes.filter((cls) => cls.status === "active").length
@@ -69,9 +93,11 @@ export function ClassManagement() {
   const totalCapacity = classes.reduce((sum, cls) => sum + cls.capacity, 0)
   const utilizationRate = totalCapacity > 0 ? Math.round((totalEnrollment / totalCapacity) * 100) : 0
 
-  const handleCreateSuccess = (result: { classId: string; classData: ClassFormData }) => {
-    setCreateSuccess(result)
+  const handleFormSuccess = (result: { classId: string; classData: ClassFormData }) => {
+    const type = selectedClass ? 'update' : 'create'
+    setSuccessMessage({ type, ...result })
     setShowCreateForm(false)
+    setSelectedClass(null)
   }
 
   const handleViewClass = (classData: ClassData) => {
@@ -80,14 +106,19 @@ export function ClassManagement() {
   }
 
   const handleEditClass = (classData: ClassData) => {
-    // TODO: Implement edit functionality
-    console.log("Edit class:", classData.id)
+    setSelectedClass(classData)
+    setShowCreateForm(true)
   }
 
   const handleDeleteClass = async (classId: string) => {
     if (confirm("Are you sure you want to delete this class? This action cannot be undone.")) {
       await deleteClass(classId)
     }
+  }
+
+  const handleManageStudents = (classData: ClassData) => {
+    setSelectedClass(classData)
+    setShowStudentManagement(true)
   }
 
   return (
@@ -98,10 +129,16 @@ export function ClassManagement() {
           <h1 className="text-2xl font-bold">Class Management</h1>
           <p className="text-muted-foreground">Manage classes, assignments, and schedules</p>
         </div>
-        <Button onClick={() => setShowCreateForm(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Class
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowCreateForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Class
+          </Button>
+          <Button onClick={() => setShowCreateForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Quick Add
+          </Button>
+        </div>
       </div>
 
       {/* Statistics Cards */}
@@ -206,11 +243,73 @@ export function ClassManagement() {
             </Button>
           </div>
 
+          {/* Bulk Actions and Pagination Controls */}
+          <div className="flex items-center justify-between mb-4">
+            {selectedClasses.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {selectedClasses.length} class(es) selected
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (confirm(`Are you sure you want to delete ${selectedClasses.length} class(es)?`)) {
+                      selectedClasses.forEach(classId => deleteClass(classId))
+                      setSelectedClasses([])
+                    }
+                  }}
+                >
+                  Delete Selected
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedClasses([])}
+                >
+                  Clear Selection
+                </Button>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Show</span>
+              <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground">entries per page</span>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} classes
+            </div>
+          </div>
+
           {/* Classes Table */}
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[50px]">
+                    <input
+                      type="checkbox"
+                      checked={selectedClasses.length === paginatedClasses.length && paginatedClasses.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedClasses(paginatedClasses.map(cls => cls.id))
+                        } else {
+                          setSelectedClasses([])
+                        }
+                      }}
+                      className="rounded"
+                    />
+                  </TableHead>
                   <TableHead>Class Name</TableHead>
                   <TableHead>Level</TableHead>
                   <TableHead>System</TableHead>
@@ -225,19 +324,33 @@ export function ClassManagement() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={10} className="text-center py-8">
                       Loading classes...
                     </TableCell>
                   </TableRow>
-                ) : filteredClasses.length === 0 ? (
+                ) : paginatedClasses.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8">
+                    <TableCell colSpan={10} className="text-center py-8">
                       No classes found matching your criteria.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredClasses.map((cls) => (
+                  paginatedClasses.map((cls) => (
                     <TableRow key={cls.id}>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          checked={selectedClasses.includes(cls.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedClasses(prev => [...prev, cls.id])
+                            } else {
+                              setSelectedClasses(prev => prev.filter(id => id !== cls.id))
+                            }
+                          }}
+                          className="rounded"
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{cls.name}</TableCell>
                       <TableCell>{cls.level}</TableCell>
                       <TableCell className="capitalize">{cls.subsystem}</TableCell>
@@ -279,7 +392,7 @@ export function ClassManagement() {
                               <Edit className="h-4 w-4 mr-2" />
                               Edit Class
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleManageStudents(cls)}>
                               <UserPlus className="h-4 w-4 mr-2" />
                               Manage Students
                             </DropdownMenuItem>
@@ -297,16 +410,92 @@ export function ClassManagement() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination Navigation */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-muted-foreground">
+                Page {currentPage} of {totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                {/* Page numbers */}
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum
+                    if (totalPages <= 5) {
+                      pageNum = i + 1
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i
+                    } else {
+                      pageNum = currentPage - 2 + i
+                    }
+                    
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className="w-8 h-8 p-0"
+                      >
+                        {pageNum}
+                      </Button>
+                    )
+                  })}
+                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Create Class Dialog */}
+      {/* Create/Edit Class Dialog */}
       <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create New Class</DialogTitle>
-          </DialogHeader>
-          <ClassCreationForm onSuccess={handleCreateSuccess} onCancel={() => setShowCreateForm(false)} />
+          <ClassForm 
+            onSuccess={handleFormSuccess} 
+            onCancel={() => {
+              setShowCreateForm(false)
+              setSelectedClass(null)
+            }}
+            editClass={selectedClass}
+          />
         </DialogContent>
       </Dialog>
 
@@ -321,12 +510,23 @@ export function ClassManagement() {
         />
       )}
 
+      {/* Student Management Dialog */}
+      {selectedClass && (
+        <ClassStudentManagement
+          classData={selectedClass}
+          open={showStudentManagement}
+          onOpenChange={setShowStudentManagement}
+        />
+      )}
+
       {/* Success Message */}
-      {createSuccess && (
-        <Dialog open={!!createSuccess} onOpenChange={() => setCreateSuccess(null)}>
+      {successMessage && (
+        <Dialog open={!!successMessage} onOpenChange={() => setSuccessMessage(null)}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Class Created Successfully!</DialogTitle>
+              <DialogTitle>
+                {successMessage.type === 'create' ? 'Class Created Successfully!' : 'Class Updated Successfully!'}
+              </DialogTitle>
             </DialogHeader>
             <div className="text-center space-y-4">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
@@ -334,21 +534,23 @@ export function ClassManagement() {
               </div>
               <div>
                 <p className="text-muted-foreground">
-                  {createSuccess.classData.name} has been created with ID: {createSuccess.classId}
+                  {successMessage.classData.name} has been {successMessage.type === 'create' ? 'created' : 'updated'} with ID: {successMessage.classId}
                 </p>
               </div>
               <div className="flex gap-2 justify-center">
-                <Button variant="outline" onClick={() => setCreateSuccess(null)}>
+                <Button variant="outline" onClick={() => setSuccessMessage(null)}>
                   Close
                 </Button>
-                <Button
-                  onClick={() => {
-                    setCreateSuccess(null)
-                    setShowCreateForm(true)
-                  }}
-                >
-                  Create Another
-                </Button>
+                {successMessage.type === 'create' && (
+                  <Button
+                    onClick={() => {
+                      setSuccessMessage(null)
+                      setShowCreateForm(true)
+                    }}
+                  >
+                    Create Another
+                  </Button>
+                )}
               </div>
             </div>
           </DialogContent>

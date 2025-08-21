@@ -1,7 +1,8 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useCallback } from "react"
+import { createContext, useContext, useState, useCallback, useEffect } from "react"
+import { supabase } from "./supabase"
 
 export interface ExamFormData {
   title: string
@@ -17,7 +18,7 @@ export interface ExamFormData {
   totalMarks: number
   passingMarks: number
   venue: string
-  instructions: string
+  instructions?: string
   status: "draft" | "scheduled" | "ongoing" | "completed" | "cancelled"
 }
 
@@ -78,127 +79,168 @@ interface ExaminationContextType {
 
 const ExaminationContext = createContext<ExaminationContextType | undefined>(undefined)
 
-// Mock data for examinations
-const mockExaminations: Examination[] = [
-  {
-    id: "exam_001",
-    title: "First Term Mathematics Examination",
-    type: "internal",
-    examBoard: "School Board",
-    subsystem: "english",
-    branch: "grammar",
-    level: "Form 5",
-    subjects: ["Mathematics", "Further Mathematics"],
-    startDate: "2024-03-15",
-    endDate: "2024-03-16",
-    duration: 180,
-    totalMarks: 100,
-    passingMarks: 50,
-    venue: "Main Hall",
-    instructions: "Calculators allowed. Show all working clearly.",
-    status: "completed",
-    createdAt: "2024-02-15T10:00:00Z",
-    createdBy: "admin_001",
-    enrolledStudents: 45,
-    completedStudents: 43,
-    results: [],
-  },
-  {
-    id: "exam_002",
-    title: "GCE Advanced Level Mock Examination",
-    type: "mock",
-    examBoard: "Cambridge International",
-    subsystem: "english",
-    branch: "grammar",
-    level: "Upper Sixth",
-    subjects: ["Physics", "Chemistry", "Biology", "Mathematics"],
-    startDate: "2024-04-01",
-    endDate: "2024-04-05",
-    duration: 180,
-    totalMarks: 100,
-    passingMarks: 40,
-    venue: "Science Laboratory",
-    instructions: "Follow GCE examination guidelines strictly.",
-    status: "scheduled",
-    createdAt: "2024-03-01T09:00:00Z",
-    createdBy: "admin_001",
-    enrolledStudents: 32,
-    completedStudents: 0,
-    results: [],
-  },
-  {
-    id: "exam_003",
-    title: "Probatoire Blanc - Sciences",
-    type: "mock",
-    examBoard: "Ministère de l'Éducation",
-    subsystem: "french",
-    branch: "grammar",
-    level: "Première",
-    subjects: ["Mathématiques", "Physique", "Chimie", "SVT"],
-    startDate: "2024-03-20",
-    endDate: "2024-03-22",
-    duration: 240,
-    totalMarks: 20,
-    passingMarks: 10,
-    venue: "Salle des Sciences",
-    instructions: "Épreuve selon le format officiel du Probatoire.",
-    status: "ongoing",
-    createdAt: "2024-02-20T14:00:00Z",
-    createdBy: "admin_001",
-    enrolledStudents: 38,
-    completedStudents: 15,
-    results: [],
-  },
-  {
-    id: "exam_004",
-    title: "Technical Drawing Assessment",
-    type: "continuous_assessment",
-    examBoard: "School Board",
-    subsystem: "english",
-    branch: "technical",
-    level: "Form 4",
-    subjects: ["Technical Drawing", "Workshop Practice"],
-    startDate: "2024-03-10",
-    endDate: "2024-03-12",
-    duration: 120,
-    totalMarks: 50,
-    passingMarks: 25,
-    venue: "Technical Workshop",
-    instructions: "Bring all drawing instruments. Practical assessment included.",
-    status: "completed",
-    createdAt: "2024-02-10T11:00:00Z",
-    createdBy: "teacher_003",
-    enrolledStudents: 28,
-    completedStudents: 28,
-    results: [],
-  },
-]
+// Mock implementation for testing when database is not available
+const createMockExamination = async (data: ExamFormData): Promise<{ success: boolean; examinationId?: string; error?: string }> => {
+  console.log("Using mock implementation for examination creation")
+  
+  // Simulate network delay
+  await new Promise(resolve => setTimeout(resolve, 1000))
+  
+  // Generate mock ID
+  const mockId = `exam_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  
+  console.log("Mock examination created with ID:", mockId)
+  
+  return {
+    success: true,
+    examinationId: mockId
+  }
+}
 
 export function ExaminationProvider({ children }: { children: React.ReactNode }) {
-  const [examinations, setExaminations] = useState<Examination[]>(mockExaminations)
+  const [examinations, setExaminations] = useState<Examination[]>([])
   const [isLoading, setIsLoading] = useState(false)
+
+  // Load examinations from database on mount
+  useEffect(() => {
+    loadExaminations()
+  }, [])
+
+  const loadExaminations = useCallback(async () => {
+    console.log("loadExaminations called")
+    
+    if (!supabase) {
+      console.error("Supabase client not available")
+      return
+    }
+
+    console.log("Supabase client available, attempting to load examinations")
+
+    setIsLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from("examinations")
+        .select(`
+          *,
+          exam_results (*)
+        `)
+        .order("created_at", { ascending: false })
+
+      if (error) {
+        console.error("Error loading examinations:", error)
+        return
+      }
+
+      // Transform database data to match our interface
+      const transformedExaminations: Examination[] = data.map((exam: any) => ({
+        id: exam.id,
+        title: exam.title,
+        type: exam.type,
+        examBoard: exam.exam_board,
+        subsystem: exam.subsystem,
+        branch: exam.branch,
+        level: exam.level,
+        subjects: exam.subjects || [],
+        startDate: exam.start_date,
+        endDate: exam.end_date,
+        duration: exam.duration,
+        totalMarks: exam.total_marks,
+        passingMarks: exam.passing_marks,
+        venue: exam.venue,
+        instructions: exam.instructions || "",
+        status: exam.status,
+        createdAt: exam.created_at,
+        createdBy: exam.created_by || "unknown",
+        enrolledStudents: exam.enrolled_students || 0,
+        completedStudents: exam.completed_students || 0,
+        results: exam.exam_results || [],
+      }))
+
+      setExaminations(transformedExaminations)
+    } catch (error) {
+      console.error("Error loading examinations:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
   const createExamination = useCallback(
     async (data: ExamFormData): Promise<{ success: boolean; examinationId?: string; error?: string }> => {
+      console.log("createExamination called with data:", data)
+      
+      if (!supabase) {
+        console.warn("Supabase client not available, using mock implementation")
+        // Mock implementation for testing
+        return createMockExamination(data)
+      }
+
       setIsLoading(true)
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        // Transform form data to database format
+        const examinationData = {
+          title: data.title,
+          type: data.type,
+          exam_board: data.examBoard,
+          subsystem: data.subsystem,
+          branch: data.branch,
+          level: data.level,
+          subjects: data.subjects,
+          start_date: data.startDate,
+          end_date: data.endDate,
+          duration: data.duration,
+          total_marks: data.totalMarks,
+          passing_marks: data.passingMarks,
+          venue: data.venue,
+          instructions: data.instructions || "",
+          status: data.status,
+          enrolled_students: 0,
+          completed_students: 0,
+        }
 
+        console.log("Attempting to insert examination data:", examinationData)
+
+        const { data: newExam, error } = await supabase
+          .from("examinations")
+          .insert([examinationData])
+          .select()
+          .single()
+
+        if (error) {
+          console.error("Error creating examination:", error)
+          return { success: false, error: error.message }
+        }
+
+        // Transform the created examination to match our interface
         const newExamination: Examination = {
-          id: `exam_${Date.now()}`,
-          ...data,
-          createdAt: new Date().toISOString(),
-          createdBy: "current_user",
-          enrolledStudents: 0,
-          completedStudents: 0,
+          id: newExam.id,
+          title: newExam.title,
+          type: newExam.type,
+          examBoard: newExam.exam_board,
+          subsystem: newExam.subsystem,
+          branch: newExam.branch,
+          level: newExam.level,
+          subjects: newExam.subjects || [],
+          startDate: newExam.start_date,
+          endDate: newExam.end_date,
+          duration: newExam.duration,
+          totalMarks: newExam.total_marks,
+          passingMarks: newExam.passing_marks,
+          venue: newExam.venue,
+          instructions: newExam.instructions || "",
+          status: newExam.status,
+          createdAt: newExam.created_at,
+          createdBy: newExam.created_by || "unknown",
+          enrolledStudents: newExam.enrolled_students || 0,
+          completedStudents: newExam.completed_students || 0,
           results: [],
         }
 
-        setExaminations((prev) => [...prev, newExamination])
+        // Add to local state
+        setExaminations((prev) => [newExamination, ...prev])
         setIsLoading(false)
         return { success: true, examinationId: newExamination.id }
       } catch (error) {
+        console.error("Error creating examination:", error)
         setIsLoading(false)
         return { success: false, error: "Failed to create examination" }
       }
@@ -208,15 +250,47 @@ export function ExaminationProvider({ children }: { children: React.ReactNode })
 
   const updateExamination = useCallback(
     async (id: string, data: Partial<ExamFormData>): Promise<{ success: boolean; error?: string }> => {
+      if (!supabase) {
+        return { success: false, error: "Database connection not available" }
+      }
+
       setIsLoading(true)
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        // Transform form data to database format
+        const updateData: any = {}
+        if (data.title) updateData.title = data.title
+        if (data.type) updateData.type = data.type
+        if (data.examBoard) updateData.exam_board = data.examBoard
+        if (data.subsystem) updateData.subsystem = data.subsystem
+        if (data.branch) updateData.branch = data.branch
+        if (data.level) updateData.level = data.level
+        if (data.subjects) updateData.subjects = data.subjects
+        if (data.startDate) updateData.start_date = data.startDate
+        if (data.endDate) updateData.end_date = data.endDate
+        if (data.duration) updateData.duration = data.duration
+        if (data.totalMarks) updateData.total_marks = data.totalMarks
+        if (data.passingMarks) updateData.passing_marks = data.passingMarks
+        if (data.venue) updateData.venue = data.venue
+        if (data.instructions !== undefined) updateData.instructions = data.instructions
+        if (data.status) updateData.status = data.status
 
+        const { error } = await supabase
+          .from("examinations")
+          .update(updateData)
+          .eq("id", id)
+
+        if (error) {
+          console.error("Error updating examination:", error)
+          return { success: false, error: error.message }
+        }
+
+        // Update local state
         setExaminations((prev) => prev.map((exam) => (exam.id === id ? { ...exam, ...data } : exam)))
 
         setIsLoading(false)
         return { success: true }
       } catch (error) {
+        console.error("Error updating examination:", error)
         setIsLoading(false)
         return { success: false, error: "Failed to update examination" }
       }
@@ -225,15 +299,29 @@ export function ExaminationProvider({ children }: { children: React.ReactNode })
   )
 
   const deleteExamination = useCallback(async (id: string): Promise<{ success: boolean; error?: string }> => {
+    if (!supabase) {
+      return { success: false, error: "Database connection not available" }
+    }
+
     setIsLoading(true)
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      const { error } = await supabase
+        .from("examinations")
+        .delete()
+        .eq("id", id)
 
+      if (error) {
+        console.error("Error deleting examination:", error)
+        return { success: false, error: error.message }
+      }
+
+      // Remove from local state
       setExaminations((prev) => prev.filter((exam) => exam.id !== id))
 
       setIsLoading(false)
       return { success: true }
     } catch (error) {
+      console.error("Error deleting examination:", error)
       setIsLoading(false)
       return { success: false, error: "Failed to delete examination" }
     }

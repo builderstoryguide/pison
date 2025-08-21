@@ -34,12 +34,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
 import { Pagination } from "@/components/ui/pagination"
 import { useExamination, type Examination } from "@/lib/examination-context"
 import { ExaminationCreationForm } from "./examination-creation-form"
+import { ExaminationEditForm } from "./examination-edit-form"
 import { ExaminationDetailsDialog } from "./examination-details-dialog"
+import { ExaminationSuccessDialog } from "./examination-success-dialog"
 
 export function ExaminationManagement() {
   const { examinations, deleteExamination, isLoading } = useExamination()
@@ -48,8 +50,11 @@ export function ExaminationManagement() {
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [subsystemFilter, setSubsystemFilter] = useState<string>("all")
   const [showCreationForm, setShowCreationForm] = useState(false)
+  const [showEditForm, setShowEditForm] = useState(false)
   const [selectedExamination, setSelectedExamination] = useState<Examination | null>(null)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false)
+  const [createdExaminationTitle, setCreatedExaminationTitle] = useState("")
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -147,6 +152,11 @@ export function ExaminationManagement() {
     setShowDetailsDialog(true)
   }
 
+  const handleEditExamination = (examination: Examination) => {
+    setSelectedExamination(examination)
+    setShowEditForm(true)
+  }
+
   const handleDeleteExamination = async (id: string) => {
     if (confirm("Are you sure you want to delete this examination? This action cannot be undone.")) {
       await deleteExamination(id)
@@ -155,7 +165,18 @@ export function ExaminationManagement() {
 
   const handleCreationSuccess = (result: { examinationId: string }) => {
     setShowCreationForm(false)
-    // Optionally show success message or navigate to the new examination
+    // Get the created examination title
+    const createdExam = examinations.find(exam => exam.id === result.examinationId)
+    if (createdExam) {
+      setCreatedExaminationTitle(createdExam.title)
+      setShowSuccessDialog(true)
+    }
+  }
+
+  const handleEditSuccess = (result: { examinationId: string }) => {
+    setShowEditForm(false)
+    setSelectedExamination(null)
+    // Optionally show success message
   }
 
   return (
@@ -387,7 +408,7 @@ export function ExaminationManagement() {
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditExamination(examination)}>
                                 <Edit className="h-4 w-4 mr-2" />
                                 Edit
                               </DropdownMenuItem>
@@ -437,26 +458,60 @@ export function ExaminationManagement() {
       {/* Examination Creation Form Dialog */}
       <Dialog open={showCreationForm} onOpenChange={setShowCreationForm}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Examination</DialogTitle>
+          </DialogHeader>
           <ExaminationCreationForm onSuccess={handleCreationSuccess} onCancel={() => setShowCreationForm(false)} />
         </DialogContent>
       </Dialog>
 
-      {/* Examination Details Dialog */}
+      {/* Examination Edit Form Dialog */}
       {selectedExamination && (
-        <ExaminationDetailsDialog
-          examination={selectedExamination}
-          open={showDetailsDialog}
-          onOpenChange={setShowDetailsDialog}
-          onEdit={() => {
-            setShowDetailsDialog(false)
-            // Handle edit action
-          }}
-          onDelete={() => {
-            setShowDetailsDialog(false)
-            handleDeleteExamination(selectedExamination.id)
-          }}
-        />
+        <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Examination</DialogTitle>
+            </DialogHeader>
+            <ExaminationEditForm
+              examination={selectedExamination}
+              onSuccess={handleEditSuccess}
+              onCancel={() => setShowEditForm(false)}
+            />
+          </DialogContent>
+        </Dialog>
       )}
-    </div>
-  )
-}
+
+             {/* Examination Details Dialog */}
+       {selectedExamination && (
+         <ExaminationDetailsDialog
+           examination={selectedExamination}
+           open={showDetailsDialog}
+           onOpenChange={setShowDetailsDialog}
+           onEdit={() => {
+             setShowDetailsDialog(false)
+             handleEditExamination(selectedExamination)
+           }}
+           onDelete={() => {
+             setShowDetailsDialog(false)
+             handleDeleteExamination(selectedExamination.id)
+           }}
+         />
+       )}
+
+       {/* Success Dialog */}
+       <ExaminationSuccessDialog
+         open={showSuccessDialog}
+         onOpenChange={setShowSuccessDialog}
+         examinationTitle={createdExaminationTitle}
+         onCreateAnother={() => {
+           setShowSuccessDialog(false)
+           setShowCreationForm(true)
+         }}
+         onViewExamination={() => {
+           setShowSuccessDialog(false)
+           // You can add navigation to the examination details here
+         }}
+       />
+     </div>
+   )
+ }

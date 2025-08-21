@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { CalendarIcon, Clock, FileText, MapPin, AlertCircle } from "lucide-react"
+import { CalendarIcon, Clock, FileText, MapPin, AlertCircle, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
@@ -18,8 +18,9 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
+
 import { useExamination, type ExamFormData } from "@/lib/examination-context"
+import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
 const examinationSchema = z.object({
@@ -30,8 +31,8 @@ const examinationSchema = z.object({
   branch: z.enum(["grammar", "technical", "commercial"]),
   level: z.string().min(1, "Level is required"),
   subjects: z.array(z.string()).min(1, "At least one subject is required"),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().min(1, "End date is required"),
+  startDate: z.string().optional(), // We'll validate this manually
+  endDate: z.string().optional(), // We'll validate this manually
   duration: z.number().min(30, "Duration must be at least 30 minutes"),
   totalMarks: z.number().min(1, "Total marks must be greater than 0"),
   passingMarks: z.number().min(1, "Passing marks must be greater than 0"),
@@ -152,10 +153,12 @@ interface ExaminationCreationFormProps {
 
 export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCreationFormProps) {
   const { createExamination, isLoading } = useExamination()
+  const { toast } = useToast()
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
   const [startDate, setStartDate] = useState<Date>()
   const [endDate, setEndDate] = useState<Date>()
   const [error, setError] = useState<string>("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const {
     register,
@@ -170,6 +173,11 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
       duration: 180,
       totalMarks: 100,
       passingMarks: 50,
+      type: undefined,
+      subsystem: undefined,
+      branch: undefined,
+      level: undefined,
+      examBoard: undefined,
     },
   })
 
@@ -193,49 +201,123 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
   }
 
   const onSubmit = async (data: ExamFormData) => {
+    console.log("Form submitted with data:", data)
+    console.log("Selected subjects:", selectedSubjects)
+    console.log("Start date:", startDate)
+    console.log("End date:", endDate)
+    
     setError("")
+    setIsSubmitting(true)
 
-    if (!startDate || !endDate) {
-      setError("Please select both start and end dates")
-      return
-    }
+    try {
+      // Validate dates
+      if (!startDate || !endDate) {
+        const errorMessage = "Please select both start and end dates"
+        setError(errorMessage)
+        toast.error("Validation Error", {
+          description: errorMessage,
+        })
+        setIsSubmitting(false)
+        return
+      }
 
-    if (endDate < startDate) {
-      setError("End date must be after start date")
-      return
-    }
+      if (endDate < startDate) {
+        const errorMessage = "End date must be after start date"
+        setError(errorMessage)
+        toast.error("Validation Error", {
+          description: errorMessage,
+        })
+        setIsSubmitting(false)
+        return
+      }
 
-    if (data.passingMarks >= data.totalMarks) {
-      setError("Passing marks must be less than total marks")
-      return
-    }
+      // Validate marks
+      if (data.passingMarks >= data.totalMarks) {
+        const errorMessage = "Passing marks must be less than total marks"
+        setError(errorMessage)
+        toast.error("Validation Error", {
+          description: errorMessage,
+        })
+        setIsSubmitting(false)
+        return
+      }
 
-    const formData: ExamFormData = {
-      ...data,
-      startDate: format(startDate, "yyyy-MM-dd"),
-      endDate: format(endDate, "yyyy-MM-dd"),
-      subjects: selectedSubjects,
-    }
+      // Validate subjects
+      if (selectedSubjects.length === 0) {
+        const errorMessage = "Please select at least one subject"
+        setError(errorMessage)
+        toast.error("Validation Error", {
+          description: errorMessage,
+        })
+        setIsSubmitting(false)
+        return
+      }
 
-    const result = await createExamination(formData)
+      const formData: ExamFormData = {
+        ...data,
+        startDate: format(startDate, "yyyy-MM-dd"),
+        endDate: format(endDate, "yyyy-MM-dd"),
+        subjects: selectedSubjects,
+      }
 
-    if (result.success && result.examinationId) {
-      onSuccess({ examinationId: result.examinationId })
-    } else {
-      setError(result.error || "Failed to create examination")
+      console.log("Calling createExamination with:", formData)
+      
+      const result = await createExamination(formData)
+      console.log("createExamination result:", result)
+
+      if (result.success && result.examinationId) {
+        toast.success("Examination Created Successfully!", {
+          description: `"${data.title}" has been created successfully.`,
+        })
+        
+        // Clear form data
+        setSelectedSubjects([])
+        setStartDate(undefined)
+        setEndDate(undefined)
+        
+        // Call success callback
+        onSuccess({ examinationId: result.examinationId })
+      } else {
+        const errorMessage = result.error || "Failed to create examination"
+        console.error("Examination creation failed:", errorMessage)
+        setError(errorMessage)
+        toast.error("Failed to Create Examination", {
+          description: errorMessage,
+        })
+      }
+    } catch (error) {
+      console.error("Error creating examination:", error)
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred while creating the examination"
+      setError(errorMessage)
+      toast.error("Failed to Create Examination", {
+        description: errorMessage,
+      })
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   return (
     <div className="max-w-4xl mx-auto">
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold flex items-center gap-2">
           <FileText className="h-5 w-5" />
           Create New Examination
-        </DialogTitle>
-      </DialogHeader>
+        </h2>
+        <p className="text-muted-foreground">Fill in the details below to create a new examination</p>
+      </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 mt-6">
+      <form onSubmit={handleSubmit(onSubmit, (errors) => {
+        console.log("Form validation errors:", errors)
+        // Don't show validation errors for startDate and endDate as we handle them manually
+        const filteredErrors = { ...errors }
+        delete filteredErrors.startDate
+        delete filteredErrors.endDate
+        
+        if (Object.keys(filteredErrors).length > 0) {
+          console.log("Form validation errors (filtered):", filteredErrors)
+        }
+      })} className="space-y-6">
         {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -259,7 +341,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
 
               <div className="space-y-2">
                 <Label htmlFor="type">Examination Type *</Label>
-                <Select onValueChange={(value) => setValue("type", value as any)}>
+                <Select value={watch("type")} onValueChange={(value) => setValue("type", value as any)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select examination type" />
                   </SelectTrigger>
@@ -278,6 +360,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
               <div className="space-y-2">
                 <Label htmlFor="subsystem">Sub-system *</Label>
                 <Select
+                  value={watch("subsystem")}
                   onValueChange={(value) => {
                     setValue("subsystem", value as any)
                     setSelectedSubjects([])
@@ -298,6 +381,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
               <div className="space-y-2">
                 <Label htmlFor="branch">Branch *</Label>
                 <Select
+                  value={watch("branch")}
                   onValueChange={(value) => {
                     setValue("branch", value as any)
                     setSelectedSubjects([])
@@ -318,7 +402,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
 
               <div className="space-y-2">
                 <Label htmlFor="level">Level *</Label>
-                <Select onValueChange={(value) => setValue("level", value)}>
+                <Select value={watch("level")} onValueChange={(value) => setValue("level", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select level" />
                   </SelectTrigger>
@@ -336,7 +420,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
 
             <div className="space-y-2">
               <Label htmlFor="examBoard">Exam Board *</Label>
-              <Select onValueChange={(value) => setValue("examBoard", value)}>
+              <Select value={watch("examBoard")} onValueChange={(value) => setValue("examBoard", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select exam board" />
                 </SelectTrigger>
@@ -516,7 +600,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
 
             <div className="space-y-2">
               <Label htmlFor="status">Status *</Label>
-              <Select onValueChange={(value) => setValue("status", value as any)}>
+              <Select value={watch("status")} onValueChange={(value) => setValue("status", value as any)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -533,15 +617,22 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
           </CardContent>
         </Card>
 
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? "Creating..." : "Create Examination"}
-          </Button>
-        </div>
+                 {/* Action Buttons */}
+         <div className="flex justify-end gap-4">
+           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+             Cancel
+           </Button>
+           <Button type="submit" disabled={isLoading || isSubmitting}>
+             {isSubmitting ? (
+               <>
+                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                 Creating...
+               </>
+             ) : (
+               "Create Examination"
+             )}
+           </Button>
+         </div>
       </form>
     </div>
   )

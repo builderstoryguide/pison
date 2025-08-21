@@ -6,11 +6,12 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, GraduationCap, Calendar, BookOpen, Settings, UserPlus, UserMinus, Edit, Trash2 } from "lucide-react"
+import { Users, GraduationCap, Calendar, BookOpen, Settings, UserPlus, UserMinus, Edit, Trash2, Clock } from "lucide-react"
 import { useClassManagement, type ClassData } from "@/lib/class-management-context"
 import { useStudentManagement, type Student } from "@/lib/student-management-context"
 import { AddStudentToClassDialog } from "./add-student-to-class-dialog"
 import { RemoveStudentFromClassDialog } from "./remove-student-from-class-dialog"
+import { ClassScheduleManagement } from "./class-schedule-management"
 import { ManageClassSubjectsDialog } from "./manage-class-subjects-dialog"
 import { useToast } from "@/hooks/use-toast"
 
@@ -32,6 +33,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
   const [showAddStudentDialog, setShowAddStudentDialog] = useState(false)
   const [showRemoveStudentDialog, setShowRemoveStudentDialog] = useState(false)
   const [showManageSubjectsDialog, setShowManageSubjectsDialog] = useState(false)
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false)
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -84,15 +86,12 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
       // Refresh classes to update enrollment count
       await refreshClasses()
       
-      toast({
-        title: "Students added successfully",
+      toast("Students added successfully", {
         description: `${addedStudents.length} student${addedStudents.length === 1 ? '' : 's'} added to ${classData.name}`,
       })
-    } catch (error) {
-      toast({
-        title: "Error adding students",
+         } catch (error) {
+      toast("Error adding students", {
         description: error instanceof Error ? error.message : "Failed to add students to class",
-        variant: "destructive",
       })
     }
   }
@@ -114,15 +113,12 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
       // Refresh classes to update enrollment count
       await refreshClasses()
       
-      toast({
-        title: "Students removed successfully",
+      toast("Students removed successfully", {
         description: `${removedStudents.length} student${removedStudents.length === 1 ? '' : 's'} removed from ${classData.name}`,
       })
-    } catch (error) {
-      toast({
-        title: "Error removing students",
+         } catch (error) {
+      toast("Error removing students", {
         description: error instanceof Error ? error.message : "Failed to remove students from class",
-        variant: "destructive",
       })
     }
   }
@@ -138,15 +134,12 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
       // Refresh classes to update the subjects
       await refreshClasses()
       
-      toast({
-        title: "Subjects updated successfully",
+      toast("Subjects updated successfully", {
         description: `Subjects for ${classData.name} have been updated.`,
       })
-    } catch (error) {
-      toast({
-        title: "Error updating subjects",
+         } catch (error) {
+      toast("Error updating subjects", {
         description: error instanceof Error ? error.message : "Failed to update subjects",
-        variant: "destructive",
       })
     }
   }
@@ -187,7 +180,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Enrollment</CardTitle>
@@ -231,6 +224,21 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                 <CardContent>
                   <div className="text-sm font-medium break-words">{classData.academicYear}</div>
                   <p className="text-xs text-muted-foreground">Current session</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Schedule</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {classData.schedule.reduce((total, day) => total + day.periods.length, 0)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {classData.schedule.filter(day => day.periods.length > 0).length} day{classData.schedule.filter(day => day.periods.length > 0).length !== 1 ? 's' : ''} scheduled
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -334,7 +342,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                 <h3 className="text-lg font-medium">Class Schedule</h3>
                 <p className="text-sm text-muted-foreground">Weekly timetable for this class</p>
               </div>
-              <Button size="sm">
+              <Button size="sm" onClick={() => setShowScheduleDialog(true)}>
                 <Settings className="h-4 w-4 mr-2" />
                 Edit Schedule
               </Button>
@@ -347,7 +355,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                     <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium mb-2">No schedule configured</h3>
                     <p className="text-muted-foreground mb-4">Set up the weekly schedule for this class.</p>
-                    <Button>
+                    <Button onClick={() => setShowScheduleDialog(true)}>
                       <Calendar className="h-4 w-4 mr-2" />
                       Create Schedule
                     </Button>
@@ -356,13 +364,29 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                   <div className="space-y-4">
                     {classData.schedule.map((day, index) => (
                       <div key={index} className="border rounded-lg p-4">
-                        <h4 className="font-medium mb-2">{day.day}</h4>
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-medium text-lg">{day.day}</h4>
+                          <Badge variant="secondary">
+                            {day.periods.length} period{day.periods.length !== 1 ? 's' : ''}
+                          </Badge>
+                        </div>
                         <div className="space-y-2">
                           {day.periods.map((period, periodIndex) => (
-                            <div key={periodIndex} className="flex items-center justify-between text-sm">
-                              <span className="font-medium">{period.time}</span>
-                              <span>{period.subject}</span>
-                              <span className="text-muted-foreground">{period.teacher}</span>
+                            <div key={periodIndex} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-medium">{period.time}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <BookOpen className="h-4 w-4 text-muted-foreground" />
+                                  <span className="font-medium">{period.subject}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Users className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-muted-foreground">{period.teacher}</span>
+                                </div>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -433,6 +457,13 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
         onOpenChange={setShowManageSubjectsDialog}
         classData={classData}
         onSuccess={handleUpdateSubjects}
+      />
+
+      {/* Schedule Management Dialog */}
+      <ClassScheduleManagement
+        open={showScheduleDialog}
+        onOpenChange={setShowScheduleDialog}
+        classData={classData}
       />
     </Dialog>
   )
