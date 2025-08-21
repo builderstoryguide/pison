@@ -297,6 +297,7 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         if (classData.subsystem) updateData.subsystem = classData.subsystem
         if (classData.academicYear) updateData.academic_year = classData.academicYear
         if (classData.capacity) updateData.capacity = classData.capacity
+        if (classData.subjects) updateData.subjects = classData.subjects
         updateData.updated_at = new Date().toISOString()
 
         const { error: updateError } = await supabase

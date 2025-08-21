@@ -8,6 +8,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Users, GraduationCap, Calendar, BookOpen, Settings, UserPlus, UserMinus, Edit, Trash2 } from "lucide-react"
 import { useClassManagement, type ClassData } from "@/lib/class-management-context"
+import { useStudentManagement, type Student } from "@/lib/student-management-context"
+import { AddStudentToClassDialog } from "./add-student-to-class-dialog"
+import { RemoveStudentFromClassDialog } from "./remove-student-from-class-dialog"
+import { ManageClassSubjectsDialog } from "./manage-class-subjects-dialog"
+import { useToast } from "@/hooks/use-toast"
 
 interface ClassDetailsDialogProps {
   classData: ClassData
@@ -18,10 +23,15 @@ interface ClassDetailsDialogProps {
 }
 
 export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDelete }: ClassDetailsDialogProps) {
-  const { getClassStudents } = useClassManagement()
+  const { getClassStudents, assignStudentToClass, removeStudentFromClass, updateClass, refreshClasses } = useClassManagement()
+  const { students: allStudents } = useStudentManagement()
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("overview")
   const [students, setStudents] = useState<any[]>([])
   const [isLoadingStudents, setIsLoadingStudents] = useState(false)
+  const [showAddStudentDialog, setShowAddStudentDialog] = useState(false)
+  const [showRemoveStudentDialog, setShowRemoveStudentDialog] = useState(false)
+  const [showManageSubjectsDialog, setShowManageSubjectsDialog] = useState(false)
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -56,6 +66,90 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
       loadStudents()
     }
   }, [open, classData.id, getClassStudents])
+
+  // Handle adding students to class
+  const handleAddStudents = async (addedStudents: Student[]) => {
+    try {
+      for (const student of addedStudents) {
+        const result = await assignStudentToClass(student.id, classData.id)
+        if (!result.success) {
+          throw new Error(result.error || "Failed to add student")
+        }
+      }
+      
+      // Refresh the class students list
+      const updatedStudents = await getClassStudents(classData.id)
+      setStudents(updatedStudents)
+      
+      // Refresh classes to update enrollment count
+      await refreshClasses()
+      
+      toast({
+        title: "Students added successfully",
+        description: `${addedStudents.length} student${addedStudents.length === 1 ? '' : 's'} added to ${classData.name}`,
+      })
+    } catch (error) {
+      toast({
+        title: "Error adding students",
+        description: error instanceof Error ? error.message : "Failed to add students to class",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle removing students from class
+  const handleRemoveStudents = async (removedStudents: Student[]) => {
+    try {
+      for (const student of removedStudents) {
+        const result = await removeStudentFromClass(student.id, classData.id)
+        if (!result.success) {
+          throw new Error(result.error || "Failed to remove student")
+        }
+      }
+      
+      // Refresh the class students list
+      const updatedStudents = await getClassStudents(classData.id)
+      setStudents(updatedStudents)
+      
+      // Refresh classes to update enrollment count
+      await refreshClasses()
+      
+      toast({
+        title: "Students removed successfully",
+        description: `${removedStudents.length} student${removedStudents.length === 1 ? '' : 's'} removed from ${classData.name}`,
+      })
+    } catch (error) {
+      toast({
+        title: "Error removing students",
+        description: error instanceof Error ? error.message : "Failed to remove students from class",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle updating class subjects
+  const handleUpdateSubjects = async (updatedSubjects: string[]) => {
+    try {
+      const result = await updateClass(classData.id, { subjects: updatedSubjects })
+      if (!result.success) {
+        throw new Error(result.error || "Failed to update subjects")
+      }
+      
+      // Refresh classes to update the subjects
+      await refreshClasses()
+      
+      toast({
+        title: "Subjects updated successfully",
+        description: `Subjects for ${classData.name} have been updated.`,
+      })
+    } catch (error) {
+      toast({
+        title: "Error updating subjects",
+        description: error instanceof Error ? error.message : "Failed to update subjects",
+        variant: "destructive",
+      })
+    }
+  }
   const utilizationPercentage = Math.round((classData.currentEnrollment / classData.capacity) * 100)
 
   return (
@@ -196,11 +290,16 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                 <p className="text-sm text-muted-foreground">{classData.currentEnrollment} students enrolled</p>
               </div>
               <div className="flex gap-2">
-                <Button size="sm">
+                <Button size="sm" onClick={() => setShowAddStudentDialog(true)}>
                   <UserPlus className="h-4 w-4 mr-2" />
                   Add Student
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowRemoveStudentDialog(true)}
+                  disabled={students.length === 0}
+                >
                   <UserMinus className="h-4 w-4 mr-2" />
                   Remove Student
                 </Button>
@@ -214,7 +313,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                     <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium mb-2">No students enrolled</h3>
                     <p className="text-muted-foreground mb-4">This class doesn't have any students enrolled yet.</p>
-                    <Button>
+                    <Button onClick={() => setShowAddStudentDialog(true)}>
                       <UserPlus className="h-4 w-4 mr-2" />
                       Add First Student
                     </Button>
@@ -283,7 +382,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                   {classData.subjects.length} subjects assigned to this class
                 </p>
               </div>
-              <Button size="sm">
+              <Button size="sm" onClick={() => setShowManageSubjectsDialog(true)}>
                 <BookOpen className="h-4 w-4 mr-2" />
                 Manage Subjects
               </Button>
@@ -307,6 +406,34 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
           </TabsContent>
         </Tabs>
       </DialogContent>
+
+      {/* Add Student Dialog */}
+      <AddStudentToClassDialog
+        open={showAddStudentDialog}
+        onOpenChange={setShowAddStudentDialog}
+        classId={classData.id}
+        className={classData.name}
+        currentStudents={students.map(s => s.id)}
+        onSuccess={handleAddStudents}
+      />
+
+      {/* Remove Student Dialog */}
+      <RemoveStudentFromClassDialog
+        open={showRemoveStudentDialog}
+        onOpenChange={setShowRemoveStudentDialog}
+        classId={classData.id}
+        className={classData.name}
+        classStudents={students}
+        onSuccess={handleRemoveStudents}
+      />
+
+      {/* Manage Subjects Dialog */}
+      <ManageClassSubjectsDialog
+        open={showManageSubjectsDialog}
+        onOpenChange={setShowManageSubjectsDialog}
+        classData={classData}
+        onSuccess={handleUpdateSubjects}
+      />
     </Dialog>
   )
 }
