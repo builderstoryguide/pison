@@ -15,6 +15,7 @@ import {
   UserCheck,
   BarChart3,
   FileText,
+  Edit,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,6 +27,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
 import { AttendanceMarkingForm } from "./attendance-marking-form"
+import { EditAttendanceRecordForm } from "./edit-attendance-record-form"
+import { AttendanceSessionManagement } from "./attendance-session-management"
+import { AttendanceSessionCRUD } from "./attendance-session-crud"
+import { BulkAttendanceOperations } from "./bulk-attendance-operations"
 import { useAttendance } from "@/lib/attendance-context"
 
 export function AttendanceManagement() {
@@ -249,6 +254,10 @@ export function AttendanceManagement() {
             <Clock className="h-4 w-4" />
             Attendance Sessions
           </TabsTrigger>
+          <TabsTrigger value="records" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Individual Records
+          </TabsTrigger>
           <TabsTrigger value="students" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Student Summary
@@ -266,10 +275,26 @@ export function AttendanceManagement() {
         <TabsContent value="sessions" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Attendance Sessions</CardTitle>
-              <CardDescription>
-                Manage and view attendance sessions ({filteredSessions.length} sessions)
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Attendance Sessions</CardTitle>
+                  <CardDescription>
+                    Manage and view attendance sessions ({filteredSessions.length} sessions)
+                  </CardDescription>
+                </div>
+                <AttendanceSessionCRUD
+                  mode="create"
+                  onSuccess={() => {
+                    // Refresh data if needed
+                  }}
+                  trigger={
+                    <Button className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Create New Session
+                    </Button>
+                  }
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
@@ -328,15 +353,106 @@ export function AttendanceManagement() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            View
-                          </Button>
+                          <AttendanceSessionCRUD
+                            sessionId={session.id}
+                            onSuccess={() => {
+                              // Refresh data if needed
+                            }}
+                            trigger={
+                              <Button variant="outline" size="sm">
+                                Manage
+                              </Button>
+                            }
+                          />
                           {session.status === "pending" && (
-                            <Button variant="outline" size="sm">
-                              Edit
-                            </Button>
+                            <AttendanceSessionCRUD
+                              sessionId={session.id}
+                              mode="edit"
+                              onSuccess={() => {
+                                // Refresh data if needed
+                              }}
+                              trigger={
+                                <Button variant="outline" size="sm">
+                                  Edit
+                                </Button>
+                              }
+                            />
                           )}
                         </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="records" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Individual Attendance Records</CardTitle>
+                  <CardDescription>
+                    Manage individual student attendance records ({attendanceRecords.length} records)
+                  </CardDescription>
+                </div>
+                <BulkAttendanceOperations
+                  records={attendanceRecords}
+                  onSuccess={() => {
+                    // Refresh data if needed
+                  }}
+                  trigger={
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <Edit className="h-4 w-4" />
+                      Bulk Operations
+                    </Button>
+                  }
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Class</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Notes</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {attendanceRecords.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell className="font-medium">{record.studentName}</TableCell>
+                      <TableCell>{record.className}</TableCell>
+                      <TableCell>{record.date}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(record.status)}>
+                          {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{record.subject || "-"}</TableCell>
+                      <TableCell className="max-w-xs truncate">
+                        {record.notes || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <EditAttendanceRecordForm
+                          recordId={record.id}
+                          onSuccess={() => {
+                            // Refresh data if needed
+                          }}
+                          trigger={
+                            <Button variant="outline" size="sm" className="flex items-center gap-2">
+                              <Edit className="h-4 w-4" />
+                              Edit
+                            </Button>
+                          }
+                        />
                       </TableCell>
                     </TableRow>
                   ))}

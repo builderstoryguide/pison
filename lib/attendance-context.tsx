@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState } from "react"
 
 export interface AttendanceRecord {
   id: string
+  sessionId: string
   studentId: string
   studentName: string
   classId: string
@@ -68,17 +69,31 @@ interface AttendanceContextType {
   attendanceStats: AttendanceStats
   studentSummaries: StudentAttendanceSummary[]
   isLoading: boolean
+  // Create operations
   markAttendance: (sessionId: string, records: Omit<AttendanceRecord, "id" | "markedAt">[]) => Promise<void>
   createAttendanceSession: (session: Omit<AttendanceSession, "id" | "markedAt">) => Promise<string>
-  updateAttendanceRecord: (recordId: string, updates: Partial<AttendanceRecord>) => Promise<void>
+  // Read operations
   getAttendanceByClass: (classId: string, dateRange?: { start: string; end: string }) => AttendanceRecord[]
   getAttendanceByStudent: (studentId: string, dateRange?: { start: string; end: string }) => AttendanceRecord[]
   getAttendanceStats: (filters?: { classId?: string; dateRange?: { start: string; end: string } }) => AttendanceStats
+  getAttendanceSession: (sessionId: string) => AttendanceSession | undefined
+  getAttendanceRecord: (recordId: string) => AttendanceRecord | undefined
+  // Update operations
+  updateAttendanceRecord: (recordId: string, updates: Partial<AttendanceRecord>) => Promise<void>
+  updateAttendanceSession: (sessionId: string, updates: Partial<AttendanceSession>) => Promise<void>
+  // Delete operations
+  deleteAttendanceRecord: (recordId: string) => Promise<void>
+  deleteAttendanceSession: (sessionId: string) => Promise<void>
+  deleteAttendanceRecordsBySession: (sessionId: string) => Promise<void>
+  // Report operations
   generateAttendanceReport: (filters: {
     classId?: string
     studentId?: string
     dateRange: { start: string; end: string }
   }) => Promise<any>
+  // Bulk operations
+  bulkUpdateAttendance: (updates: { recordId: string; updates: Partial<AttendanceRecord> }[]) => Promise<void>
+  bulkDeleteAttendanceRecords: (recordIds: string[]) => Promise<void>
 }
 
 const AttendanceContext = createContext<AttendanceContextType | undefined>(undefined)
@@ -87,6 +102,7 @@ const AttendanceContext = createContext<AttendanceContextType | undefined>(undef
 const mockAttendanceRecords: AttendanceRecord[] = [
   {
     id: "att_001",
+    sessionId: "ses_001",
     studentId: "std_001",
     studentName: "Marie Ngozi",
     classId: "cls_001",
@@ -100,6 +116,7 @@ const mockAttendanceRecords: AttendanceRecord[] = [
   },
   {
     id: "att_002",
+    sessionId: "ses_001",
     studentId: "std_002",
     studentName: "Jean Baptiste",
     classId: "cls_001",
@@ -114,6 +131,7 @@ const mockAttendanceRecords: AttendanceRecord[] = [
   },
   {
     id: "att_003",
+    sessionId: "ses_001",
     studentId: "std_003",
     studentName: "Fatima Alim",
     classId: "cls_001",
@@ -128,6 +146,7 @@ const mockAttendanceRecords: AttendanceRecord[] = [
   },
   {
     id: "att_004",
+    sessionId: "ses_002",
     studentId: "std_004",
     studentName: "Paul Biya Jr",
     classId: "cls_002",
@@ -142,6 +161,7 @@ const mockAttendanceRecords: AttendanceRecord[] = [
   },
   {
     id: "att_005",
+    sessionId: "ses_003",
     studentId: "std_001",
     studentName: "Marie Ngozi",
     classId: "cls_001",
@@ -524,19 +544,172 @@ export function AttendanceProvider({ children }: { children: React.ReactNode }) 
     }
   }
 
+  // Read operations
+  const getAttendanceSession = (sessionId: string) => {
+    return attendanceSessions.find((session) => session.id === sessionId)
+  }
+
+  const getAttendanceRecord = (recordId: string) => {
+    return attendanceRecords.find((record) => record.id === recordId)
+  }
+
+  // Update operations
+  const updateAttendanceSession = async (sessionId: string, updates: Partial<AttendanceSession>) => {
+    setIsLoading(true)
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      setAttendanceSessions((prev) =>
+        prev.map((session) => (session.id === sessionId ? { ...session, ...updates } : session)),
+      )
+
+      console.log("Attendance session updated successfully")
+    } catch (error) {
+      console.error("Error updating attendance session:", error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Delete operations
+  const deleteAttendanceRecord = async (recordId: string) => {
+    setIsLoading(true)
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      setAttendanceRecords((prev) => prev.filter((record) => record.id !== recordId))
+
+      console.log("Attendance record deleted successfully")
+    } catch (error) {
+      console.error("Error deleting attendance record:", error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const deleteAttendanceSession = async (sessionId: string) => {
+    setIsLoading(true)
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      // Delete the session and all related records
+      setAttendanceSessions((prev) => prev.filter((session) => session.id !== sessionId))
+      setAttendanceRecords((prev) => prev.filter((record) => record.sessionId !== sessionId))
+
+      console.log("Attendance session and related records deleted successfully")
+    } catch (error) {
+      console.error("Error deleting attendance session:", error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const deleteAttendanceRecordsBySession = async (sessionId: string) => {
+    setIsLoading(true)
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      setAttendanceRecords((prev) => prev.filter((record) => record.sessionId !== sessionId))
+
+      // Update session to reset counts
+      setAttendanceSessions((prev) =>
+        prev.map((session) =>
+          session.id === sessionId
+            ? {
+                ...session,
+                presentCount: 0,
+                absentCount: 0,
+                lateCount: 0,
+                excusedCount: 0,
+                status: "pending" as const,
+              }
+            : session,
+        ),
+      )
+
+      console.log("Attendance records for session deleted successfully")
+    } catch (error) {
+      console.error("Error deleting attendance records by session:", error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Bulk operations
+  const bulkUpdateAttendance = async (updates: { recordId: string; updates: Partial<AttendanceRecord> }[]) => {
+    setIsLoading(true)
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      setAttendanceRecords((prev) =>
+        prev.map((record) => {
+          const update = updates.find((u) => u.recordId === record.id)
+          return update ? { ...record, ...update.updates } : record
+        }),
+      )
+
+      console.log("Bulk attendance update completed successfully")
+    } catch (error) {
+      console.error("Error performing bulk attendance update:", error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const bulkDeleteAttendanceRecords = async (recordIds: string[]) => {
+    setIsLoading(true)
+    try {
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      setAttendanceRecords((prev) => prev.filter((record) => !recordIds.includes(record.id)))
+
+      console.log("Bulk attendance records deletion completed successfully")
+    } catch (error) {
+      console.error("Error performing bulk attendance records deletion:", error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const value: AttendanceContextType = {
     attendanceRecords,
     attendanceSessions,
     attendanceStats,
     studentSummaries,
     isLoading,
+    // Create operations
     markAttendance,
     createAttendanceSession,
-    updateAttendanceRecord,
+    // Read operations
     getAttendanceByClass,
     getAttendanceByStudent,
     getAttendanceStats,
+    getAttendanceSession,
+    getAttendanceRecord,
+    // Update operations
+    updateAttendanceRecord,
+    updateAttendanceSession,
+    // Delete operations
+    deleteAttendanceRecord,
+    deleteAttendanceSession,
+    deleteAttendanceRecordsBySession,
+    // Report operations
     generateAttendanceReport,
+    // Bulk operations
+    bulkUpdateAttendance,
+    bulkDeleteAttendanceRecords,
   }
 
   return <AttendanceContext.Provider value={value}>{children}</AttendanceContext.Provider>

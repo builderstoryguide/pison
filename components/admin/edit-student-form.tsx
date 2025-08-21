@@ -15,7 +15,6 @@ import {
   Mail, 
   Phone, 
   MapPin, 
-  Calendar,
   Save,
   X,
   AlertCircle
@@ -23,6 +22,11 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 import { Student } from "@/lib/student-management-context"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
+import { CalendarIcon } from "lucide-react"
+import { format } from "date-fns"
 
 interface EditStudentFormProps {
   student: Student
@@ -217,12 +221,28 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="date_of_birth">Date of Birth</Label>
-                  <Input
-                    id="date_of_birth"
-                    type="date"
-                    value={formData.date_of_birth}
-                    onChange={(e) => handleInputChange("date_of_birth", e.target.value)}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.date_of_birth && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.date_of_birth ? format(new Date(formData.date_of_birth), "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.date_of_birth ? new Date(formData.date_of_birth) : undefined}
+                        onSelect={(date) => date && handleInputChange("date_of_birth", format(date, "yyyy-MM-dd"))}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="gender">Gender</Label>
