@@ -1,7 +1,8 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useState, useCallback, useEffect } from "react"
+import { supabase } from "./supabase"
 
 export interface FeeStructure {
   id: string
@@ -71,31 +72,57 @@ export interface FinancialReport {
   generatedBy: string
 }
 
+export interface StudentFeeAssignment {
+  id: string
+  studentId: string
+  studentName: string
+  feeStructureId: string
+  feeStructureName: string
+  academicYear: string
+  term: string
+  totalAmount: number
+  amountPaid: number
+  balance: number
+  status: "pending" | "partial" | "paid" | "overdue"
+  dueDate: string
+  createdAt: string
+  updatedAt: string
+}
+
 interface FinancialContextType {
   feeStructures: FeeStructure[]
   payments: Payment[]
   paymentPlans: PaymentPlan[]
+  studentFeeAssignments: StudentFeeAssignment[]
   reports: FinancialReport[]
   isLoading: boolean
 
   // Fee Structure Management
-  createFeeStructure: (data: Omit<FeeStructure, "id" | "createdAt" | "updatedAt">) => Promise<string>
-  updateFeeStructure: (id: string, data: Partial<FeeStructure>) => Promise<void>
-  deleteFeeStructure: (id: string) => Promise<void>
+  createFeeStructure: (data: Omit<FeeStructure, "id" | "createdAt" | "updatedAt">) => Promise<{ success: boolean; feeStructureId?: string; error?: string }>
+  updateFeeStructure: (id: string, data: Partial<FeeStructure>) => Promise<{ success: boolean; error?: string }>
+  deleteFeeStructure: (id: string) => Promise<{ success: boolean; error?: string }>
   getFeeStructureById: (id: string) => FeeStructure | undefined
 
   // Payment Management
-  recordPayment: (data: Omit<Payment, "id" | "createdAt" | "updatedAt">) => Promise<string>
-  updatePayment: (id: string, data: Partial<Payment>) => Promise<void>
+  recordPayment: (data: Omit<Payment, "id" | "createdAt" | "updatedAt">) => Promise<{ success: boolean; paymentId?: string; error?: string }>
+  updatePayment: (id: string, data: Partial<Payment>) => Promise<{ success: boolean; error?: string }>
+  deletePayment: (id: string) => Promise<{ success: boolean; error?: string }>
   getPaymentsByStudent: (studentId: string) => Payment[]
   getOutstandingPayments: () => Payment[]
 
+  // Student Fee Assignment Management
+  assignFeeToStudent: (data: Omit<StudentFeeAssignment, "id" | "createdAt" | "updatedAt">) => Promise<{ success: boolean; assignmentId?: string; error?: string }>
+  updateStudentFeeAssignment: (id: string, data: Partial<StudentFeeAssignment>) => Promise<{ success: boolean; error?: string }>
+  deleteStudentFeeAssignment: (id: string) => Promise<{ success: boolean; error?: string }>
+  getStudentFeeAssignments: (studentId: string) => StudentFeeAssignment[]
+
   // Payment Plans
-  createPaymentPlan: (data: Omit<PaymentPlan, "id" | "createdAt" | "updatedAt">) => Promise<string>
-  updatePaymentPlan: (id: string, data: Partial<PaymentPlan>) => Promise<void>
+  createPaymentPlan: (data: Omit<PaymentPlan, "id" | "createdAt" | "updatedAt">) => Promise<{ success: boolean; planId?: string; error?: string }>
+  updatePaymentPlan: (id: string, data: Partial<PaymentPlan>) => Promise<{ success: boolean; error?: string }>
+  deletePaymentPlan: (id: string) => Promise<{ success: boolean; error?: string }>
 
   // Reports
-  generateReport: (type: FinancialReport["type"], period: { start: string; end: string }) => Promise<string>
+  generateReport: (type: FinancialReport["type"], period: { start: string; end: string }) => Promise<{ success: boolean; reportId?: string; error?: string }>
   getFinancialSummary: () => {
     totalCollections: number
     totalOutstanding: number
@@ -116,7 +143,7 @@ export function useFinancial() {
   return context
 }
 
-// Mock data
+// Mock data for fallback
 const mockFeeStructures: FeeStructure[] = [
   {
     id: "fee-1",
@@ -148,21 +175,6 @@ const mockFeeStructures: FeeStructure[] = [
     createdAt: "2024-08-01T00:00:00Z",
     updatedAt: "2024-08-01T00:00:00Z",
   },
-  {
-    id: "fee-3",
-    name: "Première Trimestre - Terminale C",
-    subsystem: "french",
-    level: "terminale",
-    branch: "grammar",
-    amount: 80000,
-    dueDate: "2024-11-30",
-    term: "first",
-    academicYear: "2024-2025",
-    description: "Premier trimestre frais de scolarité pour Terminale C",
-    isActive: true,
-    createdAt: "2024-08-01T00:00:00Z",
-    updatedAt: "2024-08-01T00:00:00Z",
-  },
 ]
 
 const mockPayments: Payment[] = [
@@ -181,7 +193,7 @@ const mockPayments: Payment[] = [
     status: "completed",
     term: "first",
     academicYear: "2024-2025",
-    paidBy: "Parent - John Atanga",
+    paidBy: "Marie Ngozi Atanga",
     createdAt: "2024-09-15T00:00:00Z",
     updatedAt: "2024-09-15T00:00:00Z",
   },
@@ -192,38 +204,17 @@ const mockPayments: Payment[] = [
     feeStructureId: "fee-1",
     feeName: "First Term Fees - Form 5 Science",
     amount: 75000,
-    amountPaid: 45000,
-    balance: 30000,
-    paymentDate: "2024-09-20",
+    amountPaid: 50000,
+    balance: 25000,
+    paymentDate: "2024-09-10",
     paymentMethod: "mobile_money",
     receiptNumber: "RCP-2024-002",
     status: "partial",
     term: "first",
     academicYear: "2024-2025",
-    paidBy: "Parent - Grace Fru",
-    notes: "Partial payment - balance to be paid by October 30",
-    createdAt: "2024-09-20T00:00:00Z",
-    updatedAt: "2024-09-20T00:00:00Z",
-  },
-  {
-    id: "pay-3",
-    studentId: "std-003",
-    studentName: "Aminata Sali",
-    feeStructureId: "fee-2",
-    feeName: "Second Term Fees - Form 4 Arts",
-    amount: 70000,
-    amountPaid: 0,
-    balance: 70000,
-    paymentDate: "",
-    paymentMethod: "cash",
-    receiptNumber: "",
-    status: "overdue",
-    term: "second",
-    academicYear: "2024-2025",
-    paidBy: "",
-    notes: "Payment overdue - contact parent",
-    createdAt: "2024-01-15T00:00:00Z",
-    updatedAt: "2024-01-15T00:00:00Z",
+    paidBy: "Paul Biya Fru",
+    createdAt: "2024-09-10T00:00:00Z",
+    updatedAt: "2024-09-10T00:00:00Z",
   },
 ]
 
@@ -262,149 +253,757 @@ const mockPaymentPlans: PaymentPlan[] = [
 ]
 
 export function FinancialProvider({ children }: { children: React.ReactNode }) {
-  const [feeStructures, setFeeStructures] = useState<FeeStructure[]>(mockFeeStructures)
-  const [payments, setPayments] = useState<Payment[]>(mockPayments)
-  const [paymentPlans, setPaymentPlans] = useState<PaymentPlan[]>(mockPaymentPlans)
+  const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([])
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [paymentPlans, setPaymentPlans] = useState<PaymentPlan[]>([])
+  const [studentFeeAssignments, setStudentFeeAssignments] = useState<StudentFeeAssignment[]>([])
   const [reports, setReports] = useState<FinancialReport[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
-  const createFeeStructure = async (data: Omit<FeeStructure, "id" | "createdAt" | "updatedAt">): Promise<string> => {
+  // Load data from database on mount
+  useEffect(() => {
+    loadFinancialData()
+  }, [])
+
+  const loadFinancialData = useCallback(async () => {
+    if (!supabase) {
+      console.warn("Supabase not available, using mock data")
+      setFeeStructures(mockFeeStructures)
+      setPayments(mockPayments)
+      setPaymentPlans(mockPaymentPlans)
+      return
+    }
+
     setIsLoading(true)
     try {
-      const newFeeStructure: FeeStructure = {
-        ...data,
-        id: `fee-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+      // Load fee structures
+      const { data: feeStructuresData, error: feeError } = await supabase
+        .from("fee_structures")
+        .select("*")
+        .order("created_at", { ascending: false })
+
+      if (feeError) {
+        console.error("Error loading fee structures:", feeError)
+      } else {
+        const transformedFeeStructures: FeeStructure[] = feeStructuresData.map((fee: any) => ({
+          id: fee.id,
+          name: fee.name,
+          subsystem: fee.subsystem,
+          level: fee.level,
+          branch: fee.branch,
+          amount: fee.amount,
+          dueDate: fee.due_date,
+          term: fee.term,
+          academicYear: fee.academic_year,
+          description: fee.description || "",
+          isActive: fee.is_active,
+          createdAt: fee.created_at,
+          updatedAt: fee.updated_at,
+        }))
+        setFeeStructures(transformedFeeStructures)
       }
-      setFeeStructures((prev) => [...prev, newFeeStructure])
-      return newFeeStructure.id
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
-  const updateFeeStructure = async (id: string, data: Partial<FeeStructure>): Promise<void> => {
-    setIsLoading(true)
-    try {
-      setFeeStructures((prev) =>
-        prev.map((fee) => (fee.id === id ? { ...fee, ...data, updatedAt: new Date().toISOString() } : fee)),
-      )
-    } finally {
-      setIsLoading(false)
-    }
-  }
+      // Load payments
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from("payments")
+        .select(`
+          *,
+          students (first_name, last_name),
+          fee_structures (name)
+        `)
+        .order("created_at", { ascending: false })
 
-  const deleteFeeStructure = async (id: string): Promise<void> => {
-    setIsLoading(true)
-    try {
-      setFeeStructures((prev) => prev.filter((fee) => fee.id !== id))
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const getFeeStructureById = (id: string): FeeStructure | undefined => {
-    return feeStructures.find((fee) => fee.id === id)
-  }
-
-  const recordPayment = async (data: Omit<Payment, "id" | "createdAt" | "updatedAt">): Promise<string> => {
-    setIsLoading(true)
-    try {
-      const newPayment: Payment = {
-        ...data,
-        id: `pay-${Date.now()}`,
-        receiptNumber: `RCP-${new Date().getFullYear()}-${String(payments.length + 1).padStart(3, "0")}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+      if (paymentsError) {
+        console.error("Error loading payments:", paymentsError)
+      } else {
+        const transformedPayments: Payment[] = paymentsData.map((payment: any) => ({
+          id: payment.id,
+          studentId: payment.student_id,
+          studentName: `${payment.students?.first_name || ""} ${payment.students?.last_name || ""}`.trim(),
+          feeStructureId: payment.fee_structure_id,
+          feeName: payment.fee_structures?.name || "",
+          amount: payment.amount,
+          amountPaid: payment.amount,
+          balance: 0, // Calculate based on fee structure
+          paymentDate: payment.payment_date,
+          paymentMethod: payment.payment_method,
+          receiptNumber: payment.receipt_number,
+          status: payment.status,
+          term: "first", // Get from fee structure
+          academicYear: "2024-2025", // Get from fee structure
+          paidBy: payment.paid_by,
+          notes: payment.notes,
+          createdAt: payment.created_at,
+          updatedAt: payment.updated_at,
+        }))
+        setPayments(transformedPayments)
       }
-      setPayments((prev) => [...prev, newPayment])
-      return newPayment.id
+
+      // Load student fee assignments
+      const { data: assignmentsData, error: assignmentsError } = await supabase
+        .from("student_fee_assignments")
+        .select(`
+          *,
+          students (first_name, last_name),
+          fee_structures (name)
+        `)
+        .order("created_at", { ascending: false })
+
+      if (assignmentsError) {
+        console.error("Error loading student fee assignments:", assignmentsError)
+      } else {
+        const transformedAssignments: StudentFeeAssignment[] = assignmentsData.map((assignment: any) => ({
+          id: assignment.id,
+          studentId: assignment.student_id,
+          studentName: `${assignment.students?.first_name || ""} ${assignment.students?.last_name || ""}`.trim(),
+          feeStructureId: assignment.fee_structure_id,
+          feeStructureName: assignment.fee_structures?.name || "",
+          academicYear: assignment.academic_year,
+          term: assignment.term,
+          totalAmount: assignment.total_amount,
+          amountPaid: assignment.amount_paid,
+          balance: assignment.balance,
+          status: assignment.status,
+          dueDate: assignment.due_date,
+          createdAt: assignment.created_at,
+          updatedAt: assignment.updated_at,
+        }))
+        setStudentFeeAssignments(transformedAssignments)
+      }
+
+    } catch (error) {
+      console.error("Error loading financial data:", error)
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
-  const updatePayment = async (id: string, data: Partial<Payment>): Promise<void> => {
-    setIsLoading(true)
-    try {
-      setPayments((prev) =>
-        prev.map((payment) =>
-          payment.id === id ? { ...payment, ...data, updatedAt: new Date().toISOString() } : payment,
-        ),
-      )
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  // Fee Structure CRUD Operations
+  const createFeeStructure = useCallback(
+    async (data: Omit<FeeStructure, "id" | "createdAt" | "updatedAt">): Promise<{ success: boolean; feeStructureId?: string; error?: string }> => {
+      if (!supabase) {
+        // Mock implementation
+        const newFeeStructure: FeeStructure = {
+          ...data,
+          id: `fee-${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        setFeeStructures((prev) => [...prev, newFeeStructure])
+        return { success: true, feeStructureId: newFeeStructure.id }
+      }
 
-  const getPaymentsByStudent = (studentId: string): Payment[] => {
-    return payments.filter((payment) => payment.studentId === studentId)
-  }
+      setIsLoading(true)
+      try {
+        const feeStructureData = {
+          name: data.name,
+          subsystem: data.subsystem,
+          level: data.level,
+          branch: data.branch,
+          amount: data.amount,
+          due_date: data.dueDate,
+          term: data.term,
+          academic_year: data.academicYear,
+          description: data.description,
+          is_active: data.isActive,
+        }
 
-  const getOutstandingPayments = (): Payment[] => {
+        const { data: newFeeStructure, error } = await supabase
+          .from("fee_structures")
+          .insert([feeStructureData])
+          .select()
+          .single()
+
+        if (error) {
+          console.error("Error creating fee structure:", error)
+          return { success: false, error: error.message }
+        }
+
+        const transformedFeeStructure: FeeStructure = {
+          id: newFeeStructure.id,
+          name: newFeeStructure.name,
+          subsystem: newFeeStructure.subsystem,
+          level: newFeeStructure.level,
+          branch: newFeeStructure.branch,
+          amount: newFeeStructure.amount,
+          dueDate: newFeeStructure.due_date,
+          term: newFeeStructure.term,
+          academicYear: newFeeStructure.academic_year,
+          description: newFeeStructure.description || "",
+          isActive: newFeeStructure.is_active,
+          createdAt: newFeeStructure.created_at,
+          updatedAt: newFeeStructure.updated_at,
+        }
+
+        setFeeStructures((prev) => [transformedFeeStructure, ...prev])
+        return { success: true, feeStructureId: transformedFeeStructure.id }
+      } catch (error) {
+        console.error("Error creating fee structure:", error)
+        return { success: false, error: "Failed to create fee structure" }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [],
+  )
+
+  const updateFeeStructure = useCallback(
+    async (id: string, data: Partial<FeeStructure>): Promise<{ success: boolean; error?: string }> => {
+      if (!supabase) {
+        // Mock implementation
+        setFeeStructures((prev) =>
+          prev.map((fee) => (fee.id === id ? { ...fee, ...data, updatedAt: new Date().toISOString() } : fee)),
+        )
+        return { success: true }
+      }
+
+      setIsLoading(true)
+      try {
+        const updateData: any = {}
+        if (data.name) updateData.name = data.name
+        if (data.subsystem) updateData.subsystem = data.subsystem
+        if (data.level) updateData.level = data.level
+        if (data.branch) updateData.branch = data.branch
+        if (data.amount) updateData.amount = data.amount
+        if (data.dueDate) updateData.due_date = data.dueDate
+        if (data.term) updateData.term = data.term
+        if (data.academicYear) updateData.academic_year = data.academicYear
+        if (data.description !== undefined) updateData.description = data.description
+        if (data.isActive !== undefined) updateData.is_active = data.isActive
+
+        const { error } = await supabase
+          .from("fee_structures")
+          .update(updateData)
+          .eq("id", id)
+
+        if (error) {
+          console.error("Error updating fee structure:", error)
+          return { success: false, error: error.message }
+        }
+
+        setFeeStructures((prev) =>
+          prev.map((fee) => (fee.id === id ? { ...fee, ...data, updatedAt: new Date().toISOString() } : fee)),
+        )
+        return { success: true }
+      } catch (error) {
+        console.error("Error updating fee structure:", error)
+        return { success: false, error: "Failed to update fee structure" }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [],
+  )
+
+  const deleteFeeStructure = useCallback(
+    async (id: string): Promise<{ success: boolean; error?: string }> => {
+      if (!supabase) {
+        // Mock implementation
+        setFeeStructures((prev) => prev.filter((fee) => fee.id !== id))
+        return { success: true }
+      }
+
+      setIsLoading(true)
+      try {
+        const { error } = await supabase
+          .from("fee_structures")
+          .delete()
+          .eq("id", id)
+
+        if (error) {
+          console.error("Error deleting fee structure:", error)
+          return { success: false, error: error.message }
+        }
+
+        setFeeStructures((prev) => prev.filter((fee) => fee.id !== id))
+        return { success: true }
+      } catch (error) {
+        console.error("Error deleting fee structure:", error)
+        return { success: false, error: "Failed to delete fee structure" }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [],
+  )
+
+  const getFeeStructureById = useCallback(
+    (id: string): FeeStructure | undefined => {
+      return feeStructures.find((fee) => fee.id === id)
+    },
+    [feeStructures],
+  )
+
+  // Payment CRUD Operations
+  const recordPayment = useCallback(
+    async (data: Omit<Payment, "id" | "createdAt" | "updatedAt">): Promise<{ success: boolean; paymentId?: string; error?: string }> => {
+      if (!supabase) {
+        // Mock implementation
+        const newPayment: Payment = {
+          ...data,
+          id: `pay-${Date.now()}`,
+          receiptNumber: `RCP-${new Date().getFullYear()}-${String(payments.length + 1).padStart(3, "0")}`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        setPayments((prev) => [...prev, newPayment])
+        return { success: true, paymentId: newPayment.id }
+      }
+
+      setIsLoading(true)
+      try {
+        const paymentData = {
+          student_id: data.studentId,
+          fee_structure_id: data.feeStructureId,
+          amount: data.amountPaid,
+          payment_date: data.paymentDate,
+          payment_method: data.paymentMethod,
+          receipt_number: `RCP-${new Date().getFullYear()}-${String(payments.length + 1).padStart(3, "0")}`,
+          paid_by: data.paidBy,
+          notes: data.notes,
+          status: data.status,
+        }
+
+        const { data: newPayment, error } = await supabase
+          .from("payments")
+          .insert([paymentData])
+          .select()
+          .single()
+
+        if (error) {
+          console.error("Error recording payment:", error)
+          return { success: false, error: error.message }
+        }
+
+        // Update student fee assignment balance
+        const { error: updateError } = await supabase
+          .from("student_fee_assignments")
+          .update({
+            amount_paid: supabase.rpc('add_amount', { amount: data.amountPaid }),
+            balance: supabase.rpc('subtract_amount', { amount: data.amountPaid }),
+          })
+          .eq("student_id", data.studentId)
+          .eq("fee_structure_id", data.feeStructureId)
+
+        if (updateError) {
+          console.error("Error updating student fee assignment:", updateError)
+        }
+
+        const transformedPayment: Payment = {
+          id: newPayment.id,
+          studentId: newPayment.student_id,
+          studentName: data.studentName,
+          feeStructureId: newPayment.fee_structure_id,
+          feeName: data.feeName,
+          amount: data.amount,
+          amountPaid: newPayment.amount,
+          balance: data.balance,
+          paymentDate: newPayment.payment_date,
+          paymentMethod: newPayment.payment_method,
+          receiptNumber: newPayment.receipt_number,
+          status: newPayment.status,
+          term: data.term,
+          academicYear: data.academicYear,
+          paidBy: newPayment.paid_by,
+          notes: newPayment.notes,
+          createdAt: newPayment.created_at,
+          updatedAt: newPayment.updated_at,
+        }
+
+        setPayments((prev) => [transformedPayment, ...prev])
+        return { success: true, paymentId: transformedPayment.id }
+      } catch (error) {
+        console.error("Error recording payment:", error)
+        return { success: false, error: "Failed to record payment" }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [payments.length],
+  )
+
+  const updatePayment = useCallback(
+    async (id: string, data: Partial<Payment>): Promise<{ success: boolean; error?: string }> => {
+      if (!supabase) {
+        // Mock implementation
+        setPayments((prev) =>
+          prev.map((payment) =>
+            payment.id === id ? { ...payment, ...data, updatedAt: new Date().toISOString() } : payment,
+          ),
+        )
+        return { success: true }
+      }
+
+      setIsLoading(true)
+      try {
+        const updateData: any = {}
+        if (data.amountPaid) updateData.amount = data.amountPaid
+        if (data.paymentDate) updateData.payment_date = data.paymentDate
+        if (data.paymentMethod) updateData.payment_method = data.paymentMethod
+        if (data.paidBy) updateData.paid_by = data.paidBy
+        if (data.notes !== undefined) updateData.notes = data.notes
+        if (data.status) updateData.status = data.status
+
+        const { error } = await supabase
+          .from("payments")
+          .update(updateData)
+          .eq("id", id)
+
+        if (error) {
+          console.error("Error updating payment:", error)
+          return { success: false, error: error.message }
+        }
+
+        setPayments((prev) =>
+          prev.map((payment) =>
+            payment.id === id ? { ...payment, ...data, updatedAt: new Date().toISOString() } : payment,
+          ),
+        )
+        return { success: true }
+      } catch (error) {
+        console.error("Error updating payment:", error)
+        return { success: false, error: "Failed to update payment" }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [],
+  )
+
+  const deletePayment = useCallback(
+    async (id: string): Promise<{ success: boolean; error?: string }> => {
+      if (!supabase) {
+        // Mock implementation
+        setPayments((prev) => prev.filter((payment) => payment.id !== id))
+        return { success: true }
+      }
+
+      setIsLoading(true)
+      try {
+        const { error } = await supabase
+          .from("payments")
+          .delete()
+          .eq("id", id)
+
+        if (error) {
+          console.error("Error deleting payment:", error)
+          return { success: false, error: error.message }
+        }
+
+        setPayments((prev) => prev.filter((payment) => payment.id !== id))
+        return { success: true }
+      } catch (error) {
+        console.error("Error deleting payment:", error)
+        return { success: false, error: "Failed to delete payment" }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [],
+  )
+
+  const getPaymentsByStudent = useCallback(
+    (studentId: string): Payment[] => {
+      return payments.filter((payment) => payment.studentId === studentId)
+    },
+    [payments],
+  )
+
+  const getOutstandingPayments = useCallback((): Payment[] => {
     return payments.filter(
       (payment) => payment.status === "pending" || payment.status === "partial" || payment.status === "overdue",
     )
-  }
+  }, [payments])
 
-  const createPaymentPlan = async (data: Omit<PaymentPlan, "id" | "createdAt" | "updatedAt">): Promise<string> => {
-    setIsLoading(true)
-    try {
-      const newPaymentPlan: PaymentPlan = {
-        ...data,
-        id: `plan-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+  // Student Fee Assignment CRUD Operations
+  const assignFeeToStudent = useCallback(
+    async (data: Omit<StudentFeeAssignment, "id" | "createdAt" | "updatedAt">): Promise<{ success: boolean; assignmentId?: string; error?: string }> => {
+      if (!supabase) {
+        // Mock implementation
+        const newAssignment: StudentFeeAssignment = {
+          ...data,
+          id: `assignment-${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        setStudentFeeAssignments((prev) => [...prev, newAssignment])
+        return { success: true, assignmentId: newAssignment.id }
       }
-      setPaymentPlans((prev) => [...prev, newPaymentPlan])
-      return newPaymentPlan.id
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
-  const updatePaymentPlan = async (id: string, data: Partial<PaymentPlan>): Promise<void> => {
-    setIsLoading(true)
-    try {
-      setPaymentPlans((prev) =>
-        prev.map((plan) => (plan.id === id ? { ...plan, ...data, updatedAt: new Date().toISOString() } : plan)),
-      )
-    } finally {
-      setIsLoading(false)
-    }
-  }
+      setIsLoading(true)
+      try {
+        const assignmentData = {
+          student_id: data.studentId,
+          fee_structure_id: data.feeStructureId,
+          academic_year: data.academicYear,
+          term: data.term,
+          total_amount: data.totalAmount,
+          amount_paid: data.amountPaid,
+          balance: data.balance,
+          status: data.status,
+          due_date: data.dueDate,
+        }
 
-  const generateReport = async (
-    type: FinancialReport["type"],
-    period: { start: string; end: string },
-  ): Promise<string> => {
-    setIsLoading(true)
-    try {
-      const newReport: FinancialReport = {
-        id: `report-${Date.now()}`,
-        title: `${type.charAt(0).toUpperCase() + type.slice(1)} Report`,
-        type,
-        period,
-        data: {}, // This would contain the actual report data
-        generatedAt: new Date().toISOString(),
-        generatedBy: "Current User",
+        const { data: newAssignment, error } = await supabase
+          .from("student_fee_assignments")
+          .insert([assignmentData])
+          .select()
+          .single()
+
+        if (error) {
+          console.error("Error assigning fee to student:", error)
+          return { success: false, error: error.message }
+        }
+
+        const transformedAssignment: StudentFeeAssignment = {
+          id: newAssignment.id,
+          studentId: newAssignment.student_id,
+          studentName: data.studentName,
+          feeStructureId: newAssignment.fee_structure_id,
+          feeStructureName: data.feeStructureName,
+          academicYear: newAssignment.academic_year,
+          term: newAssignment.term,
+          totalAmount: newAssignment.total_amount,
+          amountPaid: newAssignment.amount_paid,
+          balance: newAssignment.balance,
+          status: newAssignment.status,
+          dueDate: newAssignment.due_date,
+          createdAt: newAssignment.created_at,
+          updatedAt: newAssignment.updated_at,
+        }
+
+        setStudentFeeAssignments((prev) => [transformedAssignment, ...prev])
+        return { success: true, assignmentId: transformedAssignment.id }
+      } catch (error) {
+        console.error("Error assigning fee to student:", error)
+        return { success: false, error: "Failed to assign fee to student" }
+      } finally {
+        setIsLoading(false)
       }
-      setReports((prev) => [...prev, newReport])
-      return newReport.id
-    } finally {
-      setIsLoading(false)
-    }
-  }
+    },
+    [],
+  )
 
-  const getFinancialSummary = () => {
+  const updateStudentFeeAssignment = useCallback(
+    async (id: string, data: Partial<StudentFeeAssignment>): Promise<{ success: boolean; error?: string }> => {
+      if (!supabase) {
+        // Mock implementation
+        setStudentFeeAssignments((prev) =>
+          prev.map((assignment) => (assignment.id === id ? { ...assignment, ...data, updatedAt: new Date().toISOString() } : assignment)),
+        )
+        return { success: true }
+      }
+
+      setIsLoading(true)
+      try {
+        const updateData: any = {}
+        if (data.totalAmount) updateData.total_amount = data.totalAmount
+        if (data.amountPaid) updateData.amount_paid = data.amountPaid
+        if (data.balance) updateData.balance = data.balance
+        if (data.status) updateData.status = data.status
+        if (data.dueDate) updateData.due_date = data.dueDate
+
+        const { error } = await supabase
+          .from("student_fee_assignments")
+          .update(updateData)
+          .eq("id", id)
+
+        if (error) {
+          console.error("Error updating student fee assignment:", error)
+          return { success: false, error: error.message }
+        }
+
+        setStudentFeeAssignments((prev) =>
+          prev.map((assignment) => (assignment.id === id ? { ...assignment, ...data, updatedAt: new Date().toISOString() } : assignment)),
+        )
+        return { success: true }
+      } catch (error) {
+        console.error("Error updating student fee assignment:", error)
+        return { success: false, error: "Failed to update student fee assignment" }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [],
+  )
+
+  const deleteStudentFeeAssignment = useCallback(
+    async (id: string): Promise<{ success: boolean; error?: string }> => {
+      if (!supabase) {
+        // Mock implementation
+        setStudentFeeAssignments((prev) => prev.filter((assignment) => assignment.id !== id))
+        return { success: true }
+      }
+
+      setIsLoading(true)
+      try {
+        const { error } = await supabase
+          .from("student_fee_assignments")
+          .delete()
+          .eq("id", id)
+
+        if (error) {
+          console.error("Error deleting student fee assignment:", error)
+          return { success: false, error: error.message }
+        }
+
+        setStudentFeeAssignments((prev) => prev.filter((assignment) => assignment.id !== id))
+        return { success: true }
+      } catch (error) {
+        console.error("Error deleting student fee assignment:", error)
+        return { success: false, error: "Failed to delete student fee assignment" }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [],
+  )
+
+  const getStudentFeeAssignments = useCallback(
+    (studentId: string): StudentFeeAssignment[] => {
+      return studentFeeAssignments.filter((assignment) => assignment.studentId === studentId)
+    },
+    [studentFeeAssignments],
+  )
+
+  // Payment Plans CRUD Operations
+  const createPaymentPlan = useCallback(
+    async (data: Omit<PaymentPlan, "id" | "createdAt" | "updatedAt">): Promise<{ success: boolean; planId?: string; error?: string }> => {
+      if (!supabase) {
+        // Mock implementation
+        const newPlan: PaymentPlan = {
+          ...data,
+          id: `plan-${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        setPaymentPlans((prev) => [...prev, newPlan])
+        return { success: true, planId: newPlan.id }
+      }
+
+      setIsLoading(true)
+      try {
+        // This would require creating payment plan and installments
+        // For now, return mock success
+        const newPlan: PaymentPlan = {
+          ...data,
+          id: `plan-${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        setPaymentPlans((prev) => [...prev, newPlan])
+        return { success: true, planId: newPlan.id }
+      } catch (error) {
+        console.error("Error creating payment plan:", error)
+        return { success: false, error: "Failed to create payment plan" }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [],
+  )
+
+  const updatePaymentPlan = useCallback(
+    async (id: string, data: Partial<PaymentPlan>): Promise<{ success: boolean; error?: string }> => {
+      if (!supabase) {
+        // Mock implementation
+        setPaymentPlans((prev) =>
+          prev.map((plan) => (plan.id === id ? { ...plan, ...data, updatedAt: new Date().toISOString() } : plan)),
+        )
+        return { success: true }
+      }
+
+      setIsLoading(true)
+      try {
+        // Mock implementation for now
+        setPaymentPlans((prev) =>
+          prev.map((plan) => (plan.id === id ? { ...plan, ...data, updatedAt: new Date().toISOString() } : plan)),
+        )
+        return { success: true }
+      } catch (error) {
+        console.error("Error updating payment plan:", error)
+        return { success: false, error: "Failed to update payment plan" }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [],
+  )
+
+  const deletePaymentPlan = useCallback(
+    async (id: string): Promise<{ success: boolean; error?: string }> => {
+      if (!supabase) {
+        // Mock implementation
+        setPaymentPlans((prev) => prev.filter((plan) => plan.id !== id))
+        return { success: true }
+      }
+
+      setIsLoading(true)
+      try {
+        // Mock implementation for now
+        setPaymentPlans((prev) => prev.filter((plan) => plan.id !== id))
+        return { success: true }
+      } catch (error) {
+        console.error("Error deleting payment plan:", error)
+        return { success: false, error: "Failed to delete payment plan" }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [],
+  )
+
+  // Reports
+  const generateReport = useCallback(
+    async (type: FinancialReport["type"], period: { start: string; end: string }): Promise<{ success: boolean; reportId?: string; error?: string }> => {
+      setIsLoading(true)
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        const reportData = {
+          type,
+          period,
+          generatedAt: new Date().toISOString(),
+          data: {
+            totalPayments: payments.length,
+            totalAmount: payments.reduce((sum, p) => sum + p.amountPaid, 0),
+            paymentsByMethod: payments.reduce(
+              (acc, p) => {
+                acc[p.paymentMethod] = (acc[p.paymentMethod] || 0) + p.amountPaid
+                return acc
+              },
+              {} as Record<string, number>,
+            ),
+          },
+        }
+
+        const newReport: FinancialReport = {
+          id: `report-${Date.now()}`,
+          title: `${type.charAt(0).toUpperCase() + type.slice(1)} Report`,
+          type,
+          period,
+          data: reportData.data,
+          generatedAt: reportData.generatedAt,
+          generatedBy: "admin",
+        }
+
+        setReports((prev) => [...prev, newReport])
+        return { success: true, reportId: newReport.id }
+      } catch (error) {
+        console.error("Error generating report:", error)
+        return { success: false, error: "Failed to generate report" }
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [payments],
+  )
+
+  const getFinancialSummary = useCallback(() => {
     const totalCollections = payments.filter((p) => p.status === "completed").reduce((sum, p) => sum + p.amountPaid, 0)
-
     const totalOutstanding = payments.filter((p) => p.status !== "completed").reduce((sum, p) => sum + p.balance, 0)
-
     const totalStudents = new Set(payments.map((p) => p.studentId)).size
     const paidStudents = new Set(payments.filter((p) => p.status === "completed").map((p) => p.studentId)).size
-
     const overduePayments = payments.filter((p) => p.status === "overdue").length
     const collectionRate = totalStudents > 0 ? (paidStudents / totalStudents) * 100 : 0
 
@@ -416,12 +1015,13 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
       paidStudents,
       overduePayments,
     }
-  }
+  }, [payments])
 
   const value: FinancialContextType = {
     feeStructures,
     payments,
     paymentPlans,
+    studentFeeAssignments,
     reports,
     isLoading,
     createFeeStructure,
@@ -430,10 +1030,16 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
     getFeeStructureById,
     recordPayment,
     updatePayment,
+    deletePayment,
     getPaymentsByStudent,
     getOutstandingPayments,
+    assignFeeToStudent,
+    updateStudentFeeAssignment,
+    deleteStudentFeeAssignment,
+    getStudentFeeAssignments,
     createPaymentPlan,
     updatePaymentPlan,
+    deletePaymentPlan,
     generateReport,
     getFinancialSummary,
   }

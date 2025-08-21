@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useFinancial, type Payment } from "@/lib/financial-context"
+import { useStudentManagement } from "@/lib/student-management-context"
 import { cn } from "@/lib/utils"
 
 const paymentSchema = z.object({
@@ -40,18 +41,16 @@ interface PaymentFormProps {
   editData?: Payment
 }
 
-// Mock student data - in real app, this would come from student context
-const mockStudents = [
-  { id: "std-001", name: "Marie Ngozi Atanga", class: "Form 5 Science" },
-  { id: "std-002", name: "Paul Biya Fru", class: "Form 5 Science" },
-  { id: "std-003", name: "Aminata Sali", class: "Form 4 Arts" },
-  { id: "std-004", name: "Jean Claude Mbarga", class: "Terminale C" },
-]
-
 export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps) {
   const { recordPayment, updatePayment, feeStructures, isLoading } = useFinancial()
+  const { students, loadStudents } = useStudentManagement()
   const [selectedStudent, setSelectedStudent] = useState<string>(editData?.studentId || "")
   const [selectedFeeStructure, setSelectedFeeStructure] = useState<string>(editData?.feeStructureId || "")
+
+  // Load students when component mounts
+  useEffect(() => {
+    loadStudents()
+  }, [loadStudents])
 
   const form = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
@@ -109,11 +108,11 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
   }
 
   const handleStudentSelect = (studentId: string) => {
-    const student = mockStudents.find((s) => s.id === studentId)
+    const student = students.find((s) => s.id === studentId)
     if (student) {
       setSelectedStudent(studentId)
       form.setValue("studentId", studentId)
-      form.setValue("studentName", student.name)
+      form.setValue("studentName", `${student.first_name} ${student.last_name}`)
     }
   }
 
@@ -156,9 +155,9 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {mockStudents.map((student) => (
+                          {students.map((student) => (
                             <SelectItem key={student.id} value={student.id}>
-                              {student.name} - {student.class}
+                              {student.first_name} {student.last_name} - {student.class}
                             </SelectItem>
                           ))}
                         </SelectContent>
