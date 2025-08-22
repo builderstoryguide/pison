@@ -197,11 +197,19 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
               <UserCheck className="h-4 w-4 mr-2" />
               Mark Attendance
             </Button>
-            <Button variant="outline" className="w-full justify-start bg-transparent">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start bg-transparent"
+              onClick={() => onNavigate?.("grades")}
+            >
               <FileText className="h-4 w-4 mr-2" />
               Enter Grades
             </Button>
-            <Button variant="outline" className="w-full justify-start bg-transparent">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start bg-transparent"
+              onClick={() => onNavigate?.("grades")}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Create Assessment
             </Button>

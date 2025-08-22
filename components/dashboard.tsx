@@ -17,6 +17,7 @@ import { TeacherAttendanceProvider } from "@/lib/teacher-attendance-context"
 import { TeacherClassesProvider } from "@/lib/teacher-classes-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 import { BursarProvider } from "@/lib/bursar-context"
+import { TimetableProvider } from "@/lib/timetable-context"
 import { useNotifications } from "@/lib/notification-context"
 import { ThemeToggle } from "@/components/theme-toggle"
 
@@ -26,6 +27,7 @@ import { StudentManagement } from "./admin/student-management"
 import { TeacherManagement } from "./admin/teacher-management"
 import { ClassManagement } from "./admin/class-management"
 import { ExaminationManagement } from "./admin/examination-management"
+import { TimetableManagement } from "./admin/timetable-management"
 import { FinancialManagement } from "./admin/financial-management"
 import { AttendanceManagement } from "./admin/attendance-management"
 import { ReportsAnalyticsManagement } from "./admin/reports-analytics-management"
@@ -102,6 +104,7 @@ import {
   AlertCircle,
   Clock,
   X,
+  CalendarDays,
 } from "lucide-react"
 
 type AdminView =
@@ -110,6 +113,7 @@ type AdminView =
   | "students"
   | "teachers"
   | "classes"
+  | "timetable"
   | "examinations"
   | "financial"
   | "attendance"
@@ -489,6 +493,7 @@ export function Dashboard() {
       { id: "students", label: "Student Management", icon: GraduationCap },
       { id: "teachers", label: "Teacher Management", icon: UserCheck },
       { id: "classes", label: "Class Management", icon: BookOpen },
+      { id: "timetable", label: "Timetable Management", icon: CalendarDays },
       { id: "examinations", label: "Examinations", icon: FileText },
       { id: "financial", label: "Financial Management", icon: DollarSign },
       { id: "attendance", label: "Attendance", icon: Calendar },
@@ -505,6 +510,12 @@ export function Dashboard() {
           return <TeacherManagement />
         case "classes":
           return <ClassManagement />
+        case "timetable":
+          return (
+            <TimetableProvider>
+              <TimetableManagement />
+            </TimetableProvider>
+          )
         case "examinations":
           return (
             <ExaminationProvider>

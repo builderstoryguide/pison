@@ -38,6 +38,7 @@ import {
 } from "lucide-react"
 import { AnalyticsDashboard } from "./analytics-dashboard"
 import { ReportGenerationForm } from "./report-generation-form"
+import { StudentAcademicPerformanceReport } from "./student-academic-performance-report"
 import { useReportsAnalytics, type ReportTemplate, type GeneratedReport } from "@/lib/reports-analytics-context"
 
 const categoryIcons = {
@@ -234,10 +235,14 @@ export function ReportsAnalyticsManagement() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="analytics" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Analytics
+          </TabsTrigger>
+          <TabsTrigger value="academic-performance" className="flex items-center gap-2">
+            <GraduationCap className="h-4 w-4" />
+            Academic Performance
           </TabsTrigger>
           <TabsTrigger value="templates" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -251,6 +256,10 @@ export function ReportsAnalyticsManagement() {
 
         <TabsContent value="analytics" className="space-y-6">
           <AnalyticsDashboard />
+        </TabsContent>
+
+        <TabsContent value="academic-performance" className="space-y-6">
+          <StudentAcademicPerformanceReport />
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-6">

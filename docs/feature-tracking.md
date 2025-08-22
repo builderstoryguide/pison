@@ -123,7 +123,7 @@ This document tracks the implementation status of all features outlined in the P
 | FR-3.1.1 | Create classes for each year and branch | ✅ Completed | `components/admin/class-creation-form.tsx` | Class creation system |
 | FR-3.1.2 | Assign teachers to classes and subjects | ✅ Completed | `components/admin/class-management.tsx` | Teacher assignment |
 | FR-3.1.3 | Manage class rosters and student lists | ✅ Completed | `components/admin/class-management.tsx` | Student roster management |
-| FR-3.1.4 | Schedule classes and activities | 🔄 In Progress | `components/admin/class-management.tsx` | Basic scheduling implemented |
+| FR-3.1.4 | Schedule classes and activities | ✅ Completed | `components/admin/timetable-management.tsx` | Full timetable management system |
 
 ### 3.2 Subject Management
 
@@ -132,6 +132,17 @@ This document tracks the implementation status of all features outlined in the P
 | FR-3.2.1 | Define subjects for each branch and level | ✅ Completed | `components/admin/class-creation-form.tsx` | Subject definition system |
 | FR-3.2.2 | Assign subjects to teachers | ✅ Completed | `components/admin/teacher-management.tsx` | Subject assignment |
 | FR-3.2.3 | Manage subject-specific resources | 📋 Planned | - | Resource management not implemented |
+
+### 3.3 Timetable Management
+
+| Feature ID | Feature Name | Status | Component | Notes |
+|------------|--------------|--------|-----------|-------|
+| FR-3.3.1 | Generate class timetables | ✅ Completed | `components/admin/timetable-management.tsx` | Automatic timetable generation |
+| FR-3.3.2 | View timetables in weekly/daily format | ✅ Completed | `components/admin/timetable-management.tsx` | Multiple view options |
+| FR-3.3.3 | Export timetables to CSV | ✅ Completed | `components/admin/timetable-management.tsx` | CSV export functionality |
+| FR-3.3.4 | Filter timetables by subsystem/branch | ✅ Completed | `components/admin/timetable-management.tsx` | Advanced filtering options |
+| FR-3.3.5 | Manage teacher and room assignments | ✅ Completed | `lib/timetable-context.tsx` | Assignment management |
+| FR-3.3.6 | Delete and regenerate timetables | ✅ Completed | `components/admin/timetable-management.tsx` | Full CRUD operations |
 
 ---
 

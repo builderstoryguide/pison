@@ -1,7 +1,8 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useCallback, useMemo } from "react"
+import { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react"
+import { supabase, isSupabaseAvailable } from "./supabase"
 
 // Types
 export interface Assessment {
@@ -100,7 +101,8 @@ export function useTeacherGrades() {
 }
 
 export function TeacherGradesProvider({ children }: { children: React.ReactNode }) {
-  const [assessments, setAssessments] = useState<Assessment[]>([
+  // Mock data as fallback
+  const mockAssessments: Assessment[] = [
     {
       id: "1",
       title: "Mathematics Quiz 1",
@@ -123,9 +125,9 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       date: "2024-01-20",
       createdAt: "2024-01-15T14:30:00Z",
     },
-  ])
+  ]
 
-  const [grades, setGrades] = useState<Grade[]>([
+  const mockGrades: Grade[] = [
     {
       id: "1",
       assessmentId: "1",
@@ -148,9 +150,9 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       remarks: "Good effort",
       submittedAt: "2024-01-15T15:35:00Z",
     },
-  ])
+  ]
 
-  const [students] = useState<Student[]>([
+  const mockStudents: Student[] = [
     {
       id: "student-1",
       name: "Marie Ngozi",
@@ -175,9 +177,9 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       classId: "class-2",
       className: "Form 6B",
     },
-  ])
+  ]
 
-  const [classes] = useState<TeacherClass[]>([
+  const mockClasses: TeacherClass[] = [
     {
       id: "class-1",
       name: "Form 5A",
@@ -196,55 +198,286 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       studentCount: 22,
       schedule: "Tue, Thu - 10:00 AM",
     },
-  ])
+  ]
 
+  const [assessments, setAssessments] = useState<Assessment[]>(mockAssessments)
+  const [grades, setGrades] = useState<Grade[]>(mockGrades)
+  const [students, setStudents] = useState<Student[]>(mockStudents)
+  const [classes, setClasses] = useState<TeacherClass[]>(mockClasses)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [useDatabase, setUseDatabase] = useState(false)
+
+  const loadDataFromDatabase = useCallback(async () => {
+    if (!useDatabase || !supabase) return
+
+    setLoading(true)
+    try {
+      // Load assessments
+      const { data: assessmentsData, error: assessmentsError } = await supabase
+        .from("assessments")
+        .select("*")
+        .order("created_at", { ascending: false })
+
+      if (!assessmentsError && assessmentsData) {
+        const formattedAssessments: Assessment[] = assessmentsData.map((assessment: any) => ({
+          id: assessment.id,
+          title: assessment.title,
+          type: assessment.type,
+          subject: assessment.subject,
+          classId: assessment.class_id,
+          className: assessment.class_name || "",
+          totalMarks: assessment.total_marks,
+          date: assessment.assessment_date,
+          createdAt: assessment.created_at,
+        }))
+        setAssessments(formattedAssessments)
+      }
+
+      // Load grades
+      const { data: gradesData, error: gradesError } = await supabase
+        .from("grades")
+        .select("*")
+        .order("submitted_at", { ascending: false })
+
+      if (!gradesError && gradesData) {
+        const formattedGrades: Grade[] = gradesData.map((grade: any) => ({
+          id: grade.id,
+          assessmentId: grade.assessment_id,
+          studentId: grade.student_id,
+          studentName: grade.student_name || "",
+          marks: grade.marks_obtained,
+          percentage: grade.percentage,
+          grade: grade.grade_letter,
+          remarks: grade.remarks,
+          submittedAt: grade.submitted_at,
+        }))
+        setGrades(formattedGrades)
+      }
+
+      // Load students (from students table)
+      const { data: studentsData, error: studentsError } = await supabase
+        .from("students")
+        .select("id, first_name, last_name, email, student_id, class_id, class_name")
+        .order("first_name", { ascending: true })
+
+      if (!studentsError && studentsData) {
+        const formattedStudents: Student[] = studentsData.map((student: any) => ({
+          id: student.id,
+          name: `${student.first_name} ${student.last_name}`,
+          email: student.email,
+          studentId: student.student_id,
+          classId: student.class_id || "",
+          className: student.class_name || "",
+        }))
+        setStudents(formattedStudents)
+      }
+
+      // Load classes (from classes table)
+      const { data: classesData, error: classesError } = await supabase
+        .from("classes")
+        .select("*")
+        .order("name", { ascending: true })
+
+      if (!classesError && classesData) {
+        const formattedClasses: TeacherClass[] = classesData.map((cls: any) => ({
+          id: cls.id,
+          name: cls.name,
+          subject: cls.subject || "",
+          level: cls.level || "",
+          section: cls.section || "",
+          studentCount: cls.student_count || 0,
+          schedule: cls.schedule || "",
+        }))
+        setClasses(formattedClasses)
+      }
+    } catch (err) {
+      console.error("Error loading data from database:", err)
+      setError("Failed to load data from database")
+    } finally {
+      setLoading(false)
+    }
+  }, [useDatabase])
+
+  // Check database availability on mount
+  useEffect(() => {
+    const checkDatabase = async () => {
+      if (isSupabaseAvailable() && supabase) {
+        try {
+          const { error } = await supabase.from("assessments").select("count", { count: "exact", head: true })
+          if (!error) {
+            console.log("✅ Database connection established for teacher grades - using Supabase")
+            setUseDatabase(true)
+            await loadDataFromDatabase()
+          } else {
+            console.log("⚠️ Database connection failed, using mock data for teacher grades")
+            setUseDatabase(false)
+          }
+        } catch (err) {
+          console.log("⚠️ Database connection failed, using mock data for teacher grades")
+          setUseDatabase(false)
+        }
+      } else {
+        console.log("⚠️ Supabase not available, using mock data for teacher grades")
+        setUseDatabase(false)
+      }
+    }
+
+    checkDatabase()
+  }, [loadDataFromDatabase])
 
   // Assessment functions
   const createAssessment = useCallback(async (assessmentData: Omit<Assessment, "id" | "createdAt">) => {
     setLoading(true)
     setError(null)
     try {
-      const newAssessment: Assessment = {
-        ...assessmentData,
-        id: `assessment-${Date.now()}`,
-        createdAt: new Date().toISOString(),
+      if (useDatabase && supabase) {
+        // Validate required fields
+        if (!assessmentData.title || !assessmentData.type || !assessmentData.subject || !assessmentData.classId) {
+          throw new Error("Missing required fields: title, type, subject, or classId")
+        }
+
+        // Validate date format
+        const assessmentDate = new Date(assessmentData.date)
+        if (isNaN(assessmentDate.getTime())) {
+          throw new Error("Invalid date format")
+        }
+
+        console.log("Creating assessment with data:", {
+          title: assessmentData.title,
+          type: assessmentData.type,
+          subject: assessmentData.subject,
+          class_id: assessmentData.classId,
+          total_marks: assessmentData.totalMarks,
+          assessment_date: assessmentData.date,
+          teacher_id: "current-teacher-id",
+          status: "draft",
+        })
+
+        // Use the database function for creating assessment
+        const { data: createdId, error } = await supabase
+          .rpc('create_assessment', {
+            p_title: assessmentData.title,
+            p_type: assessmentData.type,
+            p_subject: assessmentData.subject,
+            p_class_id: assessmentData.classId,
+            p_teacher_id: "current-teacher-id", // TODO: Get from auth context
+            p_total_marks: assessmentData.totalMarks,
+            p_assessment_date: assessmentData.date,
+            p_description: null, // Not in current interface
+            p_passing_marks: 50.0, // Default value
+            p_weight_percentage: 100.0, // Default value
+            p_due_date: null,
+            p_status: "draft"
+          })
+
+        if (error) {
+          console.error("Supabase error:", error)
+          throw error
+        }
+
+        console.log("Assessment created successfully:", createdId)
+
+        // Fetch the created assessment to get all details
+        const { data: createdAssessment, error: fetchError } = await supabase
+          .from("assessments")
+          .select("*")
+          .eq("id", createdId)
+          .single()
+
+        if (fetchError) {
+          throw fetchError
+        }
+
+        const newAssessment: Assessment = {
+          id: createdAssessment.id,
+          title: createdAssessment.title,
+          type: createdAssessment.type,
+          subject: createdAssessment.subject,
+          classId: createdAssessment.class_id,
+          className: createdAssessment.class_name || createdAssessment.class_id, // Fallback to class_id if class_name not available
+          totalMarks: createdAssessment.total_marks,
+          date: createdAssessment.assessment_date,
+          createdAt: createdAssessment.created_at,
+        }
+        setAssessments((prev) => [...prev, newAssessment])
+      } else {
+        // Fallback to mock data
+        const newAssessment: Assessment = {
+          ...assessmentData,
+          id: `assessment-${Date.now()}`,
+          createdAt: new Date().toISOString(),
+        }
+        setAssessments((prev) => [...prev, newAssessment])
       }
-      setAssessments((prev) => [...prev, newAssessment])
     } catch (err) {
       setError("Failed to create assessment")
+      console.error("Error creating assessment:", err)
+      // Log more detailed error information
+      if (err instanceof Error) {
+        console.error("Error details:", {
+          message: err.message,
+          stack: err.stack,
+          name: err.name
+        })
+      }
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [useDatabase])
 
   const updateAssessment = useCallback(async (id: string, updates: Partial<Assessment>) => {
     setLoading(true)
     setError(null)
     try {
+      if (useDatabase && supabase) {
+        const { error } = await supabase
+          .from("assessments")
+          .update({
+            title: updates.title,
+            type: updates.type,
+            subject: updates.subject,
+            class_id: updates.classId,
+            total_marks: updates.totalMarks,
+            assessment_date: updates.date,
+          })
+          .eq("id", id)
+
+        if (error) {
+          console.error("Supabase update error:", error)
+          throw error
+        }
+      }
+      
       setAssessments((prev) =>
         prev.map((assessment) => (assessment.id === id ? { ...assessment, ...updates } : assessment)),
       )
     } catch (err) {
       setError("Failed to update assessment")
+      console.error("Error updating assessment:", err)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [useDatabase])
 
   const deleteAssessment = useCallback(async (id: string) => {
     setLoading(true)
     setError(null)
     try {
+      if (useDatabase && supabase) {
+        const { error } = await supabase.from("assessments").delete().eq("id", id)
+        if (error) throw error
+      }
+      
       setAssessments((prev) => prev.filter((assessment) => assessment.id !== id))
       setGrades((prev) => prev.filter((grade) => grade.assessmentId !== id))
     } catch (err) {
       setError("Failed to delete assessment")
+      console.error("Error deleting assessment:", err)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [useDatabase])
 
   const getAssessmentsByClass = useCallback(
     (classId: string) => {
@@ -258,42 +491,107 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     setLoading(true)
     setError(null)
     try {
-      const newGrade: Grade = {
-        ...gradeData,
-        id: `grade-${Date.now()}`,
-        submittedAt: new Date().toISOString(),
+      if (useDatabase && supabase) {
+        // Use the database function for creating grade
+        const { data: createdGradeId, error } = await supabase
+          .rpc('create_grade', {
+            p_assessment_id: gradeData.assessmentId,
+            p_student_id: gradeData.studentId,
+            p_teacher_id: "current-teacher-id", // TODO: Get from auth context
+            p_marks_obtained: gradeData.marks,
+            p_remarks: gradeData.remarks || null,
+            p_feedback: null,
+            p_is_late: false,
+            p_is_absent: false,
+            p_is_excused: false
+          })
+
+        if (error) throw error
+
+        // Fetch the created grade to get all details
+        const { data: createdGrade, error: fetchError } = await supabase
+          .from("grades")
+          .select("*")
+          .eq("id", createdGradeId)
+          .single()
+
+        if (fetchError) {
+          throw fetchError
+        }
+
+        const newGrade: Grade = {
+          id: createdGrade.id,
+          assessmentId: createdGrade.assessment_id,
+          studentId: createdGrade.student_id,
+          studentName: createdGrade.student_name || createdGrade.student_id, // Fallback to student_id if student_name not available
+          marks: createdGrade.marks_obtained,
+          percentage: createdGrade.percentage,
+          grade: createdGrade.grade_letter,
+          remarks: createdGrade.remarks,
+          submittedAt: createdGrade.submitted_at,
+        }
+        setGrades((prev) => [...prev, newGrade])
+      } else {
+        // Fallback to mock data
+        const newGrade: Grade = {
+          ...gradeData,
+          id: `grade-${Date.now()}`,
+          submittedAt: new Date().toISOString(),
+        }
+        setGrades((prev) => [...prev, newGrade])
       }
-      setGrades((prev) => [...prev, newGrade])
     } catch (err) {
       setError("Failed to add grade")
+      console.error("Error adding grade:", err)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [useDatabase])
 
   const updateGrade = useCallback(async (id: string, updates: Partial<Grade>) => {
     setLoading(true)
     setError(null)
     try {
+      if (useDatabase && supabase) {
+        const { error } = await supabase
+          .from("grades")
+          .update({
+            marks_obtained: updates.marks,
+            percentage: updates.percentage,
+            grade_letter: updates.grade,
+            remarks: updates.remarks,
+          })
+          .eq("id", id)
+
+        if (error) throw error
+      }
+      
       setGrades((prev) => prev.map((grade) => (grade.id === id ? { ...grade, ...updates } : grade)))
     } catch (err) {
       setError("Failed to update grade")
+      console.error("Error updating grade:", err)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [useDatabase])
 
   const deleteGrade = useCallback(async (id: string) => {
     setLoading(true)
     setError(null)
     try {
+      if (useDatabase && supabase) {
+        const { error } = await supabase.from("grades").delete().eq("id", id)
+        if (error) throw error
+      }
+      
       setGrades((prev) => prev.filter((grade) => grade.id !== id))
     } catch (err) {
       setError("Failed to delete grade")
+      console.error("Error deleting grade:", err)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [useDatabase])
 
   const getGradesByAssessment = useCallback(
     (assessmentId: string) => {

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Save, X, Users, BookOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -54,9 +54,9 @@ export function GradeEntryForm({ selectedAssessmentId, onSuccess, onCancel }: Gr
 
       setGradeEntries(initialEntries)
     }
-  }, [assessment, classStudents, existingGrades])
+  }, [assessment?.id, classStudents.length, existingGrades.length])
 
-  const validateGrades = () => {
+  const validateGrades = useCallback(() => {
     const newErrors: Record<string, string> = {}
 
     if (!selectedAssessment) {
@@ -83,9 +83,9 @@ export function GradeEntryForm({ selectedAssessmentId, onSuccess, onCancel }: Gr
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
-  }
+  }, [selectedAssessment, assessment, gradeEntries])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validateGrades() || !assessment) return
@@ -116,9 +116,9 @@ export function GradeEntryForm({ selectedAssessmentId, onSuccess, onCancel }: Gr
     } catch (error) {
       setErrors({ submit: "Failed to save grades" })
     }
-  }
+  }, [validateGrades, assessment, classStudents, gradeEntries, calculateGrade, addGrade, onSuccess])
 
-  const handleGradeChange = (studentId: string, field: "marks" | "remarks", value: string | number) => {
+  const handleGradeChange = useCallback((studentId: string, field: "marks" | "remarks", value: string | number) => {
     setGradeEntries((prev) => ({
       ...prev,
       [studentId]: {
@@ -132,9 +132,9 @@ export function GradeEntryForm({ selectedAssessmentId, onSuccess, onCancel }: Gr
     if (errors[errorKey]) {
       setErrors((prev) => ({ ...prev, [errorKey]: "" }))
     }
-  }
+  }, [errors])
 
-  const getGradePreview = (studentId: string) => {
+  const getGradePreview = useCallback((studentId: string) => {
     const entry = gradeEntries[studentId]
     if (!entry || !assessment || entry.marks < 0) return null
 
@@ -142,6 +142,16 @@ export function GradeEntryForm({ selectedAssessmentId, onSuccess, onCancel }: Gr
     const grade = calculateGrade(entry.marks, assessment.totalMarks)
 
     return { percentage: Math.round(percentage * 100) / 100, grade }
+  }, [gradeEntries, assessment, calculateGrade])
+
+  // Error boundary for infinite loops
+  if (assessments.length > 1000) {
+    console.error("Infinite loop detected in GradeEntryForm")
+    return (
+      <div className="p-4 text-center">
+        <p className="text-red-600">An error occurred. Please refresh the page.</p>
+      </div>
+    )
   }
 
   return (
