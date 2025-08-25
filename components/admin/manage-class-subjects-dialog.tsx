@@ -200,7 +200,7 @@ export function ManageClassSubjectsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh]">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
@@ -208,7 +208,7 @@ export function ManageClassSubjectsDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2 space-y-6">
           {/* Class Info */}
           <Card>
             <CardContent className="p-4">

@@ -141,12 +141,12 @@ export function ParentCommunication() {
               New Message
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-hidden">
             <DialogHeader>
               <DialogTitle>Send Message to Teacher</DialogTitle>
               <DialogDescription>Compose a message to one of your child's teachers</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2 space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="teacher">Select Teacher</Label>
                 <Select value={selectedTeacher} onValueChange={setSelectedTeacher}>
@@ -326,14 +326,14 @@ export function ParentCommunication() {
                               Message
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="sm:max-w-[500px]">
+                          <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-hidden">
                             <DialogHeader>
                               <DialogTitle>Message {teacher.name}</DialogTitle>
                               <DialogDescription>
                                 Send a message to {teacher.name} ({teacher.subject})
                               </DialogDescription>
                             </DialogHeader>
-                            <div className="space-y-4">
+                            <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2 space-y-4">
                               <div className="space-y-2">
                                 <Label htmlFor="subject">Subject</Label>
                                 <Input

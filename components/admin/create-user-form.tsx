@@ -404,14 +404,14 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
 
     {/* Password Dialog */}
     <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>User Created Successfully</DialogTitle>
           <DialogDescription>
             A new user account has been created with a default password. Please share this password with the user securely.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="generated-password">Default Password</Label>
             <div className="flex items-center space-x-2">

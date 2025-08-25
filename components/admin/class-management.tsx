@@ -522,13 +522,13 @@ export function ClassManagement() {
       {/* Success Message */}
       {successMessage && (
         <Dialog open={!!successMessage} onOpenChange={() => setSuccessMessage(null)}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[85vh] overflow-hidden">
             <DialogHeader>
               <DialogTitle>
                 {successMessage.type === 'create' ? 'Class Created Successfully!' : 'Class Updated Successfully!'}
               </DialogTitle>
             </DialogHeader>
-            <div className="text-center space-y-4">
+            <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2 text-center space-y-4">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
                 <School className="h-6 w-6 text-green-600" />
               </div>

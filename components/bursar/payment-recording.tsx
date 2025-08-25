@@ -349,14 +349,14 @@ export function PaymentRecording() {
 
       {/* Payment Dialog */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
             <DialogDescription>
               Record a payment for {selectedStudentFee?.studentName}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2 grid gap-4 py-4">
             <div>
               <Label htmlFor="amount">Amount (XAF)</Label>
               <Input

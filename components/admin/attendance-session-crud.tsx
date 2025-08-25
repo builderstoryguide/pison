@@ -658,11 +658,12 @@ export function AttendanceSessionCRUD({
 
               {editingRecord && (
                 <Dialog open={!!editingRecord} onOpenChange={() => setEditingRecord(null)}>
-                  <DialogContent className="max-w-2xl">
+                  <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden">
                     <DialogHeader>
                       <DialogTitle>Edit Attendance Record</DialogTitle>
                     </DialogHeader>
-                    <form onSubmit={handleUpdateRecord} className="space-y-4">
+                    <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2">
+                      <form onSubmit={handleUpdateRecord} className="space-y-4">
                       <div className="space-y-3">
                         <Label>Student</Label>
                         <div className="p-3 bg-muted rounded-md">
@@ -701,6 +702,7 @@ export function AttendanceSessionCRUD({
                         </Button>
                       </div>
                     </form>
+                    </div>
                   </DialogContent>
                 </Dialog>
               )}

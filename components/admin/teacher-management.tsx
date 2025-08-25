@@ -361,12 +361,12 @@ export function TeacherManagement() {
 
       {/* Teacher Details Dialog */}
       <Dialog open={showTeacherDetails} onOpenChange={setShowTeacherDetails}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>Teacher Details</DialogTitle>
           </DialogHeader>
           {selectedTeacher && (
-            <div className="space-y-4">
+            <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2 space-y-4">
               <div className="flex items-center space-x-4">
                 <Avatar className="h-16 w-16">
                   <AvatarImage src={`/placeholder_64px.png?height=64&width=64`} />

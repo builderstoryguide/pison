@@ -98,7 +98,7 @@ export function RemoveStudentFromClassDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh]">
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserMinus className="h-5 w-5" />
@@ -106,7 +106,7 @@ export function RemoveStudentFromClassDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2 space-y-4">
           {/* Warning */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
             <div className="flex items-start gap-2">

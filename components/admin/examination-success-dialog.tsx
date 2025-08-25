@@ -28,7 +28,7 @@ export function ExaminationSuccessDialog({
 }: ExaminationSuccessDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-hidden">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <CheckCircle className="h-6 w-6 text-green-600" />
@@ -38,6 +38,7 @@ export function ExaminationSuccessDialog({
             The examination "{examinationTitle}" has been created successfully and is now available in your examination list.
           </DialogDescription>
         </DialogHeader>
+        <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2">
         <DialogFooter className="flex gap-2">
           {onCreateAnother && (
             <Button variant="outline" onClick={onCreateAnother}>
@@ -53,6 +54,7 @@ export function ExaminationSuccessDialog({
             Close
           </Button>
         </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   )
