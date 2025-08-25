@@ -12,6 +12,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { CalendarIcon } from 'lucide-react'
 import { format } from 'date-fns'
@@ -57,6 +65,8 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
     gender: '' as 'male' | 'female' | '',
     permissions: [] as string[]
   })
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null)
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
 
   const generateId = (role: string) => {
     const year = new Date().getFullYear()
@@ -103,14 +113,17 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
       gender: formData.gender === '' ? undefined : formData.gender as 'male' | 'female'
     }
 
-    const success = await createUser(userData)
-    if (success) {
+    const result = await createUser(userData)
+    if (result.success) {
+      setGeneratedPassword(result.password || null)
+      setShowPasswordDialog(true)
       onSuccess()
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <>
+      <form onSubmit={handleSubmit} className="space-y-6">
       {/* Basic Information */}
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Basic Information</h3>
@@ -388,5 +401,54 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
         </Button>
       </div>
     </form>
+
+    {/* Password Dialog */}
+    <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>User Created Successfully</DialogTitle>
+          <DialogDescription>
+            A new user account has been created with a default password. Please share this password with the user securely.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="generated-password">Default Password</Label>
+            <div className="flex items-center space-x-2">
+              <Input
+                id="generated-password"
+                type="text"
+                value={generatedPassword || ''}
+                readOnly
+                className="font-mono"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (generatedPassword) {
+                    navigator.clipboard.writeText(generatedPassword)
+                  }
+                }}
+              >
+                Copy
+              </Button>
+            </div>
+          </div>
+          <Alert>
+            <AlertDescription>
+              <strong>Important:</strong> This password will expire in 30 days. The user should change their password upon first login.
+            </AlertDescription>
+          </Alert>
+        </div>
+        <DialogFooter>
+          <Button onClick={() => setShowPasswordDialog(false)}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>
   )
 }

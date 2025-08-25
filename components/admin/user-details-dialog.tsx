@@ -27,23 +27,23 @@ interface UserDetailsDialogProps {
 
 export function UserDetailsDialog({ user }: UserDetailsDialogProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* User Header */}
       <div className="flex items-center gap-4">
-        <Avatar className="h-16 w-16">
+        <Avatar className="h-14 w-14">
           <AvatarImage src={user.avatar || "/placeholder.svg"} />
           <AvatarFallback className="text-lg">
             {user.name.split(' ').map(n => n[0]).join('')}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <h3 className="text-xl font-semibold">{user.name}</h3>
-          <p className="text-muted-foreground">{user.email}</p>
-          <div className="flex gap-2 mt-2">
-            <Badge className={roleColors[user.role]}>
+          <h3 className="text-lg font-semibold">{user.name}</h3>
+          <p className="text-muted-foreground text-sm">{user.email}</p>
+          <div className="flex gap-2 mt-1">
+            <Badge className={roleColors[user.role]} variant="secondary">
               {user.role}
             </Badge>
-            <Badge className={statusColors[user.status]}>
+            <Badge className={statusColors[user.status]} variant="secondary">
               {user.status}
             </Badge>
           </div>
@@ -54,10 +54,10 @@ export function UserDetailsDialog({ user }: UserDetailsDialogProps) {
 
       {/* Basic Information */}
       <Card>
-        <CardHeader>
-          <CardTitle>Basic Information</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Basic Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 pt-0">
           <div className="grid gap-3 md:grid-cols-2">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Phone</p>
@@ -85,10 +85,10 @@ export function UserDetailsDialog({ user }: UserDetailsDialogProps) {
 
       {/* Role-specific Information */}
       <Card>
-        <CardHeader>
-          <CardTitle>Role Information</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Role Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 pt-0">
           {user.role === 'student' && (
             <div className="grid gap-3 md:grid-cols-2">
               <div>
@@ -124,10 +124,10 @@ export function UserDetailsDialog({ user }: UserDetailsDialogProps) {
 
       {/* Permissions */}
       <Card>
-        <CardHeader>
-          <CardTitle>Permissions</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Permissions</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <div className="flex flex-wrap gap-2">
             {user.permissions.map((permission) => (
               <Badge key={permission} variant="outline">
@@ -140,10 +140,10 @@ export function UserDetailsDialog({ user }: UserDetailsDialogProps) {
 
       {/* Account Information */}
       <Card>
-        <CardHeader>
-          <CardTitle>Account Information</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Account Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 pt-0">
           <div className="grid gap-3 md:grid-cols-2">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Created At</p>
@@ -156,6 +156,9 @@ export function UserDetailsDialog({ user }: UserDetailsDialogProps) {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Bottom padding for scroll space */}
+      <div className="h-4"></div>
     </div>
   )
 }

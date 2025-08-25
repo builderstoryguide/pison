@@ -45,6 +45,7 @@ import { ParentChildRecords } from "./parent/parent-child-records"
 
 // Bursar Components
 import { BursarDashboard } from "./bursar/bursar-dashboard"
+import { FinancialReports } from "./bursar/financial-reports"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -928,7 +929,7 @@ export function Dashboard() {
   }
 
   // Bursar Dashboard
-  if (user.role === "burser") {
+  if (user.role === "bursar") {
     const bursarMenuItems = [
       { id: "dashboard", label: "Dashboard", icon: Home },
       { id: "financial", label: "Fee Management", icon: DollarSign },
@@ -948,20 +949,7 @@ export function Dashboard() {
             </div>
           )
         case "reports":
-          return (
-            <div className="space-y-6">
-              <div>
-                <h1 className="text-3xl font-bold">Financial Reports</h1>
-                <p className="text-muted-foreground">Generate comprehensive financial reports and analytics</p>
-              </div>
-              <div className="text-center py-12">
-                <BarChart3 className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Advanced Reporting</h3>
-                <p className="text-muted-foreground mb-4">Detailed financial reporting features coming soon</p>
-                <Button variant="outline">Request Feature</Button>
-              </div>
-            </div>
-          )
+          return <FinancialReports onNavigate={setBursarCurrentView} />
         case "profile":
           return <ProfileSettings />
         default:

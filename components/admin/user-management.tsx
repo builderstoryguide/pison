@@ -6,6 +6,7 @@ import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, UserX, UserCheck, R
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -35,6 +36,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -52,6 +54,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Pagination } from '@/components/ui/pagination'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 import { useUserManagement, User, UserFilters } from '@/lib/user-management-context'
 import { CreateUserForm } from './create-user-form'
@@ -124,8 +127,18 @@ export function UserManagement() {
     await deleteUser(userId)
   }
 
+  const [resetPasswordDialog, setResetPasswordDialog] = useState<{ open: boolean; password?: string; userName?: string }>({ open: false })
+
   const handleResetPassword = async (userId: string) => {
-    await resetUserPassword(userId)
+    const result = await resetUserPassword(userId)
+    if (result.success && result.password) {
+      const user = users.find(u => u.id === userId)
+      setResetPasswordDialog({ 
+        open: true, 
+        password: result.password, 
+        userName: user?.name 
+      })
+    }
   }
 
   const exportUsers = () => {
@@ -513,7 +526,7 @@ export function UserManagement() {
       </Dialog>
 
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden">
           <DialogHeader>
             <DialogTitle>User Details</DialogTitle>
             <DialogDescription>
@@ -521,8 +534,58 @@ export function UserManagement() {
             </DialogDescription>
           </DialogHeader>
           {selectedUser && (
-            <UserDetailsDialog user={selectedUser} />
+            <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2">
+              <UserDetailsDialog user={selectedUser} />
+            </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Reset Dialog */}
+      <Dialog open={resetPasswordDialog.open} onOpenChange={(open) => setResetPasswordDialog({ open })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Password Reset Successful</DialogTitle>
+            <DialogDescription>
+              A new temporary password has been generated for {resetPasswordDialog.userName}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-password">New Temporary Password</Label>
+              <div className="flex items-center space-x-2">
+                <Input
+                  id="reset-password"
+                  type="text"
+                  value={resetPasswordDialog.password || ''}
+                  readOnly
+                  className="font-mono"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (resetPasswordDialog.password) {
+                      navigator.clipboard.writeText(resetPasswordDialog.password)
+                    }
+                  }}
+                >
+                  Copy
+                </Button>
+              </div>
+            </div>
+            <Alert>
+              <AlertDescription>
+                <strong>Important:</strong> This temporary password will expire in 7 days. The user should change their password upon next login.
+              </AlertDescription>
+            </Alert>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setResetPasswordDialog({ open: false })}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

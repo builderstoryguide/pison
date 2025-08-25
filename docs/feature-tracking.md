@@ -63,9 +63,10 @@ This document tracks the implementation status of all features outlined in the P
 | FR-1.1.1 | Create user accounts with role-based permissions | ✅ Completed | `components/admin/create-user-form.tsx` | Full CRUD operations implemented |
 | FR-1.1.2 | Edit user profiles and contact information | ✅ Completed | `components/admin/edit-user-form.tsx` | Profile editing with validation |
 | FR-1.1.3 | Activate/deactivate user accounts | ✅ Completed | `components/admin/user-management.tsx` | Status toggle functionality |
-| FR-1.1.4 | Reset user passwords | ✅ Completed | `components/admin/user-management.tsx` | Password reset functionality |
+| FR-1.1.4 | Reset user passwords | ✅ Completed | `components/admin/user-management.tsx` | Password reset with default password generation |
 | FR-1.1.5 | Assign and modify user roles | ✅ Completed | `components/admin/user-management.tsx` | Role management interface |
 | FR-1.1.6 | Track user activity logs | ✅ Completed | `components/admin/activity-logs-view.tsx` | Activity monitoring system |
+| FR-1.1.7 | Default password assignment for new users | ✅ Completed | `components/admin/create-user-form.tsx` | Automatic default password generation with expiry |
 
 ### 1.2 Authentication & Authorization
 

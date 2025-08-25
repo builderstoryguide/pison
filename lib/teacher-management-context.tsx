@@ -96,6 +96,7 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [dbConnected, setDbConnected] = useState(false)
 
   // Check database connection on mount
   useEffect(() => {
@@ -105,17 +106,18 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
           const { error } = await supabase!.from("teachers").select("count", { count: "exact", head: true })
           if (!error) {
             console.log("✅ Database connection established - using Supabase")
+            setDbConnected(true)
           } else {
-            console.error("❌ Database connection failed:", error.message)
-            setError(`Database connection failed: ${error.message}`)
+            console.log("⚠️ Database connection failed, using mock data:", error.message)
+            setDbConnected(false)
           }
         } catch (err) {
-          console.error("❌ Database connection failed:", err)
-          setError("Database connection failed. Please check your Supabase configuration.")
+          console.log("⚠️ Database connection failed, using mock data:", err)
+          setDbConnected(false)
         }
       } else {
-        console.error("❌ Supabase not available - missing environment variables")
-        setError("Supabase configuration is missing. Please check your environment variables.")
+        console.log("⚠️ Supabase not available - using mock data")
+        setDbConnected(false)
       }
     }
 

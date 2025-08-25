@@ -1,6 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import { generateDefaultPassword } from './password-utils'
 
 export interface User {
   id: string
@@ -23,6 +24,10 @@ export interface User {
   createdAt: string
   lastLogin?: string
   createdBy: string
+  // Password management fields
+  hasDefaultPassword?: boolean
+  passwordLastChanged?: string
+  passwordExpiryDate?: string
 }
 
 export interface ActivityLog {
@@ -39,11 +44,11 @@ export interface ActivityLog {
 interface UserManagementContextType {
   users: User[]
   activityLogs: ActivityLog[]
-  createUser: (userData: Omit<User, 'id' | 'createdAt' | 'createdBy'>) => Promise<boolean>
+  createUser: (userData: Omit<User, 'id' | 'createdAt' | 'createdBy'>) => Promise<{ success: boolean; password?: string }>
   updateUser: (userId: string, userData: Partial<User>) => Promise<boolean>
   deleteUser: (userId: string) => Promise<boolean>
   toggleUserStatus: (userId: string, status: 'active' | 'inactive' | 'suspended') => Promise<boolean>
-  resetUserPassword: (userId: string) => Promise<boolean>
+  resetUserPassword: (userId: string) => Promise<{ success: boolean; password?: string }>
   getUserById: (userId: string) => User | undefined
   searchUsers: (query: string) => User[]
   filterUsers: (filters: UserFilters) => User[]
@@ -213,26 +218,34 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
     setActivityLogs(prev => [newLog, ...prev])
   }
 
-  const createUser = async (userData: Omit<User, 'id' | 'createdAt' | 'createdBy'>): Promise<boolean> => {
+  const createUser = async (userData: Omit<User, 'id' | 'createdAt' | 'createdBy'>): Promise<{ success: boolean; password?: string }> => {
     setIsLoading(true)
     setError(null)
 
     try {
       await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
 
+      // Generate default password for new user
+      const defaultPassword = generateDefaultPassword(userData.role)
+      const passwordExpiryDate = new Date()
+      passwordExpiryDate.setDate(passwordExpiryDate.getDate() + 30) // Expires in 30 days
+
       const newUser: User = {
         ...userData,
         id: generateId(),
         createdAt: new Date().toISOString(),
-        createdBy: '1' // Current admin user
+        createdBy: '1', // Current admin user
+        hasDefaultPassword: true,
+        passwordLastChanged: new Date().toISOString(),
+        passwordExpiryDate: passwordExpiryDate.toISOString()
       }
 
       setUsers(prev => [...prev, newUser])
-      logActivity('CREATE_USER', `Created new ${userData.role} account for ${userData.name}`)
-      return true
+      logActivity('CREATE_USER', `Created new ${userData.role} account for ${userData.name} with default password`)
+      return { success: true, password: defaultPassword }
     } catch (err) {
       setError('Failed to create user')
-      return false
+      return { success: false }
     } finally {
       setIsLoading(false)
     }
@@ -301,7 +314,7 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
     }
   }
 
-  const resetUserPassword = async (userId: string): Promise<boolean> => {
+  const resetUserPassword = async (userId: string): Promise<{ success: boolean; password?: string }> => {
     setIsLoading(true)
     setError(null)
 
@@ -309,11 +322,31 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       await new Promise(resolve => setTimeout(resolve, 1000))
       
       const user = users.find(u => u.id === userId)
-      logActivity('PASSWORD_RESET', `Initiated password reset for ${user?.name}`, userId)
-      return true
+      if (!user) {
+        setError('User not found')
+        return { success: false }
+      }
+
+      // Generate new temporary password
+      const newPassword = generateDefaultPassword(user.role)
+      const passwordExpiryDate = new Date()
+      passwordExpiryDate.setDate(passwordExpiryDate.getDate() + 7) // Expires in 7 days
+
+      // Update user with new password info
+      setUsers(prev => prev.map(u => 
+        u.id === userId ? {
+          ...u,
+          hasDefaultPassword: true,
+          passwordLastChanged: new Date().toISOString(),
+          passwordExpiryDate: passwordExpiryDate.toISOString()
+        } : u
+      ))
+
+      logActivity('PASSWORD_RESET', `Reset password for ${user.name}`, userId)
+      return { success: true, password: newPassword }
     } catch (err) {
       setError('Failed to reset password')
-      return false
+      return { success: false }
     } finally {
       setIsLoading(false)
     }

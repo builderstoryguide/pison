@@ -75,8 +75,8 @@ export function TimetableManagement() {
   } = useTimetable()
   
   const [selectedClass, setSelectedClass] = useState<string>("")
-  const [selectedSubsystem, setSelectedSubsystem] = useState<string>("")
-  const [selectedBranch, setSelectedBranch] = useState<string>("")
+  const [selectedSubsystem, setSelectedSubsystem] = useState<string>("all")
+  const [selectedBranch, setSelectedBranch] = useState<string>("all")
   const [isGenerating, setIsGenerating] = useState(false)
 
 
@@ -123,8 +123,8 @@ export function TimetableManagement() {
   }
 
   const filteredClasses = classes.filter(c => {
-    if (selectedSubsystem && c.subsystem !== selectedSubsystem) return false
-    if (selectedBranch && c.branch !== selectedBranch) return false
+    if (selectedSubsystem !== "all" && c.subsystem !== selectedSubsystem) return false
+    if (selectedBranch !== "all" && c.branch !== selectedBranch) return false
     return true
   })
 
@@ -161,7 +161,7 @@ export function TimetableManagement() {
                   <SelectValue placeholder="All subsystems" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All subsystems</SelectItem>
+                  <SelectItem value="all">All subsystems</SelectItem>
                   <SelectItem value="english">English</SelectItem>
                   <SelectItem value="french">French</SelectItem>
                 </SelectContent>
@@ -174,7 +174,7 @@ export function TimetableManagement() {
                   <SelectValue placeholder="All branches" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All branches</SelectItem>
+                  <SelectItem value="all">All branches</SelectItem>
                   <SelectItem value="grammar">Grammar</SelectItem>
                   <SelectItem value="technical">Technical</SelectItem>
                   <SelectItem value="commercial">Commercial</SelectItem>

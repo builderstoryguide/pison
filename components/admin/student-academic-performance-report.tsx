@@ -595,7 +595,7 @@ export function StudentAcademicPerformanceReport() {
                       <SelectValue placeholder="Filter by subject" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All subjects</SelectItem>
+                      <SelectItem value="all">All subjects</SelectItem>
                       {subjects.map((subject) => (
                         <SelectItem key={subject} value={subject}>
                           {subject}
