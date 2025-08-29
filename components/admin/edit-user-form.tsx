@@ -1,6 +1,12 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { CalendarIcon } from 'lucide-react'
+import { zodResolver } from "@hookform/resolvers/zod"
+import { format } from "date-fns"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -8,6 +14,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import { cn } from '@/lib/utils'
 
 import { useUserManagement, User } from '@/lib/user-management-context'
 
@@ -19,6 +37,24 @@ const rolePermissions = {
   bursar: ['manage_finances', 'track_payments', 'generate_reports', 'send_fee_notices']
 }
 
+const FormSchema = z.object({
+  name: z.string().min(1, "Full name is required"),
+  email: z.string().email("Invalid email address"),
+  role: z.enum(['admin', 'teacher', 'student', 'parent', 'bursar']),
+  status: z.enum(['active', 'inactive', 'suspended']),
+  studentId: z.string().optional(),
+  teacherRegNo: z.string().optional(),
+  parentCode: z.string().optional(),
+  subsystem: z.enum(['english', 'french']).optional(),
+  branch: z.enum(['grammar', 'technical', 'commercial']).optional(),
+  class: z.string().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  dateOfBirth: z.date().optional(),
+  gender: z.enum(['male', 'female']).optional(),
+  permissions: z.array(z.string()).default([])
+})
+
 interface EditUserFormProps {
   user: User
   onSuccess: () => void
@@ -26,35 +62,43 @@ interface EditUserFormProps {
 
 export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
   const { updateUser, isLoading, error } = useUserManagement()
-  const [formData, setFormData] = useState({
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    status: user.status,
-    studentId: user.studentId || '',
-    teacherRegNo: user.teacherRegNo || '',
-    parentCode: user.parentCode || '',
-    subsystem: user.subsystem || 'english',
-    branch: user.branch,
-    class: user.class || '',
-    phone: user.phone || '',
-    address: user.address || '',
-    dateOfBirth: user.dateOfBirth || '',
-    gender: user.gender,
-    permissions: user.permissions
+
+  const form = useForm<z.infer<typeof FormSchema>>({
+    resolver: zodResolver(FormSchema),
+    defaultValues: {
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      studentId: user.studentId || '',
+      teacherRegNo: user.teacherRegNo || '',
+      parentCode: user.parentCode || '',
+      subsystem: user.subsystem || 'english',
+      branch: user.branch,
+      class: user.class || '',
+      phone: user.phone || '',
+      address: user.address || '',
+      dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth) : undefined,
+      gender: user.gender,
+      permissions: user.permissions
+    }
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: z.infer<typeof FormSchema>) => {
+    const userData = {
+      ...data,
+      dateOfBirth: data.dateOfBirth ? format(data.dateOfBirth, "yyyy-MM-dd") : undefined
+    }
     
-    const success = await updateUser(user.id, formData)
+    const success = await updateUser(user.id, userData)
     if (success) {
       onSuccess()
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
       {/* Basic Information */}
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Basic Information</h3>
@@ -96,12 +140,11 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
 
           <div className="space-y-2">
             <Label htmlFor="gender">Gender</Label>
-            <Select value={formData.gender || 'none'} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value === 'none' ? undefined : value as 'male' | 'female' }))}>
+            <Select value={formData.gender || ''} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value as 'male' | 'female' }))}>
               <SelectTrigger>
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Not specified</SelectItem>
                 <SelectItem value="male">Male</SelectItem>
                 <SelectItem value="female">Female</SelectItem>
               </SelectContent>
@@ -118,15 +161,47 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="dateOfBirth">Date of Birth</Label>
-          <Input
-            id="dateOfBirth"
-            type="date"
-            value={formData.dateOfBirth}
-            onChange={(e) => setFormData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-          />
-        </div>
+        <FormField
+          control={form.control}
+          name="dateOfBirth"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Date of Birth</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full pl-3 text-left font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                    >
+                      {field.value ? (
+                        format(field.value, "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={field.value}
+                    onSelect={field.onChange}
+                    disabled={(date) =>
+                      date > new Date() || date < new Date("1900-01-01")
+                    }
+                    captionLayout="dropdown"
+                  />
+                </PopoverContent>
+              </Popover>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </div>
 
       {/* Role-specific Information */}
@@ -303,6 +378,7 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
           {isLoading ? 'Updating...' : 'Update User'}
         </Button>
       </div>
-    </form>
+        </form>
+      </Form>
   )
 }

@@ -2,6 +2,11 @@
 
 import { useState } from 'react'
 import { User, GraduationCap, Users, UserCheck, DollarSign } from 'lucide-react'
+import { zodResolver } from "@hookform/resolvers/zod"
+import { format } from "date-fns"
+import { CalendarIcon } from "lucide-react"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,9 +25,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
 import { cn } from '@/lib/utils'
-import { CalendarIcon } from 'lucide-react'
-import { format } from 'date-fns'
 
 import { useUserManagement, User as UserType } from '@/lib/user-management-context'
 
@@ -42,31 +54,57 @@ const rolePermissions = {
   bursar: ['manage_finances', 'track_payments', 'generate_reports', 'send_fee_notices']
 }
 
+const FormSchema = z.object({
+  name: z.string().min(1, "Full name is required"),
+  email: z.string().email("Invalid email address"),
+  role: z.enum(['admin', 'teacher', 'student', 'parent', 'bursar']),
+  status: z.enum(['active', 'inactive', 'suspended']).default('active'),
+  studentId: z.string().optional(),
+  teacherRegNo: z.string().optional(),
+  parentCode: z.string().optional(),
+  subsystem: z.enum(['english', 'french']).default('english'),
+  branch: z.enum(['grammar', 'technical', 'commercial']).optional(),
+  class: z.string().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  dateOfBirth: z.date({
+    required_error: "Date of birth is required.",
+  }),
+  gender: z.enum(['male', 'female'], {
+    required_error: "Gender is required.",
+  }),
+  permissions: z.array(z.string()).default([])
+})
+
 interface CreateUserFormProps {
   onSuccess: () => void
 }
 
 export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
   const { createUser, isLoading, error } = useUserManagement()
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    role: '' as UserType['role'] | '',
-    status: 'active' as UserType['status'],
-    studentId: '',
-    teacherRegNo: '',
-    parentCode: '',
-    subsystem: 'english' as 'english' | 'french',
-    branch: '' as 'grammar' | 'technical' | 'commercial' | '',
-    class: '',
-    phone: '',
-    address: '',
-    dateOfBirth: '',
-    gender: '' as 'male' | 'female' | '',
-    permissions: [] as string[]
-  })
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null)
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+
+  const form = useForm<z.infer<typeof FormSchema>>({
+    resolver: zodResolver(FormSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      role: undefined,
+      status: 'active',
+      studentId: '',
+      teacherRegNo: '',
+      parentCode: '',
+      subsystem: 'english',
+      branch: undefined,
+      class: '',
+      phone: '',
+      address: '',
+      dateOfBirth: undefined,
+      gender: undefined,
+      permissions: []
+    }
+  })
 
   const generateId = (role: string) => {
     const year = new Date().getFullYear()
@@ -85,32 +123,24 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
   }
 
   const handleRoleChange = (role: UserType['role']) => {
-    const newFormData = { ...formData, role }
-    
     // Auto-generate IDs
     if (role === 'student') {
-      newFormData.studentId = generateId('student')
+      form.setValue('studentId', generateId('student'))
     } else if (role === 'teacher') {
-      newFormData.teacherRegNo = generateId('teacher')
+      form.setValue('teacherRegNo', generateId('teacher'))
     } else if (role === 'parent') {
-      newFormData.parentCode = generateId('parent')
+      form.setValue('parentCode', generateId('parent'))
     }
     
     // Set default permissions
-    newFormData.permissions = rolePermissions[role] || []
-    
-    setFormData(newFormData)
+    form.setValue('permissions', rolePermissions[role] || [])
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!formData.role) return
-
+  const onSubmit = async (data: z.infer<typeof FormSchema>) => {
     const userData = {
-      ...formData,
-      role: formData.role as UserType['role'],
-      branch: formData.branch === '' ? undefined : formData.branch as 'grammar' | 'technical' | 'commercial',
-      gender: formData.gender === '' ? undefined : formData.gender as 'male' | 'female'
+      ...data,
+      dateOfBirth: format(data.dateOfBirth, "yyyy-MM-dd"),
+      branch: data.branch || undefined
     }
 
     const result = await createUser(userData)
@@ -123,252 +153,324 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Basic Information */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium">Basic Information</h3>
-        
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="name">Full Name *</Label>
-            <Input
-              id="name"
-              type="text"
-              placeholder="Enter full name"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              required
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Basic Information */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Basic Information</h3>
+          
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Name *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter full name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email Address *</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="Enter email address" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email Address *</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="Enter email address"
-              value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              required
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone Number</FormLabel>
+                  <FormControl>
+                    <Input type="tel" placeholder="+237 6XX XXX XXX" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="gender"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Gender *</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
           </div>
-        </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number</Label>
-            <Input
-              id="phone"
-              type="tel"
-              placeholder="+237 6XX XXX XXX"
-              value={formData.phone}
-              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-            />
-          </div>
+          <FormField
+            control={form.control}
+            name="address"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Address</FormLabel>
+                <FormControl>
+                  <Textarea placeholder="Enter full address" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="gender">Gender</Label>
-            <Select value={formData.gender || 'none'} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value === 'none' ? '' : value as any }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select gender" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Not specified</SelectItem>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="address">Address</Label>
-          <Textarea
-            id="address"
-            placeholder="Enter full address"
-            value={formData.address}
-            onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+          <FormField
+            control={form.control}
+            name="dateOfBirth"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Date of Birth *</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value ? (
+                          format(field.value, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      disabled={(date) =>
+                        date > new Date() || date < new Date("1900-01-01")
+                      }
+                      captionLayout="dropdown"
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )}
           />
         </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="dateOfBirth">Date of Birth</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !formData.dateOfBirth && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {formData.dateOfBirth ? format(new Date(formData.dateOfBirth), "PPP") : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={formData.dateOfBirth ? new Date(formData.dateOfBirth) : undefined}
-                onSelect={(date) => date && setFormData(prev => ({ ...prev, dateOfBirth: format(date, "yyyy-MM-dd") }))}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
 
       {/* Role and System Information */}
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Role & System Information</h3>
         
-        <div className="space-y-2">
-          <Label htmlFor="role">Role *</Label>
-          <Select value={formData.role} onValueChange={handleRoleChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select role" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(roleIcons).map(([key, Icon]) => (
-                <SelectItem key={key} value={key}>
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-4 w-4" />
-                    <span className="capitalize">{key}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Role-specific fields */}
-        {formData.role === 'student' && (
-          <>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="studentId">Student ID</Label>
-                <Input
-                  id="studentId"
-                  type="text"
-                  value={formData.studentId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, studentId: e.target.value }))}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="class">Class</Label>
-                <Input
-                  id="class"
-                  type="text"
-                  placeholder="e.g., Form 5A"
-                  value={formData.class}
-                  onChange={(e) => setFormData(prev => ({ ...prev, class: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="branch">Branch</Label>
-              <Select 
-                value={formData.branch || 'none'} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, branch: value === 'none' ? '' : value as any }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select branch" />
-                </SelectTrigger>
+        <FormField
+          control={form.control}
+          name="role"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Role *</FormLabel>
+              <Select onValueChange={(value) => {
+                field.onChange(value)
+                handleRoleChange(value as UserType['role'])
+              }} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                </FormControl>
                 <SelectContent>
-                  <SelectItem value="none">Not specified</SelectItem>
-                  <SelectItem value="grammar">Grammar</SelectItem>
-                  <SelectItem value="technical">Technical</SelectItem>
-                  <SelectItem value="commercial">Commercial</SelectItem>
+                  {Object.entries(roleIcons).map(([key, Icon]) => (
+                    <SelectItem key={key} value={key}>
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4" />
+                        <span className="capitalize">{key}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Role-specific fields */}
+        {form.watch('role') === 'student' && (
+          <>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="studentId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Student ID</FormLabel>
+                    <FormControl>
+                      <Input type="text" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="class"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Class</FormLabel>
+                    <FormControl>
+                      <Input type="text" placeholder="e.g., Form 5A" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
+            <FormField
+              control={form.control}
+              name="branch"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Branch</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select branch" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="grammar">Grammar</SelectItem>
+                      <SelectItem value="technical">Technical</SelectItem>
+                      <SelectItem value="commercial">Commercial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </>
         )}
 
-        {formData.role === 'teacher' && (
-          <div className="space-y-2">
-            <Label htmlFor="teacherRegNo">Teacher Registration Number</Label>
-            <Input
-              id="teacherRegNo"
-              type="text"
-              value={formData.teacherRegNo}
-              onChange={(e) => setFormData(prev => ({ ...prev, teacherRegNo: e.target.value }))}
-              required
-            />
-          </div>
+        {form.watch('role') === 'teacher' && (
+          <FormField
+            control={form.control}
+            name="teacherRegNo"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Teacher Registration Number</FormLabel>
+                <FormControl>
+                  <Input type="text" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         )}
 
-        {formData.role === 'parent' && (
-          <div className="space-y-2">
-            <Label htmlFor="parentCode">Parent Access Code</Label>
-            <Input
-              id="parentCode"
-              type="text"
-              value={formData.parentCode}
-              onChange={(e) => setFormData(prev => ({ ...prev, parentCode: e.target.value }))}
-              required
-            />
-          </div>
+        {form.watch('role') === 'parent' && (
+          <FormField
+            control={form.control}
+            name="parentCode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Parent Access Code</FormLabel>
+                <FormControl>
+                  <Input type="text" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         )}
 
         {/* Subsystem Selection */}
-        {(formData.role === 'student' || formData.role === 'teacher') && (
-          <div className="space-y-2">
-            <Label htmlFor="subsystem">Educational Sub-system</Label>
-            <Select 
-              value={formData.subsystem} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, subsystem: value as any }))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="english">English Sub-system</SelectItem>
-                <SelectItem value="french">French Sub-system</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        {(form.watch('role') === 'student' || form.watch('role') === 'teacher') && (
+          <FormField
+            control={form.control}
+            name="subsystem"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Educational Sub-system</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="english">English Sub-system</SelectItem>
+                    <SelectItem value="french">French Sub-system</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         )}
 
-        <div className="space-y-2">
-          <Label htmlFor="status">Account Status</Label>
-          <Select 
-            value={formData.status} 
-            onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as any }))}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <FormField
+          control={form.control}
+          name="status"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Account Status</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </div>
 
       {/* Permissions */}
-      {formData.role && (
+      {form.watch('role') && (
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Permissions</h3>
           <div className="space-y-2">
-            {rolePermissions[formData.role]?.map((permission) => (
+            {rolePermissions[form.watch('role')]?.map((permission) => (
               <div key={permission} className="flex items-center space-x-2">
                 <Checkbox
                   id={permission}
-                  checked={formData.permissions.includes(permission)}
+                  checked={form.watch('permissions').includes(permission)}
                   onCheckedChange={(checked) => {
+                    const currentPermissions = form.watch('permissions')
                     if (checked) {
-                      setFormData(prev => ({
-                        ...prev,
-                        permissions: [...prev.permissions, permission]
-                      }))
+                      form.setValue('permissions', [...currentPermissions, permission])
                     } else {
-                      setFormData(prev => ({
-                        ...prev,
-                        permissions: prev.permissions.filter(p => p !== permission)
-                      }))
+                      form.setValue('permissions', currentPermissions.filter(p => p !== permission))
                     }
                   }}
                 />
@@ -395,12 +497,13 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
         </Button>
         <Button 
           type="submit" 
-          disabled={isLoading || !formData.role || !formData.name || !formData.email}
+          disabled={isLoading}
         >
           {isLoading ? 'Creating...' : 'Create User'}
         </Button>
       </div>
-    </form>
+        </form>
+      </Form>
 
     {/* Password Dialog */}
     <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>

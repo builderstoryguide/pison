@@ -3,6 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useState, useCallback, useEffect } from "react"
 import { supabase, testConnection } from "./supabase"
+import { activityLogger } from "./activity-logger"
 
 export interface ClassData {
   id: string
@@ -269,6 +270,10 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         }
 
         setClasses((prev) => [transformedClass, ...prev])
+        
+        // Log the activity
+        activityLogger.logActivity('CLASS_CREATED', `Created new class ${classData.name} with capacity ${classData.capacity}`)
+        
         setIsLoading(false)
         return { success: true, classId: newClass.id }
       } catch (err) {

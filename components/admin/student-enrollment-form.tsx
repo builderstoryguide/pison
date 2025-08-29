@@ -1,7 +1,11 @@
 "use client"
 
 import { useState } from 'react'
-import { Check, User, MapPin, GraduationCap, Users, Heart, FileText, AlertCircle } from 'lucide-react'
+import { Check, User, MapPin, GraduationCap, Users, Heart, FileText, AlertCircle, CalendarIcon } from 'lucide-react'
+import { zodResolver } from "@hookform/resolvers/zod"
+import { format } from "date-fns"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,6 +18,18 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import { cn } from '@/lib/utils'
 
 import { useStudentEnrollment, StudentEnrollmentData } from '@/lib/student-enrollment-context'
 
@@ -45,7 +61,16 @@ const classes = {
 }
 
 interface StudentEnrollmentFormProps {
-  onSuccess: (result: { studentId: string; parentCode: string; studentName: string }) => void
+  onSuccess: (result: { 
+    studentId: string; 
+    parentCode: string; 
+    studentName: string;
+    studentPassword?: string;
+    parentPassword?: string;
+    studentEmail?: string;
+    parentEmail?: string;
+    className?: string;
+  }) => void
   onCancel: () => void
 }
 
@@ -89,6 +114,18 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
     passportPhoto: false
   })
 
+  // Create a form for the date picker specifically
+  const dateForm = useForm<{ dateOfBirth: Date }>({
+    resolver: zodResolver(z.object({
+      dateOfBirth: z.date({
+        required_error: "Date of birth is required.",
+      })
+    })),
+    defaultValues: {
+      dateOfBirth: undefined
+    }
+  })
+
   const totalSteps = 6
   const progress = (currentStep / totalSteps) * 100
 
@@ -112,7 +149,16 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
     const result = await enrollStudent(formData)
     if (result.success && result.studentId && result.parentCode) {
       const studentName = `${formData.firstName} ${formData.lastName}`
-      onSuccess({ studentId: result.studentId, parentCode: result.parentCode, studentName })
+      onSuccess({ 
+        studentId: result.studentId, 
+        parentCode: result.parentCode, 
+        studentName,
+        studentPassword: result.studentPassword,
+        parentPassword: result.parentPassword,
+        studentEmail: formData.email,
+        parentEmail: formData.parentEmail,
+        className: formData.class
+      })
     }
   }
 
@@ -250,24 +296,61 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="dateOfBirth">Date of Birth *</Label>
-                  <Input
-                    id="dateOfBirth"
-                    type="date"
-                    value={formData.dateOfBirth}
-                    onChange={(e) => updateFormData('dateOfBirth', e.target.value)}
-                    required
+                <Form {...dateForm}>
+                  <FormField
+                    control={dateForm.control}
+                    name="dateOfBirth"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Date of Birth *</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant={"outline"}
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={(date) => {
+                                field.onChange(date)
+                                if (date) {
+                                  updateFormData('dateOfBirth', format(date, "yyyy-MM-dd"))
+                                }
+                              }}
+                              disabled={(date) =>
+                                date > new Date() || date < new Date("1900-01-01")
+                              }
+                              captionLayout="dropdown"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                </div>
+                </Form>
                 <div className="space-y-2">
                   <Label htmlFor="gender">Gender *</Label>
-                  <Select value={formData.gender || 'none'} onValueChange={(value) => updateFormData('gender', value === 'none' ? '' : value)}>
+                  <Select value={formData.gender || ''} onValueChange={(value) => updateFormData('gender', value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select gender" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Not specified</SelectItem>
                       <SelectItem value="male">Male</SelectItem>
                       <SelectItem value="female">Female</SelectItem>
                     </SelectContent>

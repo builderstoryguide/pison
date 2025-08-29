@@ -4,6 +4,9 @@ import type React from "react"
 import { createContext, useContext, useState } from "react"
 import { supabase, testConnection } from "./supabase"
 import { useNotifications } from "./notification-context"
+import { activityLogger } from "./activity-logger"
+import { generateDefaultPassword } from "./password-utils"
+import bcrypt from "bcryptjs"
 
 // Fallback UUID generation function
 const generateUUID = (): string => {
@@ -62,7 +65,7 @@ interface StudentEnrollmentContextType {
   isUsingDatabase: boolean
   enrollStudent: (
     studentData: StudentEnrollmentData,
-  ) => Promise<{ success: boolean; studentId?: string; parentCode?: string; error?: string }>
+  ) => Promise<{ success: boolean; studentId?: string; parentCode?: string; studentPassword?: string; parentPassword?: string; error?: string }>
   generateStudentId: () => string
   testDatabaseConnection: () => Promise<boolean>
 }
@@ -276,6 +279,62 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
         // Continue with enrollment even if parent creation fails
       }
 
+      // Generate passwords for student and parent accounts
+      const studentPassword = generateDefaultPassword('student')
+      const parentPassword = generateDefaultPassword('parent')
+
+      // Create user account for student
+      let studentUser = null
+      if (studentData.email) {
+        const { data: studentUserData, error: studentUserError } = await supabase
+          .from('users')
+          .insert({
+            email: studentData.email,
+            password_hash: await bcrypt.hash(studentPassword, 12),
+            name: `${studentData.firstName} ${studentData.lastName}`,
+            role: 'student',
+            status: 'active',
+            phone: studentData.phone,
+            has_default_password: true,
+            password_last_changed: new Date().toISOString(),
+            password_expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+          })
+          .select()
+          .single()
+
+        if (studentUserError) {
+          console.warn("Failed to create student user account:", studentUserError.message)
+        } else {
+          studentUser = studentUserData
+        }
+      }
+
+      // Create user account for parent
+      let parentUser = null
+      if (studentData.parentEmail) {
+        const { data: parentUserData, error: parentUserError } = await supabase
+          .from('users')
+          .insert({
+            email: studentData.parentEmail,
+            password_hash: await bcrypt.hash(parentPassword, 12),
+            name: studentData.parentName,
+            role: 'parent',
+            status: 'active',
+            phone: studentData.parentPhone,
+            has_default_password: true,
+            password_last_changed: new Date().toISOString(),
+            password_expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+          })
+          .select()
+          .single()
+
+        if (parentUserError) {
+          console.warn("Failed to create parent user account:", parentUserError.message)
+        } else {
+          parentUser = parentUserData
+        }
+      }
+
       // Insert emergency contact
       if (studentData.emergencyContactName && studentData.emergencyContactPhone) {
         const { error: emergencyError } = await supabase.from("emergency_contacts").insert({
@@ -307,6 +366,9 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
       // Update state with the new student
       setStudents(prev => [...prev, student])
       
+      // Log the activity
+      activityLogger.logActivity('STUDENT_ENROLLED', `Enrolled new student ${studentData.firstName} ${studentData.lastName} in ${studentData.class}`)
+      
       // Add notification for successful enrollment
       addNotification({
         title: "Student Enrollment Successful",
@@ -320,7 +382,9 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
       return {
         success: true,
         studentId,
-        parentCode
+        parentCode,
+        studentPassword,
+        parentPassword
       }
 
     } catch (error) {

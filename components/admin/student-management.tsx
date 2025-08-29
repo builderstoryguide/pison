@@ -90,7 +90,16 @@ export function StudentManagement() {
 
   const [showEnrollmentForm, setShowEnrollmentForm] = useState(false)
   const [showBulkUpload, setShowBulkUpload] = useState(false)
-  const [enrollmentSuccess, setEnrollmentSuccess] = useState<{ studentId: string; parentCode: string; studentName: string } | null>(null)
+  const [enrollmentSuccess, setEnrollmentSuccess] = useState<{ 
+    studentId: string; 
+    parentCode: string; 
+    studentName: string;
+    studentPassword?: string;
+    parentPassword?: string;
+    studentEmail?: string;
+    parentEmail?: string;
+    className?: string;
+  } | null>(null)
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [showStudentDetails, setShowStudentDetails] = useState(false)
   const [showFeesDialog, setShowFeesDialog] = useState(false)
@@ -140,7 +149,16 @@ export function StudentManagement() {
     setCurrentPage(1) // Reset to first page
   }
 
-  const handleEnrollmentSuccess = (result: { studentId: string; parentCode: string; studentName: string }) => {
+  const handleEnrollmentSuccess = (result: { 
+    studentId: string; 
+    parentCode: string; 
+    studentName: string;
+    studentPassword?: string;
+    parentPassword?: string;
+    studentEmail?: string;
+    parentEmail?: string;
+    className?: string;
+  }) => {
     setEnrollmentSuccess(result)
     setShowEnrollmentForm(false)
     loadStudents() // Refresh the students list
@@ -903,6 +921,11 @@ export function StudentManagement() {
               studentId={enrollmentSuccess.studentId}
               parentCode={enrollmentSuccess.parentCode}
               studentName={enrollmentSuccess.studentName}
+              studentPassword={enrollmentSuccess.studentPassword}
+              parentPassword={enrollmentSuccess.parentPassword}
+              studentEmail={enrollmentSuccess.studentEmail}
+              parentEmail={enrollmentSuccess.parentEmail}
+              className={enrollmentSuccess.className}
               onClose={() => setEnrollmentSuccess(null)}
             />
           </DialogContent>
@@ -990,10 +1013,10 @@ export function StudentManagement() {
             </DialogDescription>
           </DialogHeader>
                      <StudentBulkUpload
-             onSuccess={(result) => {
+             onSuccess={() => {
                setShowBulkUpload(false)
                loadStudents()
-               success("Bulk upload successful", `${result.count} students have been successfully uploaded to the system.`)
+               success("Bulk upload successful", "Students have been successfully uploaded to the system.")
              }}
              onCancel={() => setShowBulkUpload(false)}
            />

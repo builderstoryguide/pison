@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from 'react'
-import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, Download, Calendar, Clock, MapPin, Users, BookOpen, Save, RefreshCw } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, Download, Calendar, Clock, MapPin, Users, BookOpen, Save, RefreshCw, AlertCircle, FileText } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -71,7 +71,9 @@ export function TimetableManagement() {
     error, 
     generateTimetable, 
     deleteTimetable, 
-    exportTimetable 
+    exportTimetable,
+    refreshClasses,
+    loadClassesWithFilters
   } = useTimetable()
   
   const [selectedClass, setSelectedClass] = useState<string>("")
@@ -79,7 +81,54 @@ export function TimetableManagement() {
   const [selectedBranch, setSelectedBranch] = useState<string>("all")
   const [isGenerating, setIsGenerating] = useState(false)
 
+  // Empty state component
+  const EmptyState = ({ message, description }: { message: string; description: string }) => (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <FileText className="h-16 w-16 text-muted-foreground mb-4" />
+      <h3 className="text-lg font-semibold text-foreground mb-2">{message}</h3>
+      <p className="text-muted-foreground mb-6 max-w-md">{description}</p>
+    </div>
+  )
 
+  // Loading state component
+  const LoadingState = () => (
+    <div className="flex flex-col items-center justify-center py-12">
+      <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
+      <p className="text-muted-foreground">Loading timetable data...</p>
+    </div>
+  )
+
+  // Error state component
+  const ErrorState = ({ message }: { message: string }) => (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <AlertCircle className="h-16 w-16 text-destructive mb-4" />
+      <h3 className="text-lg font-semibold text-foreground mb-2">Failed to load timetable data</h3>
+      <p className="text-muted-foreground mb-6 max-w-md">{message}</p>
+      <Button onClick={() => refreshClasses()} variant="outline">
+        <RefreshCw className="h-4 w-4 mr-2" />
+        Try Again
+      </Button>
+    </div>
+  )
+
+  // Handle filter changes
+  const handleSubsystemChange = (value: string) => {
+    setSelectedSubsystem(value)
+    setSelectedClass("") // Reset selected class when filters change
+    loadClassesWithFilters({ 
+      subsystem: value !== 'all' ? value : undefined, 
+      branch: selectedBranch !== 'all' ? selectedBranch : undefined 
+    })
+  }
+
+  const handleBranchChange = (value: string) => {
+    setSelectedBranch(value)
+    setSelectedClass("") // Reset selected class when filters change
+    loadClassesWithFilters({ 
+      subsystem: selectedSubsystem !== 'all' ? selectedSubsystem : undefined, 
+      branch: value !== 'all' ? value : undefined 
+    })
+  }
 
   const handleGenerateTimetable = async () => {
     if (!selectedClass) {
@@ -111,6 +160,87 @@ export function TimetableManagement() {
     }
   }
 
+  const handleExportJSON = async (classId: string) => {
+    const selectedClass = classes.find(c => c.id === classId)
+    if (!selectedClass || selectedClass.periods.length === 0) {
+      console.error('No timetable to export')
+      return
+    }
+
+    const jsonContent = JSON.stringify({
+      class: selectedClass,
+      periods: selectedClass.periods,
+      generatedAt: new Date().toISOString()
+    }, null, 2)
+
+    const blob = new Blob([jsonContent], { type: 'application/json' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `timetable_${selectedClass.name.replace(/\s+/g, '_')}.json`
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
+  const handlePrintTimetable = async (classId: string) => {
+    const selectedClass = classes.find(c => c.id === classId)
+    if (!selectedClass || selectedClass.periods.length === 0) {
+      console.error('No timetable to print')
+      return
+    }
+
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      const htmlContent = `
+        <html>
+          <head>
+            <title>Timetable - ${selectedClass.name}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #f2f2f2; }
+              .header { text-align: center; margin-bottom: 20px; }
+              @media print { body { margin: 0; } }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>Timetable - ${selectedClass.name}</h1>
+              <p>Level: ${selectedClass.level} | Subsystem: ${selectedClass.subsystem} | Branch: ${selectedClass.branch}</p>
+              <p>Generated on: ${new Date().toLocaleDateString()}</p>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Day</th>
+                  <th>Time</th>
+                  <th>Subject</th>
+                  <th>Teacher</th>
+                  <th>Room</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${selectedClass.periods.map(period => `
+                  <tr>
+                    <td>${period.day}</td>
+                    <td>${period.startTime}-${period.endTime}</td>
+                    <td><strong>${period.subject}</strong></td>
+                    <td>${period.teacher}</td>
+                    <td>${period.room}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            <script>window.print(); window.close();</script>
+          </body>
+        </html>
+      `
+      printWindow.document.write(htmlContent)
+      printWindow.document.close()
+    }
+  }
+
   const handleDeleteTimetable = async (classId: string) => {
     try {
       const result = await deleteTimetable(classId)
@@ -122,21 +252,8 @@ export function TimetableManagement() {
     }
   }
 
-  const filteredClasses = classes.filter(c => {
-    if (selectedSubsystem !== "all" && c.subsystem !== selectedSubsystem) return false
-    if (selectedBranch !== "all" && c.branch !== selectedBranch) return false
-    return true
-  })
-
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading timetable data...</p>
-        </div>
-      </div>
-    )
+    return <LoadingState />
   }
 
   return (
@@ -145,6 +262,14 @@ export function TimetableManagement() {
         <h1 className="text-3xl font-bold">Timetable Management</h1>
         <p className="text-muted-foreground">Generate and manage class timetables for the academic year.</p>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Filters */}
       <Card>
@@ -156,7 +281,7 @@ export function TimetableManagement() {
           <div className="grid gap-4 md:grid-cols-3">
             <div>
               <Label htmlFor="subsystem">Subsystem</Label>
-              <Select value={selectedSubsystem} onValueChange={setSelectedSubsystem}>
+              <Select value={selectedSubsystem} onValueChange={handleSubsystemChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="All subsystems" />
                 </SelectTrigger>
@@ -169,7 +294,7 @@ export function TimetableManagement() {
             </div>
             <div>
               <Label htmlFor="branch">Branch</Label>
-              <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+              <Select value={selectedBranch} onValueChange={handleBranchChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="All branches" />
                 </SelectTrigger>
@@ -188,7 +313,7 @@ export function TimetableManagement() {
                   <SelectValue placeholder="Select a class" />
                 </SelectTrigger>
                 <SelectContent>
-                  {filteredClasses.map(c => (
+                  {classes.map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -223,11 +348,17 @@ export function TimetableManagement() {
                 </>
               )}
             </Button>
-            {error && (
-              <Alert variant="destructive" className="flex-1">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            <Button 
+              variant="outline" 
+              onClick={() => refreshClasses({ 
+                subsystem: selectedSubsystem !== 'all' ? selectedSubsystem : undefined, 
+                branch: selectedBranch !== 'all' ? selectedBranch : undefined 
+              })}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -239,94 +370,115 @@ export function TimetableManagement() {
           <CardDescription>View and manage timetables for all classes</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Class</TableHead>
-                <TableHead>Level</TableHead>
-                <TableHead>Subsystem</TableHead>
-                <TableHead>Branch</TableHead>
-                <TableHead>Periods</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredClasses.map((classData) => (
-                <TableRow key={classData.id}>
-                  <TableCell className="font-medium">{classData.name}</TableCell>
-                  <TableCell>{classData.level}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">
-                      {classData.subsystem}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">
-                      {classData.branch}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{classData.periods.length}</TableCell>
-                  <TableCell>
-                    {classData.periods.length > 0 ? (
-                      <Badge variant="default" className="bg-green-100 text-green-800">
-                        Generated
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">Not Generated</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => setSelectedClass(classData.id)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit Timetable
-                        </DropdownMenuItem>
-                        {classData.periods.length > 0 && (
-                          <>
-                                                         <DropdownMenuItem onClick={() => handleExportTimetable(classData.id)}>
-                               <Download className="mr-2 h-4 w-4" />
-                               Export CSV
-                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete Timetable
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Timetable</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete the timetable for {classData.name}? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteTimetable(classData.id)}>
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          {classes.length === 0 ? (
+            <EmptyState 
+              message="No classes found" 
+              description="No classes are available for timetable generation. Please ensure classes are properly configured in the system."
+            />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Level</TableHead>
+                  <TableHead>Subsystem</TableHead>
+                  <TableHead>Branch</TableHead>
+                  <TableHead>Periods</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {classes.map((classData) => (
+                  <TableRow key={classData.id}>
+                    <TableCell className="font-medium">{classData.name}</TableCell>
+                    <TableCell>{classData.level}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {classData.subsystem}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {classData.branch}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{classData.periods.length}</TableCell>
+                    <TableCell>
+                      {classData.periods.length > 0 ? (
+                        <Badge variant="default" className="bg-green-100 text-green-800">
+                          Generated
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">Not Generated</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          {classData.periods.length > 0 && (
+                            <DropdownMenuItem onClick={() => setSelectedClass(classData.id)}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Timetable
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => setSelectedClass(classData.id)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit Timetable
+                          </DropdownMenuItem>
+                          {classData.periods.length > 0 && (
+                            <>
+                              <DropdownMenuItem onClick={() => handleExportTimetable(classData.id)}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Export CSV
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleExportJSON(classData.id)}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                Export JSON
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handlePrintTimetable(classData.id)}>
+                                <Printer className="mr-2 h-4 w-4" />
+                                Print Timetable
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete Timetable
+                                  </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Timetable</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete the timetable for {classData.name}? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteTimetable(classData.id)}>
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -334,10 +486,44 @@ export function TimetableManagement() {
       {selectedClass && classes.find(c => c.id === selectedClass)?.periods && classes.find(c => c.id === selectedClass)!.periods.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>
-              Timetable for {classes.find(c => c.id === selectedClass)?.name}
-            </CardTitle>
-            <CardDescription>Weekly schedule view</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Timetable for {classes.find(c => c.id === selectedClass)?.name}
+                </CardTitle>
+                <CardDescription>View and download the generated timetable</CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {classes.find(c => c.id === selectedClass)?.periods.length} Periods
+                </Badge>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      <Download className="h-4 w-4" />
+                      Download
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Export Options</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => handleExportTimetable(selectedClass)}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Export as CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExportJSON(selectedClass)}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Export as JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handlePrintTimetable(selectedClass)}>
+                      <Printer className="mr-2 h-4 w-4" />
+                      Print Timetable
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="weekly" className="w-full">

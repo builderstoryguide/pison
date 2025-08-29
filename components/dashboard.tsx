@@ -32,6 +32,12 @@ import { FinancialManagement } from "./admin/financial-management"
 import { AttendanceManagement } from "./admin/attendance-management"
 import { ReportsAnalyticsManagement } from "./admin/reports-analytics-management"
 import { ProfileSettings } from "./profile/profile-settings"
+import { RecentActivities } from "./admin/recent-activities"
+import { AnalyticsDashboard } from "@/components/admin/analytics-dashboard"
+import { AcademicPerformance } from "@/components/admin/academic-performance"
+import { ReportTemplates } from "@/components/admin/report-templates"
+import { GeneratedReports } from "@/components/admin/generated-reports"
+import { ReportCards } from "@/components/admin/report-cards"
 
 // Teacher Components
 import { TeacherDashboard } from "./teacher/teacher-dashboard"
@@ -65,6 +71,9 @@ import {
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 import {
   DropdownMenu,
@@ -106,6 +115,8 @@ import {
   Clock,
   X,
   CalendarDays,
+  Download,
+  ChevronDown,
 } from "lucide-react"
 
 type AdminView =
@@ -120,6 +131,11 @@ type AdminView =
   | "attendance"
   | "reports"
   | "profile"
+  | "reports-analytics"
+  | "reports-academic-performance"
+  | "reports-templates"
+  | "reports-generated"
+  | "reports-cards"
 
 type TeacherView = "dashboard" | "classes" | "attendance" | "grades" | "profile"
 
@@ -349,6 +365,7 @@ export function Dashboard() {
   const [teacherCurrentView, setTeacherCurrentView] = useState<TeacherView>("dashboard")
   const [parentCurrentView, setParentCurrentView] = useState<ParentView>("dashboard")
   const [bursarCurrentView, setBursarCurrentView] = useState<BursarView>("dashboard")
+  const [reportsDropdownOpen, setReportsDropdownOpen] = useState(false)
 
   if (!user) {
     return <AuthPage />
@@ -498,7 +515,14 @@ export function Dashboard() {
       { id: "examinations", label: "Examinations", icon: FileText },
       { id: "financial", label: "Financial Management", icon: DollarSign },
       { id: "attendance", label: "Attendance", icon: Calendar },
-      { id: "reports", label: "Reports & Analytics", icon: BarChart3 },
+    ]
+
+    const reportsSubItems = [
+      { id: "reports-analytics", label: "Analytics", icon: BarChart3 },
+      { id: "reports-academic-performance", label: "Academic Performance", icon: GraduationCap },
+      { id: "reports-templates", label: "Report Templates", icon: FileText },
+      { id: "reports-generated", label: "Generated Reports", icon: Download },
+      { id: "reports-cards", label: "Report Cards", icon: ClipboardList },
     ]
 
     const renderAdminContent = () => {
@@ -528,7 +552,16 @@ export function Dashboard() {
         case "attendance":
           return <AttendanceManagement />
         case "reports":
-          return <ReportsAnalyticsManagement />
+        case "reports-analytics":
+          return <AnalyticsDashboard />
+        case "reports-academic-performance":
+          return <AcademicPerformance />
+        case "reports-templates":
+          return <ReportTemplates />
+        case "reports-generated":
+          return <GeneratedReports />
+        case "reports-cards":
+          return <ReportCards />
         case "profile":
           return <ProfileSettings />
         default:
@@ -590,32 +623,7 @@ export function Dashboard() {
                     <CardTitle>Recent Activities</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center">
-                        <UserPlus className="mr-2 h-4 w-4 text-blue-500" />
-                        <div className="ml-2 space-y-1">
-                          <p className="text-sm font-medium leading-none">New student enrolled</p>
-                          <p className="text-sm text-muted-foreground">Marie Ngozi joined Form 5A</p>
-                        </div>
-                        <div className="ml-auto font-medium">2 min ago</div>
-                      </div>
-                      <div className="flex items-center">
-                        <School className="mr-2 h-4 w-4 text-green-500" />
-                        <div className="ml-2 space-y-1">
-                          <p className="text-sm font-medium leading-none">Class created</p>
-                          <p className="text-sm text-muted-foreground">Form 6 Science class added</p>
-                        </div>
-                        <div className="ml-auto font-medium">1 hour ago</div>
-                      </div>
-                      <div className="flex items-center">
-                        <CreditCard className="mr-2 h-4 w-4 text-yellow-500" />
-                        <div className="ml-2 space-y-1">
-                          <p className="text-sm font-medium leading-none">Payment received</p>
-                          <p className="text-sm text-muted-foreground">School fees payment processed</p>
-                        </div>
-                        <div className="ml-auto font-medium">3 hours ago</div>
-                      </div>
-                    </div>
+                    <RecentActivities />
                   </CardContent>
                 </Card>
                 <Card className="col-span-3">
@@ -708,6 +716,33 @@ export function Dashboard() {
                                           </SidebarMenuButton>
                                         </SidebarMenuItem>
                                       ))}
+                                      
+                                      {/* Reports & Analytics Dropdown */}
+                                      <SidebarMenuItem>
+                                        <SidebarMenuButton
+                                          onClick={() => setReportsDropdownOpen(!reportsDropdownOpen)}
+                                          isActive={adminCurrentView.startsWith('reports')}
+                                        >
+                                          <BarChart3 />
+                                          <span>Reports & Analytics</span>
+                                          <ChevronDown className={`ml-auto size-4 transition-transform ${reportsDropdownOpen ? 'rotate-180' : ''}`} />
+                                        </SidebarMenuButton>
+                                        {reportsDropdownOpen && (
+                                          <SidebarMenuSub>
+                                            {reportsSubItems.map((item) => (
+                                              <SidebarMenuSubItem key={item.id}>
+                                                <SidebarMenuSubButton
+                                                  onClick={() => setAdminCurrentView(item.id as AdminView)}
+                                                  isActive={adminCurrentView === item.id}
+                                                >
+                                                  <item.icon />
+                                                  <span>{item.label}</span>
+                                                </SidebarMenuSubButton>
+                                              </SidebarMenuSubItem>
+                                            ))}
+                                          </SidebarMenuSub>
+                                        )}
+                                      </SidebarMenuItem>
                                     </SidebarMenu>
                                   </SidebarGroupContent>
                                 </SidebarGroup>

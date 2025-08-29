@@ -13,6 +13,11 @@ interface EnrollmentSuccessDialogProps {
   studentId: string
   parentCode: string
   studentName: string
+  studentPassword?: string
+  parentPassword?: string
+  studentEmail?: string
+  parentEmail?: string
+  className?: string
   onClose: () => void
 }
 
@@ -20,9 +25,17 @@ export function EnrollmentSuccessDialog({
   studentId, 
   parentCode, 
   studentName, 
+  studentPassword,
+  parentPassword,
+  studentEmail,
+  parentEmail,
+  className,
   onClose 
 }: EnrollmentSuccessDialogProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
+  const [emailError, setEmailError] = useState<string | null>(null)
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text)
@@ -41,6 +54,8 @@ Congratulations! Your enrollment at Government Bilingual High School Yaoundé ha
 Student Details:
 - Student ID: ${studentId}
 - Parent Access Code: ${parentCode}
+${studentPassword ? `- Student Password: ${studentPassword}` : ''}
+${parentPassword ? `- Parent Password: ${parentPassword}` : ''}
 
 Please keep these credentials safe as they will be needed to access the school management system.
 
@@ -64,6 +79,48 @@ Government Bilingual High School Yaoundé
     a.download = `welcome-email-${studentId}.txt`
     a.click()
     window.URL.revokeObjectURL(url)
+  }
+
+  const sendWelcomeEmail = async () => {
+    if (!studentEmail && !parentEmail) {
+      setEmailError('No email addresses available to send welcome email')
+      return
+    }
+
+    setIsSendingEmail(true)
+    setEmailError(null)
+
+    try {
+      const response = await fetch('/api/email/welcome', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentName,
+          studentEmail,
+          parentName: 'Parent/Guardian', // You might want to pass this as a prop
+          parentEmail,
+          studentId,
+          parentCode,
+          studentPassword,
+          parentPassword,
+          className: className || 'Not specified'
+        }),
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        setEmailSent(true)
+      } else {
+        setEmailError(result.error || 'Failed to send welcome email')
+      }
+    } catch (error) {
+      setEmailError('Failed to send welcome email. Please try again.')
+    } finally {
+      setIsSendingEmail(false)
+    }
   }
 
   return (
@@ -138,6 +195,55 @@ Government Bilingual High School Yaoundé
             </div>
           </div>
 
+          {(studentPassword || parentPassword) && (
+            <div className="grid gap-4 md:grid-cols-2">
+              {studentPassword && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-muted-foreground">Student Password</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(studentPassword, 'studentPassword')}
+                      className="h-6 px-2"
+                    >
+                      {copiedField === 'studentPassword' ? (
+                        <Check className="h-3 w-3 text-green-600" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-lg font-bold bg-muted p-2 rounded">
+                    {studentPassword}
+                  </div>
+                </div>
+              )}
+              {parentPassword && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-muted-foreground">Parent Password</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(parentPassword, 'parentPassword')}
+                      className="h-6 px-2"
+                    >
+                      {copiedField === 'parentPassword' ? (
+                        <Check className="h-3 w-3 text-green-600" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </div>
+                  <div className="font-mono text-lg font-bold bg-muted p-2 rounded">
+                    {parentPassword}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <Alert>
             <AlertDescription>
               <strong>Important:</strong> Please save these credentials securely. They will be needed to access the school management system.
@@ -196,15 +302,34 @@ Government Bilingual High School Yaoundé
         </CardContent>
       </Card>
 
+      {/* Email Status */}
+      {emailError && (
+        <Alert variant="destructive">
+          <AlertDescription>{emailError}</AlertDescription>
+        </Alert>
+      )}
+
+      {emailSent && (
+        <Alert>
+          <AlertDescription>
+            <strong>Success!</strong> Welcome emails have been sent to the student and parent.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-2 justify-center">
         <Button variant="outline" onClick={generateWelcomeEmail}>
           <Download className="h-4 w-4 mr-2" />
           Download Welcome Letter
         </Button>
-        <Button variant="outline">
+        <Button 
+          variant="outline" 
+          onClick={sendWelcomeEmail}
+          disabled={isSendingEmail || !studentEmail && !parentEmail}
+        >
           <Mail className="h-4 w-4 mr-2" />
-          Send Email Notification
+          {isSendingEmail ? 'Sending...' : 'Send Email Notification'}
         </Button>
         <Button onClick={onClose}>
           Complete

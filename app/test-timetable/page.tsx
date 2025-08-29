@@ -1,11 +1,11 @@
 "use client"
 
-import { TimetableProvider } from "@/lib/timetable-context"
-import { TimetableManagement } from "@/components/admin/timetable-management"
+import { TimetableProvider } from '@/lib/timetable-context'
+import { TimetableManagement } from '@/components/admin/timetable-management'
 
 export default function TestTimetablePage() {
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto py-6">
       <TimetableProvider>
         <TimetableManagement />
       </TimetableProvider>

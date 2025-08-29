@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from 'react'
-import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, UserX, UserCheck, RotateCcw, Eye, Download, Users, UserPlus, Activity } from 'lucide-react'
+import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, UserX, UserCheck, RotateCcw, Eye, Download, Users, UserPlus, Activity, RefreshCw, AlertCircle, Users2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -84,7 +84,9 @@ export function UserManagement() {
     toggleUserStatus,
     deleteUser,
     resetUserPassword,
-    isLoading
+    isLoading,
+    error,
+    refreshUsers
   } = useUserManagement()
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -170,8 +172,44 @@ export function UserManagement() {
     suspended: users.filter(u => u.status === 'suspended').length,
     teachers: users.filter(u => u.role === 'teacher').length,
     students: users.filter(u => u.role === 'student').length,
-    parents: users.filter(u => u.role === 'parent').length
+    parents: users.filter(u => u.role === 'parent').length,
+    admins: users.filter(u => u.role === 'admin').length,
+    bursars: users.filter(u => u.role === 'bursar').length
   }
+
+  // Empty state component
+  const EmptyState = ({ message, description }: { message: string; description: string }) => (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <Users2 className="h-16 w-16 text-muted-foreground mb-4" />
+      <h3 className="text-lg font-semibold text-foreground mb-2">{message}</h3>
+      <p className="text-muted-foreground mb-6 max-w-md">{description}</p>
+      <Button onClick={() => setShowCreateDialog(true)}>
+        <Plus className="h-4 w-4 mr-2" />
+        Add First User
+      </Button>
+    </div>
+  )
+
+  // Loading state component
+  const LoadingState = () => (
+    <div className="flex flex-col items-center justify-center py-12">
+      <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
+      <p className="text-muted-foreground">Loading users...</p>
+    </div>
+  )
+
+  // Error state component
+  const ErrorState = ({ message }: { message: string }) => (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <AlertCircle className="h-16 w-16 text-destructive mb-4" />
+      <h3 className="text-lg font-semibold text-foreground mb-2">Failed to load users</h3>
+      <p className="text-muted-foreground mb-6 max-w-md">{message}</p>
+      <Button onClick={refreshUsers} variant="outline">
+        <RefreshCw className="h-4 w-4 mr-2" />
+        Try Again
+      </Button>
+    </div>
+  )
 
   return (
     <div className="space-y-6">
@@ -184,7 +222,15 @@ export function UserManagement() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={exportUsers}>
+          <Button 
+            variant="outline" 
+            onClick={refreshUsers}
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button variant="outline" onClick={exportUsers} disabled={users.length === 0}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -208,8 +254,16 @@ export function UserManagement() {
         </div>
       </div>
 
+      {/* Error Alert */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -219,6 +273,18 @@ export function UserManagement() {
             <div className="text-2xl font-bold">{userStats.total}</div>
             <p className="text-xs text-muted-foreground">
               {userStats.active} active, {userStats.inactive} inactive
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Admins</CardTitle>
+            <UserPlus className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{userStats.admins}</div>
+            <p className="text-xs text-muted-foreground">
+              System administrators
             </p>
           </CardContent>
         </Card>
@@ -344,156 +410,174 @@ export function UserManagement() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>ID/Code</TableHead>
-                    <TableHead>Last Login</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={user.avatar || "/placeholder.svg"} />
-                            <AvatarFallback>
-                              {user.name.split(' ').map(n => n[0]).join('')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{user.name}</div>
-                            <div className="text-sm text-muted-foreground">{user.email}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={roleColors[user.role]}>
-                          {user.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={statusColors[user.status]}>
-                          {user.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-mono text-sm">
-                          {user.studentId || user.teacherRegNo || user.parentCode || 'N/A'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {user.lastLogin ? (
-                          <span className="text-sm">
-                            {new Date(user.lastLogin).toLocaleDateString()}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">Never</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedUser(user)
-                                setShowDetailsDialog(true)
-                              }}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedUser(user)
-                                setShowEditDialog(true)
-                              }}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit User
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => handleResetPassword(user.id)}
-                            >
-                              <RotateCcw className="h-4 w-4 mr-2" />
-                              Reset Password
-                            </DropdownMenuItem>
-                            {user.status === 'active' ? (
-                              <DropdownMenuItem
-                                onClick={() => handleStatusChange(user.id, 'inactive')}
-                              >
-                                <UserX className="h-4 w-4 mr-2" />
-                                Deactivate
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                onClick={() => handleStatusChange(user.id, 'active')}
-                              >
-                                <UserCheck className="h-4 w-4 mr-2" />
-                                Activate
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <DropdownMenuItem
-                                  className="text-red-600"
-                                  onSelect={(e) => e.preventDefault()}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete User
-                                </DropdownMenuItem>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete User</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete {user.name}? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDeleteUser(user.id)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              
-              {/* Pagination Controls */}
-              {displayUsers.length > 0 && (
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  totalItems={displayUsers.length}
-                  itemsPerPage={itemsPerPage}
-                  onPageChange={handlePageChange}
-                  onItemsPerPageChange={handleItemsPerPageChange}
-                  startIndex={startIndex}
-                  endIndex={endIndex}
+              {isLoading ? (
+                <LoadingState />
+              ) : error ? (
+                <ErrorState message={error} />
+              ) : users.length === 0 ? (
+                <EmptyState 
+                  message="No users found" 
+                  description="Get started by creating the first user account in your school management system."
                 />
+              ) : displayUsers.length === 0 ? (
+                <EmptyState 
+                  message="No users match your search" 
+                  description="Try adjusting your search terms or filters to find the users you're looking for."
+                />
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>ID/Code</TableHead>
+                        <TableHead>Last Login</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedUsers.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={user.avatar || "/placeholder.svg"} />
+                                <AvatarFallback>
+                                  {user.name.split(' ').map(n => n[0]).join('')}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-medium">{user.name}</div>
+                                <div className="text-sm text-muted-foreground">{user.email}</div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={roleColors[user.role]}>
+                              {user.role}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={statusColors[user.status]}>
+                              {user.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-mono text-sm">
+                              {user.studentId || user.teacherRegNo || user.parentCode || 'N/A'}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {user.lastLogin ? (
+                              <span className="text-sm">
+                                {new Date(user.lastLogin).toLocaleDateString()}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">Never</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedUser(user)
+                                    setShowDetailsDialog(true)
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedUser(user)
+                                    setShowEditDialog(true)
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit User
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => handleResetPassword(user.id)}
+                                >
+                                  <RotateCcw className="h-4 w-4 mr-2" />
+                                  Reset Password
+                                </DropdownMenuItem>
+                                {user.status === 'active' ? (
+                                  <DropdownMenuItem
+                                    onClick={() => handleStatusChange(user.id, 'inactive')}
+                                  >
+                                    <UserX className="h-4 w-4 mr-2" />
+                                    Deactivate
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    onClick={() => handleStatusChange(user.id, 'active')}
+                                  >
+                                    <UserCheck className="h-4 w-4 mr-2" />
+                                    Activate
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem
+                                      className="text-red-600"
+                                      onSelect={(e) => e.preventDefault()}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete User
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete {user.name}? This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeleteUser(user.id)}
+                                        className="bg-red-600 hover:bg-red-700"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  
+                  {/* Pagination Controls */}
+                  {displayUsers.length > 0 && (
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      totalItems={displayUsers.length}
+                      itemsPerPage={itemsPerPage}
+                      onPageChange={handlePageChange}
+                      onItemsPerPageChange={handleItemsPerPageChange}
+                      startIndex={startIndex}
+                      endIndex={endIndex}
+                    />
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

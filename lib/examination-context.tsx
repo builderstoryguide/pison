@@ -3,6 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useState, useCallback, useEffect } from "react"
 import { supabase } from "./supabase"
+import { activityLogger } from "./activity-logger"
 
 export interface ExamFormData {
   title: string
@@ -237,6 +238,10 @@ export function ExaminationProvider({ children }: { children: React.ReactNode })
 
         // Add to local state
         setExaminations((prev) => [newExamination, ...prev])
+        
+        // Log the activity
+        activityLogger.logActivity('EXAM_CREATED', `Created new ${data.type} examination: ${data.title} for ${data.level}`)
+        
         setIsLoading(false)
         return { success: true, examinationId: newExamination.id }
       } catch (error) {

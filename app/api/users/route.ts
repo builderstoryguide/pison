@@ -30,12 +30,25 @@ function generateRoleSpecificId(role: string): string {
 function generateDefaultPassword(role: string): string {
   const year = new Date().getFullYear();
   const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-  return `${role.charAt(0).toUpperCase() + role.slice(1)}@${year}${random}`;
+  const capitalizedRole = role.charAt(0).toUpperCase() + role.slice(1);
+  return `${capitalizedRole}@${year}${random}`;
 }
 
 // GET - Retrieve users with optional filtering
 export async function GET(request: NextRequest) {
   try {
+    // Check if environment variables are set
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing environment variables');
+      return NextResponse.json(
+        { 
+          error: 'Server configuration error',
+          message: 'Database connection not configured'
+        },
+        { status: 500 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role');
     const status = searchParams.get('status');
@@ -43,6 +56,24 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
+
+    // First, check if the user_details view exists
+    const { data: viewCheck, error: viewError } = await supabase
+      .from('user_details')
+      .select('id')
+      .limit(1);
+
+    if (viewError) {
+      console.error('Database view error:', viewError);
+      return NextResponse.json(
+        { 
+          error: 'Database not set up',
+          message: 'Please run the database setup script first',
+          details: viewError.message
+        },
+        { status: 500 }
+      );
+    }
 
     let query = supabase
       .from('user_details')
@@ -67,13 +98,17 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Error fetching users:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch users' },
+        { 
+          error: 'Failed to fetch users',
+          message: error.message,
+          code: error.code
+        },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
-      users,
+      users: users || [],
       pagination: {
         page,
         limit,
@@ -85,7 +120,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error in GET /api/users:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
@@ -176,7 +214,7 @@ export async function POST(request: NextRequest) {
         has_default_password: true,
         password_last_changed: new Date().toISOString(),
         password_expiry_date: passwordExpiryDate.toISOString(),
-        created_by: createdBy
+        ...(createdBy && { created_by: createdBy })
       })
       .select()
       .single();
@@ -215,14 +253,16 @@ export async function POST(request: NextRequest) {
       // Note: We don't fail here as the user was created successfully
     }
 
-    // Log activity
-    await supabase.rpc('log_user_activity', {
-      p_user_id: createdBy,
-      p_action: 'CREATE_USER',
-      p_details: `Created new ${role} account for ${name}`,
-      p_ip_address: request.headers.get('x-forwarded-for') || request.ip,
-      p_user_agent: request.headers.get('user-agent')
-    });
+    // Log activity (only if createdBy is provided)
+    if (createdBy) {
+      await supabase.rpc('log_user_activity', {
+        p_user_id: createdBy,
+        p_action: 'CREATE_USER',
+        p_details: `Created new ${role} account for ${name}`,
+        p_ip_address: request.headers.get('x-forwarded-for') || request.ip,
+        p_user_agent: request.headers.get('user-agent')
+      });
+    }
 
     // Return user data with generated password
     return NextResponse.json({
@@ -320,14 +360,16 @@ export async function PUT(request: NextRequest) {
       console.error('Error updating user profile:', profileError);
     }
 
-    // Log activity
-    await supabase.rpc('log_user_activity', {
-      p_user_id: updateData.updatedBy,
-      p_action: 'UPDATE_USER',
-      p_details: `Updated profile for ${user.name}`,
-      p_ip_address: request.headers.get('x-forwarded-for') || request.ip,
-      p_user_agent: request.headers.get('user-agent')
-    });
+    // Log activity (only if updatedBy is provided)
+    if (updateData.updatedBy) {
+      await supabase.rpc('log_user_activity', {
+        p_user_id: updateData.updatedBy,
+        p_action: 'UPDATE_USER',
+        p_details: `Updated profile for ${user.name}`,
+        p_ip_address: request.headers.get('x-forwarded-for') || request.ip,
+        p_user_agent: request.headers.get('user-agent')
+      });
+    }
 
     return NextResponse.json({
       success: true,

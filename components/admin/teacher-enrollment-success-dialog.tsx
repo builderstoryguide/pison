@@ -67,15 +67,15 @@ export function TeacherEnrollmentSuccessDialog({
 
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="text-center">
+      <Card className="w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <CardHeader className="text-center flex-shrink-0">
           <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
             <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
           <CardTitle className="text-2xl text-green-600">Teacher Enrolled Successfully!</CardTitle>
           <CardDescription>The teacher has been successfully enrolled in the system</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 flex-1 overflow-y-auto pr-2">
           {/* Teacher ID */}
           <div className="bg-muted p-4 rounded-lg">
             <div className="flex items-center justify-between">
@@ -175,9 +175,11 @@ export function TeacherEnrollmentSuccessDialog({
               <li>• All teaching assignments have been configured</li>
             </ul>
           </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-4">
+        </CardContent>
+        
+        {/* Action Buttons - Fixed at bottom */}
+        <div className="p-6 pt-0 flex-shrink-0">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Button onClick={generateTeacherCard} variant="outline" className="flex items-center gap-2 bg-transparent">
               <Download className="h-4 w-4" />
               Download Teacher Card
@@ -201,7 +203,7 @@ export function TeacherEnrollmentSuccessDialog({
               Close
             </Button>
           </div>
-        </CardContent>
+        </div>
       </Card>
     </div>
   )

@@ -1,0 +1,9 @@
+id,name,email,phone,max_periods_per_day,max_periods_per_week,preferred_days,preferred_times,is_active,created_at,updated_at
+660e8400-e29b-41d4-a716-446655440001,Paul Biya Mbeki,p.mbeki@school.com,+237 123456789,6,30,"{Monday,Tuesday,Wednesday,Thursday,Friday}","{08:00,09:00,10:00,11:00,13:00,14:00}",true,2024-12-01 00:00:00+00,2024-12-01 00:00:00+00
+660e8400-e29b-41d4-a716-446655440002,Marie Ngozi,m.ngozi@school.com,+237 123456790,6,30,"{Monday,Tuesday,Wednesday,Thursday,Friday}","{08:00,09:00,10:00,11:00,13:00,14:00}",true,2024-12-01 00:00:00+00,2024-12-01 00:00:00+00
+660e8400-e29b-41d4-a716-446655440003,Jean Claude,j.claude@school.com,+237 123456791,6,30,"{Monday,Tuesday,Wednesday,Thursday,Friday}","{08:00,09:00,10:00,11:00,13:00,14:00}",true,2024-12-01 00:00:00+00,2024-12-01 00:00:00+00
+660e8400-e29b-41d4-a716-446655440004,Grace Tabi,g.tabi@school.com,+237 123456792,6,30,"{Monday,Tuesday,Wednesday,Thursday,Friday}","{08:00,09:00,10:00,11:00,13:00,14:00}",true,2024-12-01 00:00:00+00,2024-12-01 00:00:00+00
+660e8400-e29b-41d4-a716-446655440005,Amina Fru,a.fru@school.com,+237 123456793,6,30,"{Monday,Tuesday,Wednesday,Thursday,Friday}","{08:00,09:00,10:00,11:00,13:00,14:00}",true,2024-12-01 00:00:00+00,2024-12-01 00:00:00+00
+660e8400-e29b-41d4-a716-446655440006,David Wilson,d.wilson@school.com,+237 123456794,6,30,"{Monday,Tuesday,Wednesday,Thursday,Friday}","{08:00,09:00,10:00,11:00,13:00,14:00}",true,2024-12-01 00:00:00+00,2024-12-01 00:00:00+00
+660e8400-e29b-41d4-a716-446655440007,Sarah Johnson,s.johnson@school.com,+237 123456795,6,30,"{Monday,Tuesday,Wednesday,Thursday,Friday}","{08:00,09:00,10:00,11:00,13:00,14:00}",true,2024-12-01 00:00:00+00,2024-12-01 00:00:00+00
+660e8400-e29b-41d4-a716-446655440008,Michael Brown,m.brown@school.com,+237 123456796,6,30,"{Monday,Tuesday,Wednesday,Thursday,Friday}","{08:00,09:00,10:00,11:00,13:00,14:00}",true,2024-12-01 00:00:00+00,2024-12-01 00:00:00+00

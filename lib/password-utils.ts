@@ -10,7 +10,8 @@
 export function generateDefaultPassword(role: string, year?: number): string {
   const currentYear = year || new Date().getFullYear()
   const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase()
-  return `${role}@${currentYear}${randomChars}`
+  const capitalizedRole = role.charAt(0).toUpperCase() + role.slice(1)
+  return `${capitalizedRole}@${currentYear}${randomChars}`
 }
 
 /**

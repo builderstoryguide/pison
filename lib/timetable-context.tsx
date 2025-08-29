@@ -40,126 +40,87 @@ interface TimetableContextType {
   classes: TimetableClass[]
   teachers: TimetableTeacher[]
   rooms: TimetableRoom[]
-  isLoading: boolean
-  error: string | null
   generateTimetable: (classId: string) => Promise<{ success: boolean; error?: string }>
-  updateTimetable: (classId: string, periods: TimetablePeriod[]) => Promise<{ success: boolean; error?: string }>
   deleteTimetable: (classId: string) => Promise<{ success: boolean; error?: string }>
   exportTimetable: (classId: string) => Promise<{ success: boolean; error?: string }>
-  getClassTimetable: (classId: string) => TimetablePeriod[]
-  getTeacherTimetable: (teacherId: string) => TimetablePeriod[]
-  getRoomTimetable: (roomId: string) => TimetablePeriod[]
+  refreshClasses: (filters?: { subsystem?: string; branch?: string; academicYear?: string }) => Promise<void>
+  loadClassesWithFilters: (filters: { subsystem?: string; branch?: string; academicYear?: string }) => Promise<void>
+  isLoading: boolean
+  error: string | null
 }
 
 const TimetableContext = createContext<TimetableContextType | undefined>(undefined)
 
-// Mock data
-const mockClasses: TimetableClass[] = [
-  {
-    id: "CLS001",
-    name: "Form 1A",
-    level: "Form 1",
-    subsystem: "english",
-    branch: "grammar",
-    periods: []
-  },
-  {
-    id: "CLS002",
-    name: "Form 2B",
-    level: "Form 2",
-    subsystem: "english",
-    branch: "technical",
-    periods: []
-  },
-  {
-    id: "CLS003",
-    name: "Form 5 Science",
-    level: "Form 5",
-    subsystem: "english",
-    branch: "grammar",
-    periods: []
-  },
-  {
-    id: "CLS004",
-    name: "Form 3A",
-    level: "Form 3",
-    subsystem: "english",
-    branch: "commercial",
-    periods: []
-  },
-  {
-    id: "CLS005",
-    name: "Sixième A",
-    level: "Sixième",
-    subsystem: "french",
-    branch: "grammar",
-    periods: []
-  }
-]
-
+// Mock data for fallback
 const mockTeachers: TimetableTeacher[] = [
   {
-    id: "TCH001",
-    name: "Mr. John Doe",
+    id: "1",
+    name: "Paul Biya Mbeki",
     subjects: ["Mathematics", "Physics"],
     maxPeriodsPerDay: 6
   },
   {
-    id: "TCH002",
-    name: "Mrs. Sarah Johnson",
+    id: "2",
+    name: "Marie Ngozi",
     subjects: ["English Language", "Literature"],
-    maxPeriodsPerDay: 5
+    maxPeriodsPerDay: 6
   },
   {
-    id: "TCH003",
-    name: "Dr. Mary Smith",
+    id: "3",
+    name: "Jean Claude",
     subjects: ["Biology", "Chemistry"],
     maxPeriodsPerDay: 6
   },
   {
-    id: "TCH004",
-    name: "Mr. David Wilson",
+    id: "4",
+    name: "Grace Tabi",
     subjects: ["History", "Geography"],
-    maxPeriodsPerDay: 5
+    maxPeriodsPerDay: 6
   },
   {
-    id: "TCH005",
-    name: "Mrs. Grace Tabi",
+    id: "5",
+    name: "Amina Fru",
     subjects: ["French Language", "Spanish"],
-    maxPeriodsPerDay: 4
+    maxPeriodsPerDay: 6
   }
 ]
 
 const mockRooms: TimetableRoom[] = [
   {
-    id: "RM001",
+    id: "1",
     name: "Room 101",
-    capacity: 40,
+    capacity: 30,
     type: "classroom"
   },
   {
-    id: "RM002",
-    name: "Science Lab 1",
+    id: "2",
+    name: "Room 102",
     capacity: 30,
-    type: "laboratory"
+    type: "classroom"
   },
   {
-    id: "RM003",
-    name: "Computer Lab",
+    id: "3",
+    name: "Science Lab 1",
     capacity: 25,
     type: "laboratory"
   },
   {
-    id: "RM004",
-    name: "Room 102",
-    capacity: 35,
-    type: "classroom"
+    id: "4",
+    name: "Computer Lab",
+    capacity: 20,
+    type: "laboratory"
   },
   {
-    id: "RM005",
+    id: "5",
     name: "Library",
     capacity: 50,
     type: "library"
+  },
+  {
+    id: "6",
+    name: "Assembly Hall",
+    capacity: 200,
+    type: "hall"
   }
 ]
 
@@ -171,83 +132,158 @@ const timeSlots = [
 ]
 
 export function TimetableProvider({ children }: { children: React.ReactNode }) {
-  const [classes, setClasses] = useState<TimetableClass[]>(mockClasses)
+  const [classes, setClasses] = useState<TimetableClass[]>([])
   const [teachers, setTeachers] = useState<TimetableTeacher[]>(mockTeachers)
   const [rooms, setRooms] = useState<TimetableRoom[]>(mockRooms)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const loadClassesWithFilters = async (filters: { subsystem?: string; branch?: string; academicYear?: string } = {}) => {
+    setIsLoading(true)
+    setError(null)
+    
+    try {
+      // Build query parameters
+      const params = new URLSearchParams()
+      if (filters.subsystem && filters.subsystem !== 'all') {
+        params.append('subsystem', filters.subsystem)
+      }
+      if (filters.branch && filters.branch !== 'all') {
+        params.append('branch', filters.branch)
+      }
+      if (filters.academicYear) {
+        params.append('academicYear', filters.academicYear)
+      }
+
+      const url = `/api/timetable/classes${params.toString() ? `?${params.toString()}` : ''}`
+      const response = await fetch(url)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+
+      if (result.success && result.classes) {
+        // Transform API response to match our interface
+        const transformedClasses: TimetableClass[] = result.classes.map((apiClass: any) => ({
+          id: apiClass.id,
+          name: apiClass.name,
+          level: apiClass.level,
+          subsystem: apiClass.subsystem,
+          branch: apiClass.branch,
+          periods: [] // Will be loaded separately when needed
+        }))
+        setClasses(transformedClasses)
+      } else {
+        throw new Error('Invalid response format from API')
+      }
+    } catch (error) {
+      console.error('Failed to load classes:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load classes'
+      setError(errorMessage)
+      
+      // If it's a database setup error, show a helpful message
+      if (errorMessage.includes('Database not set up') || errorMessage.includes('Please run the database setup script')) {
+        setError('Database not configured. Please run the timetable setup script in Supabase SQL Editor.')
+      }
+      
+      // Keep empty array if API fails
+      setClasses([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loadClasses = async () => {
+    await loadClassesWithFilters()
+  }
+
+  const refreshClasses = async (filters?: { subsystem?: string; branch?: string; academicYear?: string }) => {
+    await loadClassesWithFilters(filters)
+  }
+
+  const loadTimetableForClass = async (classId: string) => {
+    try {
+      const response = await fetch(`/api/timetable?classId=${classId}`)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+
+      if (result.success && result.timetables) {
+        // Transform API response to match our interface
+        const transformedPeriods: TimetablePeriod[] = result.timetables.map((period: any) => ({
+          id: period.period_id || period.id,
+          day: period.day_of_week,
+          startTime: period.start_time,
+          endTime: period.end_time,
+          subject: period.subject_name || 'TBD',
+          teacher: period.teacher_name || 'TBD',
+          room: period.room_name || 'TBD',
+          class: period.class_name || 'TBD'
+        }))
+
+        // Update the class with periods
+        setClasses(prev => prev.map(c => 
+          c.id === classId 
+            ? { ...c, periods: transformedPeriods }
+            : c
+        ))
+
+        return transformedPeriods
+      } else {
+        throw new Error('Invalid response format from API')
+      }
+    } catch (error) {
+      console.error('Failed to load timetable for class:', error)
+      throw error
+    }
+  }
+
+
+
+  useEffect(() => {
+    loadClasses()
+  }, [])
 
   const generateTimetable = async (classId: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true)
     setError(null)
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      const selectedClass = classes.find(c => c.id === classId)
-      if (!selectedClass) {
-        throw new Error("Selected class not found")
-      }
-
-      // Generate mock timetable periods
-      const generatedPeriods: TimetablePeriod[] = []
-      const subjects = ["Mathematics", "English Language", "Biology", "Chemistry", "Physics", "History", "Geography", "French Language"]
-      
-      daysOfWeek.forEach(day => {
-        timeSlots.slice(0, 8).forEach((timeSlot, index) => {
-          const [startTime, endTime] = timeSlot.split("-")
-          const subject = subjects[index % subjects.length]
-          const teacher = teachers.find(t => t.subjects.includes(subject))?.name || "TBD"
-          const room = rooms[Math.floor(Math.random() * rooms.length)]?.name || "TBD"
-
-          generatedPeriods.push({
-            id: `${selectedClass.id}_${day}_${index}`,
-            day,
-            startTime,
-            endTime,
-            subject,
-            teacher,
-            room,
-            class: selectedClass.name
-          })
-        })
+      const response = await fetch('/api/timetable', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          classId,
+          academicYear: '2024-2025',
+          term: 'first',
+          generatedBy: 'admin' // In production, get from auth context
+        }),
       })
 
-      // Update the class with generated periods
-      setClasses(prev => prev.map(c => 
-        c.id === classId 
-          ? { ...c, periods: generatedPeriods }
-          : c
-      ))
+      const result = await response.json()
 
-      return { success: true }
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to generate timetable')
+      }
+
+      if (result.success) {
+        // Load the generated timetable
+        await loadTimetableForClass(classId)
+        return { success: true }
+      } else {
+        throw new Error(result.error || 'Failed to generate timetable')
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to generate timetable"
-      setError(errorMessage)
-      return { success: false, error: errorMessage }
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const updateTimetable = async (classId: string, periods: TimetablePeriod[]): Promise<{ success: boolean; error?: string }> => {
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      setClasses(prev => prev.map(c => 
-        c.id === classId 
-          ? { ...c, periods }
-          : c
-      ))
-
-      return { success: true }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to update timetable"
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate timetable'
       setError(errorMessage)
       return { success: false, error: errorMessage }
     } finally {
@@ -260,18 +296,29 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     setError(null)
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const response = await fetch(`/api/timetable?classId=${classId}`, {
+        method: 'DELETE',
+      })
 
-      setClasses(prev => prev.map(c => 
-        c.id === classId 
-          ? { ...c, periods: [] }
-          : c
-      ))
+      const result = await response.json()
 
-      return { success: true }
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete timetable')
+      }
+
+      if (result.success) {
+        // Update the class to remove periods
+        setClasses(prev => prev.map(c => 
+          c.id === classId 
+            ? { ...c, periods: [] }
+            : c
+        ))
+        return { success: true }
+      } else {
+        throw new Error(result.error || 'Failed to delete timetable')
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to delete timetable"
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete timetable'
       setError(errorMessage)
       return { success: false, error: errorMessage }
     } finally {
@@ -281,78 +328,62 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
 
   const exportTimetable = async (classId: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const classData = classes.find(c => c.id === classId)
-      if (!classData) {
-        throw new Error("Class not found")
+      const selectedClass = classes.find(c => c.id === classId)
+      if (!selectedClass || selectedClass.periods.length === 0) {
+        throw new Error('No timetable to export')
       }
 
       // Create CSV content
       const csvContent = [
-        ["Day", "Time", "Subject", "Teacher", "Room"],
-        ...classData.periods.map(p => [p.day, `${p.startTime}-${p.endTime}`, p.subject, p.teacher, p.room])
-      ].map(row => row.join(",")).join("\n")
+        ['Day', 'Time', 'Subject', 'Teacher', 'Room'].join(','),
+        ...selectedClass.periods.map(period => [
+          period.day,
+          `${period.startTime}-${period.endTime}`,
+          period.subject,
+          period.teacher,
+          period.room
+        ].join(','))
+      ].join('\n')
 
-      // Download file
-      const blob = new Blob([csvContent], { type: "text/csv" })
+      // Download CSV file
+      const blob = new Blob([csvContent], { type: 'text/csv' })
       const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
+      const a = document.createElement('a')
       a.href = url
-      a.download = `${classData.name}_timetable.csv`
+      a.download = `timetable_${selectedClass.name.replace(/\s+/g, '_')}.csv`
       a.click()
       window.URL.revokeObjectURL(url)
 
       return { success: true }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to export timetable"
+      const errorMessage = err instanceof Error ? err.message : 'Failed to export timetable'
+      setError(errorMessage)
       return { success: false, error: errorMessage }
     }
   }
 
-  const getClassTimetable = (classId: string): TimetablePeriod[] => {
-    const classData = classes.find(c => c.id === classId)
-    return classData?.periods || []
-  }
-
-  const getTeacherTimetable = (teacherId: string): TimetablePeriod[] => {
-    const teacher = teachers.find(t => t.id === teacherId)
-    if (!teacher) return []
-
-    return classes.flatMap(c => 
-      c.periods.filter(p => p.teacher === teacher.name)
-    )
-  }
-
-  const getRoomTimetable = (roomId: string): TimetablePeriod[] => {
-    const room = rooms.find(r => r.id === roomId)
-    if (!room) return []
-
-    return classes.flatMap(c => 
-      c.periods.filter(p => p.room === room.name)
-    )
-  }
-
-  const value: TimetableContextType = {
-    classes,
-    teachers,
-    rooms,
-    isLoading,
-    error,
-    generateTimetable,
-    updateTimetable,
-    deleteTimetable,
-    exportTimetable,
-    getClassTimetable,
-    getTeacherTimetable,
-    getRoomTimetable
-  }
-
-  return <TimetableContext.Provider value={value}>{children}</TimetableContext.Provider>
+  return (
+    <TimetableContext.Provider value={{
+      classes,
+      teachers,
+      rooms,
+      generateTimetable,
+      deleteTimetable,
+      exportTimetable,
+      refreshClasses,
+      loadClassesWithFilters,
+      isLoading,
+      error
+    }}>
+      {children}
+    </TimetableContext.Provider>
+  )
 }
 
 export function useTimetable() {
   const context = useContext(TimetableContext)
   if (context === undefined) {
-    throw new Error("useTimetable must be used within a TimetableProvider")
+    throw new Error('useTimetable must be used within a TimetableProvider')
   }
   return context
 }
