@@ -20,6 +20,7 @@ import { BursarProvider } from "@/lib/bursar-context"
 import { TimetableProvider } from "@/lib/timetable-context"
 import { useNotifications } from "@/lib/notification-context"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { formatCurrency } from "@/lib/currency-utils"
 
 // Admin Components
 import { UserManagement } from "./admin/user-management"
@@ -611,7 +612,7 @@ export function Dashboard() {
                     <CardTitle>Revenue</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">$45,231</div>
+                    <div className="text-2xl font-bold">{formatCurrency(45231)}</div>
                     <p className="text-xs text-muted-foreground">+19% from last month</p>
                   </CardContent>
                 </Card>

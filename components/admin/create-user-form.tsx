@@ -88,18 +88,18 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      name: '',
-      email: '',
+    name: '',
+    email: '',
       role: undefined,
       status: 'active',
-      studentId: '',
-      teacherRegNo: '',
-      parentCode: '',
+    studentId: '',
+    teacherRegNo: '',
+    parentCode: '',
       subsystem: 'english',
       branch: undefined,
-      class: '',
-      phone: '',
-      address: '',
+    class: '',
+    phone: '',
+    address: '',
       dateOfBirth: undefined,
       gender: undefined,
       permissions: []
@@ -155,11 +155,11 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
     <>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Basic Information */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Basic Information</h3>
-          
-          <div className="grid gap-4 md:grid-cols-2">
+      {/* Basic Information */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium">Basic Information</h3>
+        
+        <div className="grid gap-4 md:grid-cols-2">
             <FormField
               control={form.control}
               name="name"
@@ -187,9 +187,9 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
                 </FormItem>
               )}
             />
-          </div>
+        </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2">
             <FormField
               control={form.control}
               name="phone"
@@ -212,20 +212,20 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
                   <FormLabel>Gender *</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select gender" />
-                      </SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Select gender" />
+              </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <SelectContent>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+              </SelectContent>
+            </Select>
                   <FormMessage />
                 </FormItem>
               )}
-            />
-          </div>
+          />
+        </div>
 
           <FormField
             control={form.control}
@@ -247,12 +247,12 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Date of Birth *</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
+          <Popover>
+            <PopoverTrigger asChild>
                     <FormControl>
-                      <Button
+              <Button
                         variant={"outline"}
-                        className={cn(
+                className={cn(
                           "w-full pl-3 text-left font-normal",
                           !field.value && "text-muted-foreground"
                         )}
@@ -263,26 +263,26 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
                           <span>Pick a date</span>
                         )}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
+              </Button>
                     </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
                       selected={field.value}
                       onSelect={field.onChange}
                       disabled={(date) =>
                         date > new Date() || date < new Date("1900-01-01")
                       }
                       captionLayout="dropdown"
-                    />
-                  </PopoverContent>
-                </Popover>
+              />
+            </PopoverContent>
+          </Popover>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </div>
+      </div>
 
       {/* Role and System Information */}
       <div className="space-y-4">
@@ -299,21 +299,21 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
                 handleRoleChange(value as UserType['role'])
               }} defaultValue={field.value}>
                 <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder="Select role" />
+            </SelectTrigger>
                 </FormControl>
-                <SelectContent>
-                  {Object.entries(roleIcons).map(([key, Icon]) => (
-                    <SelectItem key={key} value={key}>
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4" />
-                        <span className="capitalize">{key}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <SelectContent>
+              {Object.entries(roleIcons).map(([key, Icon]) => (
+                <SelectItem key={key} value={key}>
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-4 w-4" />
+                    <span className="capitalize">{key}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -348,8 +348,8 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
                     <FormMessage />
                   </FormItem>
                 )}
-              />
-            </div>
+                />
+              </div>
             <FormField
               control={form.control}
               name="branch"
@@ -358,16 +358,16 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
                   <FormLabel>Branch</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select branch" />
-                      </SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select branch" />
+                </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="grammar">Grammar</SelectItem>
-                      <SelectItem value="technical">Technical</SelectItem>
-                      <SelectItem value="commercial">Commercial</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <SelectContent>
+                  <SelectItem value="grammar">Grammar</SelectItem>
+                  <SelectItem value="technical">Technical</SelectItem>
+                  <SelectItem value="commercial">Commercial</SelectItem>
+                </SelectContent>
+              </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -417,15 +417,15 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
                 <FormLabel>Educational Sub-system</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
                   </FormControl>
-                  <SelectContent>
-                    <SelectItem value="english">English Sub-system</SelectItem>
-                    <SelectItem value="french">French Sub-system</SelectItem>
-                  </SelectContent>
-                </Select>
+              <SelectContent>
+                <SelectItem value="english">English Sub-system</SelectItem>
+                <SelectItem value="french">French Sub-system</SelectItem>
+              </SelectContent>
+            </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -440,15 +440,15 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
               <FormLabel>Account Status</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
                 </FormControl>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
+            <SelectContent>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -502,7 +502,7 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
           {isLoading ? 'Creating...' : 'Create User'}
         </Button>
       </div>
-        </form>
+    </form>
       </Form>
 
     {/* Password Dialog */}

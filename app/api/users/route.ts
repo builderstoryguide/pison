@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const search = searchParams.get('search');
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const limit = parseInt(searchParams.get('limit') || '50'); // Increased default limit
     const offset = (page - 1) * limit;
 
     // First, check if the user_details view exists

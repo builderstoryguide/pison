@@ -59,6 +59,7 @@ import { PaymentDetailsDialog } from './payment-details-dialog'
 import { CollectionReport } from './reports/collection-report'
 import { OutstandingReport } from './reports/outstanding-report'
 import { RevenueReport } from './reports/revenue-report'
+import { formatCurrency } from '@/lib/currency-utils'
 
 interface BursarDashboardProps {
   onNavigate?: (view: string) => void
@@ -91,15 +92,6 @@ export function BursarDashboard({ onNavigate }: BursarDashboardProps = {}) {
   const handleViewPaymentDetails = (payment: any) => {
     setSelectedPayment(payment)
     setIsPaymentDialogOpen(true)
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'XAF',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
   }
 
   const getStatusBadge = (status: string) => {

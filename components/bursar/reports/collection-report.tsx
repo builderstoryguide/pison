@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
+import { formatCurrency } from '@/lib/currency-utils'
 
 interface CollectionReportData {
   monthName: string
@@ -128,14 +129,6 @@ export function CollectionReport() {
     } catch (error) {
       toast.error("Failed to export report")
     }
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'XAF',
-      minimumFractionDigits: 0,
-    }).format(amount)
   }
 
   return (

@@ -66,21 +66,21 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      studentId: user.studentId || '',
-      teacherRegNo: user.teacherRegNo || '',
-      parentCode: user.parentCode || '',
-      subsystem: user.subsystem || 'english',
-      branch: user.branch,
-      class: user.class || '',
-      phone: user.phone || '',
-      address: user.address || '',
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+    studentId: user.studentId || '',
+    teacherRegNo: user.teacherRegNo || '',
+    parentCode: user.parentCode || '',
+    subsystem: user.subsystem || 'english',
+    branch: user.branch,
+    class: user.class || '',
+    phone: user.phone || '',
+    address: user.address || '',
       dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth) : undefined,
-      gender: user.gender,
-      permissions: user.permissions
+    gender: user.gender,
+    permissions: user.permissions
     }
   })
 
@@ -378,7 +378,7 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
           {isLoading ? 'Updating...' : 'Update User'}
         </Button>
       </div>
-        </form>
+    </form>
       </Form>
   )
 }

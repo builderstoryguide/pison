@@ -1,11 +1,10 @@
--- Fix Financial Schema Issues
--- This script addresses the missing tables and schema mismatches causing Bursar login errors
+-- Fix Financial Schema Script
+-- This script fixes the financial database schema to match the current requirements
 
--- ============================================================================
--- 1. CREATE MISSING TABLES
--- ============================================================================
+-- Enable UUID extension if not already enabled
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Payment Methods table (referenced in enhanced reports but missing from base schema)
+-- Create payment_methods table if it doesn't exist
 CREATE TABLE IF NOT EXISTS payment_methods (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(100) NOT NULL,
@@ -16,110 +15,195 @@ CREATE TABLE IF NOT EXISTS payment_methods (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Insert default payment methods
-INSERT INTO payment_methods (name, code, description) VALUES
-    ('Cash', 'CASH', 'Cash payment'),
-    ('Bank Transfer', 'BANK_TRANSFER', 'Bank transfer payment'),
-    ('Mobile Money', 'MOBILE_MONEY', 'Mobile money payment'),
-    ('Cheque', 'CHEQUE', 'Cheque payment')
-ON CONFLICT (code) DO NOTHING;
-
--- ============================================================================
--- 2. UPDATE EXISTING TABLES
--- ============================================================================
-
--- Add payment_method_id column to payments table if it doesn't exist
-DO $$ 
+-- Add missing columns to fee_structures table
+DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_name = 'payments' AND column_name = 'payment_method_id') THEN
-        ALTER TABLE payments ADD COLUMN payment_method_id UUID REFERENCES payment_methods(id);
+    -- Add class_id column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'fee_structures' AND column_name = 'class_id') THEN
+        ALTER TABLE fee_structures ADD COLUMN class_id UUID REFERENCES classes(id) ON DELETE CASCADE;
+    END IF;
+    
+    -- Remove level column if it exists (since we're using class_id now)
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'fee_structures' AND column_name = 'level') THEN
+        ALTER TABLE fee_structures DROP COLUMN level;
     END IF;
 END $$;
 
--- Add received_by column to payments table if it doesn't exist
-DO $$ 
+-- Add missing columns to payments table
+DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_name = 'payments' AND column_name = 'received_by') THEN
-        ALTER TABLE payments ADD COLUMN received_by UUID REFERENCES users(id) ON DELETE SET NULL;
+    -- Add payment_method_id column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'payment_method_id') THEN
+        ALTER TABLE payments ADD COLUMN payment_method_id UUID REFERENCES payment_methods(id) ON DELETE SET NULL;
     END IF;
-END $$;
-
--- Add academic_year and term columns to payments table if they don't exist
-DO $$ 
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_name = 'payments' AND column_name = 'academic_year') THEN
+    
+    -- Add academic_year column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'academic_year') THEN
         ALTER TABLE payments ADD COLUMN academic_year VARCHAR(20);
     END IF;
     
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
-                   WHERE table_name = 'payments' AND column_name = 'term') THEN
+    -- Add term column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'term') THEN
         ALTER TABLE payments ADD COLUMN term VARCHAR(20);
+    END IF;
+    
+    -- Remove old payment_method column if it exists
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'payment_method') THEN
+        ALTER TABLE payments DROP COLUMN payment_method;
     END IF;
 END $$;
 
--- ============================================================================
--- 3. UPDATE EXISTING DATA
--- ============================================================================
+-- Add missing columns to fee_categories table
+DO $$
+BEGIN
+    -- Add code column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'fee_categories' AND column_name = 'code') THEN
+        ALTER TABLE fee_categories ADD COLUMN code VARCHAR(20) UNIQUE;
+    END IF;
+END $$;
 
--- Update existing payments to have a default payment method
-UPDATE payments 
-SET payment_method_id = (SELECT id FROM payment_methods WHERE code = 'CASH' LIMIT 1)
-WHERE payment_method_id IS NULL;
+-- Create fee_structure_items table if it doesn't exist
+CREATE TABLE IF NOT EXISTS fee_structure_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    fee_structure_id UUID REFERENCES fee_structures(id) ON DELETE CASCADE,
+    fee_category_id UUID REFERENCES fee_categories(id) ON DELETE CASCADE,
+    amount DECIMAL(10,2) NOT NULL,
+    is_optional BOOLEAN DEFAULT false,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Update existing payments to have academic year and term from fee structures
-UPDATE payments p
-SET 
-    academic_year = fs.academic_year,
-    term = fs.term
-FROM fee_structures fs
-WHERE p.fee_structure_id = fs.id 
-AND (p.academic_year IS NULL OR p.term IS NULL);
-
--- ============================================================================
--- 4. CREATE INDEXES FOR PERFORMANCE
--- ============================================================================
-
--- Create indexes for payment_methods table
+-- Create or update indexes
 CREATE INDEX IF NOT EXISTS idx_payment_methods_code ON payment_methods(code);
-CREATE INDEX IF NOT EXISTS idx_payment_methods_active ON payment_methods(is_active);
+CREATE INDEX IF NOT EXISTS idx_payment_methods_is_active ON payment_methods(is_active);
+CREATE INDEX IF NOT EXISTS idx_fee_structures_class_id ON fee_structures(class_id);
+CREATE INDEX IF NOT EXISTS idx_payments_payment_method_id ON payments(payment_method_id);
+CREATE INDEX IF NOT EXISTS idx_fee_categories_code ON fee_categories(code);
+CREATE INDEX IF NOT EXISTS idx_fee_structure_items_fee_structure_id ON fee_structure_items(fee_structure_id);
+CREATE INDEX IF NOT EXISTS idx_fee_structure_items_fee_category_id ON fee_structure_items(fee_category_id);
 
--- Create indexes for payments table
-CREATE INDEX IF NOT EXISTS idx_payments_method_id ON payments(payment_method_id);
-CREATE INDEX IF NOT EXISTS idx_payments_received_by ON payments(received_by);
-CREATE INDEX IF NOT EXISTS idx_payments_academic_year ON payments(academic_year);
-CREATE INDEX IF NOT EXISTS idx_payments_term ON payments(term);
+-- Create trigger function for updated_at if it doesn't exist
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
 
--- ============================================================================
--- 5. VERIFICATION
--- ============================================================================
+-- Create triggers for updated_at
+DO $$
+BEGIN
+    -- Create triggers only if they don't exist
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_payment_methods_updated_at') THEN
+        CREATE TRIGGER update_payment_methods_updated_at 
+            BEFORE UPDATE ON payment_methods 
+            FOR EACH ROW 
+            EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_fee_structures_updated_at') THEN
+        CREATE TRIGGER update_fee_structures_updated_at 
+            BEFORE UPDATE ON fee_structures 
+            FOR EACH ROW 
+            EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_payments_updated_at') THEN
+        CREATE TRIGGER update_payments_updated_at 
+            BEFORE UPDATE ON payments 
+            FOR EACH ROW 
+            EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_fee_categories_updated_at') THEN
+        CREATE TRIGGER update_fee_categories_updated_at 
+            BEFORE UPDATE ON fee_categories 
+            FOR EACH ROW 
+            EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'update_fee_structure_items_updated_at') THEN
+        CREATE TRIGGER update_fee_structure_items_updated_at 
+            BEFORE UPDATE ON fee_structure_items 
+            FOR EACH ROW 
+            EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END $$;
 
--- Verify that all required tables exist
-SELECT 'Payment Methods Table' as table_name, 
-       CASE WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'payment_methods') 
-            THEN 'EXISTS' ELSE 'MISSING' END as status
-UNION ALL
-SELECT 'Payments Table' as table_name,
-       CASE WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'payments') 
-            THEN 'EXISTS' ELSE 'MISSING' END as status
-UNION ALL
-SELECT 'Fee Structures Table' as table_name,
-       CASE WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'fee_structures') 
-            THEN 'EXISTS' ELSE 'MISSING' END as status
-UNION ALL
-SELECT 'Student Fee Assignments Table' as table_name,
-       CASE WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'student_fee_assignments') 
-            THEN 'EXISTS' ELSE 'MISSING' END as status;
+-- Insert sample payment methods if they don't exist
+INSERT INTO payment_methods (name, code, description) VALUES
+('Cash', 'CASH', 'Cash payment'),
+('Bank Transfer', 'BANK_TRANSFER', 'Bank transfer payment'),
+('Mobile Money', 'MOBILE_MONEY', 'Mobile money payment (MTN, Orange, etc.)'),
+('Cheque', 'CHEQUE', 'Cheque payment'),
+('Credit Card', 'CREDIT_CARD', 'Credit card payment'),
+('Debit Card', 'DEBIT_CARD', 'Debit card payment')
+ON CONFLICT (code) DO NOTHING;
 
--- Show payment methods
-SELECT 'Payment Methods:' as info;
-SELECT name, code, is_active FROM payment_methods ORDER BY name;
+-- Insert sample fee categories if they don't exist
+INSERT INTO fee_categories (name, code, description) VALUES
+('Tuition Fees', 'TUITION', 'Regular academic tuition fees'),
+('Registration Fees', 'REGISTRATION', 'Student registration and admission fees'),
+('Examination Fees', 'EXAMINATION', 'Fees for internal and external examinations'),
+('Library Fees', 'LIBRARY', 'Library membership and resource fees'),
+('Laboratory Fees', 'LABORATORY', 'Science laboratory usage fees'),
+('Sports Fees', 'SPORTS', 'Sports and physical education fees'),
+('Transportation Fees', 'TRANSPORTATION', 'School transportation services'),
+('Uniform Fees', 'UNIFORM', 'School uniform and dress code fees'),
+('Technology Fees', 'TECHNOLOGY', 'Computer lab and technology fees'),
+('Miscellaneous Fees', 'MISCELLANEOUS', 'Other administrative fees')
+ON CONFLICT (code) DO NOTHING;
 
--- Show table structure for payments
-SELECT 'Payments Table Structure:' as info;
-SELECT column_name, data_type, is_nullable 
-FROM information_schema.columns 
-WHERE table_name = 'payments' 
-ORDER BY ordinal_position;
+-- Update existing fee_categories to have codes if they don't have them
+UPDATE fee_categories 
+SET code = 'TUITION' 
+WHERE name ILIKE '%tuition%' AND (code IS NULL OR code = '');
+
+UPDATE fee_categories 
+SET code = 'REGISTRATION' 
+WHERE name ILIKE '%registration%' AND (code IS NULL OR code = '');
+
+UPDATE fee_categories 
+SET code = 'EXAMINATION' 
+WHERE name ILIKE '%examination%' AND (code IS NULL OR code = '');
+
+UPDATE fee_categories 
+SET code = 'LIBRARY' 
+WHERE name ILIKE '%library%' AND (code IS NULL OR code = '');
+
+UPDATE fee_categories 
+SET code = 'LABORATORY' 
+WHERE name ILIKE '%laboratory%' AND (code IS NULL OR code = '');
+
+UPDATE fee_categories 
+SET code = 'SPORTS' 
+WHERE name ILIKE '%sports%' AND (code IS NULL OR code = '');
+
+UPDATE fee_categories 
+SET code = 'TRANSPORTATION' 
+WHERE name ILIKE '%transportation%' AND (code IS NULL OR code = '');
+
+UPDATE fee_categories 
+SET code = 'UNIFORM' 
+WHERE name ILIKE '%uniform%' AND (code IS NULL OR code = '');
+
+UPDATE fee_categories 
+SET code = 'TECHNOLOGY' 
+WHERE name ILIKE '%technology%' AND (code IS NULL OR code = '');
+
+UPDATE fee_categories 
+SET code = 'MISCELLANEOUS' 
+WHERE name ILIKE '%miscellaneous%' AND (code IS NULL OR code = '');
+
+-- Set default codes for any remaining categories without codes
+UPDATE fee_categories 
+SET code = 'OTHER_' || id::text 
+WHERE code IS NULL OR code = '';
+
+-- Verify the fix
+SELECT 'Financial schema fix completed' as status;
+SELECT COUNT(*) as payment_methods_count FROM payment_methods;
+SELECT COUNT(*) as fee_categories_count FROM fee_categories;
+SELECT COUNT(*) as fee_structures_count FROM fee_structures;

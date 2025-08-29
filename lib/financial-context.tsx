@@ -3,6 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useState, useCallback, useEffect } from "react"
 import { supabase } from "./supabase"
+import { formatCurrency } from './currency-utils'
 
 export interface FeeStructure {
   id: string

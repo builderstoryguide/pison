@@ -454,7 +454,6 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
                 Fees & Status Information
               </CardTitle>
             </CardHeader>

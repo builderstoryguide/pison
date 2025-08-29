@@ -151,8 +151,8 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
       if (dbConnected) {
         await loadClasses()
       } else {
-        // Fallback to mock data if database is not available
-        setClasses(mockClasses)
+        // Don't fallback to mock data - require database connection
+        setClasses([])
         setError("Database connection is required for class management. Please check your database configuration.")
       }
     }
@@ -177,7 +177,15 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
     try {
       const { data, error: fetchError } = await supabase
         .from("classes")
-        .select("*")
+        .select(`
+          *,
+          teachers!classes_class_teacher_id_fkey (
+            id,
+            first_name,
+            last_name,
+            email
+          )
+        `)
         .order("created_at", { ascending: false })
 
       if (fetchError) {
@@ -193,7 +201,9 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         branch: dbClass.stream || "grammar", // Default to grammar if stream is not set
         capacity: dbClass.capacity,
         currentEnrollment: dbClass.current_enrollment,
-        classTeacher: dbClass.class_teacher_id || "Not Assigned", // We'll need to join with teachers table later
+        classTeacher: dbClass.teachers 
+          ? `${dbClass.teachers.first_name} ${dbClass.teachers.last_name}`
+          : "Not Assigned",
         subjects: [], // We'll need to join with subjects table later
         schedule: [], // We'll need to implement schedule management later
         academicYear: dbClass.academic_year,
@@ -207,8 +217,8 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
     } catch (err) {
       console.error("Error loading classes:", err)
       setError(err instanceof Error ? err.message : "Failed to load classes")
-      // Fallback to mock data
-      setClasses(mockClasses)
+      // Don't fallback to mock data - require database connection
+      setClasses([])
     } finally {
       setIsLoading(false)
     }
@@ -386,9 +396,10 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         }
 
         // Update student's class assignment
+        // Handle potential type mismatch between classId (UUID) and students.class (VARCHAR)
         const { error: studentUpdateError } = await supabase
           .from("students")
-          .update({ class: classId })
+          .update({ class: classId.toString() })
           .eq("id", studentId)
 
         if (studentUpdateError) {
@@ -520,7 +531,7 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
       const { data, error } = await supabase
         .from("students")
         .select("*")
-        .eq("class", classId)
+        .eq("class", classId.toString())
 
       if (error) {
         console.error("Error fetching class students:", error)

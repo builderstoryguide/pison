@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { data, error } = await supabase
       .from('fee_structures')
@@ -75,7 +75,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const body = await request.json()
 
     const {
@@ -154,7 +154,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Check if fee structure is being used by any student fees
     const { data: studentFees, error: checkError } = await supabase

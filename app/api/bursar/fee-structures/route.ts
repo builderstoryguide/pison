@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Get query parameters for filtering
     const { searchParams } = new URL(request.url)
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const body = await request.json()
 
     const {
@@ -104,7 +104,12 @@ export async function POST(request: NextRequest) {
       academicYear,
       term,
       dueDate,
-      items
+      totalAmount,
+      numberOfInstallments,
+      installments,
+      items,
+      description,
+      isActive
     } = body
 
     // Validate required fields
@@ -142,7 +147,9 @@ export async function POST(request: NextRequest) {
         academic_year: academicYear,
         term,
         due_date: dueDate,
-        is_active: true,
+        amount: totalAmount || 0,
+        description: description || '',
+        is_active: isActive !== undefined ? isActive : true,
         created_by: (await supabase.auth.getUser()).data.user?.id
       })
       .select()
@@ -156,7 +163,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create fee structure items
+    // Create fee structure items (if provided)
     if (items && items.length > 0) {
       const feeStructureItems = items.map((item: any) => ({
         fee_structure_id: feeStructure.id,
@@ -180,6 +187,64 @@ export async function POST(request: NextRequest) {
         
         return NextResponse.json(
           { error: 'Failed to create fee structure items' },
+          { status: 500 }
+        )
+      }
+    }
+
+    // Create payment plan with installments (if installments are provided)
+    if (installments && installments.length > 0) {
+      // First create a payment plan template
+      const { data: paymentPlan, error: planError } = await supabase
+        .from('payment_plans')
+        .insert({
+          fee_structure_id: feeStructure.id,
+          total_amount: totalAmount || 0,
+          amount_paid: 0,
+          balance: totalAmount || 0,
+          status: 'active',
+          created_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .select()
+        .single()
+
+      if (planError) {
+        console.error('Error creating payment plan:', planError)
+        // Rollback fee structure creation
+        await supabase
+          .from('fee_structures')
+          .delete()
+          .eq('id', feeStructure.id)
+        
+        return NextResponse.json(
+          { error: 'Failed to create payment plan' },
+          { status: 500 }
+        )
+      }
+
+      // Create installments
+      const installmentData = installments.map((inst: any) => ({
+        payment_plan_id: paymentPlan.id,
+        installment_number: inst.installmentNumber,
+        amount: inst.amount,
+        due_date: inst.dueDate,
+        status: 'pending'
+      }))
+
+      const { error: installmentsError } = await supabase
+        .from('payment_plan_installments')
+        .insert(installmentData)
+
+      if (installmentsError) {
+        console.error('Error creating installments:', installmentsError)
+        // Rollback fee structure and payment plan creation
+        await supabase
+          .from('fee_structures')
+          .delete()
+          .eq('id', feeStructure.id)
+        
+        return NextResponse.json(
+          { error: 'Failed to create installments' },
           { status: 500 }
         )
       }

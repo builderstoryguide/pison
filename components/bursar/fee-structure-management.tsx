@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
+import { formatCurrency } from '@/lib/currency-utils'
 
 interface FeeStructure {
   id: string
@@ -43,14 +44,6 @@ export function FeeStructureManagement() {
       } finally {
         setIsLoading(false)
       }
-    }
-
-    const formatCurrency = (amount: number) => {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'XAF',
-        minimumFractionDigits: 0,
-      }).format(amount)
     }
 
     const handleDelete = async (id: string) => {

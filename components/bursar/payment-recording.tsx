@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
+import { formatCurrency } from '@/lib/currency-utils'
 
 interface Student {
   id: string
@@ -98,14 +99,6 @@ export function PaymentRecording() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'XAF',
-      minimumFractionDigits: 0,
-    }).format(amount)
   }
 
   const getStatusBadge = (status: string) => {

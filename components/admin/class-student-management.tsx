@@ -18,14 +18,16 @@ interface ClassStudentManagementProps {
   onOpenChange: (open: boolean) => void
 }
 
-// Mock student data - in a real app, this would come from the database
-const mockStudents = [
-  { id: "STU001", name: "John Doe", studentId: "STU2024001", email: "john.doe@student.gbhs-yaounde.cm", status: "active" },
-  { id: "STU002", name: "Jane Smith", studentId: "STU2024002", email: "jane.smith@student.gbhs-yaounde.cm", status: "active" },
-  { id: "STU003", name: "Mike Johnson", studentId: "STU2024003", email: "mike.johnson@student.gbhs-yaounde.cm", status: "active" },
-  { id: "STU004", name: "Sarah Wilson", studentId: "STU2024004", email: "sarah.wilson@student.gbhs-yaounde.cm", status: "active" },
-  { id: "STU005", name: "David Brown", studentId: "STU2024005", email: "david.brown@student.gbhs-yaounde.cm", status: "active" },
-]
+// Student interface for database data
+interface Student {
+  id: string
+  first_name: string
+  last_name: string
+  student_id: string
+  email?: string
+  status: string
+  class?: string
+}
 
 export function ClassStudentManagement({ classData, open, onOpenChange }: ClassStudentManagementProps) {
   const { getClassStudents, assignStudentToClass, removeStudentFromClass } = useClassManagement()
@@ -35,9 +37,40 @@ export function ClassStudentManagement({ classData, open, onOpenChange }: ClassS
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
-  // Mock enrolled students - in a real app, this would come from the database
-  const [enrolledStudents, setEnrolledStudents] = useState(mockStudents.slice(0, classData.currentEnrollment))
-  const [availableStudents, setAvailableStudents] = useState(mockStudents.slice(classData.currentEnrollment))
+  // Load students when dialog opens
+  useEffect(() => {
+    if (open) {
+      loadStudents()
+    }
+  }, [open, classData.id])
+
+  const loadStudents = async () => {
+    setIsLoadingStudents(true)
+    try {
+      // Load enrolled students
+      const enrolled = await getClassStudents(classData.id)
+      setEnrolledStudents(enrolled)
+
+      // Load all students and filter out enrolled ones
+      const response = await fetch('/api/students?status=active')
+      if (response.ok) {
+        const allStudents: Student[] = await response.json()
+        const available = allStudents.filter(student => 
+          !enrolled.some(enrolledStudent => enrolledStudent.id === student.id)
+        )
+        setAvailableStudents(available)
+      }
+    } catch (err) {
+      console.error('Error loading students:', err)
+      setError('Failed to load students')
+    } finally {
+      setIsLoadingStudents(false)
+    }
+  }
+
+  const [enrolledStudents, setEnrolledStudents] = useState<Student[]>([])
+  const [availableStudents, setAvailableStudents] = useState<Student[]>([])
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false)
 
   const handleAssignStudent = async () => {
     if (!selectedStudent) return
@@ -53,7 +86,7 @@ export function ClassStudentManagement({ classData, open, onOpenChange }: ClassS
           setEnrolledStudents(prev => [...prev, student])
           setAvailableStudents(prev => prev.filter(s => s.id !== selectedStudent))
           setSelectedStudent("")
-          setSuccessMessage(`Student ${student.name} has been assigned to ${classData.name}`)
+          setSuccessMessage(`Student ${student.first_name} ${student.last_name} has been assigned to ${classData.name}`)
         }
       } else {
         setError(result.error || "Failed to assign student")
@@ -76,7 +109,7 @@ export function ClassStudentManagement({ classData, open, onOpenChange }: ClassS
         if (student) {
           setEnrolledStudents(prev => prev.filter(s => s.id !== studentId))
           setAvailableStudents(prev => [...prev, student])
-          setSuccessMessage(`Student ${student.name} has been removed from ${classData.name}`)
+          setSuccessMessage(`Student ${student.first_name} ${student.last_name} has been removed from ${classData.name}`)
         }
       } else {
         setError(result.error || "Failed to remove student")
@@ -89,13 +122,13 @@ export function ClassStudentManagement({ classData, open, onOpenChange }: ClassS
   }
 
   const filteredEnrolledStudents = enrolledStudents.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.studentId.toLowerCase().includes(searchTerm.toLowerCase())
+    `${student.first_name} ${student.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.student_id.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const filteredAvailableStudents = availableStudents.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.studentId.toLowerCase().includes(searchTerm.toLowerCase())
+    `${student.first_name} ${student.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.student_id.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
@@ -117,9 +150,17 @@ export function ClassStudentManagement({ classData, open, onOpenChange }: ClassS
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Enrolled Students */}
-          <Card>
+        {isLoadingStudents ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+              <p className="text-muted-foreground">Loading students...</p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Enrolled Students */}
+            <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
@@ -162,8 +203,8 @@ export function ClassStudentManagement({ classData, open, onOpenChange }: ClassS
                     ) : (
                       filteredEnrolledStudents.map((student) => (
                         <TableRow key={student.id}>
-                          <TableCell className="font-medium">{student.name}</TableCell>
-                          <TableCell>{student.studentId}</TableCell>
+                          <TableCell className="font-medium">{student.first_name} {student.last_name}</TableCell>
+                          <TableCell>{student.student_id}</TableCell>
                           <TableCell>
                             <Badge variant="default">{student.status}</Badge>
                           </TableCell>
@@ -208,7 +249,7 @@ export function ClassStudentManagement({ classData, open, onOpenChange }: ClassS
                     <SelectContent>
                       {filteredAvailableStudents.map((student) => (
                         <SelectItem key={student.id} value={student.id}>
-                          {student.name} ({student.studentId})
+                          {student.first_name} {student.last_name} ({student.student_id})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -249,8 +290,8 @@ export function ClassStudentManagement({ classData, open, onOpenChange }: ClassS
                       ) : (
                         filteredAvailableStudents.map((student) => (
                           <TableRow key={student.id}>
-                            <TableCell className="font-medium">{student.name}</TableCell>
-                            <TableCell>{student.studentId}</TableCell>
+                            <TableCell className="font-medium">{student.first_name} {student.last_name}</TableCell>
+                            <TableCell>{student.student_id}</TableCell>
                             <TableCell>
                               <Badge variant="secondary">{student.status}</Badge>
                             </TableCell>
@@ -264,6 +305,7 @@ export function ClassStudentManagement({ classData, open, onOpenChange }: ClassS
             </CardContent>
           </Card>
         </div>
+        )}
 
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>

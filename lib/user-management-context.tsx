@@ -55,8 +55,10 @@ interface UserManagementContextType {
   filterUsers: (filters: UserFilters) => User[]
   logActivity: (action: string, details: string, userId?: string) => void
   isLoading: boolean
+  isLoadingLogs: boolean
   error: string | null
   refreshUsers: () => Promise<void>
+  refreshActivityLogs: () => Promise<void>
 }
 
 export interface UserFilters {
@@ -155,11 +157,49 @@ const mockActivityLogs: ActivityLog[] = [
 
 export function UserManagementProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<User[]>([])
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(mockActivityLogs)
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [lastFetchTime, setLastFetchTime] = useState<{ users: number; logs: number }>({ users: 0, logs: 0 })
+  const CACHE_DURATION = 30000 // 30 seconds cache
 
   const generateId = () => Math.random().toString(36).substr(2, 9)
+
+  const loadActivityLogs = async (forceRefresh = false) => {
+    const now = Date.now()
+    
+    // Check cache first
+    if (!forceRefresh && now - lastFetchTime.logs < CACHE_DURATION && activityLogs.length > 0) {
+      return // Use cached data
+    }
+
+    setIsLoadingLogs(true)
+    try {
+      // Try optimized endpoint first, fallback to simple if it fails
+      let response = await fetch('/api/activity-logs/optimized?limit=50')
+      
+      if (!response.ok) {
+        console.log('Optimized endpoint failed, trying simple endpoint...')
+        response = await fetch('/api/activity-logs/simple?limit=50')
+      }
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+      setActivityLogs(result.logs || [])
+      setLastFetchTime(prev => ({ ...prev, logs: now }))
+    } catch (error) {
+      console.error('Failed to load activity logs:', error)
+      // Keep empty array if API fails
+      setActivityLogs([])
+    } finally {
+      setIsLoadingLogs(false)
+    }
+  }
 
   const logActivity = (action: string, details: string, userId?: string) => {
     const newLog: ActivityLog = {
@@ -175,12 +215,19 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
     setActivityLogs(prev => [newLog, ...prev])
   }
 
-  const loadUsers = async () => {
+  const loadUsers = async (forceRefresh = false) => {
+    const now = Date.now()
+    
+    // Check cache first
+    if (!forceRefresh && now - lastFetchTime.users < CACHE_DURATION && users.length > 0) {
+      return // Use cached data
+    }
+
     setIsLoading(true)
     setError(null)
     
     try {
-      const response = await fetch('/api/users')
+      const response = await fetch('/api/users?limit=50')
       
       if (!response.ok) {
         const errorData = await response.json()
@@ -217,6 +264,7 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
           class: apiUser.class_name,
         }))
         setUsers(transformedUsers)
+        setLastFetchTime(prev => ({ ...prev, users: now }))
       } else {
         throw new Error('Invalid response format from API')
       }
@@ -238,11 +286,16 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
   }
 
   const refreshUsers = async () => {
-    await loadUsers()
+    await loadUsers(true) // Force refresh
+  }
+
+  const refreshActivityLogs = async () => {
+    await loadActivityLogs(true) // Force refresh
   }
 
   useEffect(() => {
     loadUsers()
+    loadActivityLogs()
   }, [])
 
   // Subscribe to activity logger
@@ -511,8 +564,10 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       filterUsers,
       logActivity,
       isLoading,
+      isLoadingLogs,
       error,
-      refreshUsers
+      refreshUsers,
+      refreshActivityLogs
     }}>
       {children}
     </UserManagementContext.Provider>

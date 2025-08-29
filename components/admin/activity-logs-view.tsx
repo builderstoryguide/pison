@@ -1,13 +1,13 @@
 "use client"
 
 import { useState } from 'react'
-import { Search, Filter, Download, Calendar, User, Activity } from 'lucide-react'
+import { Search, Download, Calendar, User, Activity, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   Select,
   SelectContent,
@@ -39,10 +39,12 @@ const actionColors = {
 }
 
 export function ActivityLogsView() {
-  const { activityLogs, users } = useUserManagement()
+  const { activityLogs, users, isLoadingLogs, refreshActivityLogs } = useUserManagement()
   const [searchQuery, setSearchQuery] = useState('')
   const [actionFilter, setActionFilter] = useState('')
   const [userFilter, setUserFilter] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   // Filter logs based on search and filters
   const filteredLogs = activityLogs.filter(log => {
@@ -57,7 +59,23 @@ export function ActivityLogsView() {
     return matchesSearch && matchesAction && matchesUser
   })
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedLogs = filteredLogs.slice(startIndex, endIndex)
+
+  // Reset to first page when filters change
+  const handleFilterChange = () => {
+    setCurrentPage(1)
+  }
+
   const exportLogs = () => {
+    if (filteredLogs.length === 0) {
+      alert('No activity logs to export')
+      return
+    }
+
     const csvContent = [
       ['Timestamp', 'User', 'Action', 'Details', 'IP Address'].join(','),
       ...filteredLogs.map(log => [
@@ -90,7 +108,11 @@ export function ActivityLogsView() {
             Monitor user activities and system events
           </p>
         </div>
-        <Button variant="outline" onClick={exportLogs}>
+        <Button 
+          variant="outline" 
+          onClick={exportLogs}
+          disabled={filteredLogs.length === 0 || isLoadingLogs}
+        >
           <Download className="h-4 w-4 mr-2" />
           Export Logs
         </Button>
@@ -155,13 +177,19 @@ export function ActivityLogsView() {
                 <Input
                   placeholder="Search activities..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    handleFilterChange()
+                  }}
                   className="pl-8"
                 />
               </div>
             </div>
             <div className="flex gap-2">
-              <Select value={actionFilter || 'all'} onValueChange={(value) => setActionFilter(value === 'all' ? '' : value)}>
+              <Select value={actionFilter || 'all'} onValueChange={(value) => {
+                setActionFilter(value === 'all' ? '' : value)
+                handleFilterChange()
+              }}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="All Actions" />
                 </SelectTrigger>
@@ -174,7 +202,10 @@ export function ActivityLogsView() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={userFilter || 'all'} onValueChange={(value) => setUserFilter(value === 'all' ? '' : value)}>
+              <Select value={userFilter || 'all'} onValueChange={(value) => {
+                setUserFilter(value === 'all' ? '' : value)
+                handleFilterChange()
+              }}>
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="All Users" />
                 </SelectTrigger>
@@ -195,58 +226,173 @@ export function ActivityLogsView() {
       {/* Activity Logs Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Activity Logs ({filteredLogs.length})</CardTitle>
-          <CardDescription>
-            Detailed log of user activities and system events
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Activity Logs ({filteredLogs.length})</CardTitle>
+              <CardDescription>
+                Detailed log of user activities and system events
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Show:</span>
+              <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                setItemsPerPage(parseInt(value))
+                setCurrentPage(1)
+              }}>
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={refreshActivityLogs}
+              disabled={isLoadingLogs}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingLogs ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Timestamp</TableHead>
-                <TableHead>User</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Details</TableHead>
-                <TableHead>IP Address</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredLogs.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell>
-                    <div className="text-sm">
-                      {new Date(log.timestamp).toLocaleDateString()}
+          {isLoadingLogs ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="text-muted-foreground">Loading activity logs...</span>
+              </div>
+            </div>
+          ) : filteredLogs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Activity className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Activity Logs Found</h3>
+              <p className="text-muted-foreground mb-4 max-w-md">
+                {activityLogs.length === 0 
+                  ? "No activity logs have been recorded yet. Activity logs will appear here as users interact with the system."
+                  : "No activity logs match your current search criteria. Try adjusting your filters."
+                }
+              </p>
+              {activityLogs.length === 0 && (
+                <Button onClick={refreshActivityLogs} variant="outline">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh
+                </Button>
+              )}
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Timestamp</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Details</TableHead>
+                    <TableHead>IP Address</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedLogs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell>
+                        <div className="text-sm">
+                          {new Date(log.timestamp).toLocaleDateString()}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(log.timestamp).toLocaleTimeString()}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-xs">
+                              {log.userName.split(' ').map(n => n[0]).join('')}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{log.userName}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={actionColors[log.action as keyof typeof actionColors] || 'bg-gray-100 text-gray-800'}>
+                          {log.action.replace(/_/g, ' ')}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">{log.details}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-mono text-xs">{log.ipAddress}</span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              {/* Pagination Controls */}
+              {filteredLogs.length > 0 && (
+                <div className="flex items-center justify-between px-2 py-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {startIndex + 1} to {Math.min(endIndex, filteredLogs.length)} of {filteredLogs.length} entries
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum
+                        if (totalPages <= 5) {
+                          pageNum = i + 1
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i
+                        } else {
+                          pageNum = currentPage - 2 + i
+                        }
+                        
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="w-8 h-8 p-0"
+                          >
+                            {pageNum}
+                          </Button>
+                        )
+                      })}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(log.timestamp).toLocaleTimeString()}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarFallback className="text-xs">
-                          {log.userName.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm">{log.userName}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={actionColors[log.action as keyof typeof actionColors] || 'bg-gray-100 text-gray-800'}>
-                      {log.action.replace(/_/g, ' ')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">{log.details}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-mono text-xs">{log.ipAddress}</span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

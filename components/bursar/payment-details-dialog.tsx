@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
+import { formatCurrency } from '@/lib/currency-utils'
 
 interface Payment {
   id: string
@@ -49,14 +50,6 @@ export function PaymentDetailsDialog({ payment, isOpen, onClose }: PaymentDetail
   const [isDownloading, setIsDownloading] = useState(false)
 
   if (!payment) return null
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'XAF',
-      minimumFractionDigits: 0,
-    }).format(amount)
-  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {

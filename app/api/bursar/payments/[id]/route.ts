@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { data, error } = await supabase
       .from('payments')
@@ -69,7 +69,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     const body = await request.json()
 
     const {
@@ -202,7 +202,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Get payment details before deletion
     const { data: payment, error: fetchError } = await supabase

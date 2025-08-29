@@ -33,13 +33,13 @@ const mockStudents = [
   { id: "std_008", name: "John Nkomo", studentId: "2024008", photo: "/placeholder_64px.png" },
 ]
 
-// Mock class data
-const mockClasses = [
-  { id: "cls_001", name: "Form 5A Science", subsystem: "English", students: 30 },
-  { id: "cls_002", name: "Terminale C", subsystem: "French", students: 25 },
-  { id: "cls_003", name: "Form 4B Arts", subsystem: "English", students: 28 },
-  { id: "cls_004", name: "Première D", subsystem: "French", students: 32 },
-]
+// Class interface for database data
+interface Class {
+  id: string
+  name: string
+  subsystem: string
+  currentEnrollment: number
+}
 
 const subjects = [
   "Mathematics",
@@ -76,6 +76,8 @@ export function AttendanceMarkingForm({ onSuccess, onCancel }: AttendanceMarking
   const [selectedSubject, setSelectedSubject] = useState("")
   const [selectedPeriod, setSelectedPeriod] = useState("")
   const [students, setStudents] = useState(mockStudents)
+  const [classes, setClasses] = useState<Class[]>([])
+  const [isLoadingClasses, setIsLoadingClasses] = useState(false)
   const [attendanceData, setAttendanceData] = useState<
     Record<
       string,
@@ -87,6 +89,26 @@ export function AttendanceMarkingForm({ onSuccess, onCancel }: AttendanceMarking
   >({})
   const [sessionCreated, setSessionCreated] = useState(false)
   const [sessionId, setSessionId] = useState("")
+
+  // Load classes from database
+  useEffect(() => {
+    loadClasses()
+  }, [])
+
+  const loadClasses = async () => {
+    setIsLoadingClasses(true)
+    try {
+      const response = await fetch('/api/classes?status=active')
+      if (response.ok) {
+        const data = await response.json()
+        setClasses(data)
+      }
+    } catch (error) {
+      console.error('Error loading classes:', error)
+    } finally {
+      setIsLoadingClasses(false)
+    }
+  }
 
   // Initialize attendance data when students change
   useEffect(() => {
@@ -104,7 +126,7 @@ export function AttendanceMarkingForm({ onSuccess, onCancel }: AttendanceMarking
     }
 
     try {
-      const classData = mockClasses.find((c) => c.id === selectedClass)
+      const classData = classes.find((c) => c.id === selectedClass)
       const newSessionId = await createAttendanceSession({
         classId: selectedClass,
         className: classData?.name || "",
@@ -151,7 +173,7 @@ export function AttendanceMarkingForm({ onSuccess, onCancel }: AttendanceMarking
         studentId: student.id,
         studentName: student.name,
         classId: selectedClass,
-        className: mockClasses.find((c) => c.id === selectedClass)?.name || "",
+        className: classes.find((c) => c.id === selectedClass)?.name || "",
         date: format(date, "yyyy-MM-dd"),
         status: attendanceData[student.id]?.status || "present",
         markedBy: "current_teacher_id",
@@ -239,19 +261,25 @@ export function AttendanceMarkingForm({ onSuccess, onCancel }: AttendanceMarking
                         <SelectValue placeholder="Select class" />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockClasses.map((cls) => (
-                          <SelectItem key={cls.id} value={cls.id}>
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="truncate">{cls.name}</span>
-                              <Badge variant="outline" className="text-xs flex-shrink-0">
-                                {cls.subsystem}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground flex-shrink-0">
-                                ({cls.students} students)
-                              </span>
-                            </div>
+                        {isLoadingClasses ? (
+                          <SelectItem value="" disabled>
+                            Loading classes...
                           </SelectItem>
-                        ))}
+                        ) : (
+                          classes.map((cls) => (
+                            <SelectItem key={cls.id} value={cls.id}>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="truncate">{cls.name}</span>
+                                <Badge variant="outline" className="text-xs flex-shrink-0">
+                                  {cls.subsystem}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground flex-shrink-0">
+                                  ({cls.currentEnrollment} students)
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -319,7 +347,7 @@ export function AttendanceMarkingForm({ onSuccess, onCancel }: AttendanceMarking
                 </CardTitle>
                 <CardDescription className="text-sm">
                   <span className="truncate">
-                    {mockClasses.find((c) => c.id === selectedClass)?.name} • {format(date, "PPP")}
+                    {classes.find((c) => c.id === selectedClass)?.name} • {format(date, "PPP")}
                   </span>
                 </CardDescription>
               </CardHeader>
