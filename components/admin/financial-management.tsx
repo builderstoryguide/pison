@@ -43,6 +43,8 @@ import { Progress } from "@/components/ui/progress"
 import { useFinancial, type FeeStructure, type Payment, type StudentFeeAssignment } from "@/lib/financial-context"
 import { FeeStructureForm } from "./fee-structure-form"
 import { PaymentForm } from "./payment-form"
+import { StudentFeeAssignmentForm } from "./student-fee-assignment-form"
+import { PaymentPlanForm } from "./payment-plan-form"
 import { useToast } from "@/hooks/use-toast"
 import { usePDFExport } from "@/hooks/use-pdf-export"
 
@@ -560,6 +562,7 @@ export function FinancialManagement() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Level</TableHead>
+                      <TableHead>Classes</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Due Date</TableHead>
                       <TableHead>Status</TableHead>
@@ -569,7 +572,7 @@ export function FinancialManagement() {
                   <TableBody>
                     {filteredFeeStructures.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
+                        <TableCell colSpan={7} className="text-center py-8">
                           <div className="flex flex-col items-center gap-2">
                             <FileText className="h-8 w-8 text-muted-foreground" />
                             <p className="text-muted-foreground">No fee structures found</p>
@@ -588,6 +591,24 @@ export function FinancialManagement() {
                             </div>
                           </TableCell>
                           <TableCell>{feeStructure.level}</TableCell>
+                          <TableCell>
+                            {feeStructure.classNames && feeStructure.classNames.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {feeStructure.classNames.slice(0, 2).map((className, index) => (
+                                  <Badge key={index} variant="outline" className="text-xs">
+                                    {className}
+                                  </Badge>
+                                ))}
+                                {feeStructure.classNames.length > 2 && (
+                                  <Badge variant="outline" className="text-xs">
+                                    +{feeStructure.classNames.length - 2} more
+                                  </Badge>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">No classes assigned</span>
+                            )}
+                          </TableCell>
                           <TableCell>{feeStructure.amount.toLocaleString()} FCFA</TableCell>
                           <TableCell>{format(new Date(feeStructure.dueDate), "MMM dd, yyyy")}</TableCell>
                           <TableCell>
@@ -885,7 +906,7 @@ export function FinancialManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Student Fee Assignment Form Dialog - You'll need to create this component */}
+      {/* Student Fee Assignment Form Dialog */}
       <Dialog open={showStudentFeeAssignmentForm} onOpenChange={setShowStudentFeeAssignmentForm}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -893,15 +914,18 @@ export function FinancialManagement() {
               {editingStudentFeeAssignment ? "Edit Fee Assignment" : "Assign Fee to Student"}
             </DialogTitle>
           </DialogHeader>
-          <div className="p-6">
-            <p className="text-muted-foreground">
-              Student Fee Assignment form component will be implemented here.
-            </p>
-          </div>
+          <StudentFeeAssignmentForm
+            onSuccess={handleStudentFeeAssignmentSuccess}
+            onCancel={() => {
+              setShowStudentFeeAssignmentForm(false)
+              setEditingStudentFeeAssignment(undefined)
+            }}
+            editData={editingStudentFeeAssignment}
+          />
         </DialogContent>
       </Dialog>
 
-      {/* Payment Plan Form Dialog - You'll need to create this component */}
+      {/* Payment Plan Form Dialog */}
       <Dialog open={showPaymentPlanForm} onOpenChange={setShowPaymentPlanForm}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -909,11 +933,14 @@ export function FinancialManagement() {
               {editingPaymentPlan ? "Edit Payment Plan" : "Create Payment Plan"}
             </DialogTitle>
           </DialogHeader>
-          <div className="p-6">
-            <p className="text-muted-foreground">
-              Payment Plan form component will be implemented here.
-            </p>
-          </div>
+          <PaymentPlanForm
+            onSuccess={handlePaymentPlanSuccess}
+            onCancel={() => {
+              setShowPaymentPlanForm(false)
+              setEditingPaymentPlan(undefined)
+            }}
+            editData={editingPaymentPlan}
+          />
         </DialogContent>
       </Dialog>
     </div>

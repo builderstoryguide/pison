@@ -389,6 +389,11 @@ export function EnhancedFeeStructureManagement() {
       {/* Create/Edit Dialog */}
       <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingFeeStructure ? "Edit Fee Structure" : "Create Fee Structure"}
+            </DialogTitle>
+          </DialogHeader>
           <EnhancedFeeStructureForm
             onSuccess={handleFormSuccess}
             onCancel={handleFormCancel}

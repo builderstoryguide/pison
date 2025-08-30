@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useToast } from "@/hooks/use-toast"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -18,6 +19,7 @@ import { Switch } from "@/components/ui/switch"
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useFinancial, type FeeStructure } from "@/lib/financial-context"
+import { useClassManagement } from "@/lib/class-management-context"
 import { cn } from "@/lib/utils"
 
 const feeStructureSchema = z.object({
@@ -31,6 +33,7 @@ const feeStructureSchema = z.object({
   academicYear: z.string().min(1, "Academic year is required"),
   description: z.string().optional(),
   isActive: z.boolean(),
+  classIds: z.array(z.string()).min(1, "At least one class must be selected"),
 })
 
 type FeeStructureFormData = z.infer<typeof feeStructureSchema>
@@ -65,6 +68,8 @@ const academicYears = ["2023-2024", "2024-2025", "2025-2026"]
 
 export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructureFormProps) {
   const { createFeeStructure, updateFeeStructure, isLoading } = useFinancial()
+  const { classes } = useClassManagement()
+  const { toast } = useToast()
   const [selectedSubsystem, setSelectedSubsystem] = useState<"english" | "french">(editData?.subsystem || "english")
 
   const form = useForm<FeeStructureFormData>({
@@ -81,6 +86,7 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
           academicYear: editData.academicYear,
           description: editData.description,
           isActive: editData.isActive,
+          classIds: editData.classIds || [],
         }
       : {
           name: "",
@@ -93,10 +99,13 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
           academicYear: "2024-2025",
           description: "",
           isActive: true,
+          classIds: [],
         },
   })
 
   const onSubmit = async (data: FeeStructureFormData) => {
+    if (isLoading) return // Prevent multiple submissions
+    
     try {
       const formattedData = {
         ...data,
@@ -104,11 +113,31 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
       }
 
       if (editData) {
-        await updateFeeStructure(editData.id, formattedData)
-        onSuccess(editData.id)
+        const result = await updateFeeStructure(editData.id, formattedData)
+        if (result.success) {
+          onSuccess(editData.id)
+          toast.success("Fee structure updated successfully!")
+        } else {
+          console.error("Error updating fee structure:", result.error)
+          toast.error("Failed to update fee structure", {
+            description: result.error || "An error occurred while updating the fee structure."
+          })
+        }
       } else {
-        const feeStructureId = await createFeeStructure(formattedData)
-        onSuccess(feeStructureId)
+        const result = await createFeeStructure({
+          ...formattedData,
+          classIds: data.classIds,
+          classNames: classes.filter(c => data.classIds.includes(c.id)).map(c => c.name)
+        })
+        if (result.success && result.feeStructureId) {
+          onSuccess(result.feeStructureId)
+          toast.success("Fee structure created successfully!")
+        } else {
+          console.error("Error creating fee structure:", result.error)
+          toast.error("Failed to create fee structure", {
+            description: result.error || "An error occurred while creating the fee structure."
+          })
+        }
       }
     } catch (error) {
       console.error("Error saving fee structure:", error)
@@ -119,12 +148,8 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
 
   return (
     <div className="max-w-4xl mx-auto">
-      <DialogHeader>
-        <DialogTitle>{editData ? "Edit Fee Structure" : "Create New Fee Structure"}</DialogTitle>
-      </DialogHeader>
-
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Basic Information */}
             <Card>
@@ -331,6 +356,48 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="classIds"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Applicable Classes</FormLabel>
+                      <FormControl>
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto border rounded-md p-2">
+                            {classes
+                              .filter(cls => cls.subsystem === selectedSubsystem)
+                              .map((cls) => (
+                                <div key={cls.id} className="flex items-center space-x-2">
+                                  <input
+                                    type="checkbox"
+                                    id={cls.id}
+                                    checked={field.value.includes(cls.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        field.onChange([...field.value, cls.id])
+                                      } else {
+                                        field.onChange(field.value.filter((id: string) => id !== cls.id))
+                                      }
+                                    }}
+                                    className="rounded"
+                                  />
+                                  <label htmlFor={cls.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                    {cls.name} ({cls.level} - {cls.branch})
+                                  </label>
+                                </div>
+                              ))}
+                          </div>
+                          {classes.filter(cls => cls.subsystem === selectedSubsystem).length === 0 && (
+                            <p className="text-sm text-muted-foreground">No classes found for the selected subsystem.</p>
+                          )}
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

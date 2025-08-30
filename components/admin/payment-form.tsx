@@ -128,12 +128,8 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
 
   return (
     <div className="max-w-4xl mx-auto">
-      <DialogHeader>
-        <DialogTitle>{editData ? "Edit Payment Record" : "Record New Payment"}</DialogTitle>
-      </DialogHeader>
-
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Student Information */}
             <Card>

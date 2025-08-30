@@ -17,6 +17,8 @@ export interface FeeStructure {
   academicYear: string
   description: string
   isActive: boolean
+  classIds?: string[]
+  classNames?: string[]
   createdAt: string
   updatedAt: string
 }
@@ -112,7 +114,7 @@ interface FinancialContextType {
   getOutstandingPayments: () => Payment[]
 
   // Student Fee Assignment Management
-  assignFeeToStudent: (data: Omit<StudentFeeAssignment, "id" | "createdAt" | "updatedAt">) => Promise<{ success: boolean; assignmentId?: string; error?: string }>
+  createStudentFeeAssignment: (data: Omit<StudentFeeAssignment, "id" | "createdAt" | "updatedAt">) => Promise<{ success: boolean; assignmentId?: string; error?: string }>
   updateStudentFeeAssignment: (id: string, data: Partial<StudentFeeAssignment>) => Promise<{ success: boolean; error?: string }>
   deleteStudentFeeAssignment: (id: string) => Promise<{ success: boolean; error?: string }>
   getStudentFeeAssignments: (studentId: string) => StudentFeeAssignment[]
@@ -273,6 +275,7 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
       setPayments(mockPayments)
       setStudentFeeAssignments([])
       setFeeStructures(mockFeeStructures)
+      setPaymentPlans(mockPaymentPlans)
       return
     }
 
@@ -396,11 +399,11 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
 
       console.log("Loading fee structures...")
 
-      // Load fee structures
+      // Load fee structures with class information
       const { data: feeStructuresData, error: feeStructuresError } = await supabase
-        .from("fee_structures")
+        .from("fee_structures_with_classes")
         .select("*")
-        .order("created_at", { ascending: false })
+        .order("fee_structure_created_at", { ascending: false })
 
       if (feeStructuresError) {
         console.log("⚠️ Error loading fee structures, using mock data:", feeStructuresError.message)
@@ -409,8 +412,8 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
       } else {
         console.log("Fee structures loaded successfully:", feeStructuresData?.length || 0, "records")
         const transformedFeeStructures: FeeStructure[] = (feeStructuresData || []).map((fee: any) => ({
-          id: fee.id,
-          name: fee.name,
+          id: fee.fee_structure_id,
+          name: fee.fee_structure_name,
           subsystem: fee.subsystem,
           level: fee.level,
           branch: fee.branch,
@@ -420,10 +423,40 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
           academicYear: fee.academic_year,
           description: fee.description,
           isActive: fee.is_active,
-          createdAt: fee.created_at,
-          updatedAt: fee.updated_at,
+          classIds: fee.class_ids || [],
+          classNames: fee.class_names || [],
+          createdAt: fee.fee_structure_created_at,
+          updatedAt: fee.fee_structure_updated_at,
         }))
         setFeeStructures(transformedFeeStructures)
+      }
+
+      console.log("Loading payment plans...")
+
+      // Load payment plans with better error handling
+      const { data: paymentPlansData, error: paymentPlansError } = await supabase
+        .from("payment_plans_with_details")
+        .select("*")
+        .order("created_at", { ascending: false })
+
+      if (paymentPlansError) {
+        console.log("⚠️ Error loading payment plans, using mock data:", paymentPlansError.message)
+        // Use mock data instead of logging error
+        setPaymentPlans(mockPaymentPlans)
+      } else {
+        console.log("Payment plans loaded successfully:", paymentPlansData?.length || 0, "records")
+        const transformedPaymentPlans: PaymentPlan[] = (paymentPlansData || []).map((plan: any) => ({
+          id: plan.id,
+          studentId: plan.student_id,
+          studentName: plan.student_name || "",
+          totalAmount: plan.total_amount,
+          amountPaid: plan.amount_paid,
+          installments: [], // Will be loaded separately if needed
+          status: plan.status,
+          createdAt: plan.created_at,
+          updatedAt: plan.updated_at,
+        }))
+        setPaymentPlans(transformedPaymentPlans)
       }
 
       console.log("Financial data loading completed successfully")
@@ -434,6 +467,7 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
       setPayments(mockPayments)
       setStudentFeeAssignments([])
       setFeeStructures(mockFeeStructures)
+      setPaymentPlans(mockPaymentPlans)
     } finally {
       setIsLoading(false)
     }
@@ -456,6 +490,13 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
 
       setIsLoading(true)
       try {
+        console.log("Creating fee structure with data:", data)
+        
+        if (!supabase) {
+          console.error("❌ Supabase client not available")
+          return { success: false, error: "Database connection not available" }
+        }
+        
         const feeStructureData = {
           name: data.name,
           subsystem: data.subsystem,
@@ -468,7 +509,10 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
           description: data.description,
           is_active: data.isActive,
         }
+        
+        console.log("Formatted fee structure data:", feeStructureData)
 
+        console.log("Attempting to insert fee structure into database...")
         const { data: newFeeStructure, error } = await supabase
           .from("fee_structures")
           .insert([feeStructureData])
@@ -476,8 +520,37 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
           .single()
 
         if (error) {
-          console.error("Error creating fee structure:", error)
-          return { success: false, error: error.message }
+          console.error("Database error creating fee structure:", error)
+          console.error("Error details:", {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          })
+          return { success: false, error: error.message || "Database error occurred" }
+        }
+
+        console.log("Fee structure created successfully:", newFeeStructure)
+
+        // If class IDs are provided, create the fee structure classes relationships
+        if (data.classIds && data.classIds.length > 0) {
+          console.log("Creating fee structure class relationships for classes:", data.classIds)
+          
+          const feeStructureClassesData = data.classIds.map(classId => ({
+            fee_structure_id: newFeeStructure.id,
+            class_id: classId
+          }))
+
+          const { error: classError } = await supabase
+            .from("fee_structure_classes")
+            .insert(feeStructureClassesData)
+
+          if (classError) {
+            console.error("Error creating fee structure class relationships:", classError)
+            // Don't fail the entire operation, just log the error
+          } else {
+            console.log("Fee structure class relationships created successfully")
+          }
         }
 
         const transformedFeeStructure: FeeStructure = {
@@ -492,6 +565,8 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
           academicYear: newFeeStructure.academic_year,
           description: newFeeStructure.description || "",
           isActive: newFeeStructure.is_active,
+          classIds: data.classIds || [],
+          classNames: data.classNames || [],
           createdAt: newFeeStructure.created_at,
           updatedAt: newFeeStructure.updated_at,
         }
@@ -500,7 +575,22 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
         return { success: true, feeStructureId: transformedFeeStructure.id }
       } catch (error) {
         console.error("Error creating fee structure:", error)
-        return { success: false, error: "Failed to create fee structure" }
+        const errorMessage = error instanceof Error ? error.message : "Failed to create fee structure"
+        
+        // If database is not available, use mock implementation
+        if (!supabase) {
+          console.log("⚠️ Using mock implementation for fee structure creation")
+          const newFeeStructure: FeeStructure = {
+            ...data,
+            id: `fee-${Date.now()}`,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+          setFeeStructures((prev) => [...prev, newFeeStructure])
+          return { success: true, feeStructureId: newFeeStructure.id }
+        }
+        
+        return { success: false, error: errorMessage }
       } finally {
         setIsLoading(false)
       }
@@ -777,7 +867,7 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
   }, [payments])
 
   // Student Fee Assignment CRUD Operations
-  const assignFeeToStudent = useCallback(
+  const createStudentFeeAssignment = useCallback(
     async (data: Omit<StudentFeeAssignment, "id" | "createdAt" | "updatedAt">): Promise<{ success: boolean; assignmentId?: string; error?: string }> => {
       if (!supabase) {
         // Mock implementation
@@ -1094,7 +1184,7 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
     deletePayment,
     getPaymentsByStudent,
     getOutstandingPayments,
-    assignFeeToStudent,
+    createStudentFeeAssignment,
     updateStudentFeeAssignment,
     deleteStudentFeeAssignment,
     getStudentFeeAssignments,
