@@ -50,6 +50,11 @@ import { ParentDashboard } from "./parent/parent-dashboard"
 import { ParentCommunication } from "./parent/parent-communication"
 import { ParentChildRecords } from "./parent/parent-child-records"
 
+// Student Components
+import { StudentDashboard } from "./student/student-dashboard"
+import { StudentGradesView } from "./student/student-grades-view"
+import { StudentScheduleView } from "./student/student-schedule-view"
+
 // Bursar Components
 import { BursarDashboard } from "./bursar/bursar-dashboard"
 import { FinancialReports } from "./bursar/financial-reports"
@@ -118,6 +123,7 @@ import {
   CalendarDays,
   Download,
   ChevronDown,
+  Award,
 } from "lucide-react"
 
 type AdminView =
@@ -141,6 +147,8 @@ type AdminView =
 type TeacherView = "dashboard" | "classes" | "attendance" | "grades" | "profile"
 
 type ParentView = "dashboard" | "records" | "communication" | "profile"
+
+type StudentView = "dashboard" | "grades" | "schedule" | "assignments" | "fees" | "profile"
 
 type BursarView = "dashboard" | "financial" | "reports" | "profile"
 
@@ -369,6 +377,7 @@ export function Dashboard() {
     localStorage.removeItem('adminCurrentView')
     localStorage.removeItem('teacherCurrentView')
     localStorage.removeItem('parentCurrentView')
+    localStorage.removeItem('studentCurrentView')
     localStorage.removeItem('bursarCurrentView')
     
     // Call the original logout function
@@ -396,6 +405,14 @@ export function Dashboard() {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('parentCurrentView')
       return saved ? (saved as ParentView) : "dashboard"
+    }
+    return "dashboard"
+  })
+  
+  const [studentCurrentView, setStudentCurrentView] = useState<StudentView>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('studentCurrentView')
+      return saved ? (saved as StudentView) : "dashboard"
     }
     return "dashboard"
   })
@@ -428,6 +445,12 @@ export function Dashboard() {
       localStorage.setItem('parentCurrentView', parentCurrentView)
     }
   }, [parentCurrentView, user?.role])
+
+  useEffect(() => {
+    if (user?.role === 'student') {
+      localStorage.setItem('studentCurrentView', studentCurrentView)
+    }
+  }, [studentCurrentView, user?.role])
 
   useEffect(() => {
     if (user?.role === 'bursar') {
@@ -565,6 +588,156 @@ export function Dashboard() {
           <SidebarInset>
             <DashboardHeader user={user} onProfileClick={() => setParentCurrentView("profile")} onLogout={handleLogout} />
             <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderParentContent()}</div>
+          </SidebarInset>
+        </SidebarProvider>
+      </ProfileProvider>
+    )
+  }
+
+  // Student Dashboard
+  if (user.role === "student") {
+    const studentMenuItems = [
+      { id: "dashboard", label: "Dashboard", icon: Home },
+      { id: "grades", label: "Grades", icon: Award },
+      { id: "schedule", label: "Schedule", icon: Calendar },
+      { id: "assignments", label: "Assignments", icon: BookOpen },
+      { id: "fees", label: "Fees", icon: CreditCard },
+    ]
+
+    const renderStudentContent = () => {
+      switch (studentCurrentView) {
+        case "grades":
+          return <StudentGradesView />
+        case "schedule":
+          return <StudentScheduleView />
+        case "assignments":
+          return <div className="space-y-6">
+            <div>
+              <h1 className="text-3xl font-bold">Assignments</h1>
+              <p className="text-muted-foreground">Track your assignments and deadlines</p>
+            </div>
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-muted-foreground">Assignment management coming soon...</p>
+              </CardContent>
+            </Card>
+          </div>
+        case "fees":
+          return <div className="space-y-6">
+            <div>
+              <h1 className="text-3xl font-bold">Fees</h1>
+              <p className="text-muted-foreground">View your fee information and payment history</p>
+            </div>
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-muted-foreground">Fee management coming soon...</p>
+              </CardContent>
+            </Card>
+          </div>
+        case "profile":
+          return <ProfileSettings />
+        default:
+          return <StudentDashboard onNavigate={setStudentCurrentView} />
+      }
+    }
+
+    return (
+      <ProfileProvider>
+        <SidebarProvider>
+          <Sidebar variant="inset">
+            <SidebarHeader>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <div className="flex items-center gap-2 px-2 py-1">
+                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                      <School className="size-4" />
+                    </div>
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-semibold">GBHS Yaoundé</span>
+                      <span className="truncate text-xs">Student Portal</span>
+                    </div>
+                  </div>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarHeader>
+            <SidebarContent>
+              <SidebarGroup>
+                <SidebarGroupLabel>Student Tools</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {studentMenuItems.map((item) => (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton
+                          onClick={() => setStudentCurrentView(item.id as StudentView)}
+                          isActive={studentCurrentView === item.id}
+                        >
+                          <item.icon />
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </SidebarContent>
+            <SidebarFooter>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <SidebarMenuButton
+                        size="lg"
+                        className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                      >
+                        <Avatar className="h-8 w-8 rounded-lg">
+                          <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                          <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
+                        </Avatar>
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                          <span className="truncate font-semibold">{user.name}</span>
+                          <span className="truncate text-xs">{user.email}</span>
+                        </div>
+                        <ChevronUp className="ml-auto size-4" />
+                      </SidebarMenuButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                      side="bottom"
+                      align="end"
+                      sideOffset={4}
+                    >
+                      <DropdownMenuLabel className="p-0 font-normal">
+                        <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                          <Avatar className="h-8 w-8 rounded-lg">
+                            <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
+                            <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
+                          </Avatar>
+                          <div className="grid flex-1 text-left text-sm leading-tight">
+                            <span className="truncate font-semibold">{user.name}</span>
+                            <span className="truncate text-xs">{user.email}</span>
+                          </div>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setStudentCurrentView("profile")}>
+                        <Settings />
+                        Profile Settings
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleLogout}>
+                        <LogOut />
+                        Log out
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarFooter>
+            <SidebarRail />
+          </Sidebar>
+          <SidebarInset>
+            <DashboardHeader user={user} onProfileClick={() => setStudentCurrentView("profile")} onLogout={handleLogout} />
+            <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderStudentContent()}</div>
           </SidebarInset>
         </SidebarProvider>
       </ProfileProvider>
