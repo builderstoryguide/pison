@@ -175,11 +175,12 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
     setError(null)
 
     try {
-      const { data, error: fetchError } = await supabase
+      // First, try to get classes with teacher information
+      let { data, error: fetchError } = await supabase
         .from("classes")
         .select(`
           *,
-          teachers!classes_class_teacher_id_fkey (
+          teachers (
             id,
             first_name,
             last_name,
@@ -188,7 +189,24 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         `)
         .order("created_at", { ascending: false })
 
+      // If the join fails, fall back to just getting classes without teacher info
+      if (fetchError && fetchError.message.includes('relationship')) {
+        console.warn("Teacher relationship not available, loading classes without teacher info:", fetchError.message)
+        const { data: classesOnly, error: classesError } = await supabase
+          .from("classes")
+          .select("*")
+          .order("created_at", { ascending: false })
+        
+        if (classesError) {
+          throw new Error(`Failed to load classes: ${classesError.message}`)
+        }
+        
+        data = classesOnly
+        fetchError = null
+      }
+
       if (fetchError) {
+        console.error("Database error details:", fetchError)
         throw new Error(`Failed to load classes: ${fetchError.message}`)
       }
 
@@ -201,9 +219,9 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         branch: dbClass.stream || "grammar", // Default to grammar if stream is not set
         capacity: dbClass.capacity,
         currentEnrollment: dbClass.current_enrollment,
-        classTeacher: dbClass.teachers 
+        classTeacher: dbClass.teachers && dbClass.teachers.first_name && dbClass.teachers.last_name
           ? `${dbClass.teachers.first_name} ${dbClass.teachers.last_name}`
-          : "Not Assigned",
+          : dbClass.class_teacher_id || "Not Assigned",
         subjects: [], // We'll need to join with subjects table later
         schedule: [], // We'll need to implement schedule management later
         academicYear: dbClass.academic_year,

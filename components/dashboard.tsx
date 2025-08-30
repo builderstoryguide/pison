@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { AuthPage } from "./auth/auth-page"
 import { UserManagementProvider } from "@/lib/user-management-context"
@@ -361,12 +361,79 @@ function DashboardHeader({
 }
 
 export function Dashboard() {
-  const { user, logout } = useAuth()
-  const [adminCurrentView, setAdminCurrentView] = useState<AdminView>("dashboard")
-  const [teacherCurrentView, setTeacherCurrentView] = useState<TeacherView>("dashboard")
-  const [parentCurrentView, setParentCurrentView] = useState<ParentView>("dashboard")
-  const [bursarCurrentView, setBursarCurrentView] = useState<BursarView>("dashboard")
+  const { user, logout: originalLogout } = useAuth()
+  
+  // Custom logout function that clears localStorage
+  const handleLogout = () => {
+    // Clear all stored view states
+    localStorage.removeItem('adminCurrentView')
+    localStorage.removeItem('teacherCurrentView')
+    localStorage.removeItem('parentCurrentView')
+    localStorage.removeItem('bursarCurrentView')
+    
+    // Call the original logout function
+    originalLogout()
+  }
+  
+  // Initialize view states with localStorage persistence
+  const [adminCurrentView, setAdminCurrentView] = useState<AdminView>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('adminCurrentView')
+      return saved ? (saved as AdminView) : "dashboard"
+    }
+    return "dashboard"
+  })
+  
+  const [teacherCurrentView, setTeacherCurrentView] = useState<TeacherView>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('teacherCurrentView')
+      return saved ? (saved as TeacherView) : "dashboard"
+    }
+    return "dashboard"
+  })
+  
+  const [parentCurrentView, setParentCurrentView] = useState<ParentView>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('parentCurrentView')
+      return saved ? (saved as ParentView) : "dashboard"
+    }
+    return "dashboard"
+  })
+  
+  const [bursarCurrentView, setBursarCurrentView] = useState<BursarView>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bursarCurrentView')
+      return saved ? (saved as BursarView) : "dashboard"
+    }
+    return "dashboard"
+  })
+  
   const [reportsDropdownOpen, setReportsDropdownOpen] = useState(false)
+
+  // Save view states to localStorage whenever they change
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      localStorage.setItem('adminCurrentView', adminCurrentView)
+    }
+  }, [adminCurrentView, user?.role])
+
+  useEffect(() => {
+    if (user?.role === 'teacher') {
+      localStorage.setItem('teacherCurrentView', teacherCurrentView)
+    }
+  }, [teacherCurrentView, user?.role])
+
+  useEffect(() => {
+    if (user?.role === 'parent') {
+      localStorage.setItem('parentCurrentView', parentCurrentView)
+    }
+  }, [parentCurrentView, user?.role])
+
+  useEffect(() => {
+    if (user?.role === 'bursar') {
+      localStorage.setItem('bursarCurrentView', bursarCurrentView)
+    }
+  }, [bursarCurrentView, user?.role])
 
   if (!user) {
     return <AuthPage />
@@ -484,7 +551,7 @@ export function Dashboard() {
                         Profile Settings
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={logout}>
+                      <DropdownMenuItem onClick={handleLogout}>
                         <LogOut />
                         Log out
                       </DropdownMenuItem>
@@ -496,7 +563,7 @@ export function Dashboard() {
             <SidebarRail />
           </Sidebar>
           <SidebarInset>
-            <DashboardHeader user={user} onProfileClick={() => setParentCurrentView("profile")} onLogout={logout} />
+            <DashboardHeader user={user} onProfileClick={() => setParentCurrentView("profile")} onLogout={handleLogout} />
             <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderParentContent()}</div>
           </SidebarInset>
         </SidebarProvider>
@@ -796,7 +863,7 @@ export function Dashboard() {
                                           Profile Settings
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={logout}>
+                                        <DropdownMenuItem onClick={handleLogout}>
                                           <LogOut />
                                           Log out
                                         </DropdownMenuItem>
@@ -811,7 +878,7 @@ export function Dashboard() {
                               <DashboardHeader
                                 user={user}
                                 onProfileClick={() => setAdminCurrentView("profile")}
-                                onLogout={logout}
+                                onLogout={handleLogout}
                               />
                               <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderAdminContent()}</div>
                             </SidebarInset>
@@ -937,7 +1004,7 @@ export function Dashboard() {
                               Profile Settings
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={logout}>
+                            <DropdownMenuItem onClick={handleLogout}>
                               <LogOut />
                               Log out
                             </DropdownMenuItem>
@@ -952,7 +1019,7 @@ export function Dashboard() {
                   <DashboardHeader
                     user={user}
                     onProfileClick={() => setTeacherCurrentView("profile")}
-                    onLogout={logout}
+                    onLogout={handleLogout}
                   />
                   <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderTeacherContent()}</div>
                 </SidebarInset>
@@ -1077,7 +1144,7 @@ export function Dashboard() {
                           Profile Settings
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={logout}>
+                        <DropdownMenuItem onClick={handleLogout}>
                           <LogOut />
                           Log out
                         </DropdownMenuItem>
@@ -1089,7 +1156,7 @@ export function Dashboard() {
               <SidebarRail />
             </Sidebar>
             <SidebarInset>
-              <DashboardHeader user={user} onProfileClick={() => setBursarCurrentView("profile")} onLogout={logout} />
+              <DashboardHeader user={user} onProfileClick={() => setBursarCurrentView("profile")} onLogout={handleLogout} />
               <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderBursarContent()}</div>
             </SidebarInset>
           </SidebarProvider>
@@ -1107,7 +1174,7 @@ export function Dashboard() {
           <CardDescription>Your role ({user.role}) does not have access to this dashboard yet.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={logout} className="w-full justify-start bg-transparent">
+          <Button onClick={handleLogout} className="w-full justify-start bg-transparent">
             <LogOut className="mr-2 h-4 w-4" />
             Logout
           </Button>

@@ -68,6 +68,7 @@ interface StudentManagementContextType {
   getStudent: (id: string) => Student | undefined
   updateStudent: (id: string, updates: Partial<Student>) => Promise<boolean>
   deleteStudent: (id: string) => Promise<boolean>
+  deleteStudentsBulk: (ids: string[]) => Promise<{ success: boolean; deletedCount: number; errors: string[] }>
   getFilteredStudents: () => Student[]
   getNewStudents: () => Student[]
   getStudentStats: () => StudentStats
@@ -292,6 +293,38 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
     }
   }
 
+  const deleteStudentsBulk = async (ids: string[]): Promise<{ success: boolean; deletedCount: number; errors: string[] }> => {
+    try {
+      const dbConnected = await testConnection()
+
+      if (!dbConnected) {
+        throw new Error("Database connection is required for student management. Please check your database configuration.")
+      }
+
+      // Delete from Supabase
+      if (!supabase) {
+        console.log("⚠️ Supabase client not available, deleting mock data only")
+        // Delete local state only
+        setStudents((prev) => prev.filter((student) => !ids.includes(student.id)))
+        return { success: true, deletedCount: ids.length, errors: [] }
+      }
+
+      const { error: deleteError } = await supabase.from("students").delete().in("id", ids)
+
+      if (deleteError) {
+        throw new Error(`Failed to delete students: ${deleteError.message}`)
+      }
+
+      // Update local state
+      setStudents((prev) => prev.filter((student) => !ids.includes(student.id)))
+      return { success: true, deletedCount: ids.length, errors: [] }
+    } catch (err) {
+      console.error("Error deleting students:", err)
+      setError(err instanceof Error ? err.message : "Failed to delete students")
+      return { success: false, deletedCount: 0, errors: [err instanceof Error ? err.message : "Failed to delete students"] }
+    }
+  }
+
   const getFilteredStudents = (): Student[] => {
     return students.filter((student) => {
       // Enhanced search functionality
@@ -413,6 +446,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
     getStudent,
     updateStudent,
     deleteStudent,
+    deleteStudentsBulk,
     getFilteredStudents,
     getNewStudents,
     getStudentStats,

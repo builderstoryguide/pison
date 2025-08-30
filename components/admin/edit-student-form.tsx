@@ -17,7 +17,8 @@ import {
   MapPin, 
   Save,
   X,
-  AlertCircle
+  AlertCircle,
+  ChevronDownIcon
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -225,21 +226,23 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !formData.date_of_birth && "text-muted-foreground"
-                        )}
+                        id="date_of_birth"
+                        className="w-full justify-between font-normal"
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.date_of_birth ? format(new Date(formData.date_of_birth), "PPP") : <span>Pick a date</span>}
+                        {formData.date_of_birth ? new Date(formData.date_of_birth).toLocaleDateString() : "Select date"}
+                        <ChevronDownIcon />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto overflow-hidden p-0" align="start">
                       <Calendar
                         mode="single"
                         selected={formData.date_of_birth ? new Date(formData.date_of_birth) : undefined}
-                        onSelect={(date) => date && handleInputChange("date_of_birth", format(date, "yyyy-MM-dd"))}
-                        initialFocus
+                        captionLayout="dropdown"
+                        onSelect={(date) => {
+                          if (date) {
+                            handleInputChange("date_of_birth", format(date, "yyyy-MM-dd"))
+                          }
+                        }}
                       />
                     </PopoverContent>
                   </Popover>

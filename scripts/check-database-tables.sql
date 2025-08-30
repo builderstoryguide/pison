@@ -1,102 +1,142 @@
--- Check and create all required tables
--- Run this script in your Supabase SQL Editor
+-- Database Table Check Script
+-- Run this in your Supabase SQL Editor to see what tables exist
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Check if tables exist
+SELECT 
+    table_name,
+    table_type
+FROM information_schema.tables 
+WHERE table_schema = 'public' 
+AND table_name IN ('classes', 'teachers', 'students', 'users', 'subjects')
+ORDER BY table_name;
 
--- Check if students table exists and create it if not
-CREATE TABLE IF NOT EXISTS students (
+-- Check if the teachers table exists and has data
+SELECT 
+    'teachers' as table_name,
+    COUNT(*) as row_count
+FROM information_schema.tables 
+WHERE table_schema = 'public' AND table_name = 'teachers'
+
+UNION ALL
+
+SELECT 
+    'classes' as table_name,
+    COUNT(*) as row_count
+FROM information_schema.tables 
+WHERE table_schema = 'public' AND table_name = 'classes'
+
+UNION ALL
+
+SELECT 
+    'students' as table_name,
+    COUNT(*) as row_count
+FROM information_schema.tables 
+WHERE table_schema = 'public' AND table_name = 'students';
+
+-- Check foreign key relationships
+SELECT 
+    tc.table_name, 
+    kcu.column_name, 
+    ccu.table_name AS foreign_table_name,
+    ccu.column_name AS foreign_column_name 
+FROM 
+    information_schema.table_constraints AS tc 
+    JOIN information_schema.key_column_usage AS kcu
+      ON tc.constraint_name = kcu.constraint_name
+      AND tc.table_schema = kcu.table_schema
+    JOIN information_schema.constraint_column_usage AS ccu
+      ON ccu.constraint_name = tc.constraint_name
+      AND ccu.table_schema = tc.table_schema
+WHERE tc.constraint_type = 'FOREIGN KEY' 
+AND tc.table_name IN ('classes', 'teachers', 'students');
+
+-- If teachers table doesn't exist, create it
+CREATE TABLE IF NOT EXISTS teachers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id VARCHAR(50) UNIQUE NOT NULL,
+    teacher_id VARCHAR(50) UNIQUE NOT NULL,
+    title VARCHAR(20),
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    middle_name VARCHAR(100),
-    email VARCHAR(255),
+    email VARCHAR(255) NOT NULL,
     phone VARCHAR(20),
     date_of_birth DATE,
     gender VARCHAR(10),
-    place_of_birth VARCHAR(100),
-    nationality VARCHAR(100) DEFAULT 'Cameroonian',
-    religion VARCHAR(100),
+    nationality VARCHAR(100),
+    id_number VARCHAR(50),
     address TEXT,
     city VARCHAR(100),
     region VARCHAR(100),
-    postal_code VARCHAR(20),
     subsystem VARCHAR(20) NOT NULL CHECK (subsystem IN ('english', 'french')),
-    branch VARCHAR(20) NOT NULL CHECK (branch IN ('grammar', 'technical', 'commercial')),
-    class VARCHAR(50) NOT NULL,
-    previous_school VARCHAR(255),
-    previous_class VARCHAR(50),
-    is_new_student BOOLEAN DEFAULT true,
-    total_fees DECIMAL(10,2) DEFAULT 0,
-    paid_fees DECIMAL(10,2) DEFAULT 0,
-    fees_status VARCHAR(20) DEFAULT 'pending' CHECK (fees_status IN ('pending', 'partial', 'paid', 'overdue')),
-    enrollment_status VARCHAR(20) DEFAULT 'pending' CHECK (enrollment_status IN ('pending', 'enrolled', 'transferred', 'graduated')),
-    academic_year VARCHAR(20) DEFAULT '2024-2025',
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'graduated', 'transferred')),
-    enrollment_date DATE DEFAULT CURRENT_DATE,
+    subjects TEXT[] DEFAULT '{}',
+    classes TEXT[] DEFAULT '{}',
+    qualifications TEXT[] DEFAULT '{}',
+    experience TEXT,
+    employment_type VARCHAR(20) NOT NULL CHECK (employment_type IN ('full-time', 'part-time', 'contract')),
+    salary DECIMAL(10,2),
+    start_date DATE,
+    emergency_contact_name VARCHAR(255),
+    emergency_contact_relationship VARCHAR(100),
+    emergency_contact_phone VARCHAR(20),
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Check if parents table exists and create it if not
-CREATE TABLE IF NOT EXISTS parents (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    parent_code VARCHAR(50) UNIQUE NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    phone VARCHAR(20) NOT NULL,
-    address TEXT,
-    occupation VARCHAR(255),
-    relationship VARCHAR(20) NOT NULL CHECK (relationship IN ('father', 'mother', 'guardian', 'other')),
-    student_id UUID REFERENCES students(id) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Add some sample teachers if the table is empty
+INSERT INTO teachers (teacher_id, first_name, last_name, email, subsystem, employment_type, status)
+SELECT 
+    'TCH001',
+    'John',
+    'Doe',
+    'john.doe@school.com',
+    'english',
+    'full-time',
+    'active'
+WHERE NOT EXISTS (SELECT 1 FROM teachers WHERE teacher_id = 'TCH001');
 
--- Check if emergency_contacts table exists and create it if not
-CREATE TABLE IF NOT EXISTS emergency_contacts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id UUID REFERENCES students(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    phone VARCHAR(20) NOT NULL,
-    relationship VARCHAR(100),
-    email VARCHAR(255),
-    is_primary BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+INSERT INTO teachers (teacher_id, first_name, last_name, email, subsystem, employment_type, status)
+SELECT 
+    'TCH002',
+    'Jane',
+    'Smith',
+    'jane.smith@school.com',
+    'french',
+    'full-time',
+    'active'
+WHERE NOT EXISTS (SELECT 1 FROM teachers WHERE teacher_id = 'TCH002');
 
--- Check if medical_info table exists and create it if not
-CREATE TABLE IF NOT EXISTS medical_info (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id UUID REFERENCES students(id) ON DELETE CASCADE,
-    blood_group VARCHAR(5),
-    allergies TEXT,
-    medical_conditions TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Enable RLS on teachers table if not already enabled
+ALTER TABLE teachers ENABLE ROW LEVEL SECURITY;
 
--- Check if users table exists and create it if not
-CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    role VARCHAR(50) NOT NULL DEFAULT 'user',
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Create policies for teachers table (drop first if they exist)
+DROP POLICY IF EXISTS "Enable read access for all users" ON teachers;
+CREATE POLICY "Enable read access for all users" ON teachers
+    FOR SELECT USING (true);
 
--- Show all tables
-SELECT table_name 
-FROM information_schema.tables 
-WHERE table_schema = 'public' 
-ORDER BY table_name;
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON teachers;
+CREATE POLICY "Enable insert for authenticated users" ON teachers
+    FOR INSERT WITH CHECK (true);
 
--- Show students table structure
-SELECT column_name, data_type, is_nullable, column_default
+DROP POLICY IF EXISTS "Enable update for authenticated users" ON teachers;
+CREATE POLICY "Enable update for authenticated users" ON teachers
+    FOR UPDATE USING (true);
+
+-- Check if classes table has the correct foreign key
+SELECT 
+    column_name,
+    data_type,
+    is_nullable
 FROM information_schema.columns 
-WHERE table_name = 'students' 
-ORDER BY ordinal_position;
+WHERE table_name = 'classes' 
+AND column_name = 'class_teacher_id';
+
+-- If class_teacher_id column doesn't exist, add it
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'classes' AND column_name = 'class_teacher_id'
+    ) THEN
+        ALTER TABLE classes ADD COLUMN class_teacher_id UUID REFERENCES teachers(id) ON DELETE SET NULL;
+    END IF;
+END $$;

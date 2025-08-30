@@ -163,7 +163,10 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
         .select("*")
         .order("created_at", { ascending: false })
 
-      if (teachersError) throw teachersError
+      if (teachersError) {
+        console.error("❌ Error loading teachers:", teachersError)
+        throw teachersError
+      }
 
       const formattedTeachers: Teacher[] =
         teachersData?.map((teacher: any) => ({
@@ -354,11 +357,21 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
 
     try {
       // Delete from database
-      const { error } = await supabase.from("teachers").delete().eq("id", id)
+      const { error, count } = await supabase.from("teachers").delete().eq("id", id)
 
-      if (error) throw error
+      if (error) {
+        console.error("❌ Database error during deletion:", error)
+        throw error
+      }
 
+      // Reload teachers to update the UI
       await loadTeachers()
+      
+      // Also manually remove the teacher from state as a fallback
+      setTeachers(prevTeachers => {
+        const updatedTeachers = prevTeachers.filter(teacher => teacher.id !== id)
+        return updatedTeachers
+      })
     } catch (err) {
       console.error("Error deleting teacher:", err)
       setError(err instanceof Error ? err.message : "Failed to delete teacher")

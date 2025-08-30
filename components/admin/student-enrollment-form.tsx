@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from 'react'
-import { Check, User, MapPin, GraduationCap, Users, Heart, FileText, AlertCircle, CalendarIcon } from 'lucide-react'
+import React, { useState } from 'react'
+import { Check, User, MapPin, GraduationCap, Users, Heart, FileText, AlertCircle, CalendarIcon, ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { useForm } from "react-hook-form"
@@ -216,312 +216,424 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
 
   const availableClasses = classes[formData.subsystem]?.[formData.branch] || []
 
+  const steps = [
+    { id: 1, title: 'Personal Information', icon: User, description: 'Basic personal details' },
+    { id: 2, title: 'Contact Information', icon: MapPin, description: 'Contact and address details' },
+    { id: 3, title: 'Academic Information', icon: GraduationCap, description: 'Academic program and class' },
+    { id: 4, title: 'Parent/Guardian', icon: Users, description: 'Parent or guardian details' },
+    { id: 5, title: 'Emergency & Medical', icon: Heart, description: 'Emergency contact and medical info' },
+    { id: 6, title: 'Required Documents', icon: FileText, description: 'Document confirmation' }
+  ]
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold">Student Enrollment</h2>
-        <p className="text-muted-foreground">
-          Complete the enrollment process for a new student
-        </p>
-        <div className="flex items-center justify-center gap-2">
-          <Badge variant="outline">Step {currentStep} of {totalSteps}</Badge>
-          <Badge variant="outline">Student ID: {generateStudentId()}</Badge>
+    <div className="min-h-screen bg-background p-4">
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 bg-primary rounded-full mb-4">
+            <User className="h-6 w-6 md:h-8 md:w-8 text-primary-foreground" />
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+            Student Enrollment
+          </h1>
+          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
+            Complete the enrollment process for a new student. This form will guide you through all necessary information.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 flex-wrap">
+            <Badge variant="secondary" className="px-3 py-1 md:px-4 md:py-2 text-xs md:text-sm">
+              <CheckCircle2 className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+              Step {currentStep} of {totalSteps}
+            </Badge>
+            <Badge variant="outline" className="px-3 py-1 md:px-4 md:py-2 text-xs md:text-sm font-mono">
+              ID: {generateStudentId()}
+            </Badge>
+          </div>
         </div>
-      </div>
 
-      {/* Progress Bar */}
-      <div className="space-y-2">
-        <div className="flex justify-between text-sm text-muted-foreground">
-          <span>Progress</span>
-          <span>{Math.round(progress)}%</span>
-        </div>
-        <Progress value={progress} className="h-2" />
-      </div>
-
-      {/* Step Content */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {currentStep === 1 && <><User className="h-5 w-5" /> Personal Information</>}
-            {currentStep === 2 && <><MapPin className="h-5 w-5" /> Contact Information</>}
-            {currentStep === 3 && <><GraduationCap className="h-5 w-5" /> Academic Information</>}
-            {currentStep === 4 && <><Users className="h-5 w-5" /> Parent/Guardian Information</>}
-            {currentStep === 5 && <><Heart className="h-5 w-5" /> Emergency & Medical Information</>}
-            {currentStep === 6 && <><FileText className="h-5 w-5" /> Required Documents</>}
-          </CardTitle>
-          <CardDescription>
-            {currentStep === 1 && "Enter the student's basic personal details"}
-            {currentStep === 2 && "Provide contact and address information"}
-            {currentStep === 3 && "Select academic program and class"}
-            {currentStep === 4 && "Enter parent or guardian details"}
-            {currentStep === 5 && "Provide emergency contact and medical information"}
-            {currentStep === 6 && "Confirm required documents are available"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Step 1: Personal Information */}
-          {currentStep === 1 && (
+        {/* Progress Section */}
+        <Card>
+          <CardContent className="p-6">
             <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) => updateFormData('firstName', e.target.value)}
-                    placeholder="Enter first name"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="middleName">Middle Name</Label>
-                  <Input
-                    id="middleName"
-                    value={formData.middleName}
-                    onChange={(e) => updateFormData('middleName', e.target.value)}
-                    placeholder="Enter middle name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) => updateFormData('lastName', e.target.value)}
-                    placeholder="Enter last name"
-                    required
-                  />
-                </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-muted-foreground">Enrollment Progress</span>
+                <span className="text-sm font-bold text-primary">{Math.round(progress)}% Complete</span>
               </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Form {...dateForm}>
-                  <FormField
-                    control={dateForm.control}
-                    name="dateOfBirth"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Date of Birth *</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant={"outline"}
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(field.value, "PPP")
-                                ) : (
-                                  <span>Pick a date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={(date) => {
-                                field.onChange(date)
-                                if (date) {
-                                  updateFormData('dateOfBirth', format(date, "yyyy-MM-dd"))
-                                }
-                              }}
-                              disabled={(date) =>
-                                date > new Date() || date < new Date("1900-01-01")
-                              }
-                              captionLayout="dropdown"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </Form>
-                <div className="space-y-2">
-                  <Label htmlFor="gender">Gender *</Label>
-                  <Select value={formData.gender || ''} onValueChange={(value) => updateFormData('gender', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select gender" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <Progress value={progress} className="h-3" />
+              
+              {/* Step Indicators */}
+              <div className="flex justify-center items-center mt-6">
+                <div className="flex items-center space-x-2 md:space-x-4 flex-wrap justify-center">
+                  {steps.map((step, index) => (
+                    <div key={step.id} className="flex flex-col items-center space-y-2 min-w-0">
+                      <div className={cn(
+                        "w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-xs md:text-sm font-medium transition-all duration-300",
+                        currentStep > step.id 
+                          ? "bg-green-500 text-white" 
+                          : currentStep === step.id 
+                          ? "bg-primary text-primary-foreground shadow-lg scale-110" 
+                          : "bg-muted text-muted-foreground"
+                      )}>
+                        {currentStep > step.id ? (
+                          <Check className="h-4 w-4 md:h-5 md:w-5" />
+                        ) : (
+                          React.createElement(step.icon, { className: "h-4 w-4 md:h-5 md:w-5" })
+                        )}
+                      </div>
+                      <div className="text-center max-w-16 md:max-w-20">
+                        <p className={cn(
+                          "text-xs font-medium transition-colors leading-tight",
+                          currentStep >= step.id ? "text-primary" : "text-muted-foreground"
+                        )}>
+                          {step.title}
+                        </p>
+                      </div>
+                      {index < steps.length - 1 && (
+                        <div className={cn(
+                          "w-6 md:w-12 h-0.5 transition-colors hidden md:block",
+                          currentStep > step.id ? "bg-green-500" : "bg-muted"
+                        )} />
+                      )}
+                    </div>
+                  ))}
                 </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="placeOfBirth">Place of Birth *</Label>
-                  <Input
-                    id="placeOfBirth"
-                    value={formData.placeOfBirth}
-                    onChange={(e) => updateFormData('placeOfBirth', e.target.value)}
-                    placeholder="Enter place of birth"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="nationality">Nationality</Label>
-                  <Input
-                    id="nationality"
-                    value={formData.nationality}
-                    onChange={(e) => updateFormData('nationality', e.target.value)}
-                    placeholder="Enter nationality"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="religion">Religion (Optional)</Label>
-                <Input
-                  id="religion"
-                  value={formData.religion}
-                  onChange={(e) => updateFormData('religion', e.target.value)}
-                  placeholder="Enter religion"
-                />
               </div>
             </div>
-          )}
+          </CardContent>
+        </Card>
 
-          {/* Step 2: Contact Information */}
-          {currentStep === 2 && (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => updateFormData('email', e.target.value)}
-                    placeholder="student@example.com"
-                    required
-                  />
+        {/* Form Content */}
+        <Card>
+          <CardHeader className="pb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-primary">
+                {React.createElement(steps[currentStep - 1].icon, { className: "h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" })}
+              </div>
+              <div>
+                <CardTitle className="text-xl sm:text-2xl font-bold">
+                  {steps[currentStep - 1].title}
+                </CardTitle>
+                <CardDescription className="text-sm sm:text-base">
+                  {steps[currentStep - 1].description}
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            {/* Validation Alert */}
+            {!isStepValid(currentStep) && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {getStepValidationMessage(currentStep)}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Step 1: Personal Information */}
+            {currentStep === 1 && (
+              <div className="space-y-6">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">
+                      First Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="firstName"
+                      value={formData.firstName}
+                      onChange={(e) => updateFormData('firstName', e.target.value)}
+                      placeholder="Enter first name"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="middleName">
+                      Middle Name
+                    </Label>
+                    <Input
+                      id="middleName"
+                      value={formData.middleName}
+                      onChange={(e) => updateFormData('middleName', e.target.value)}
+                      placeholder="Enter middle name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">
+                      Last Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="lastName"
+                      value={formData.lastName}
+                      onChange={(e) => updateFormData('lastName', e.target.value)}
+                      placeholder="Enter last name"
+                      required
+                    />
+                  </div>
                 </div>
+
+                <Separator />
+
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                  <Form {...dateForm}>
+                    <FormField
+                      control={dateForm.control}
+                      name="dateOfBirth"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col space-y-2">
+                          <FormLabel>
+                            Date of Birth <span className="text-destructive">*</span>
+                          </FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant={"outline"}
+                                  className={cn(
+                                    "pl-3 text-left font-normal",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                >
+                                  {field.value ? (
+                                    format(field.value, "PPP")
+                                  ) : (
+                                    <span>Pick a date</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={(date) => {
+                                  field.onChange(date)
+                                  if (date) {
+                                    updateFormData('dateOfBirth', format(date, "yyyy-MM-dd"))
+                                  }
+                                }}
+                                disabled={(date) =>
+                                  date > new Date() || date < new Date("1900-01-01")
+                                }
+                                captionLayout="dropdown"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </Form>
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">
+                      Gender <span className="text-destructive">*</span>
+                    </Label>
+                    <Select value={formData.gender || ''} onValueChange={(value) => updateFormData('gender', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="placeOfBirth">
+                      Place of Birth <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="placeOfBirth"
+                      value={formData.placeOfBirth}
+                      onChange={(e) => updateFormData('placeOfBirth', e.target.value)}
+                      placeholder="Enter place of birth"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nationality">
+                      Nationality
+                    </Label>
+                    <Input
+                      id="nationality"
+                      value={formData.nationality}
+                      onChange={(e) => updateFormData('nationality', e.target.value)}
+                      placeholder="Enter nationality"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="religion">
+                    Religion (Optional)
+                  </Label>
                   <Input
-                    id="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => updateFormData('phone', e.target.value)}
-                    placeholder="+237 6XX XXX XXX"
+                    id="religion"
+                    value={formData.religion}
+                    onChange={(e) => updateFormData('religion', e.target.value)}
+                    placeholder="Enter religion"
                   />
                 </div>
               </div>
+            )}
 
-              <div className="space-y-2">
-                <Label htmlFor="address">Home Address *</Label>
-                <Textarea
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) => updateFormData('address', e.target.value)}
-                  placeholder="Enter complete home address"
-                  required
-                />
-              </div>
+            {/* Step 2: Contact Information */}
+            {currentStep === 2 && (
+              <div className="space-y-6">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">
+                      Email Address <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => updateFormData('email', e.target.value)}
+                      placeholder="student@example.com"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">
+                      Phone Number
+                    </Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => updateFormData('phone', e.target.value)}
+                      placeholder="+237 6XX XXX XXX"
+                    />
+                  </div>
+                </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+                <Separator />
+
                 <div className="space-y-2">
-                  <Label htmlFor="city">City *</Label>
-                  <Input
-                    id="city"
-                    value={formData.city}
-                    onChange={(e) => updateFormData('city', e.target.value)}
-                    placeholder="Enter city"
+                  <Label htmlFor="address">
+                    Home Address <span className="text-destructive">*</span>
+                  </Label>
+                  <Textarea
+                    id="address"
+                    value={formData.address}
+                    onChange={(e) => updateFormData('address', e.target.value)}
+                    placeholder="Enter complete home address"
                     required
                   />
                 </div>
+
+                <Separator />
+
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="city">
+                      City <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="city"
+                      value={formData.city}
+                      onChange={(e) => updateFormData('city', e.target.value)}
+                      placeholder="Enter city"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="region">
+                      Region <span className="text-destructive">*</span>
+                    </Label>
+                    <Select value={formData.region} onValueChange={(value) => updateFormData('region', value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cameroonRegions.map(region => (
+                          <SelectItem key={region} value={region}>{region}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Academic Information */}
+            {currentStep === 3 && (
+              <div className="space-y-6">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="subsystem">
+                      Educational Sub-system <span className="text-destructive">*</span>
+                    </Label>
+                    <Select 
+                      value={formData.subsystem} 
+                      onValueChange={(value) => {
+                        updateFormData('subsystem', value)
+                        updateFormData('class', '') // Reset class when subsystem changes
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="english">English Sub-system</SelectItem>
+                        <SelectItem value="french">French Sub-system</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="branch">
+                      Branch <span className="text-destructive">*</span>
+                    </Label>
+                    <Select 
+                      value={formData.branch} 
+                      onValueChange={(value) => {
+                        updateFormData('branch', value)
+                        updateFormData('class', '') // Reset class when branch changes
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="grammar">Grammar</SelectItem>
+                        <SelectItem value="technical">Technical</SelectItem>
+                        <SelectItem value="commercial">Commercial</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Separator />
+
                 <div className="space-y-2">
-                  <Label htmlFor="region">Region *</Label>
-                  <Select value={formData.region} onValueChange={(value) => updateFormData('region', value)}>
+                  <Label htmlFor="class">
+                    Class <span className="text-destructive">*</span>
+                  </Label>
+                  <Select value={formData.class} onValueChange={(value) => updateFormData('class', value)}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select class" />
                     </SelectTrigger>
                     <SelectContent>
-                      {cameroonRegions.map(region => (
-                        <SelectItem key={region} value={region}>{region}</SelectItem>
+                      {availableClasses.map(classOption => (
+                        <SelectItem key={classOption} value={classOption}>{classOption}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-            </div>
-          )}
 
-          {/* Step 3: Academic Information */}
-          {currentStep === 3 && (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="subsystem">Educational Sub-system *</Label>
-                  <Select 
-                    value={formData.subsystem} 
-                    onValueChange={(value) => {
-                      updateFormData('subsystem', value)
-                      updateFormData('class', '') // Reset class when subsystem changes
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="english">English Sub-system</SelectItem>
-                      <SelectItem value="french">French Sub-system</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="branch">Branch *</Label>
-                  <Select 
-                    value={formData.branch} 
-                    onValueChange={(value) => {
-                      updateFormData('branch', value)
-                      updateFormData('class', '') // Reset class when branch changes
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="grammar">Grammar</SelectItem>
-                      <SelectItem value="technical">Technical</SelectItem>
-                      <SelectItem value="commercial">Commercial</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                <Separator />
 
-              <div className="space-y-2">
-                <Label htmlFor="class">Class *</Label>
-                <Select value={formData.class} onValueChange={(value) => updateFormData('class', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select class" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableClasses.map(cls => (
-                      <SelectItem key={cls} value={cls}>{cls}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h4 className="font-medium">Previous School Information (Optional)</h4>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="previousSchool">Previous School</Label>
+                    <Label htmlFor="previousSchool">
+                      Previous School
+                    </Label>
                     <Input
                       id="previousSchool"
                       value={formData.previousSchool}
@@ -530,7 +642,9 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="previousClass">Previous Class</Label>
+                    <Label htmlFor="previousClass">
+                      Previous Class
+                    </Label>
                     <Input
                       id="previousClass"
                       value={formData.previousClass}
@@ -540,93 +654,108 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Step 4: Parent/Guardian Information */}
-          {currentStep === 4 && (
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="parentName">Parent/Guardian Name *</Label>
-                  <Input
-                    id="parentName"
-                    value={formData.parentName}
-                    onChange={(e) => updateFormData('parentName', e.target.value)}
-                    placeholder="Enter full name"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="relationship">Relationship *</Label>
-                  <Select value={formData.relationship} onValueChange={(value) => updateFormData('relationship', value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {relationships.map(rel => (
-                        <SelectItem key={rel.value} value={rel.value}>{rel.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="parentEmail">Email Address *</Label>
-                  <Input
-                    id="parentEmail"
-                    type="email"
-                    value={formData.parentEmail}
-                    onChange={(e) => updateFormData('parentEmail', e.target.value)}
-                    placeholder="parent@example.com"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="parentPhone">Phone Number *</Label>
-                  <Input
-                    id="parentPhone"
-                    type="tel"
-                    value={formData.parentPhone}
-                    onChange={(e) => updateFormData('parentPhone', e.target.value)}
-                    placeholder="+237 6XX XXX XXX"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="parentAddress">Address (Optional)</Label>
-                <Textarea
-                  id="parentAddress"
-                  value={formData.parentAddress}
-                  onChange={(e) => updateFormData('parentAddress', e.target.value)}
-                  placeholder="Enter parent/guardian address (if different from student)"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="parentOccupation">Occupation (Optional)</Label>
-                <Input
-                  id="parentOccupation"
-                  value={formData.parentOccupation}
-                  onChange={(e) => updateFormData('parentOccupation', e.target.value)}
-                  placeholder="Enter occupation"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Step 5: Emergency & Medical Information */}
-          {currentStep === 5 && (
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <h4 className="font-medium">Emergency Contact</h4>
-                <div className="grid gap-4 md:grid-cols-2">
+            {/* Step 4: Parent/Guardian Information */}
+            {currentStep === 4 && (
+              <div className="space-y-6">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="emergencyContactName">Contact Name *</Label>
+                    <Label htmlFor="parentName">
+                      Parent/Guardian Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="parentName"
+                      value={formData.parentName}
+                      onChange={(e) => updateFormData('parentName', e.target.value)}
+                      placeholder="Enter full name"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="relationship">
+                      Relationship <span className="text-destructive">*</span>
+                    </Label>
+                    <Select value={formData.relationship} onValueChange={(value) => updateFormData('relationship', value)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {relationships.map(rel => (
+                          <SelectItem key={rel.value} value={rel.value}>{rel.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="parentEmail">
+                      Parent Email <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="parentEmail"
+                      type="email"
+                      value={formData.parentEmail}
+                      onChange={(e) => updateFormData('parentEmail', e.target.value)}
+                      placeholder="parent@example.com"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="parentPhone">
+                      Parent Phone <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="parentPhone"
+                      type="tel"
+                      value={formData.parentPhone}
+                      onChange={(e) => updateFormData('parentPhone', e.target.value)}
+                      placeholder="+237 6XX XXX XXX"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Label htmlFor="parentAddress">
+                    Parent Address
+                  </Label>
+                  <Textarea
+                    id="parentAddress"
+                    value={formData.parentAddress}
+                    onChange={(e) => updateFormData('parentAddress', e.target.value)}
+                    placeholder="Enter parent/guardian address"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="parentOccupation">
+                    Parent Occupation
+                  </Label>
+                  <Input
+                    id="parentOccupation"
+                    value={formData.parentOccupation}
+                    onChange={(e) => updateFormData('parentOccupation', e.target.value)}
+                    placeholder="Enter occupation"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Emergency & Medical Information */}
+            {currentStep === 5 && (
+              <div className="space-y-6">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="emergencyContactName">
+                      Emergency Contact Name <span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       id="emergencyContactName"
                       value={formData.emergencyContactName}
@@ -636,7 +765,9 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="emergencyContactPhone">Contact Phone *</Label>
+                    <Label htmlFor="emergencyContactPhone">
+                      Emergency Contact Phone <span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       id="emergencyContactPhone"
                       type="tel"
@@ -647,8 +778,13 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                     />
                   </div>
                 </div>
+
+                <Separator />
+
                 <div className="space-y-2">
-                  <Label htmlFor="emergencyContactRelationship">Relationship to Student</Label>
+                  <Label htmlFor="emergencyContactRelationship">
+                    Emergency Contact Relationship
+                  </Label>
                   <Input
                     id="emergencyContactRelationship"
                     value={formData.emergencyContactRelationship}
@@ -656,163 +792,189 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                     placeholder="e.g., Uncle, Aunt, Family Friend"
                   />
                 </div>
-              </div>
 
-              <Separator />
+                <Separator />
 
-              <div className="space-y-4">
-                <h4 className="font-medium">Medical Information (Optional)</h4>
-                <div className="space-y-2">
-                  <Label htmlFor="bloodGroup">Blood Group</Label>
-                  <Select value={formData.bloodGroup || 'none'} onValueChange={(value) => updateFormData('bloodGroup', value === 'none' ? '' : value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select blood group" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Not specified</SelectItem>
-                      {bloodGroups.map(group => (
-                        <SelectItem key={group} value={group}>{group}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="bloodGroup">
+                      Blood Group
+                    </Label>
+                    <Select value={formData.bloodGroup} onValueChange={(value) => updateFormData('bloodGroup', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select blood group" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bloodGroups.map(group => (
+                          <SelectItem key={group} value={group}>{group}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="medicalConditions">Medical Conditions</Label>
+                  <Label htmlFor="medicalConditions">
+                    Medical Conditions
+                  </Label>
                   <Textarea
                     id="medicalConditions"
                     value={formData.medicalConditions}
                     onChange={(e) => updateFormData('medicalConditions', e.target.value)}
-                    placeholder="List any medical conditions or ongoing treatments"
+                    placeholder="List any medical conditions (if any)"
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="allergies">Allergies</Label>
+                  <Label htmlFor="allergies">
+                    Allergies
+                  </Label>
                   <Textarea
                     id="allergies"
                     value={formData.allergies}
                     onChange={(e) => updateFormData('allergies', e.target.value)}
-                    placeholder="List any known allergies"
+                    placeholder="List any allergies (if any)"
                   />
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Step 6: Required Documents */}
-          {currentStep === 6 && (
-            <div className="space-y-4">
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Please confirm that you have the following required documents. These will need to be submitted during the enrollment process.
-                </AlertDescription>
-              </Alert>
+            {/* Step 6: Required Documents */}
+            {currentStep === 6 && (
+              <div className="space-y-6">
+                <div className="bg-muted/50 border rounded-lg p-6">
+                  <h3 className="text-lg font-semibold mb-4">Required Documents</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Please confirm that you have the following documents ready for submission:
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id="birthCertificate"
+                        checked={formData.birthCertificate}
+                        onCheckedChange={(checked) => updateFormData('birthCertificate', checked)}
+                        className="mt-1"
+                      />
+                      <div className="space-y-1">
+                        <Label htmlFor="birthCertificate" className="text-sm font-semibold">
+                          Birth Certificate <span className="text-destructive">*</span>
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          Original or certified copy of birth certificate
+                        </p>
+                      </div>
+                    </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="birthCertificate"
-                    checked={formData.birthCertificate}
-                    onCheckedChange={(checked) => updateFormData('birthCertificate', checked)}
-                  />
-                  <Label htmlFor="birthCertificate" className="text-sm font-medium">
-                    Birth Certificate (Original and Copy) *
-                  </Label>
-                </div>
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id="passportPhoto"
+                        checked={formData.passportPhoto}
+                        onCheckedChange={(checked) => updateFormData('passportPhoto', checked)}
+                        className="mt-1"
+                      />
+                      <div className="space-y-1">
+                        <Label htmlFor="passportPhoto" className="text-sm font-semibold">
+                          Passport Photo <span className="text-destructive">*</span>
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          Recent passport-sized photograph (2x2 inches)
+                        </p>
+                      </div>
+                    </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="passportPhoto"
-                    checked={formData.passportPhoto}
-                    onCheckedChange={(checked) => updateFormData('passportPhoto', checked)}
-                  />
-                  <Label htmlFor="passportPhoto" className="text-sm font-medium">
-                    Passport-sized Photographs (4 copies) *
-                  </Label>
-                </div>
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id="previousTranscript"
+                        checked={formData.previousTranscript}
+                        onCheckedChange={(checked) => updateFormData('previousTranscript', checked)}
+                        className="mt-1"
+                      />
+                      <div className="space-y-1">
+                        <Label htmlFor="previousTranscript" className="text-sm font-semibold">
+                          Previous Academic Transcript
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          Transcript from previous school (if applicable)
+                        </p>
+                      </div>
+                    </div>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="previousTranscript"
-                    checked={formData.previousTranscript}
-                    onCheckedChange={(checked) => updateFormData('previousTranscript', checked)}
-                  />
-                  <Label htmlFor="previousTranscript" className="text-sm font-medium">
-                    Previous School Transcript (if applicable)
-                  </Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="medicalCertificate"
-                    checked={formData.medicalCertificate}
-                    onCheckedChange={(checked) => updateFormData('medicalCertificate', checked)}
-                  />
-                  <Label htmlFor="medicalCertificate" className="text-sm font-medium">
-                    Medical Certificate
-                  </Label>
+                    <div className="flex items-start space-x-3">
+                      <Checkbox
+                        id="medicalCertificate"
+                        checked={formData.medicalCertificate}
+                        onCheckedChange={(checked) => updateFormData('medicalCertificate', checked)}
+                        className="mt-1"
+                      />
+                      <div className="space-y-1">
+                        <Label htmlFor="medicalCertificate" className="text-sm font-semibold">
+                          Medical Certificate
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          Medical fitness certificate (if required)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
+            )}
+          </CardContent>
+        </Card>
 
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Note:</strong> Documents marked with * are mandatory for enrollment completion.
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
+        {/* Navigation Buttons */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <Button
+            variant="outline"
+            onClick={prevStep}
+            disabled={currentStep === 1}
+            className="w-full sm:w-auto"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Previous
+          </Button>
 
-          {/* Error Display */}
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
-
-                {/* Validation Message */}
-          {!isStepValid(currentStep) && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {getStepValidationMessage(currentStep)}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Navigation Buttons */}
-          <div className="flex justify-between">
-            <div>
-              {currentStep > 1 && (
-                <Button variant="outline" onClick={prevStep}>
-                  Previous
-                </Button>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={onCancel}>
-                Cancel
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={onCancel}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            
+            {currentStep < totalSteps ? (
+              <Button
+                onClick={nextStep}
+                disabled={!isStepValid(currentStep)}
+                className="w-full sm:w-auto"
+              >
+                Next
+                <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
-              {currentStep < totalSteps ? (
-                <Button 
-                  onClick={nextStep} 
-                  disabled={!isStepValid(currentStep)}
-                >
-                  Next
-                </Button>
-              ) : (
-                <Button 
-                  onClick={handleSubmit} 
-                  disabled={!isStepValid(currentStep) || isLoading}
-                >
-                  {isLoading ? 'Enrolling...' : 'Complete Enrollment'}
-                </Button>
-              )}
-            </div>
+            ) : (
+              <Button
+                onClick={handleSubmit}
+                disabled={!isStepValid(currentStep) || isLoading}
+                className="w-full sm:w-auto"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Complete Enrollment
+                  </>
+                )}
+              </Button>
+            )}
           </div>
+        </div>
+      </div>
     </div>
   )
 }

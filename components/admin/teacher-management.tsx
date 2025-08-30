@@ -18,7 +18,18 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useTeacherManagement } from "@/lib/teacher-management-context"
+import { useToast } from "@/hooks/use-toast"
 import { TeacherEnrollmentForm } from "./teacher-enrollment-form"
 import { TeacherEnrollmentSuccessDialog } from "./teacher-enrollment-success-dialog"
 import { EditTeacherForm } from "./edit-teacher-form"
@@ -26,6 +37,9 @@ import { TeacherExportForm } from "./teacher-export-form"
 
 export function TeacherManagement() {
   const { teachers, isLoading, deleteTeacher } = useTeacherManagement()
+  const { toast } = useToast()
+  
+
   const [searchTerm, setSearchTerm] = useState("")
   const [filterSubsystem, setFilterSubsystem] = useState("all")
   const [filterStatus, setFilterStatus] = useState("all")
@@ -44,6 +58,10 @@ export function TeacherManagement() {
     subjects: string[]
     classes: string[]
   } | null>(null)
+  const [teacherToDelete, setTeacherToDelete] = useState<any>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   // Filter teachers based on search term and filters
   const filteredTeachers = teachers.filter((teacher) => {
@@ -71,6 +89,9 @@ export function TeacherManagement() {
       classes: result.teacherData.classes || [],
     })
     setShowAddTeacherForm(false)
+    toast.success("Teacher enrolled successfully!", {
+      description: `${result.teacherData.firstName} ${result.teacherData.lastName} has been added to the system.`
+    })
   }
 
   const handleViewTeacher = (teacher: any) => {
@@ -86,16 +107,37 @@ export function TeacherManagement() {
   const handleEditSuccess = () => {
     setShowEditTeacherForm(false)
     setSelectedTeacher(null)
+    toast.success("Teacher updated successfully!", {
+      description: "The teacher's information has been updated in the database."
+    })
   }
 
   const handleDeleteTeacher = async (teacher: any) => {
-    if (confirm(`Are you sure you want to delete ${teacher.firstName} ${teacher.lastName}? This action cannot be undone.`)) {
-      try {
-        await deleteTeacher(teacher.id)
-      } catch (error) {
-        console.error("Error deleting teacher:", error)
-        alert("Failed to delete teacher. Please try again.")
-      }
+    setTeacherToDelete(teacher)
+    setShowDeleteDialog(true)
+  }
+
+  const confirmDeleteTeacher = async () => {
+    if (!teacherToDelete) return
+
+    setIsDeleting(true)
+    try {
+      await deleteTeacher(teacherToDelete.id)
+      toast.success("Teacher deleted successfully!", {
+        description: `${teacherToDelete.firstName} ${teacherToDelete.lastName} has been removed from the system.`
+      })
+      
+      // Force a re-render by updating the refresh key
+      setRefreshKey(prev => prev + 1)
+    } catch (error) {
+      console.error("❌ Error deleting teacher:", error)
+      toast.error("Failed to delete teacher", {
+        description: "Please try again or contact support if the problem persists."
+      })
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteDialog(false)
+      setTeacherToDelete(null)
     }
   }
 
@@ -233,7 +275,7 @@ export function TeacherManagement() {
           </div>
 
           {/* Teachers Table */}
-          <div className="rounded-md border">
+          <div className="rounded-md border" key={refreshKey}>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -388,35 +430,47 @@ export function TeacherManagement() {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <h4 className="font-medium mb-2">Contact Information</h4>
-                  <div className="space-y-1 text-sm">
-                    <p>
-                      <strong>Phone:</strong> {selectedTeacher.phone}
-                    </p>
-                    <p>
-                      <strong>Email:</strong> {selectedTeacher.email}
-                    </p>
-                    <p>
-                      <strong>Address:</strong> {selectedTeacher.address}
-                    </p>
-                  </div>
+                              <div>
+                <h4 className="font-medium mb-2">Contact Information</h4>
+                <div className="space-y-1 text-sm">
+                  <p>
+                    <strong>Phone:</strong> {selectedTeacher.phone || "Not provided"}
+                  </p>
+                  <p>
+                    <strong>Email:</strong> {selectedTeacher.email}
+                  </p>
+                  <p>
+                    <strong>Address:</strong> {selectedTeacher.address || "Not provided"}
+                  </p>
+                  <p>
+                    <strong>City:</strong> {selectedTeacher.city || "Not provided"}
+                  </p>
+                  <p>
+                    <strong>Region:</strong> {selectedTeacher.region || "Not provided"}
+                  </p>
                 </div>
+              </div>
 
-                <div>
-                  <h4 className="font-medium mb-2">Teaching Information</h4>
-                  <div className="space-y-1 text-sm">
-                    <p>
-                      <strong>Teacher ID:</strong> {selectedTeacher.teacherId}
-                    </p>
-                    <p>
-                      <strong>Subsystem:</strong> {selectedTeacher.subsystem}
-                    </p>
-                    <p>
-                      <strong>Department:</strong> {selectedTeacher.department}
-                    </p>
-                  </div>
+              <div>
+                <h4 className="font-medium mb-2">Teaching Information</h4>
+                <div className="space-y-1 text-sm">
+                  <p>
+                    <strong>Teacher ID:</strong> {selectedTeacher.teacherId}
+                  </p>
+                  <p>
+                    <strong>Subsystem:</strong> {selectedTeacher.subsystem}
+                  </p>
+                  <p>
+                    <strong>Employment Type:</strong> {selectedTeacher.employmentType}
+                  </p>
+                  <p>
+                    <strong>Start Date:</strong> {selectedTeacher.startDate || "Not provided"}
+                  </p>
+                  <p>
+                    <strong>Experience:</strong> {selectedTeacher.experience || "Not provided"}
+                  </p>
                 </div>
+              </div>
               </div>
 
               <div>
@@ -433,11 +487,45 @@ export function TeacherManagement() {
               <div>
                 <h4 className="font-medium mb-2">Classes</h4>
                 <div className="flex flex-wrap gap-2">
-                  {selectedTeacher.classes.map((cls: string) => (
-                    <Badge key={cls} variant="outline">
-                      {cls}
-                    </Badge>
-                  ))}
+                  {selectedTeacher.classes.length > 0 ? (
+                    selectedTeacher.classes.map((cls: string) => (
+                      <Badge key={cls} variant="outline">
+                        {cls}
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No classes assigned</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-medium mb-2">Qualifications</h4>
+                <div className="flex flex-wrap gap-2">
+                  {selectedTeacher.qualifications.length > 0 ? (
+                    selectedTeacher.qualifications.map((qualification: string) => (
+                      <Badge key={qualification} variant="secondary">
+                        {qualification}
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No qualifications listed</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-medium mb-2">Emergency Contact</h4>
+                <div className="space-y-1 text-sm">
+                  <p>
+                    <strong>Name:</strong> {selectedTeacher.emergencyContact?.name || "Not provided"}
+                  </p>
+                  <p>
+                    <strong>Relationship:</strong> {selectedTeacher.emergencyContact?.relationship || "Not provided"}
+                  </p>
+                  <p>
+                    <strong>Phone:</strong> {selectedTeacher.emergencyContact?.phone || "Not provided"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -501,10 +589,39 @@ export function TeacherManagement() {
               setShowExportForm(false)
               setSelectedTeacher(null)
               setSelectedTeachers([])
+              toast.success("Teacher data exported successfully!", {
+                description: "The teacher data has been exported to your selected format."
+              })
             }}
           />
         </DialogContent>
       </Dialog>
+
+      {/* Delete Teacher Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Teacher</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete{" "}
+              <strong>
+                {teacherToDelete?.title} {teacherToDelete?.firstName} {teacherToDelete?.lastName}
+              </strong>
+              ? This action cannot be undone and will permanently remove the teacher from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteTeacher} 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete Teacher"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

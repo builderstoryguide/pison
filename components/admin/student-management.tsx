@@ -19,6 +19,8 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  CheckSquare,
+  Square,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -33,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Pagination } from "@/components/ui/pagination"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,6 +82,7 @@ export function StudentManagement() {
     loadStudents,
     updateStudent,
     deleteStudent,
+    deleteStudentsBulk,
     getFilteredStudents,
     getNewStudents,
     getStudentStats,
@@ -106,6 +110,11 @@ export function StudentManagement() {
   const [showEditForm, setShowEditForm] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
   const [studentToDelete, setStudentToDelete] = useState<{ id: string; name: string } | null>(null)
+  
+  // Bulk selection state
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([])
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false)
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -148,6 +157,11 @@ export function StudentManagement() {
     setItemsPerPage(newItemsPerPage)
     setCurrentPage(1) // Reset to first page
   }
+
+  // Clear selection when tab changes or filters are applied
+  useEffect(() => {
+    setSelectedStudents([])
+  }, [activeTab, filters])
 
   const handleEnrollmentSuccess = (result: { 
     studentId: string; 
@@ -232,6 +246,51 @@ export function StudentManagement() {
       showError("Failed to update student", "There was an error updating the student's information. Please try again.")
       return false
     }
+  }
+
+  // Bulk selection handlers
+  const handleSelectStudent = (studentId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedStudents(prev => [...prev, studentId])
+    } else {
+      setSelectedStudents(prev => prev.filter(id => id !== studentId))
+    }
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedStudents(paginatedStudents.map(student => student.id))
+    } else {
+      setSelectedStudents([])
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedStudents.length === 0) {
+      showError("No students selected", "Please select at least one student to delete.")
+      return
+    }
+
+    setIsBulkDeleting(true)
+    try {
+      const result = await deleteStudentsBulk(selectedStudents)
+      if (result.success) {
+        success("Bulk delete successful", `${result.deletedCount} student${result.deletedCount === 1 ? '' : 's'} have been permanently deleted from the system.`)
+        setSelectedStudents([])
+        loadStudents() // Refresh the list
+      } else {
+        showError("Bulk delete failed", result.errors.join(", "))
+      }
+    } catch (err) {
+      showError("Error during bulk delete", "An unexpected error occurred while deleting the students.")
+    } finally {
+      setIsBulkDeleting(false)
+      setShowBulkDeleteDialog(false)
+    }
+  }
+
+  const clearSelection = () => {
+    setSelectedStudents([])
   }
 
   const exportToCSV = () => {
@@ -642,6 +701,50 @@ export function StudentManagement() {
         </CardContent>
       </Card>
 
+      {/* Bulk Actions */}
+      {selectedStudents.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-orange-600" />
+                <span className="font-medium text-orange-800">
+                  {selectedStudents.length} student{selectedStudents.length === 1 ? '' : 's'} selected
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearSelection}
+                  className="text-orange-700 border-orange-300 hover:bg-orange-100"
+                >
+                  Clear Selection
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowBulkDeleteDialog(true)}
+                  disabled={isBulkDeleting}
+                >
+                  {isBulkDeleting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Selected
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Students Table */}
       <Card>
         <CardHeader>
@@ -767,6 +870,13 @@ export function StudentManagement() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={paginatedStudents.length > 0 && selectedStudents.length === paginatedStudents.length}
+                            onCheckedChange={handleSelectAll}
+                            aria-label="Select all students"
+                          />
+                        </TableHead>
                         <TableHead>Student</TableHead>
                         <TableHead>Student ID</TableHead>
                         <TableHead>Class</TableHead>
@@ -780,6 +890,13 @@ export function StudentManagement() {
                     <TableBody>
                       {paginatedStudents.map((student) => (
                         <TableRow key={student.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedStudents.includes(student.id)}
+                              onCheckedChange={(checked) => handleSelectStudent(student.id, checked as boolean)}
+                              aria-label={`Select ${student.first_name} ${student.last_name}`}
+                            />
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <Avatar className="h-8 w-8">
@@ -1039,6 +1156,28 @@ export function StudentManagement() {
                className="bg-red-600 hover:bg-red-700"
              >
                Delete Student
+             </AlertDialogAction>
+           </AlertDialogFooter>
+         </AlertDialogContent>
+       </AlertDialog>
+
+       {/* Bulk Delete Confirmation Dialog */}
+       <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+         <AlertDialogContent>
+           <AlertDialogHeader>
+             <AlertDialogTitle>Delete Multiple Students</AlertDialogTitle>
+             <AlertDialogDescription>
+               Are you sure you want to delete {selectedStudents.length} student{selectedStudents.length === 1 ? '' : 's'}? This action cannot be undone and will permanently remove all their data from the system.
+             </AlertDialogDescription>
+           </AlertDialogHeader>
+           <AlertDialogFooter>
+             <AlertDialogCancel onClick={() => setShowBulkDeleteDialog(false)}>Cancel</AlertDialogCancel>
+             <AlertDialogAction
+               onClick={handleBulkDelete}
+               className="bg-red-600 hover:bg-red-700"
+               disabled={isBulkDeleting}
+             >
+               {isBulkDeleting ? "Deleting..." : `Delete ${selectedStudents.length} Student${selectedStudents.length === 1 ? '' : 's'}`}
              </AlertDialogAction>
            </AlertDialogFooter>
          </AlertDialogContent>

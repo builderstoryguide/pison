@@ -8,9 +8,25 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { X, Plus } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Separator } from "@/components/ui/separator"
+import { 
+  X, 
+  Plus, 
+  BookOpen, 
+  Users, 
+  GraduationCap, 
+  UserCheck, 
+  Calendar,
+  AlertCircle,
+  CheckCircle2,
+  ArrowRight,
+  ArrowLeft
+} from "lucide-react"
 import { useClassManagement, type ClassFormData, type ClassData } from "@/lib/class-management-context"
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { cn } from "@/lib/utils"
 
 interface ClassFormProps {
   onSuccess: (result: { classId: string; classData: ClassFormData }) => void
@@ -174,180 +190,297 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
     }
   }
 
+  const isFormValid = () => {
+    return formData.name && formData.level && formData.classTeacher && formData.subjects.length > 0
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <DialogHeader>
-        <DialogTitle>{editClass ? "Edit Class" : "Create New Class"}</DialogTitle>
-      </DialogHeader>
-
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-sm text-red-600">{error}</p>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Basic Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
-            <CardDescription>Class name, level, and system details</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="name">Class Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., Form 1A"
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="level">Level</Label>
-              <Select value={formData.level} onValueChange={(value) => setFormData({ ...formData, level: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Form 1">Form 1</SelectItem>
-                  <SelectItem value="Form 2">Form 2</SelectItem>
-                  <SelectItem value="Form 3">Form 3</SelectItem>
-                  <SelectItem value="Form 4">Form 4</SelectItem>
-                  <SelectItem value="Form 5">Form 5</SelectItem>
-                  <SelectItem value="Form 6">Form 6</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="subsystem">Subsystem</Label>
-              <Select value={formData.subsystem} onValueChange={(value: "english" | "french") => setFormData({ ...formData, subsystem: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="english">English</SelectItem>
-                  <SelectItem value="french">French</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="branch">Branch</Label>
-              <Select value={formData.branch} onValueChange={(value: "grammar" | "technical" | "commercial") => setFormData({ ...formData, branch: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="grammar">Grammar</SelectItem>
-                  <SelectItem value="technical">Technical</SelectItem>
-                  <SelectItem value="commercial">Commercial</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Capacity and Teacher */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Capacity & Teacher</CardTitle>
-            <CardDescription>Class capacity and assigned teacher</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="capacity">Capacity</Label>
-              <Input
-                id="capacity"
-                type="number"
-                min="1"
-                max="100"
-                value={formData.capacity}
-                onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="classTeacher">Class Teacher</Label>
-              <Input
-                id="classTeacher"
-                value={formData.classTeacher}
-                onChange={(e) => setFormData({ ...formData, classTeacher: e.target.value })}
-                placeholder="e.g., Mrs. Sarah Johnson"
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="academicYear">Academic Year</Label>
-              <Input
-                id="academicYear"
-                value={formData.academicYear}
-                onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
-                placeholder="e.g., 2024/2025"
-                required
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Subjects Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Subjects</CardTitle>
-          <CardDescription>Select subjects for this class</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-            {getAvailableSubjects().map((subject) => (
-              <div key={subject} className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id={subject}
-                  checked={formData.subjects.includes(subject)}
-                  onChange={() => handleSubjectToggle(subject)}
-                  className="rounded"
-                />
-                <Label htmlFor={subject} className="text-sm cursor-pointer">
-                  {subject}
-                </Label>
-              </div>
-            ))}
+        <div className="min-h-screen bg-background p-4">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-full mb-4">
+            <BookOpen className="h-8 w-8 text-primary-foreground" />
           </div>
+          <h1 className="text-3xl font-bold text-foreground">
+            {editClass ? "Edit Class" : "Create New Class"}
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            {editClass
+              ? "Update the class information and configuration"
+              : "Set up a new class with all necessary details and subject assignments"
+            }
+          </p>
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            <Badge variant="secondary" className="px-4 py-2 text-sm">
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              {editClass ? "Editing Mode" : "Creation Mode"}
+            </Badge>
+            {editClass && (
+              <Badge variant="outline" className="px-4 py-2 text-sm font-mono">
+                ID: {editClass.id}
+              </Badge>
+            )}
+          </div>
+        </div>
 
-          {formData.subjects.length > 0 && (
-            <div className="mt-4">
-              <Label>Selected Subjects ({formData.subjects.length})</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {formData.subjects.map((subject) => (
-                  <Badge key={subject} variant="secondary" className="flex items-center gap-1">
-                    {subject}
-                    <X
-                      className="h-3 w-3 cursor-pointer"
-                      onClick={() => handleSubjectToggle(subject)}
-                    />
-                  </Badge>
-                ))}
+        {/* Form Content */}
+        <Card>
+          <CardHeader className="pb-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center bg-primary">
+                <BookOpen className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <div>
+                <CardTitle className="text-2xl font-bold">
+                  Class Configuration
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Configure all aspects of the class including basic information, capacity, teacher assignment, and subjects
+                </CardDescription>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
 
-      {/* Form Actions */}
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Saving..." : editClass ? "Update Class" : "Create Class"}
-        </Button>
+          <CardContent className="space-y-6">
+            {/* Error Alert */}
+            {error && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {error}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Basic Information Section */}
+              <div className="space-y-6">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <GraduationCap className="h-4 w-4 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold">Basic Information</h3>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">
+                      Class Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g., Form 1A, Terminale C"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="level">
+                      Level <span className="text-destructive">*</span>
+                    </Label>
+                    <Select value={formData.level} onValueChange={(value) => setFormData({ ...formData, level: value })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Form 1">Form 1</SelectItem>
+                        <SelectItem value="Form 2">Form 2</SelectItem>
+                        <SelectItem value="Form 3">Form 3</SelectItem>
+                        <SelectItem value="Form 4">Form 4</SelectItem>
+                        <SelectItem value="Form 5">Form 5</SelectItem>
+                        <SelectItem value="Form 6">Form 6</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="subsystem">
+                      Educational Subsystem <span className="text-destructive">*</span>
+                    </Label>
+                    <Select value={formData.subsystem} onValueChange={(value: "english" | "french") => setFormData({ ...formData, subsystem: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="english">English Subsystem</SelectItem>
+                        <SelectItem value="french">French Subsystem</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="branch">
+                      Branch <span className="text-destructive">*</span>
+                    </Label>
+                    <Select value={formData.branch} onValueChange={(value: "grammar" | "technical" | "commercial") => setFormData({ ...formData, branch: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="grammar">Grammar</SelectItem>
+                        <SelectItem value="technical">Technical</SelectItem>
+                        <SelectItem value="commercial">Commercial</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Capacity and Teacher Section */}
+              <div className="space-y-6">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Users className="h-4 w-4 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold">Capacity & Teacher Assignment</h3>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="capacity">
+                      Class Capacity <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="capacity"
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={formData.capacity}
+                      onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">Maximum number of students</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="classTeacher">
+                      Class Teacher <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="classTeacher"
+                      value={formData.classTeacher}
+                      onChange={(e) => setFormData({ ...formData, classTeacher: e.target.value })}
+                      placeholder="e.g., Mrs. Sarah Johnson"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="academicYear">
+                      Academic Year <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="academicYear"
+                      value={formData.academicYear}
+                      onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
+                      placeholder="e.g., 2024/2025"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Subjects Selection Section */}
+              <div className="space-y-6">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <BookOpen className="h-4 w-4 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold">Subject Selection</h3>
+                </div>
+
+                <div className="bg-muted/50 border rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-sm font-semibold">
+                      Available Subjects for {formData.subsystem === 'english' ? 'English' : 'French'} {formData.branch}
+                    </h4>
+                    <Badge variant="secondary">
+                      {formData.subjects.length} selected
+                    </Badge>
+                  </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {getAvailableSubjects().map((subject) => (
+                      <div key={subject} className="flex items-center space-x-3 p-3 bg-background rounded-lg border hover:border-primary transition-colors">
+                        <Checkbox
+                          id={subject}
+                          checked={formData.subjects.includes(subject)}
+                          onCheckedChange={() => handleSubjectToggle(subject)}
+                        />
+                        <Label
+                          htmlFor={subject}
+                          className="text-sm font-medium cursor-pointer hover:text-primary transition-colors"
+                        >
+                          {subject}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+
+                                    {formData.subjects.length > 0 && (
+                    <div className="mt-6">
+                      <h5 className="text-sm font-semibold mb-3">
+                        Selected Subjects ({formData.subjects.length})
+                      </h5>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.subjects.map((subject) => (
+                          <Badge
+                            key={subject}
+                            variant="secondary"
+                            className="flex items-center gap-2"
+                          >
+                            {subject}
+                            <X
+                              className="h-3 w-3 cursor-pointer hover:text-destructive"
+                              onClick={() => handleSubjectToggle(subject)}
+                            />
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex justify-between items-center gap-4 pt-6 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onCancel}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || !isFormValid()}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
+                      {editClass ? "Updating..." : "Creating..."}
+                    </>
+                  ) : (
+                    <>
+                      <ArrowRight className="h-4 w-4 mr-2" />
+                      {editClass ? "Update Class" : "Create Class"}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
-    </form>
+    </div>
   )
 }

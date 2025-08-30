@@ -84,6 +84,9 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
     }
   })
 
+  const watchedRole = form.watch('role')
+  const watchedPermissions = form.watch('permissions')
+
   const onSubmit = async (data: z.infer<typeof FormSchema>) => {
     const userData = {
       ...data,
@@ -104,62 +107,86 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
         <h3 className="text-lg font-medium">Basic Information</h3>
         
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="name">Full Name *</Label>
-            <Input
-              id="name"
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              required
-            />
-          </div>
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Full Name *</FormLabel>
+                <FormControl>
+                  <Input {...field} required />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email Address *</Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-              required
-            />
-          </div>
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email Address *</FormLabel>
+                <FormControl>
+                  <Input {...field} type="email" required />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number</Label>
-            <Input
-              id="phone"
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-            />
-          </div>
+          <FormField
+            control={form.control}
+            name="phone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Phone Number</FormLabel>
+                <FormControl>
+                  <Input {...field} type="tel" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-          <div className="space-y-2">
-            <Label htmlFor="gender">Gender</Label>
-            <Select value={formData.gender || ''} onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value as 'male' | 'female' }))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select gender" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="address">Address</Label>
-          <Textarea
-            id="address"
-            value={formData.address}
-            onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+          <FormField
+            control={form.control}
+            name="gender"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Gender</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="address"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Address</FormLabel>
+              <FormControl>
+                <Textarea {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}
@@ -208,149 +235,183 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Role Information</h3>
         
-        <div className="space-y-2">
-          <Label htmlFor="role">Role</Label>
-          <Select 
-            value={formData.role} 
-            onValueChange={(value) => setFormData(prev => ({ ...prev, role: value as any }))}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="admin">Administrator</SelectItem>
-              <SelectItem value="teacher">Teacher</SelectItem>
-              <SelectItem value="student">Student</SelectItem>
-              <SelectItem value="parent">Parent</SelectItem>
-                              <SelectItem value="bursar">Bursar</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Role-specific fields */}
-        {formData.role === 'student' && (
-          <>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="studentId">Student ID</Label>
-                <Input
-                  id="studentId"
-                  type="text"
-                  value={formData.studentId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, studentId: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="class">Class</Label>
-                <Input
-                  id="class"
-                  type="text"
-                  value={formData.class}
-                  onChange={(e) => setFormData(prev => ({ ...prev, class: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="branch">Branch</Label>
-            <Select 
-              value={formData.branch || 'none'} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, branch: value === 'none' ? undefined : value as 'grammar' | 'technical' | 'commercial' }))}
-            >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select branch" />
-                </SelectTrigger>
+        <FormField
+          control={form.control}
+          name="role"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Role</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
                 <SelectContent>
-                  <SelectItem value="none">Not specified</SelectItem>
-                  <SelectItem value="grammar">Grammar</SelectItem>
-                  <SelectItem value="technical">Technical</SelectItem>
-                  <SelectItem value="commercial">Commercial</SelectItem>
+                  <SelectItem value="admin">Administrator</SelectItem>
+                  <SelectItem value="teacher">Teacher</SelectItem>
+                  <SelectItem value="student">Student</SelectItem>
+                  <SelectItem value="parent">Parent</SelectItem>
+                  <SelectItem value="bursar">Bursar</SelectItem>
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Role-specific fields */}
+        {watchedRole === 'student' && (
+          <>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="studentId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Student ID</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="text" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="class"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Class</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="text" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
+            <FormField
+              control={form.control}
+              name="branch"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Branch</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || 'none'}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select branch" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">Not specified</SelectItem>
+                      <SelectItem value="grammar">Grammar</SelectItem>
+                      <SelectItem value="technical">Technical</SelectItem>
+                      <SelectItem value="commercial">Commercial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </>
         )}
 
-        {formData.role === 'teacher' && (
-          <div className="space-y-2">
-            <Label htmlFor="teacherRegNo">Teacher Registration Number</Label>
-            <Input
-              id="teacherRegNo"
-              type="text"
-              value={formData.teacherRegNo}
-              onChange={(e) => setFormData(prev => ({ ...prev, teacherRegNo: e.target.value }))}
-            />
-          </div>
+        {watchedRole === 'teacher' && (
+          <FormField
+            control={form.control}
+            name="teacherRegNo"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Teacher Registration Number</FormLabel>
+                <FormControl>
+                  <Input {...field} type="text" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         )}
 
-        {formData.role === 'parent' && (
-          <div className="space-y-2">
-            <Label htmlFor="parentCode">Parent Access Code</Label>
-            <Input
-              id="parentCode"
-              type="text"
-              value={formData.parentCode}
-              onChange={(e) => setFormData(prev => ({ ...prev, parentCode: e.target.value }))}
-            />
-          </div>
+        {watchedRole === 'parent' && (
+          <FormField
+            control={form.control}
+            name="parentCode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Parent Access Code</FormLabel>
+                <FormControl>
+                  <Input {...field} type="text" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         )}
 
         {/* Subsystem Selection */}
-        {(formData.role === 'student' || formData.role === 'teacher') && (
-          <div className="space-y-2">
-            <Label htmlFor="subsystem">Educational Sub-system</Label>
-            <Select 
-              value={formData.subsystem} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, subsystem: value as any }))}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="english">English Sub-system</SelectItem>
-                <SelectItem value="french">French Sub-system</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        {(watchedRole === 'student' || watchedRole === 'teacher') && (
+          <FormField
+            control={form.control}
+            name="subsystem"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Educational Sub-system</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="english">English Sub-system</SelectItem>
+                    <SelectItem value="french">French Sub-system</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         )}
 
-        <div className="space-y-2">
-          <Label htmlFor="status">Account Status</Label>
-          <Select 
-            value={formData.status} 
-            onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as any }))}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-              <SelectItem value="suspended">Suspended</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <FormField
+          control={form.control}
+          name="status"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Account Status</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="suspended">Suspended</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </div>
 
       {/* Permissions */}
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Permissions</h3>
         <div className="space-y-2">
-          {rolePermissions[formData.role]?.map((permission) => (
+          {rolePermissions[watchedRole]?.map((permission) => (
             <div key={permission} className="flex items-center space-x-2">
               <Checkbox
                 id={permission}
-                checked={formData.permissions.includes(permission)}
+                checked={watchedPermissions.includes(permission)}
                 onCheckedChange={(checked) => {
                   if (checked) {
-                    setFormData(prev => ({
-                      ...prev,
-                      permissions: [...prev.permissions, permission]
-                    }))
+                    form.setValue('permissions', [...watchedPermissions, permission])
                   } else {
-                    setFormData(prev => ({
-                      ...prev,
-                      permissions: prev.permissions.filter(p => p !== permission)
-                    }))
+                    form.setValue('permissions', watchedPermissions.filter(p => p !== permission))
                   }
                 }}
               />
