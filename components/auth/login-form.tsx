@@ -37,11 +37,11 @@ const placeholderTexts = {
 }
 
 const demoCredentials = {
-  admin: { identifier: 'admin@gbhs-yaounde.cm', password: 'password123' },
+  admin: { identifier: 'admin@pisonacademy.cm', password: 'password123' },
   teacher: { identifier: 'TCH2024001', password: 'password123' },
   student: { identifier: 'STU2024001', password: 'password123' },
   parent: { identifier: 'PAR2024001', password: 'password123' },
-  bursar: { identifier: 'g.tabi@gbhs-yaounde.cm', password: 'password123' }
+  bursar: { identifier: 'bursar@pisonacademy.cm', password: 'password123' }
 }
 
 export function LoginForm() {
@@ -85,12 +85,12 @@ export function LoginForm() {
               <School className="h-6 w-6" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold">EduManage CM</h1>
+          <h1 className="text-2xl font-bold">Pison Academy of Excellence</h1>
           <p className="text-muted-foreground">School Management System</p>
           <div className="flex justify-center">
             <Badge variant="outline" className="flex items-center gap-1">
               <Languages className="h-3 w-3" />
-              Government Bilingual High School
+              Excellence in Education
             </Badge>
           </div>
         </div>
@@ -258,7 +258,7 @@ export function LoginForm() {
 
         {/* Footer */}
         <div className="text-center text-sm text-muted-foreground">
-          <p>© 2024 Government Bilingual High School Yaoundé</p>
+          <p>© 2024 Pison Academy of Excellence</p>
           <p>Secure Educational Management System</p>
         </div>
       </div>

@@ -29,10 +29,6 @@ function AppContent() {
     )
   }
 
-  if (!user) {
-    return <Dashboard />
-  }
-
   return (
     <NotificationProvider>
       <UserManagementProvider>

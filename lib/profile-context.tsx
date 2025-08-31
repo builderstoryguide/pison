@@ -73,7 +73,7 @@ const mockProfiles: Record<string, ProfileData> = {
   "1": {
     id: "1",
     name: "Dr. Marie Ngozi",
-    email: "admin@gbhs-yaounde.cm",
+            email: "admin@pisonacademy.cm",
     role: "admin",
     avatar: "/placeholder.svg?height=100&width=100",
     phone: "+237 677 123 456",
@@ -109,7 +109,7 @@ const mockProfiles: Record<string, ProfileData> = {
   "2": {
     id: "2",
     name: "Paul Biya Mbeki",
-    email: "p.mbeki@gbhs-yaounde.cm",
+            email: "p.mbeki@pisonacademy.cm",
     role: "teacher",
     teacherRegNo: "TCH2024001",
     subsystem: "english",
@@ -143,7 +143,7 @@ const mockProfiles: Record<string, ProfileData> = {
   "3": {
     id: "3",
     name: "Amina Fru",
-    email: "amina.fru@student.gbhs-yaounde.cm",
+            email: "amina.fru@student.pisonacademy.cm",
     role: "student",
     studentId: "STU2024001",
     branch: "grammar",

@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     let result
 
-    // Use optimized database function for better performance
+    // Use optimized database function for better performance when no filters are applied
     if (!action && !userId && !search) {
       // Use the optimized function for recent logs
       const { data, error } = await supabase.rpc('get_recent_activity_logs', {

@@ -55,7 +55,7 @@ const mockUsers: User[] = [
   {
     id: "1",
     name: "Dr. Marie Ngozi",
-    email: "admin@gbhs-yaounde.cm",
+    email: "admin@pisonacademy.cm",
     role: "admin",
     permissions: ["all"],
     subsystem: "english",
@@ -63,7 +63,7 @@ const mockUsers: User[] = [
   {
     id: "2",
     name: "Paul Biya Mbeki",
-    email: "p.mbeki@gbhs-yaounde.cm",
+    email: "p.mbeki@pisonacademy.cm",
     role: "teacher",
     teacherRegNo: "TCH2024001",
     permissions: ["manage_classes", "grade_students", "mark_attendance"],
@@ -72,7 +72,7 @@ const mockUsers: User[] = [
   {
     id: "3",
     name: "Amina Fru",
-    email: "amina.fru@student.gbhs-yaounde.cm",
+    email: "amina.fru@student.pisonacademy.cm",
     role: "student",
     studentId: "STU2024001",
     branch: "grammar",
@@ -83,7 +83,7 @@ const mockUsers: User[] = [
   {
     id: "4",
     name: "John Fru",
-    email: "john.fru@parent.gbhs-yaounde.cm",
+    email: "john.fru@parent.pisonacademy.cm",
     role: "parent",
     parentCode: "PAR2024001",
     permissions: ["view_child_progress", "communicate_teachers"],
@@ -92,7 +92,7 @@ const mockUsers: User[] = [
   {
     id: '5',
     name: 'Grace Tabi',
-    email: 'g.tabi@gbhs-yaounde.cm',
+    email: 'bursar@pisonacademy.cm',
     role: 'bursar',
     permissions: ['manage_finances', 'track_payments', 'generate_reports'],
     subsystem: 'english'

@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import { Calendar, Plus, X } from "lucide-react"
+import { Calendar, Plus, X, ChevronDownIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { useTeacherGrades } from "@/lib/teacher-grades-context"
 
 interface AssessmentCreationFormProps {
@@ -18,7 +20,7 @@ interface AssessmentCreationFormProps {
 }
 
 export function AssessmentCreationForm({ onSuccess, onCancel }: AssessmentCreationFormProps) {
-  const { classes, createAssessment, loading } = useTeacherGrades()
+  const { classes, createAssessment, loading, getTeacherSubjects } = useTeacherGrades()
 
   const [formData, setFormData] = useState({
     title: "",
@@ -27,12 +29,15 @@ export function AssessmentCreationForm({ onSuccess, onCancel }: AssessmentCreati
     classId: "",
     totalMarks: 100,
     date: new Date().toISOString().split("T")[0],
+    dueDate: undefined as Date | undefined,
     description: "",
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [dueDateOpen, setDueDateOpen] = useState(false)
 
   const selectedClass = classes.find((cls) => cls.id === formData.classId)
+  const teacherSubjects = getTeacherSubjects()
 
   const assessmentTypes: {
     value: "quiz" | "test" | "exam" | "assignment" | "project"
@@ -55,6 +60,14 @@ export function AssessmentCreationForm({ onSuccess, onCancel }: AssessmentCreati
     if (!formData.classId) newErrors.classId = "Please select a class"
     if (formData.totalMarks <= 0) newErrors.totalMarks = "Total marks must be greater than 0"
     if (!formData.date) newErrors.date = "Assessment date is required"
+    
+    // Validate due date is not before assessment date
+    if (formData.dueDate && formData.date) {
+      const assessmentDate = new Date(formData.date)
+      if (formData.dueDate < assessmentDate) {
+        newErrors.dueDate = "Due date cannot be before assessment date"
+      }
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -76,6 +89,7 @@ export function AssessmentCreationForm({ onSuccess, onCancel }: AssessmentCreati
         className: selectedClass?.name || "",
         totalMarks: formData.totalMarks,
         date: formData.date,
+        dueDate: formData.dueDate?.toISOString().split("T")[0] || undefined,
       })
 
       if (onSuccess) {
@@ -144,11 +158,6 @@ export function AssessmentCreationForm({ onSuccess, onCancel }: AssessmentCreati
               value={formData.classId}
               onValueChange={(value) => {
                 handleInputChange("classId", value)
-                // Auto-fill subject based on class
-                const selectedClass = classes.find((cls) => cls.id === value)
-                if (selectedClass) {
-                  handleInputChange("subject", selectedClass.subject)
-                }
               }}
             >
               <SelectTrigger>
@@ -170,16 +179,24 @@ export function AssessmentCreationForm({ onSuccess, onCancel }: AssessmentCreati
             {errors.classId && <p className="text-sm text-red-600">{errors.classId}</p>}
           </div>
 
-          {/* Subject */}
+          {/* Subject - Now a dropdown with teacher's assigned subjects */}
           <div className="space-y-2">
             <Label htmlFor="subject">Subject *</Label>
-            <Input
-              id="subject"
+            <Select
               value={formData.subject}
-              onChange={(e) => handleInputChange("subject", e.target.value)}
-              placeholder="e.g., Mathematics, Physics, English"
-              disabled={!!selectedClass} // Auto-filled when class is selected
-            />
+              onValueChange={(value) => handleInputChange("subject", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a subject" />
+              </SelectTrigger>
+              <SelectContent>
+                {teacherSubjects.map((subject) => (
+                  <SelectItem key={subject} value={subject}>
+                    {subject}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {errors.subject && <p className="text-sm text-red-600">{errors.subject}</p>}
           </div>
 
@@ -212,6 +229,35 @@ export function AssessmentCreationForm({ onSuccess, onCancel }: AssessmentCreati
               </div>
               {errors.date && <p className="text-sm text-red-600">{errors.date}</p>}
             </div>
+          </div>
+
+          {/* Due Date */}
+          <div className="space-y-2">
+            <Label htmlFor="dueDate">Due Date (Optional)</Label>
+            <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  id="dueDate"
+                  className="w-full justify-between font-normal"
+                >
+                  {formData.dueDate ? formData.dueDate.toLocaleDateString() : "Select due date"}
+                  <ChevronDownIcon className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={formData.dueDate}
+                  captionLayout="dropdown"
+                  onSelect={(date) => {
+                    handleInputChange("dueDate", date)
+                    setDueDateOpen(false)
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+            {errors.dueDate && <p className="text-sm text-red-600">{errors.dueDate}</p>}
           </div>
 
           {/* Description */}

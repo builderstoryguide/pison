@@ -12,14 +12,37 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { CalendarIcon, Download, Upload, FileText, Clock, CheckCircle, AlertCircle, Eye, Plus, Edit, Trash2, Users } from "lucide-react"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { 
+  FileText, 
+  Upload, 
+  Calendar, 
+  Users, 
+  Plus,
+  Edit,
+  Trash2,
+  Eye,
+  Download,
+  CheckCircle,
+  AlertCircle
+} from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 
-// Types
+const assignmentSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional(),
+  subject: z.string().min(1, "Subject is required"),
+  class_id: z.string().min(1, "Class is required"),
+  total_marks: z.number().min(0.1, "Total marks must be greater than 0"),
+  passing_marks: z.number().min(0, "Passing marks must be non-negative"),
+  due_date: z.string().min(1, "Due date is required"),
+  instructions: z.string().optional(),
+  submission_type: z.enum(["file", "text", "both"]),
+  allow_late_submission: z.boolean(),
+  late_penalty_percentage: z.number().min(0).max(100),
+})
+
+type AssignmentFormData = z.infer<typeof assignmentSchema>
+
 interface Assignment {
   id: string
   assignment_id: string
@@ -31,296 +54,241 @@ interface Assignment {
   total_marks: number
   passing_marks: number
   weight_percentage: number
-  assignment_file_url?: string
-  assignment_file_name?: string
-  assignment_file_size?: number
-  assignment_file_type?: string
+  assignment_file_url: string | null
+  assignment_file_name: string | null
+  assignment_file_size: number | null
+  assignment_file_type: string | null
   assigned_date: string
   due_date: string
   status: string
-  instructions?: string
+  instructions: string | null
   submission_type: string
   allow_late_submission: boolean
   late_penalty_percentage: number
   created_at: string
   updated_at: string
-  assignment_submissions?: AssignmentSubmission[]
 }
-
-interface AssignmentSubmission {
-  id: string
-  submission_id: string
-  assignment_id: string
-  student_id: string
-  teacher_id: string
-  submitted_text?: string
-  submission_file_url?: string
-  submission_file_name?: string
-  submission_file_size?: number
-  submission_file_type?: string
-  marks_obtained?: number
-  percentage?: number
-  grade_letter?: string
-  remarks?: string
-  feedback?: string
-  is_late: boolean
-  is_absent: boolean
-  is_excused: boolean
-  submitted_at: string
-  graded_at?: string
-  status: string
-}
-
-// Form schemas
-const assignmentSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
-  subject: z.string().min(1, "Subject is required"),
-  class_id: z.string().min(1, "Class is required"),
-  total_marks: z.number().min(1, "Total marks must be greater than 0"),
-  passing_marks: z.number().min(0, "Passing marks must be 0 or greater"),
-  weight_percentage: z.number().min(1, "Weight percentage must be greater than 0").max(100, "Weight percentage cannot exceed 100"),
-  assigned_date: z.date(),
-  due_date: z.date(),
-  instructions: z.string().optional(),
-  submission_type: z.enum(["file", "text", "both"]),
-  allow_late_submission: z.boolean(),
-  late_penalty_percentage: z.number().min(0).max(100),
-  status: z.enum(["draft", "published", "in_progress", "completed", "archived"]),
-})
-
-const gradingSchema = z.object({
-  marks_obtained: z.number().min(0, "Marks must be 0 or greater"),
-  feedback: z.string().optional(),
-  remarks: z.string().optional(),
-})
-
-type AssignmentFormData = z.infer<typeof assignmentSchema>
-type GradingFormData = z.infer<typeof gradingSchema>
 
 export function AssignmentManagement() {
   const { user } = useAuth()
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [loading, setLoading] = useState(true)
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [showGradingDialog, setShowGradingDialog] = useState(false)
-  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null)
-  const [selectedSubmission, setSelectedSubmission] = useState<AssignmentSubmission | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [filterStatus, setFilterStatus] = useState("all")
 
-  const assignmentForm = useForm<AssignmentFormData>({
+  const supabase = createClient()
+
+  const form = useForm<AssignmentFormData>({
     resolver: zodResolver(assignmentSchema),
     defaultValues: {
       title: "",
       description: "",
       subject: "",
       class_id: "",
-      total_marks: 0,
-      passing_marks: 50,
-      weight_percentage: 100,
-      assigned_date: new Date(),
-      due_date: new Date(),
+      total_marks: 25,
+      passing_marks: 12.5,
+      due_date: "",
       instructions: "",
       submission_type: "file",
       allow_late_submission: false,
       late_penalty_percentage: 0,
-      status: "draft",
     },
   })
 
-  const gradingForm = useForm<GradingFormData>({
-    resolver: zodResolver(gradingSchema),
-    defaultValues: {
-      marks_obtained: 0,
-      feedback: "",
-      remarks: "",
-    },
-  })
-
-  // Fetch assignments for the teacher
   useEffect(() => {
-    const fetchAssignments = async () => {
-      try {
-        const response = await fetch(`/api/assignments?teacherId=${user?.id}`)
-        if (response.ok) {
-          const data = await response.json()
-          setAssignments(data.assignments || [])
-        }
-      } catch (error) {
-        console.error("Error fetching assignments:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     if (user?.id) {
-      fetchAssignments()
+      loadAssignments()
     }
   }, [user?.id])
 
-  // Handle file selection for assignment creation
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const loadAssignments = async () => {
+    try {
+      setLoading(true)
+      
+      const { data: assignmentsData, error: assignmentsError } = await supabase
+        .from("assignments")
+        .select("*")
+        .eq("teacher_id", user?.id)
+        .order("created_at", { ascending: false })
+
+      if (assignmentsError) {
+        console.error("Error fetching assignments:", assignmentsError)
+        setError("Failed to load assignments")
+        return
+      }
+
+      setAssignments(assignmentsData || [])
+    } catch (err) {
+      console.error("Error loading assignments:", err)
+      setError("An unexpected error occurred")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
+      const allowedTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/msword'
+      ]
+      
+      if (!allowedTypes.includes(file.type)) {
+        alert("Please select a PDF or Word document")
+        return
+      }
+
+      if (file.size > 10 * 1024 * 1024) {
+        alert("File size must be less than 10MB")
+        return
+      }
+
       setSelectedFile(file)
     }
   }
 
-  // Handle assignment creation
-  const handleCreateAssignment = async (data: AssignmentFormData) => {
-    if (!user) return
-
-    setSubmitting(true)
+  const uploadFile = async (file: File): Promise<string | null> => {
     try {
-      // In a real application, you would upload the file to Supabase Storage first
-      const assignmentData = {
-        ...data,
-        teacher_id: user.id,
-        assignment_file_url: selectedFile ? `/uploads/${selectedFile.name}` : undefined,
-        assignment_file_name: selectedFile?.name,
-        assignment_file_size: selectedFile?.size,
-        assignment_file_type: selectedFile?.type,
-        assigned_date: format(data.assigned_date, "yyyy-MM-dd"),
-        due_date: format(data.due_date, "yyyy-MM-dd"),
+      setUploadingFile(true)
+      
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user?.id}_${Date.now()}.${fileExt}`
+      const filePath = `assignments/${fileName}`
+
+      const { data, error } = await supabase.storage
+        .from('assignments')
+        .upload(filePath, file)
+
+      if (error) {
+        console.error("Error uploading file:", error)
+        throw new Error("Failed to upload file")
       }
 
-      const response = await fetch("/api/assignments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(assignmentData),
-      })
+      const { data: { publicUrl } } = supabase.storage
+        .from('assignments')
+        .getPublicUrl(filePath)
 
-      if (response.ok) {
-        // Refresh assignments
-        const updatedResponse = await fetch(`/api/assignments?teacherId=${user?.id}`)
-        if (updatedResponse.ok) {
-          const updatedData = await updatedResponse.json()
-          setAssignments(updatedData.assignments || [])
-        }
-        
-        // Reset form
-        assignmentForm.reset()
-        setSelectedFile(null)
-        setShowCreateDialog(false)
-      } else {
-        const errorData = await response.json()
-        console.error("Creation error:", errorData.error)
-      }
-    } catch (error) {
-      console.error("Error creating assignment:", error)
+      return publicUrl
+    } catch (err) {
+      console.error("Error uploading file:", err)
+      throw err
     } finally {
-      setSubmitting(false)
+      setUploadingFile(false)
     }
   }
 
-  // Handle assignment deletion
+  const handleCreateAssignment = async (data: AssignmentFormData) => {
+    try {
+      let assignmentFileUrl: string | null = null
+      let assignmentFileName: string | null = null
+      let assignmentFileSize: number | null = null
+      let assignmentFileType: string | null = null
+
+      if (selectedFile) {
+        assignmentFileUrl = await uploadFile(selectedFile)
+        assignmentFileName = selectedFile.name
+        assignmentFileSize = selectedFile.size
+        assignmentFileType = selectedFile.type
+      }
+
+      const { error: assignmentError } = await supabase
+        .from("assignments")
+        .insert({
+          assignment_id: `ASS${Date.now()}`,
+          title: data.title,
+          description: data.description,
+          subject: data.subject,
+          class_id: data.class_id,
+          teacher_id: user?.id,
+          total_marks: data.total_marks,
+          passing_marks: data.passing_marks,
+          weight_percentage: 100.0,
+          assignment_file_url: assignmentFileUrl,
+          assignment_file_name: assignmentFileName,
+          assignment_file_size: assignmentFileSize,
+          assignment_file_type: assignmentFileType,
+          assigned_date: new Date().toISOString().split('T')[0],
+          due_date: data.due_date,
+          status: "published",
+          instructions: data.instructions,
+          submission_type: data.submission_type,
+          allow_late_submission: data.allow_late_submission,
+          late_penalty_percentage: data.late_penalty_percentage,
+        })
+
+      if (assignmentError) {
+        console.error("Error creating assignment:", assignmentError)
+        alert("Failed to create assignment. Please try again.")
+        return
+      }
+
+      form.reset()
+      setSelectedFile(null)
+      setIsCreateDialogOpen(false)
+      await loadAssignments()
+      alert("Assignment created successfully!")
+    } catch (err) {
+      console.error("Error creating assignment:", err)
+      alert("An error occurred while creating the assignment")
+    }
+  }
+
   const handleDeleteAssignment = async (assignmentId: string) => {
     if (!confirm("Are you sure you want to delete this assignment?")) return
 
     try {
-      const response = await fetch(`/api/assignments?id=${assignmentId}`, {
-        method: "DELETE",
-      })
+      const { error } = await supabase
+        .from("assignments")
+        .delete()
+        .eq("id", assignmentId)
 
-      if (response.ok) {
-        // Refresh assignments
-        const updatedResponse = await fetch(`/api/assignments?teacherId=${user?.id}`)
-        if (updatedResponse.ok) {
-          const updatedData = await updatedResponse.json()
-          setAssignments(updatedData.assignments || [])
-        }
+      if (error) {
+        console.error("Error deleting assignment:", error)
+        alert("Failed to delete assignment")
+        return
       }
-    } catch (error) {
-      console.error("Error deleting assignment:", error)
+
+      await loadAssignments()
+      alert("Assignment deleted successfully!")
+    } catch (err) {
+      console.error("Error deleting assignment:", err)
+      alert("An error occurred while deleting the assignment")
     }
   }
 
-  // Handle grading submission
-  const handleGradeSubmission = async (data: GradingFormData) => {
-    if (!selectedSubmission) return
-
-    setSubmitting(true)
-    try {
-      const gradingData = {
-        id: selectedSubmission.id,
-        marks_obtained: data.marks_obtained,
-        percentage: (data.marks_obtained / selectedAssignment!.total_marks) * 100,
-        grade_letter: getGradeLetter((data.marks_obtained / selectedAssignment!.total_marks) * 100),
-        feedback: data.feedback,
-        remarks: data.remarks,
-      }
-
-      const response = await fetch("/api/assignments/submissions", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(gradingData),
-      })
-
-      if (response.ok) {
-        // Refresh assignments
-        const updatedResponse = await fetch(`/api/assignments?teacherId=${user?.id}`)
-        if (updatedResponse.ok) {
-          const updatedData = await updatedResponse.json()
-          setAssignments(updatedData.assignments || [])
-        }
-        
-        // Reset form
-        gradingForm.reset()
-        setShowGradingDialog(false)
-        setSelectedSubmission(null)
-      }
-    } catch (error) {
-      console.error("Error grading submission:", error)
-    } finally {
-      setSubmitting(false)
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "published":
+        return <Badge className="bg-green-100 text-green-800">Published</Badge>
+      case "draft":
+        return <Badge className="bg-gray-100 text-gray-800">Draft</Badge>
+      case "archived":
+        return <Badge className="bg-red-100 text-red-800">Archived</Badge>
+      default:
+        return <Badge variant="secondary">{status}</Badge>
     }
   }
 
-  // Get grade letter
-  const getGradeLetter = (percentage: number): string => {
-    if (percentage >= 90) return "A+"
-    if (percentage >= 80) return "A"
-    if (percentage >= 70) return "B+"
-    if (percentage >= 60) return "B"
-    if (percentage >= 50) return "C"
-    if (percentage >= 40) return "D"
-    return "F"
-  }
-
-  // Get submission statistics
-  const getSubmissionStats = (assignment: Assignment) => {
-    const submissions = assignment.assignment_submissions || []
-    const total = submissions.length
-    const submitted = submissions.filter(s => s.status === "submitted" || s.status === "graded").length
-    const graded = submissions.filter(s => s.status === "graded").length
-    const late = submissions.filter(s => s.is_late).length
-
-    return { total, submitted, graded, late }
-  }
+  const filteredAssignments = assignments.filter(assignment => {
+    const matchesSearch = assignment.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         assignment.subject.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    if (filterStatus === "all") return matchesSearch
+    return matchesSearch && assignment.status === filterStatus
+  })
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Assignment Management</h1>
-            <p className="text-muted-foreground">Create and manage assignments for your classes</p>
-          </div>
-        </div>
-        <div className="grid gap-4">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardHeader>
-                <div className="h-4 bg-muted rounded w-3/4"></div>
-                <div className="h-3 bg-muted rounded w-1/2"></div>
-              </CardHeader>
-            </Card>
-          ))}
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading assignments...</p>
         </div>
       </div>
     )
@@ -328,495 +296,336 @@ export function AssignmentManagement() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Assignment Management</h1>
+          <h2 className="text-2xl font-bold">Assignment Management</h2>
           <p className="text-muted-foreground">Create and manage assignments for your classes</p>
         </div>
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Assignment
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Assignment</DialogTitle>
-              <DialogDescription>
-                Create a new assignment for your students
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...assignmentForm}>
-              <form onSubmit={assignmentForm.handleSubmit(handleCreateAssignment)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={assignmentForm.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Title</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Assignment title" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={assignmentForm.control}
-                    name="subject"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Subject</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Subject" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={assignmentForm.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Assignment description" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={assignmentForm.control}
-                    name="class_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Class</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Class (e.g., Form 5A)" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={assignmentForm.control}
-                    name="total_marks"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total Marks</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            placeholder="100"
-                            {...field}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={assignmentForm.control}
-                    name="assigned_date"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Assigned Date</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant={"outline"}
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground",
-                                )}
-                              >
-                                {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={assignmentForm.control}
-                    name="due_date"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Due Date</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant={"outline"}
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground",
-                                )}
-                              >
-                                {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) => date < new Date("1900-01-01")}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={assignmentForm.control}
-                  name="instructions"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Instructions (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Special instructions for students" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={assignmentForm.control}
-                    name="submission_type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Submission Type</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select submission type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="file">File Only</SelectItem>
-                            <SelectItem value="text">Text Only</SelectItem>
-                            <SelectItem value="both">File & Text</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={assignmentForm.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="published">Published</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div>
-                  <FormLabel>Assignment File (Optional)</FormLabel>
-                  <Input
-                    type="file"
-                    accept=".pdf,.docx,.doc"
-                    onChange={handleFileChange}
-                    className="mt-1"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Accepted formats: PDF, DOCX, DOC
-                  </p>
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={submitting}>
-                    {submitting ? "Creating..." : "Create Assignment"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Assignment
+        </Button>
       </div>
 
-      {assignments.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-center">
-            <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">No Assignments</h3>
-            <p className="text-muted-foreground">Create your first assignment to get started.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {assignments.map((assignment) => {
-            const stats = getSubmissionStats(assignment)
-            
-            return (
-              <Card key={assignment.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="flex items-center gap-2">
-                        {assignment.title}
-                        <Badge variant={assignment.status === "published" ? "default" : "secondary"}>
-                          {assignment.status}
-                        </Badge>
-                      </CardTitle>
-                      <CardDescription className="mt-2">
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="flex items-center gap-1">
-                            <FileText className="h-4 w-4" />
-                            {assignment.subject}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            Due: {format(new Date(assignment.due_date), "PPP")}
-                          </span>
-                          <span className="font-medium">
-                            {assignment.total_marks} marks
-                          </span>
-                        </div>
-                      </CardDescription>
+      {/* Filters */}
+      <div className="flex items-center gap-4">
+        <div className="flex-1">
+          <Input
+            placeholder="Search assignments..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="px-3 py-2 border rounded-md"
+        >
+          <option value="all">All Status</option>
+          <option value="published">Published</option>
+          <option value="draft">Draft</option>
+          <option value="archived">Archived</option>
+        </select>
+      </div>
+
+      {/* Assignments List */}
+      <div className="space-y-4">
+        {filteredAssignments.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">No Assignments Found</h3>
+              <p className="text-muted-foreground">
+                {searchTerm || filterStatus !== "all" 
+                  ? "Try adjusting your search or filters."
+                  : "Create your first assignment to get started."
+                }
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredAssignments.map((assignment) => (
+            <Card key={assignment.id} className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg">{assignment.title}</CardTitle>
+                    <CardDescription className="mt-1">
+                      {assignment.subject} • {assignment.class_id}
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(assignment.status)}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span>Due: {new Date(assignment.due_date).toLocaleDateString()}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteAssignment(assignment.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <span>{assignment.total_marks} marks</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span>{assignment.submission_type}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span>Created: {new Date(assignment.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {assignment.description}
-                  </p>
-                  
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="flex items-center gap-1 text-sm">
-                      <Users className="h-4 w-4" />
-                      <span>{stats.submitted}/{stats.total} submitted</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-sm">
-                      <CheckCircle className="h-4 w-4" />
-                      <span>{stats.graded} graded</span>
-                    </div>
-                    {stats.late > 0 && (
-                      <div className="flex items-center gap-1 text-sm text-orange-600">
-                        <AlertCircle className="h-4 w-4" />
-                        <span>{stats.late} late</span>
-                      </div>
-                    )}
-                  </div>
+
+                  {assignment.description && (
+                    <p className="text-sm text-muted-foreground">
+                      {assignment.description}
+                    </p>
+                  )}
 
                   <div className="flex items-center gap-2">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4 mr-1" />
-                          View Submissions
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>{assignment.title} - Submissions</DialogTitle>
-                          <DialogDescription>
-                            View and grade student submissions
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                          {assignment.assignment_submissions?.map((submission) => (
-                            <Card key={submission.id}>
-                              <CardHeader>
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <CardTitle className="text-lg">Student {submission.student_id}</CardTitle>
-                                    <CardDescription>
-                                      Submitted on {format(new Date(submission.submitted_at), "PPP")}
-                                      {submission.is_late && (
-                                        <Badge variant="destructive" className="ml-2">Late</Badge>
-                                      )}
-                                    </CardDescription>
-                                  </div>
-                                  {submission.status === "graded" ? (
-                                    <div className="text-right">
-                                      <div className="font-medium">{submission.marks_obtained}/{assignment.total_marks}</div>
-                                      <Badge variant="outline">{submission.grade_letter}</Badge>
-                                    </div>
-                                  ) : (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedSubmission(submission)
-                                        setSelectedAssignment(assignment)
-                                        setShowGradingDialog(true)
-                                      }}
-                                    >
-                                      Grade
-                                    </Button>
-                                  )}
-                                </div>
-                              </CardHeader>
-                              <CardContent>
-                                {submission.submitted_text && (
-                                  <div className="mb-4">
-                                    <h4 className="font-medium mb-2">Text Submission:</h4>
-                                    <p className="text-sm text-muted-foreground">{submission.submitted_text}</p>
-                                  </div>
-                                )}
-                                
-                                {submission.submission_file_name && (
-                                  <div className="mb-4">
-                                    <h4 className="font-medium mb-2">File Submission:</h4>
-                                    <div className="flex items-center gap-2">
-                                      <FileText className="h-4 w-4" />
-                                      <span className="text-sm">{submission.submission_file_name}</span>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => window.open(submission.submission_file_url, '_blank')}
-                                      >
-                                        <Download className="h-4 w-4 mr-1" />
-                                        Download
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {submission.feedback && (
-                                  <div className="p-3 bg-muted rounded-lg">
-                                    <h4 className="font-medium mb-1">Feedback:</h4>
-                                    <p className="text-sm">{submission.feedback}</p>
-                                  </div>
-                                )}
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                    <Button variant="outline" size="sm">
+                      <Eye className="h-4 w-4 mr-2" />
+                      View
+                    </Button>
+                    <Button variant="outline" size="sm">
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleDeleteAssignment(assignment.id)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
 
-      {/* Grading Dialog */}
-      <Dialog open={showGradingDialog} onOpenChange={setShowGradingDialog}>
-        <DialogContent>
+      {/* Create Assignment Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Grade Submission</DialogTitle>
+            <DialogTitle>Create New Assignment</DialogTitle>
             <DialogDescription>
-              Grade the student's submission
+              Create a new assignment for your students
             </DialogDescription>
           </DialogHeader>
-          <Form {...gradingForm}>
-            <form onSubmit={gradingForm.handleSubmit(handleGradeSubmission)} className="space-y-4">
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleCreateAssignment)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Assignment Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter assignment title..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="subject"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Subject</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Mathematics" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
-                control={gradingForm.control}
-                name="marks_obtained"
+                control={form.control}
+                name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Marks Obtained</FormLabel>
+                    <FormLabel>Description (Optional)</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        placeholder={`0-${selectedAssignment?.total_marks}`}
-                        {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      <Textarea 
+                        placeholder="Describe the assignment..."
+                        className="min-h-[80px]"
+                        {...field} 
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="class_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Class</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Form 5A" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="due_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Due Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="total_marks"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Total Marks</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.1"
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="passing_marks"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Passing Marks</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.1"
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="submission_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Submission Type</FormLabel>
+                      <FormControl>
+                        <select 
+                          className="w-full px-3 py-2 border rounded-md"
+                          {...field}
+                        >
+                          <option value="file">File Only</option>
+                          <option value="text">Text Only</option>
+                          <option value="both">Both</option>
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
-                control={gradingForm.control}
-                name="feedback"
+                control={form.control}
+                name="instructions"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Feedback (Optional)</FormLabel>
+                    <FormLabel>Instructions (Optional)</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Provide feedback to the student" {...field} />
+                      <Textarea 
+                        placeholder="Provide instructions for students..."
+                        className="min-h-[80px]"
+                        {...field} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <FormField
-                control={gradingForm.control}
-                name="remarks"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Remarks (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Additional remarks" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+              <div>
+                <label className="text-sm font-medium">Assignment File (Optional)</label>
+                <div className="mt-2">
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.doc"
+                    onChange={handleFileSelect}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Accepted formats: PDF, Word documents (max 10MB)
+                  </p>
+                </div>
+                {selectedFile && (
+                  <div className="mt-2 flex items-center gap-2 text-sm text-green-600">
+                    <CheckCircle className="h-4 w-4" />
+                    {selectedFile.name} selected
+                  </div>
                 )}
-              />
+              </div>
 
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowGradingDialog(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsCreateDialogOpen(false)
+                    form.reset()
+                    setSelectedFile(null)
+                  }}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? "Grading..." : "Submit Grade"}
+                <Button type="submit" disabled={uploadingFile}>
+                  {uploadingFile ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Assignment
+                    </>
+                  )}
                 </Button>
               </div>
             </form>

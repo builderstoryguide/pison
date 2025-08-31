@@ -114,12 +114,12 @@ export function StudentScheduleView() {
       },
     ],
     teachers: [
-      { name: "Mr. Johnson", subject: "Mathematics", email: "johnson@gbhs-yaounde.cm" },
-      { name: "Mrs. Smith", subject: "English", email: "smith@gbhs-yaounde.cm" },
-      { name: "Dr. Brown", subject: "Physics", email: "brown@gbhs-yaounde.cm" },
-      { name: "Ms. Davis", subject: "Chemistry", email: "davis@gbhs-yaounde.cm" },
-      { name: "Mr. Wilson", subject: "Biology", email: "wilson@gbhs-yaounde.cm" },
-      { name: "Mrs. Taylor", subject: "History", email: "taylor@gbhs-yaounde.cm" },
+          { name: "Mr. Johnson", subject: "Mathematics", email: "johnson@pisonacademy.cm" },
+    { name: "Mrs. Smith", subject: "English", email: "smith@pisonacademy.cm" },
+    { name: "Dr. Brown", subject: "Physics", email: "brown@pisonacademy.cm" },
+    { name: "Ms. Davis", subject: "Chemistry", email: "davis@pisonacademy.cm" },
+    { name: "Mr. Wilson", subject: "Biology", email: "wilson@pisonacademy.cm" },
+    { name: "Mrs. Taylor", subject: "History", email: "taylor@pisonacademy.cm" },
     ],
   }
 

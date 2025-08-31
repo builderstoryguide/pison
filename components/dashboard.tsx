@@ -44,6 +44,7 @@ import { ReportCards } from "@/components/admin/report-cards"
 import { TeacherDashboard } from "./teacher/teacher-dashboard"
 import { TeacherClassesView } from "./teacher/teacher-classes-view"
 import { GradesManagement } from "./teacher/grades-management"
+import { TeacherAssignmentManagement } from "./teacher/teacher-assignment-management"
 
 // Parent Components
 import { ParentDashboard } from "./parent/parent-dashboard"
@@ -54,6 +55,7 @@ import { ParentChildRecords } from "./parent/parent-child-records"
 import { StudentDashboard } from "./student/student-dashboard"
 import { StudentGradesView } from "./student/student-grades-view"
 import { StudentScheduleView } from "./student/student-schedule-view"
+import { StudentAssignmentsView } from "./student/student-assignments-view"
 
 // Bursar Components
 import { BursarDashboard } from "./bursar/bursar-dashboard"
@@ -144,7 +146,7 @@ type AdminView =
   | "reports-generated"
   | "reports-cards"
 
-type TeacherView = "dashboard" | "classes" | "attendance" | "grades" | "profile"
+type TeacherView = "dashboard" | "classes" | "attendance" | "grades" | "assignments" | "profile"
 
 type ParentView = "dashboard" | "records" | "communication" | "profile"
 
@@ -502,10 +504,10 @@ export function Dashboard() {
                     <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                       <School className="size-4" />
                     </div>
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">GBHS Yaoundé</span>
-                      <span className="truncate text-xs">Parent Portal</span>
-                    </div>
+                                         <div className="grid flex-1 text-left text-sm leading-tight">
+                       <span className="truncate font-semibold">Pison Academy of Excellence</span>
+                       <span className="truncate text-xs">Parent Portal</span>
+                     </div>
                   </div>
                 </SidebarMenuItem>
               </SidebarMenu>
@@ -611,17 +613,7 @@ export function Dashboard() {
         case "schedule":
           return <StudentScheduleView />
         case "assignments":
-          return <div className="space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold">Assignments</h1>
-              <p className="text-muted-foreground">Track your assignments and deadlines</p>
-            </div>
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-muted-foreground">Assignment management coming soon...</p>
-              </CardContent>
-            </Card>
-          </div>
+          return <StudentAssignmentsView />
         case "fees":
           return <div className="space-y-6">
             <div>
@@ -652,10 +644,10 @@ export function Dashboard() {
                     <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                       <School className="size-4" />
                     </div>
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">GBHS Yaoundé</span>
-                      <span className="truncate text-xs">Student Portal</span>
-                    </div>
+                                         <div className="grid flex-1 text-left text-sm leading-tight">
+                       <span className="truncate font-semibold">Pison Academy of Excellence</span>
+                       <span className="truncate text-xs">Student Portal</span>
+                     </div>
                   </div>
                 </SidebarMenuItem>
               </SidebarMenu>
@@ -933,10 +925,10 @@ export function Dashboard() {
                                       <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                                         <School className="size-4" />
                                       </div>
-                                      <div className="grid flex-1 text-left text-sm leading-tight">
-                                        <span className="truncate font-semibold">GBHS Yaoundé</span>
-                                        <span className="truncate text-xs">Admin Panel</span>
-                                      </div>
+                                                           <div className="grid flex-1 text-left text-sm leading-tight">
+                       <span className="truncate font-semibold">Pison Academy of Excellence</span>
+                       <span className="truncate text-xs">Admin Panel</span>
+                     </div>
                                     </div>
                                   </SidebarMenuItem>
                                 </SidebarMenu>
@@ -1076,6 +1068,7 @@ export function Dashboard() {
       { id: "classes", label: "My Classes", icon: BookOpen },
       { id: "attendance", label: "Attendance", icon: CalendarCheck },
       { id: "grades", label: "Grades", icon: ClipboardList },
+      { id: "assignments", label: "Assignments", icon: Award },
     ]
 
     const renderTeacherContent = () => {
@@ -1084,6 +1077,8 @@ export function Dashboard() {
           return <TeacherClassesView />
         case "grades":
           return <GradesManagement />
+        case "assignments":
+          return <TeacherAssignmentManagement />
         case "profile":
           return <ProfileSettings />
         default:
@@ -1105,10 +1100,10 @@ export function Dashboard() {
                           <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                             <School className="size-4" />
                           </div>
-                          <div className="grid flex-1 text-left text-sm leading-tight">
-                            <span className="truncate font-semibold">GBHS Yaoundé</span>
-                            <span className="truncate text-xs">Teacher Portal</span>
-                          </div>
+                                               <div className="grid flex-1 text-left text-sm leading-tight">
+                       <span className="truncate font-semibold">Pison Academy of Excellence</span>
+                       <span className="truncate text-xs">Teacher Portal</span>
+                     </div>
                         </div>
                       </SidebarMenuItem>
                     </SidebarMenu>
@@ -1245,10 +1240,10 @@ export function Dashboard() {
                       <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                         <School className="size-4" />
                       </div>
-                      <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-semibold">GBHS Yaoundé</span>
-                        <span className="truncate text-xs">Bursar Portal</span>
-                      </div>
+                                           <div className="grid flex-1 text-left text-sm leading-tight">
+                       <span className="truncate font-semibold">Pison Academy of Excellence</span>
+                       <span className="truncate text-xs">Bursar Portal</span>
+                     </div>
                     </div>
                   </SidebarMenuItem>
                 </SidebarMenu>

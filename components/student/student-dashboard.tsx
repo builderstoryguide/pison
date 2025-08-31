@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { StudentAssignmentsView } from "./student-assignments-view"
 import {
   BookOpen,
   Calendar,
@@ -35,7 +36,7 @@ export function StudentDashboard({ onNavigate }: StudentDashboardProps) {
   const studentData = {
     id: "STU2024001",
     name: "Amina Fru",
-    email: "amina.fru@student.gbhs-yaounde.cm",
+    email: "amina.fru@student.pisonacademy.cm",
     class: "Form 5A",
     branch: "Grammar",
     subsystem: "English",
@@ -313,31 +314,7 @@ export function StudentDashboard({ onNavigate }: StudentDashboardProps) {
         </TabsContent>
 
         <TabsContent value="assignments" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BookMarked className="h-5 w-5" />
-                Assignment Tracker
-              </CardTitle>
-              <CardDescription>Manage your assignments and deadlines</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {studentData.upcomingAssignments.map((assignment, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">{assignment.title}</h4>
-                      <p className="text-sm text-muted-foreground">{assignment.subject}</p>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant="secondary">{assignment.dueDate}</Badge>
-                      <p className="text-xs text-muted-foreground mt-1">Due soon</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <StudentAssignmentsView />
         </TabsContent>
 
         <TabsContent value="fees" className="space-y-4">

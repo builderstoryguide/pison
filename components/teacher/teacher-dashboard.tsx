@@ -16,6 +16,7 @@ import {
   TrendingUp,
   FileText,
   Eye,
+  Award,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -126,12 +127,20 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Grades</CardTitle>
-            <FileText className="h-4 w-4 text-yellow-600" />
+            <CardTitle className="text-sm font-medium">Active Assignments</CardTitle>
+            <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{pendingGrades}</div>
-            <p className="text-xs text-muted-foreground">Assessments to grade</p>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">
+              <Button 
+                variant="link" 
+                className="p-0 h-auto text-xs text-muted-foreground hover:text-primary"
+                onClick={() => onNavigate?.("assignments")}
+              >
+                Manage assignments
+              </Button>
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -205,14 +214,22 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
               <FileText className="h-4 w-4 mr-2" />
               Enter Grades
             </Button>
-            <Button 
-              variant="outline" 
-              className="w-full justify-start bg-transparent"
-              onClick={() => onNavigate?.("grades")}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Assessment
-            </Button>
+                         <Button 
+               variant="outline" 
+               className="w-full justify-start bg-transparent"
+               onClick={() => onNavigate?.("grades")}
+             >
+               <Plus className="h-4 w-4 mr-2" />
+               Create Assessment
+             </Button>
+             <Button 
+               variant="outline" 
+               className="w-full justify-start bg-transparent"
+               onClick={() => onNavigate?.("assignments")}
+             >
+               <Award className="h-4 w-4 mr-2" />
+               Manage Assignments
+             </Button>
             <Button variant="outline" className="w-full justify-start bg-transparent">
               <TrendingUp className="h-4 w-4 mr-2" />
               View Reports
@@ -356,8 +373,8 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+                 </CardContent>
+       </Card>
     </div>
   )
 }

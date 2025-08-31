@@ -3,6 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react"
 import { supabase, isSupabaseAvailable } from "./supabase"
+import { useAuth } from "@/lib/auth-context"
 
 // Types
 export interface Assessment {
@@ -14,6 +15,7 @@ export interface Assessment {
   className: string
   totalMarks: number
   date: string
+  dueDate?: string
   createdAt: string
 }
 
@@ -55,6 +57,7 @@ interface TeacherGradesContextType {
   grades: Grade[]
   students: Student[]
   classes: TeacherClass[]
+  teacherSubjects: string[] // Add teacher subjects
   loading: boolean
   error: string | null
 
@@ -85,8 +88,12 @@ interface TeacherGradesContextType {
   // Class functions
   getTeacherClasses: () => TeacherClass[]
 
+  // Teacher functions
+  getTeacherSubjects: () => string[] // Add function to get teacher subjects
+
   // Utility functions
   calculateGrade: (marks: number, totalMarks: number) => string
+  calculateAverageOn20: (marks: number, totalMarks: number) => number
   getGradeColor: (grade: string) => string
 }
 
@@ -101,6 +108,7 @@ export function useTeacherGrades() {
 }
 
 export function TeacherGradesProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth()
   // Mock data as fallback
   const mockAssessments: Assessment[] = [
     {
@@ -204,9 +212,45 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
   const [grades, setGrades] = useState<Grade[]>(mockGrades)
   const [students, setStudents] = useState<Student[]>(mockStudents)
   const [classes, setClasses] = useState<TeacherClass[]>(mockClasses)
+  const [teacherSubjects, setTeacherSubjects] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [useDatabase, setUseDatabase] = useState(false)
+
+  const loadTeacherSubjects = useCallback(async () => {
+    if (useDatabase && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("teacher_subjects")
+          .select("subject_name")
+          .eq("teacher_id", user?.id)
+          .eq("is_active", true)
+
+        if (error) {
+          // Check if it's a "relation does not exist" error
+          if (error.message?.includes('relation "teacher_subjects" does not exist')) {
+            console.warn("Teacher subjects table does not exist. Using default subjects.")
+            // Set some default subjects for now
+            setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
+            return
+          }
+          console.error("Supabase error fetching teacher subjects:", error)
+          throw error
+        }
+
+        if (data) {
+          setTeacherSubjects(data.map((item: any) => item.subject_name))
+        } else {
+          // If no data, set some default subjects
+          setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
+        }
+      } catch (err) {
+        console.error("Error fetching teacher subjects:", err)
+        // Set default subjects on error
+        setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
+      }
+    }
+  }, [useDatabase, user?.id])
 
   const loadDataFromDatabase = useCallback(async () => {
     if (!useDatabase || !supabase) return
@@ -229,6 +273,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           className: assessment.class_name || "",
           totalMarks: assessment.total_marks,
           date: assessment.assessment_date,
+          dueDate: assessment.due_date,
           createdAt: assessment.created_at,
         }))
         setAssessments(formattedAssessments)
@@ -291,13 +336,16 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
         }))
         setClasses(formattedClasses)
       }
+
+      // Load teacher subjects
+      await loadTeacherSubjects()
     } catch (err) {
       console.error("Error loading data from database:", err)
       setError("Failed to load data from database")
     } finally {
       setLoading(false)
     }
-  }, [useDatabase])
+  }, [useDatabase, loadTeacherSubjects, user?.id])
 
   // Check database availability on mount
   useEffect(() => {
@@ -350,7 +398,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           class_id: assessmentData.classId,
           total_marks: assessmentData.totalMarks,
           assessment_date: assessmentData.date,
-          teacher_id: "current-teacher-id",
+          teacher_id: user?.id,
           status: "draft",
         })
 
@@ -361,13 +409,13 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
             p_type: assessmentData.type,
             p_subject: assessmentData.subject,
             p_class_id: assessmentData.classId,
-            p_teacher_id: "current-teacher-id", // TODO: Get from auth context
+            p_teacher_id: user?.id, // TODO: Get from auth context
             p_total_marks: assessmentData.totalMarks,
             p_assessment_date: assessmentData.date,
             p_description: null, // Not in current interface
             p_passing_marks: 50.0, // Default value
             p_weight_percentage: 100.0, // Default value
-            p_due_date: null,
+            p_due_date: assessmentData.dueDate || null,
             p_status: "draft"
           })
 
@@ -398,6 +446,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           className: createdAssessment.class_name || createdAssessment.class_id, // Fallback to class_id if class_name not available
           totalMarks: createdAssessment.total_marks,
           date: createdAssessment.assessment_date,
+          dueDate: createdAssessment.due_date,
           createdAt: createdAssessment.created_at,
         }
         setAssessments((prev) => [...prev, newAssessment])
@@ -424,7 +473,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     } finally {
       setLoading(false)
     }
-  }, [useDatabase])
+  }, [useDatabase, user?.id])
 
   const updateAssessment = useCallback(async (id: string, updates: Partial<Assessment>) => {
     setLoading(true)
@@ -497,7 +546,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           .rpc('create_grade', {
             p_assessment_id: gradeData.assessmentId,
             p_student_id: gradeData.studentId,
-            p_teacher_id: "current-teacher-id", // TODO: Get from auth context
+            p_teacher_id: user?.id, // TODO: Get from auth context
             p_marks_obtained: gradeData.marks,
             p_remarks: gradeData.remarks || null,
             p_feedback: null,
@@ -546,7 +595,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     } finally {
       setLoading(false)
     }
-  }, [useDatabase])
+  }, [useDatabase, user?.id])
 
   const updateGrade = useCallback(async (id: string, updates: Partial<Grade>) => {
     setLoading(true)
@@ -671,15 +720,28 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     return classes
   }, [classes])
 
+  // Teacher functions
+  const getTeacherSubjects = useCallback(() => {
+    return teacherSubjects
+  }, [teacherSubjects])
+
   // Utility functions
   const calculateGrade = useCallback((marks: number, totalMarks: number): string => {
     const percentage = (marks / totalMarks) * 100
-    if (percentage >= 90) return "A"
-    if (percentage >= 80) return "B"
-    if (percentage >= 70) return "C"
-    if (percentage >= 60) return "D"
-    if (percentage >= 50) return "E"
-    return "F"
+    // Convert percentage to Cameroonian scale of 20
+    const averageOn20 = (percentage / 100) * 20
+    
+    if (averageOn20 >= 16) return "A" // 16-20: Excellent
+    if (averageOn20 >= 14) return "B" // 14-15.99: Very Good
+    if (averageOn20 >= 12) return "C" // 12-13.99: Good
+    if (averageOn20 >= 10) return "D" // 10-11.99: Fair
+    if (averageOn20 >= 8) return "E"  // 8-9.99: Poor
+    return "F" // 0-7.99: Very Poor
+  }, [])
+
+  const calculateAverageOn20 = useCallback((marks: number, totalMarks: number): number => {
+    const percentage = (marks / totalMarks) * 100
+    return Math.round((percentage / 100) * 20 * 100) / 100 // Round to 2 decimal places
   }, [])
 
   const getGradeColor = useCallback((grade: string): string => {
@@ -708,6 +770,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       grades,
       students,
       classes,
+      teacherSubjects,
       loading,
       error,
 
@@ -732,8 +795,12 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       // Class functions
       getTeacherClasses,
 
+      // Teacher functions
+      getTeacherSubjects,
+
       // Utility functions
       calculateGrade,
+      calculateAverageOn20,
       getGradeColor,
     }),
     [
@@ -741,6 +808,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       grades,
       students,
       classes,
+      teacherSubjects,
       loading,
       error,
       createAssessment,
@@ -756,6 +824,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       getStudentsByClass,
       getStudentStats,
       getTeacherClasses,
+      getTeacherSubjects,
       calculateGrade,
       getGradeColor,
     ],
