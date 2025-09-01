@@ -463,7 +463,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
-                  <Label htmlFor="total_fees">Total Fees (XAF)</Label>
+                  <Label htmlFor="total_fees">Total Fees (XOF)</Label>
                   <Input
                     id="total_fees"
                     type="number"
@@ -473,7 +473,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="paid_fees">Paid Fees (XAF)</Label>
+                  <Label htmlFor="paid_fees">Paid Fees (XOF)</Label>
                   <Input
                     id="paid_fees"
                     type="number"
@@ -537,16 +537,16 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                   <div className="grid gap-2 text-sm">
                     <div className="flex justify-between">
                       <span>Total Fees:</span>
-                                             <span className="font-medium">{formData.total_fees?.toLocaleString()} XAF</span>
+                                             <span className="font-medium">{formData.total_fees?.toLocaleString()} XOF</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Paid Amount:</span>
-                                             <span className="font-medium text-green-600">{formData.paid_fees?.toLocaleString()} XAF</span>
+                                             <span className="font-medium text-green-600">{formData.paid_fees?.toLocaleString()} XOF</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Outstanding:</span>
                       <span className="font-medium text-red-600">
-                                                 {((formData.total_fees || 0) - (formData.paid_fees || 0)).toLocaleString()} XAF
+                                                 {((formData.total_fees || 0) - (formData.paid_fees || 0)).toLocaleString()} XOF
                       </span>
                     </div>
                     <Separator />

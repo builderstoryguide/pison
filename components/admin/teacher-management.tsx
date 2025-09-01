@@ -1,11 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Mail, Phone, Download } from "lucide-react"
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Mail, Phone, Download, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
@@ -29,6 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useTeacherManagement } from "@/lib/teacher-management-context"
+import { useUserManagement } from "@/lib/user-management-context"
 import { useToast } from "@/hooks/use-toast"
 import { TeacherEnrollmentForm } from "./teacher-enrollment-form"
 import { TeacherEnrollmentSuccessDialog } from "./teacher-enrollment-success-dialog"
@@ -37,6 +39,7 @@ import { TeacherExportForm } from "./teacher-export-form"
 
 export function TeacherManagement() {
   const { teachers, isLoading, deleteTeacher } = useTeacherManagement()
+  const { users } = useUserManagement()
   const { toast } = useToast()
   
 
@@ -182,6 +185,26 @@ export function TeacherManagement() {
         </div>
       </div>
 
+      {/* Data Consistency Alert */}
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Data Consistency:</strong> Teachers count from User Management: {users.filter(u => u.role === 'teacher').length} | 
+          Teachers count from Teacher Management: {teachers.length} | 
+          {users.filter(u => u.role === 'teacher').length === teachers.length ? '✅ Consistent' : '⚠️ Inconsistent'}
+        </AlertDescription>
+      </Alert>
+
+      {/* Debug Information */}
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Debug Info:</strong> Teachers: {teachers.length} | 
+          Filtered: {filteredTeachers.length} | 
+          Database: {teachers.length > 0 ? 'Connected' : 'No Data'}
+        </AlertDescription>
+      </Alert>
+
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
@@ -190,6 +213,9 @@ export function TeacherManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{teachers.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {teachers.filter(t => t.status === 'active').length} active, {teachers.filter(t => t.status === 'inactive').length} inactive
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -197,7 +223,10 @@ export function TeacherManagement() {
             <CardTitle className="text-sm font-medium">Active Teachers</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{teachers.filter((t) => t.status === "active").length}</div>
+            <div className="text-2xl font-bold">{teachers.filter(t => t.status === 'active').length}</div>
+            <p className="text-xs text-muted-foreground">
+              Currently employed
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -205,7 +234,10 @@ export function TeacherManagement() {
             <CardTitle className="text-sm font-medium">English Subsystem</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{teachers.filter((t) => t.subsystem === "english").length}</div>
+            <div className="text-2xl font-bold">{teachers.filter(t => t.subsystem === 'english').length}</div>
+            <p className="text-xs text-muted-foreground">
+              English curriculum
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -213,7 +245,10 @@ export function TeacherManagement() {
             <CardTitle className="text-sm font-medium">French Subsystem</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{teachers.filter((t) => t.subsystem === "french").length}</div>
+            <div className="text-2xl font-bold">{teachers.filter(t => t.subsystem === 'french').length}</div>
+            <p className="text-xs text-muted-foreground">
+              French curriculum
+            </p>
           </CardContent>
         </Card>
       </div>

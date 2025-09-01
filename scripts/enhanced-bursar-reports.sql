@@ -239,7 +239,7 @@ BEGIN
     SELECT 
         'Outstanding Amount'::TEXT,
         ps.total_outstanding::NUMERIC,
-        'XAF'::TEXT,
+        'XOF'::TEXT,
         'Total outstanding fee balance'::TEXT,
         CASE WHEN ps.total_outstanding < pp.total_outstanding THEN 'down'::TEXT
              WHEN ps.total_outstanding > pp.total_outstanding THEN 'up'::TEXT

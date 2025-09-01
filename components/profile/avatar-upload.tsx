@@ -6,6 +6,7 @@ import { useState, useRef } from "react"
 import { Camera, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { UserAvatar } from "@/components/ui/user-avatar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useProfile } from "@/lib/profile-context"
 
@@ -67,16 +68,13 @@ export function AvatarUpload({ currentAvatar, userName, onAvatarChange }: Avatar
   return (
     <div className="flex flex-col items-center space-y-4">
       <div className="relative">
-        <Avatar className="h-24 w-24">
-          <AvatarImage src={displayAvatar || "/placeholder.svg"} alt={userName} />
-          <AvatarFallback className="text-lg">
-            {userName
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        <UserAvatar 
+          user={{ 
+            name: userName, 
+            avatar: displayAvatar 
+          }} 
+          size="xl" 
+        />
 
         {/* Camera overlay button */}
         <Button

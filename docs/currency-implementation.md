@@ -1,19 +1,19 @@
-# XAF Currency Implementation
+# XOF Currency Implementation
 
 ## Overview
 
-This document outlines the centralized XAF (Central African CFA franc) currency implementation in the school management application. All currency displays throughout the application now consistently use XAF formatting.
+This document outlines the centralized XOF (West African CFA franc) currency implementation in the school management application. All currency displays throughout the application now consistently use XOF formatting.
 
 ## Implementation Details
 
 ### 1. Centralized Currency Utility (`lib/currency-utils.ts`)
 
-The application now uses a centralized currency utility that provides consistent XAF formatting across all components.
+The application now uses a centralized currency utility that provides consistent XOF formatting across all components.
 
 #### Key Functions:
 
-- **`formatCurrency(amount: number)`**: Formats amount with XAF symbol (default)
-- **`formatXAF(amount: number, options)`**: Advanced formatting with options
+- **`formatCurrency(amount: number)`**: Formats amount with XOF symbol (default)
+- **`formatXOF(amount: number, options)`**: Advanced formatting with options
 - **`formatAmount(amount: number)`**: Formats amount without currency symbol
 - **`formatCurrencyWithDecimals(amount: number)`**: Formats with decimal places
 - **`parseCurrency(currencyString: string)`**: Parses currency strings to numbers
@@ -22,13 +22,13 @@ The application now uses a centralized currency utility that provides consistent
 #### Usage Examples:
 
 ```typescript
-import { formatCurrency, formatXAF, formatAmount } from '@/lib/currency-utils'
+import { formatCurrency, formatXOF, formatAmount } from '@/lib/currency-utils'
 
 // Basic formatting
-formatCurrency(50000) // "XAF 50,000"
+formatCurrency(50000) // "XOF 50,000"
 
 // With options
-formatXAF(50000, { showSymbol: false, showDecimals: true }) // "50,000.00"
+formatXOF(50000, { showSymbol: false, showDecimals: true }) // "50,000.00"
 
 // Without symbol
 formatAmount(50000) // "50,000"
@@ -59,8 +59,8 @@ The following components have been updated to use the centralized currency utili
 ### 3. Currency Format Specifications
 
 #### Default Format:
-- **Currency Code**: XAF (Central African CFA franc)
-- **Symbol**: XAF
+- **Currency Code**: XOF (West African CFA franc)
+- **Symbol**: XOF
 - **Locale**: en-US
 - **Decimal Places**: 0 (no decimals)
 - **Thousands Separator**: Comma (,)
@@ -68,7 +68,7 @@ The following components have been updated to use the centralized currency utili
 #### Examples:
 ```typescript
 // Input: 50000
-// Output: "XAF 50,000"
+// Output: "XOF 50,000"
 
 // Input: 125000
 // Output: "XAF 125,000"

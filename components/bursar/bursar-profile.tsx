@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { User, Settings, Bell, Lock, Globe, Palette } from "lucide-react"
+import { User, Settings, Bell, Lock, Globe, Palette, DollarSign, CreditCard, FileText, Calendar, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,20 +11,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
+import { Separator } from "@/components/ui/separator"
 
-import { AvatarUpload } from "./avatar-upload"
-import { PasswordChange } from "./password-change"
-import { NotificationPreferences } from "./notification-preferences"
+import { AvatarUpload } from "../profile/avatar-upload"
+import { PasswordChange } from "../profile/password-change"
+import { NotificationPreferences } from "../profile/notification-preferences"
 import { useProfile, type ProfileData } from "@/lib/profile-context"
 
-export function ProfileSettings() {
+export function BursarProfile() {
   const { profile, updateProfile, isLoading, error } = useProfile()
   const [formData, setFormData] = useState<Partial<ProfileData>>(profile || {})
   const [hasChanges, setHasChanges] = useState(false)
   const [success, setSuccess] = useState(false)
 
-  if (!profile) {
-    return <div>Loading profile...</div>
+  if (!profile || profile.role !== "bursar") {
+    return <div>Access denied. This profile is only for bursars.</div>
   }
 
   const handleInputChange = (field: keyof ProfileData, value: any) => {
@@ -57,97 +59,12 @@ export function ProfileSettings() {
     }
   }
 
-  const getRoleSpecificFields = () => {
-    switch (profile.role) {
-      case "student":
-        return (
-          <>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="studentId">Student ID</Label>
-                <Input
-                  id="studentId"
-                  value={formData.studentId || ""}
-                  onChange={(e) => handleInputChange("studentId", e.target.value)}
-                  disabled
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="class">Class</Label>
-                <Input
-                  id="class"
-                  value={formData.class || ""}
-                  onChange={(e) => handleInputChange("class", e.target.value)}
-                  disabled
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="branch">Branch</Label>
-              <Select
-                value={formData.branch || ""}
-                onValueChange={(value) => handleInputChange("branch", value)}
-                disabled
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="grammar">Grammar</SelectItem>
-                  <SelectItem value="technical">Technical</SelectItem>
-                  <SelectItem value="commercial">Commercial</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </>
-        )
-      case "teacher":
-        return (
-          <div className="space-y-2">
-            <Label htmlFor="teacherRegNo">Teacher Registration Number</Label>
-            <Input
-              id="teacherRegNo"
-              value={formData.teacherRegNo || ""}
-              onChange={(e) => handleInputChange("teacherRegNo", e.target.value)}
-              disabled
-            />
-          </div>
-        )
-      case "bursar":
-        return (
-          <div className="space-y-2">
-            <Label htmlFor="bursarId">Bursar ID</Label>
-            <Input
-              id="bursarId"
-              value={formData.bursarId || "BUR2024001"}
-              onChange={(e) => handleInputChange("bursarId", e.target.value)}
-              disabled
-            />
-          </div>
-        )
-      case "parent":
-        return (
-          <div className="space-y-2">
-            <Label htmlFor="parentCode">Parent Access Code</Label>
-            <Input
-              id="parentCode"
-              value={formData.parentCode || ""}
-              onChange={(e) => handleInputChange("parentCode", e.target.value)}
-              disabled
-            />
-          </div>
-        )
-      default:
-        return null
-    }
-  }
-
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Profile Settings</h1>
-          <p className="text-muted-foreground">Manage your account settings and preferences</p>
+          <h1 className="text-3xl font-bold">Bursar Profile Management</h1>
+          <p className="text-muted-foreground">Manage your bursar account settings and financial preferences</p>
         </div>
         <Badge variant="outline" className="capitalize">
           {profile.role}
@@ -155,10 +72,14 @@ export function ProfileSettings() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             Profile
+          </TabsTrigger>
+          <TabsTrigger value="financial" className="flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />
+            Financial
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-2">
             <Lock className="h-4 w-4" />
@@ -270,32 +191,20 @@ export function ProfileSettings() {
                     value={formData.bio || ""}
                     onChange={(e) => handleInputChange("bio", e.target.value)}
                     rows={3}
-                    placeholder="Tell us about yourself..."
+                    placeholder="Tell us about yourself and your financial management experience..."
                   />
                 </div>
 
-                {/* Role-specific fields */}
-                {getRoleSpecificFields()}
-
-                {/* Educational Sub-system */}
-                {(profile.role === "student" || profile.role === "teacher") && (
-                  <div className="space-y-2">
-                    <Label htmlFor="subsystem">Educational Sub-system</Label>
-                    <Select
-                      value={formData.subsystem || ""}
-                      onValueChange={(value) => handleInputChange("subsystem", value)}
-                      disabled
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="english">English Sub-system</SelectItem>
-                        <SelectItem value="french">French Sub-system</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                {/* Bursar-specific fields */}
+                <div className="space-y-2">
+                  <Label htmlFor="bursarId">Bursar ID</Label>
+                  <Input
+                    id="bursarId"
+                    value={formData.bursarId || ""}
+                    onChange={(e) => handleInputChange("bursarId", e.target.value)}
+                    disabled
+                  />
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -407,6 +316,140 @@ export function ProfileSettings() {
           <div className="flex justify-end">
             <Button onClick={handleSave} disabled={!hasChanges || isLoading} size="lg">
               {isLoading ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </TabsContent>
+
+        {/* Financial Tab */}
+        <TabsContent value="financial" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Financial Management Preferences
+              </CardTitle>
+              <CardDescription>Configure your financial management settings and preferences</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Currency Preferences */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Currency & Formatting</h3>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="currency">Default Currency</Label>
+                    <Select value="XOF" disabled>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="XOF">West African CFA Franc (XOF)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="decimalPlaces">Decimal Places</Label>
+                    <Select value="2" disabled>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">0 (Whole numbers)</SelectItem>
+                        <SelectItem value="2">2 (Standard)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Payment Processing */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Payment Processing</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Auto-generate receipts</Label>
+                      <p className="text-sm text-muted-foreground">Automatically generate receipts for all payments</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Send payment confirmations</Label>
+                      <p className="text-sm text-muted-foreground">Send email confirmations for payments</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Require approval for large payments</Label>
+                      <p className="text-sm text-muted-foreground">Require admin approval for payments above threshold</p>
+                    </div>
+                    <Switch />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Reporting Preferences */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Reporting & Analytics</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Daily financial summaries</Label>
+                      <p className="text-sm text-muted-foreground">Receive daily summaries of financial activities</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Weekly collection reports</Label>
+                      <p className="text-sm text-muted-foreground">Generate weekly fee collection reports</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Monthly financial statements</Label>
+                      <p className="text-sm text-muted-foreground">Generate comprehensive monthly statements</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Security Settings */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Financial Security</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Two-factor authentication for payments</Label>
+                      <p className="text-sm text-muted-foreground">Require 2FA for financial transactions</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Audit trail logging</Label>
+                      <p className="text-sm text-muted-foreground">Log all financial transactions for audit</p>
+                    </div>
+                    <Switch defaultChecked />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Save Button */}
+          <div className="flex justify-end">
+            <Button onClick={handleSave} disabled={!hasChanges || isLoading} size="lg">
+              {isLoading ? "Saving..." : "Save Financial Settings"}
             </Button>
           </div>
         </TabsContent>

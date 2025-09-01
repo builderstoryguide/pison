@@ -30,11 +30,11 @@ const roleIcons = {
   bursar: DollarSign
 }
 
-interface CreateUserFormProps {
+interface DynamicUserFormProps {
   onSuccess: () => void
 }
 
-export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
+export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
   const { createUser, isLoading, error } = useUserManagement()
   const { enrollStudent } = useStudentEnrollment()
   const { addTeacher } = useTeacherManagement()
@@ -64,7 +64,8 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
     parentEmail?: string;
     className?: string;
   }) => {
-    // Create user account for the student
+    // The student enrollment form already creates the student record in the database
+    // We just need to create the user account for login purposes
     const userData = {
       name: result.studentName,
       email: result.studentEmail || '',
@@ -88,7 +89,8 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
   }
 
   const handleTeacherEnrollmentSuccess = async (result: { teacherId: string; teacherData: any }) => {
-    // Create user account for the teacher
+    // The teacher enrollment form already creates the teacher record in the database
+    // We just need to create the user account for login purposes
     const userData = {
       name: `${result.teacherData.firstName} ${result.teacherData.lastName}`,
       email: result.teacherData.email,
@@ -193,7 +195,10 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
               ← Back to Role Selection
             </Button>
             <div className="flex items-center gap-2">
-              {roleIcons[selectedRole] && <roleIcons[selectedRole] className="h-4 w-4" />}
+              {selectedRole && roleIcons[selectedRole] && (() => {
+                const Icon = roleIcons[selectedRole];
+                return <Icon className="h-4 w-4" />;
+              })()}
               <span className="font-medium capitalize">Creating {selectedRole}</span>
             </div>
           </div>

@@ -1,15 +1,15 @@
 /**
- * Currency Utilities for XAF (Central African CFA franc)
+ * Currency Utilities for XOF (West African CFA franc)
  * Centralized currency formatting for the school management application
  */
 
 /**
- * Format amount as XAF currency
+ * Format amount as XOF currency
  * @param amount - The amount to format
  * @param options - Optional formatting options
  * @returns Formatted currency string
  */
-export function formatXAF(
+export function formatXOF(
   amount: number,
   options: {
     showSymbol?: boolean
@@ -25,37 +25,37 @@ export function formatXAF(
 
   return new Intl.NumberFormat(locale, {
     style: showSymbol ? 'currency' : 'decimal',
-    currency: 'XAF',
+    currency: 'XOF',
     minimumFractionDigits: showDecimals ? 2 : 0,
     maximumFractionDigits: showDecimals ? 2 : 0,
   }).format(amount)
 }
 
 /**
- * Format amount as XAF with symbol (default)
+ * Format amount as XOF with symbol (default)
  * @param amount - The amount to format
- * @returns Formatted currency string with XAF symbol
+ * @returns Formatted currency string with XOF symbol
  */
 export function formatCurrency(amount: number): string {
-  return formatXAF(amount, { showSymbol: true, showDecimals: false })
+  return formatXOF(amount, { showSymbol: true, showDecimals: false })
 }
 
 /**
- * Format amount as XAF without symbol
+ * Format amount as XOF without symbol
  * @param amount - The amount to format
  * @returns Formatted number string without currency symbol
  */
 export function formatAmount(amount: number): string {
-  return formatXAF(amount, { showSymbol: false, showDecimals: false })
+  return formatXOF(amount, { showSymbol: false, showDecimals: false })
 }
 
 /**
- * Format amount as XAF with decimals
+ * Format amount as XOF with decimals
  * @param amount - The amount to format
  * @returns Formatted currency string with decimals
  */
 export function formatCurrencyWithDecimals(amount: number): string {
-  return formatXAF(amount, { showSymbol: true, showDecimals: true })
+  return formatXOF(amount, { showSymbol: true, showDecimals: true })
 }
 
 /**
@@ -83,11 +83,11 @@ export function isValidCurrency(amount: number): boolean {
 }
 
 /**
- * Get currency symbol for XAF
- * @returns XAF currency symbol
+ * Get currency symbol for XOF
+ * @returns XOF currency symbol
  */
 export function getCurrencySymbol(): string {
-  return 'XAF'
+  return 'XOF'
 }
 
 /**
@@ -95,7 +95,7 @@ export function getCurrencySymbol(): string {
  * @returns Full currency name
  */
 export function getCurrencyName(): string {
-  return 'Central African CFA franc'
+  return 'West African CFA franc'
 }
 
 /**
@@ -129,7 +129,7 @@ export function formatCurrencyPercentage(amount: number, total: number): string 
  * @returns Formatted currency string optimized for table display
  */
 export function formatCurrencyForTable(amount: number): string {
-  return formatXAF(amount, { showSymbol: true, showDecimals: false })
+  return formatXOF(amount, { showSymbol: true, showDecimals: false })
 }
 
 /**
@@ -138,7 +138,7 @@ export function formatCurrencyForTable(amount: number): string {
  * @returns Formatted currency string optimized for card display
  */
 export function formatCurrencyForCard(amount: number): string {
-  return formatXAF(amount, { showSymbol: true, showDecimals: false })
+  return formatXOF(amount, { showSymbol: true, showDecimals: false })
 }
 
 /**
@@ -147,7 +147,7 @@ export function formatCurrencyForCard(amount: number): string {
  * @returns Formatted currency string optimized for form display
  */
 export function formatCurrencyForForm(amount: number): string {
-  return formatXAF(amount, { showSymbol: false, showDecimals: false })
+  return formatXOF(amount, { showSymbol: false, showDecimals: false })
 }
 
 /**
@@ -156,7 +156,7 @@ export function formatCurrencyForForm(amount: number): string {
  * @returns Formatted currency string optimized for PDF display
  */
 export function formatCurrencyForPDF(amount: number): string {
-  return formatXAF(amount, { showSymbol: true, showDecimals: false })
+  return formatXOF(amount, { showSymbol: true, showDecimals: false })
 }
 
 /**
@@ -165,7 +165,7 @@ export function formatCurrencyForPDF(amount: number): string {
  * @returns Formatted currency string optimized for receipt display
  */
 export function formatCurrencyForReceipt(amount: number): string {
-  return formatXAF(amount, { showSymbol: true, showDecimals: false })
+  return formatXOF(amount, { showSymbol: true, showDecimals: false })
 }
 
 // Export default function for backward compatibility

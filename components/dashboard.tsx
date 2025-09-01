@@ -22,6 +22,12 @@ import { useNotifications } from "@/lib/notification-context"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { formatCurrency } from "@/lib/currency-utils"
 
+// Context hooks for data fetching
+import { useStudentManagement } from "@/lib/student-management-context"
+import { useTeacherManagement } from "@/lib/teacher-management-context"
+import { useClassManagement } from "@/lib/class-management-context"
+import { useFinancial } from "@/lib/financial-context"
+
 // Admin Components
 import { UserManagement } from "./admin/user-management"
 import { StudentManagement } from "./admin/student-management"
@@ -33,6 +39,7 @@ import { FinancialManagement } from "./admin/financial-management"
 import { AttendanceManagement } from "./admin/attendance-management"
 import { ReportsAnalyticsManagement } from "./admin/reports-analytics-management"
 import { ProfileSettings } from "./profile/profile-settings"
+import { BursarProfile } from "./bursar/bursar-profile"
 import { RecentActivities } from "./admin/recent-activities"
 import { AnalyticsDashboard } from "@/components/admin/analytics-dashboard"
 import { AcademicPerformance } from "@/components/admin/academic-performance"
@@ -64,6 +71,7 @@ import { FinancialReports } from "./bursar/financial-reports"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Sidebar,
   SidebarContent,
@@ -93,6 +101,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { UserAvatar } from "@/components/ui/user-avatar"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -126,6 +135,7 @@ import {
   Download,
   ChevronDown,
   Award,
+  RefreshCw,
 } from "lucide-react"
 
 type AdminView =
@@ -167,7 +177,7 @@ const mockNotifications = [
   {
     id: 2,
     title: "Payment Received",
-    message: "School fees payment of XAF 150,000 received from Marie Ngozi",
+            message: "School fees payment of XOF 150,000 received from Marie Ngozi",
     type: "success" as const,
     time: "1 hour ago",
     read: false,
@@ -294,22 +304,11 @@ function UserProfileDropdown({
   onProfileClick: () => void
   onLogout: () => void
 }) {
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-  }
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
-          </Avatar>
+          <UserAvatar user={user} size="sm" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -428,6 +427,21 @@ export function Dashboard() {
   })
   
   const [reportsDropdownOpen, setReportsDropdownOpen] = useState(false)
+  
+  // Get data from contexts for Admin Dashboard
+  const { students, isLoading: studentsLoading, error: studentsError } = useStudentManagement()
+  const { teachers, isLoading: teachersLoading, error: teachersError } = useTeacherManagement()
+  const { classes, isLoading: classesLoading, error: classesError } = useClassManagement()
+  const { payments, isLoading: paymentsLoading, error: paymentsError } = useFinancial()
+  
+  // Calculate total revenue from payments
+  const totalRevenue = payments.reduce((sum, payment) => sum + payment.amountPaid, 0)
+  
+  // Check if any data is still loading
+  const isDataLoading = studentsLoading || teachersLoading || classesLoading || paymentsLoading
+  
+  // Check if there are any errors
+  const hasErrors = studentsError || teachersError || classesError || paymentsError
 
   // Save view states to localStorage whenever they change
   useEffect(() => {
@@ -464,13 +478,7 @@ export function Dashboard() {
     return <AuthPage />
   }
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-  }
+
 
   // Parent Dashboard
   if (user.role === "parent") {
@@ -541,10 +549,7 @@ export function Dashboard() {
                         size="lg"
                         className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                       >
-                        <Avatar className="h-8 w-8 rounded-lg">
-                          <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                          <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
-                        </Avatar>
+                        <UserAvatar user={user} size="sm" className="rounded-lg" />
                         <div className="grid flex-1 text-left text-sm leading-tight">
                           <span className="truncate font-semibold">{user.name}</span>
                           <span className="truncate text-xs">{user.email}</span>
@@ -560,10 +565,7 @@ export function Dashboard() {
                     >
                       <DropdownMenuLabel className="p-0 font-normal">
                         <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                          <Avatar className="h-8 w-8 rounded-lg">
-                            <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                            <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
-                          </Avatar>
+                          <UserAvatar user={user} size="sm" className="rounded-lg" />
                           <div className="grid flex-1 text-left text-sm leading-tight">
                             <span className="truncate font-semibold">{user.name}</span>
                             <span className="truncate text-xs">{user.email}</span>
@@ -681,10 +683,7 @@ export function Dashboard() {
                         size="lg"
                         className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                       >
-                        <Avatar className="h-8 w-8 rounded-lg">
-                          <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                          <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
-                        </Avatar>
+                        <UserAvatar user={user} size="sm" className="rounded-lg" />
                         <div className="grid flex-1 text-left text-sm leading-tight">
                           <span className="truncate font-semibold">{user.name}</span>
                           <span className="truncate text-xs">{user.email}</span>
@@ -700,10 +699,7 @@ export function Dashboard() {
                     >
                       <DropdownMenuLabel className="p-0 font-normal">
                         <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                          <Avatar className="h-8 w-8 rounded-lg">
-                            <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                            <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
-                          </Avatar>
+                          <UserAvatar user={user} size="sm" className="rounded-lg" />
                           <div className="grid flex-1 text-left text-sm leading-tight">
                             <span className="truncate font-semibold">{user.name}</span>
                             <span className="truncate text-xs">{user.email}</span>
@@ -800,10 +796,43 @@ export function Dashboard() {
         default:
           return (
             <div className="space-y-6">
-              <div>
-                <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-                <p className="text-muted-foreground">Welcome back, {user.name}! Manage your school system from here.</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+                  <p className="text-muted-foreground">Welcome back, {user.name}! Manage your school system from here.</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Refresh all data
+                    window.location.reload()
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh Data
+                </Button>
               </div>
+
+              {/* Data Status Alert */}
+              {hasErrors && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Some data failed to load. Please refresh the page or check your connection.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {isDataLoading && (
+                <Alert>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                  <AlertDescription>
+                    Loading dashboard data...
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card>
@@ -812,8 +841,31 @@ export function Dashboard() {
                     <GraduationCap className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">1,234</div>
-                    <p className="text-xs text-muted-foreground">+20.1% from last month</p>
+                    {studentsLoading ? (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                        <p className="text-sm text-muted-foreground">Loading students...</p>
+                      </div>
+                    ) : studentsError ? (
+                      <div className="text-center py-4">
+                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+                        <p className="text-sm text-destructive">Error loading students</p>
+                        <p className="text-xs text-muted-foreground">Please try refreshing</p>
+                      </div>
+                    ) : students.length > 0 ? (
+                      <>
+                        <div className="text-2xl font-bold">{students.length}</div>
+                        <p className="text-xs text-muted-foreground">
+                          {students.filter(s => s.status === 'active').length} active, {students.filter(s => s.status === 'inactive').length} inactive
+                        </p>
+                      </>
+                    ) : (
+                      <div className="text-center py-4">
+                        <GraduationCap className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">No students found</p>
+                        <p className="text-xs text-muted-foreground">Enroll your first student to get started</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -823,8 +875,31 @@ export function Dashboard() {
                     <UserCheck className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">89</div>
-                    <p className="text-xs text-muted-foreground">+5 new this month</p>
+                    {teachersLoading ? (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                        <p className="text-sm text-muted-foreground">Loading teachers...</p>
+                      </div>
+                    ) : teachersError ? (
+                      <div className="text-center py-4">
+                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+                        <p className="text-sm text-destructive">Error loading teachers</p>
+                        <p className="text-xs text-muted-foreground">Please try refreshing</p>
+                      </div>
+                    ) : teachers.length > 0 ? (
+                      <>
+                        <div className="text-2xl font-bold">{teachers.length}</div>
+                        <p className="text-xs text-muted-foreground">
+                          {teachers.filter(t => t.status === 'active').length} active, {teachers.filter(t => t.status === 'inactive').length} inactive
+                        </p>
+                      </>
+                    ) : (
+                      <div className="text-center py-4">
+                        <UserCheck className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">No teachers found</p>
+                        <p className="text-xs text-muted-foreground">Add your first teacher to get started</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -834,8 +909,31 @@ export function Dashboard() {
                     <BookOpen className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">45</div>
-                    <p className="text-xs text-muted-foreground">Across all levels</p>
+                    {classesLoading ? (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                        <p className="text-sm text-muted-foreground">Loading classes...</p>
+                      </div>
+                    ) : classesError ? (
+                      <div className="text-center py-4">
+                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+                        <p className="text-sm text-destructive">Error loading classes</p>
+                        <p className="text-xs text-muted-foreground">Please try refreshing</p>
+                      </div>
+                    ) : classes.filter(c => c.status === 'active').length > 0 ? (
+                      <>
+                        <div className="text-2xl font-bold">{classes.filter(c => c.status === 'active').length}</div>
+                        <p className="text-xs text-muted-foreground">
+                          {classes.filter(c => c.status === 'active').reduce((sum, c) => sum + c.currentEnrollment, 0)} total students enrolled
+                        </p>
+                      </>
+                    ) : (
+                      <div className="text-center py-4">
+                        <BookOpen className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">No active classes</p>
+                        <p className="text-xs text-muted-foreground">Create your first class to get started</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -844,8 +942,31 @@ export function Dashboard() {
                     <CardTitle>Revenue</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(45231)}</div>
-                    <p className="text-xs text-muted-foreground">+19% from last month</p>
+                    {paymentsLoading ? (
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                        <p className="text-sm text-muted-foreground">Loading revenue data...</p>
+                      </div>
+                    ) : paymentsError ? (
+                      <div className="text-center py-4">
+                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+                        <p className="text-sm text-destructive">Error loading revenue</p>
+                        <p className="text-xs text-muted-foreground">Please try refreshing</p>
+                      </div>
+                    ) : totalRevenue > 0 ? (
+                      <>
+                        <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
+                        <p className="text-xs text-muted-foreground">
+                          {payments.length} payments received this month
+                        </p>
+                      </>
+                    ) : (
+                      <div className="text-center py-4">
+                        <DollarSign className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">No revenue data</p>
+                        <p className="text-xs text-muted-foreground">Set up fee structures to start tracking</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -989,12 +1110,7 @@ export function Dashboard() {
                                           size="lg"
                                           className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                                         >
-                                          <Avatar className="h-8 w-8 rounded-lg">
-                                            <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                                            <AvatarFallback className="rounded-lg">
-                                              {getInitials(user.name)}
-                                            </AvatarFallback>
-                                          </Avatar>
+                                          <UserAvatar user={user} size="sm" className="rounded-lg" />
                                           <div className="grid flex-1 text-left text-sm leading-tight">
                                             <span className="truncate font-semibold">{user.name}</span>
                                             <span className="truncate text-xs">{user.email}</span>
@@ -1010,12 +1126,7 @@ export function Dashboard() {
                                       >
                                         <DropdownMenuLabel className="p-0 font-normal">
                                           <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                                            <Avatar className="h-8 w-8 rounded-lg">
-                                              <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                                              <AvatarFallback className="rounded-lg">
-                                                {getInitials(user.name)}
-                                              </AvatarFallback>
-                                            </Avatar>
+                                            <UserAvatar user={user} size="sm" className="rounded-lg" />
                                             <div className="grid flex-1 text-left text-sm leading-tight">
                                               <span className="truncate font-semibold">{user.name}</span>
                                               <span className="truncate text-xs">{user.email}</span>
@@ -1137,10 +1248,7 @@ export function Dashboard() {
                               size="lg"
                               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                             >
-                              <Avatar className="h-8 w-8 rounded-lg">
-                                <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                                <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
-                              </Avatar>
+                              <UserAvatar user={user} size="sm" className="rounded-lg" />
                               <div className="grid flex-1 text-left text-sm leading-tight">
                                 <span className="truncate font-semibold">{user.name}</span>
                                 <span className="truncate text-xs">{user.email}</span>
@@ -1156,10 +1264,7 @@ export function Dashboard() {
                           >
                             <DropdownMenuLabel className="p-0 font-normal">
                               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                                <Avatar className="h-8 w-8 rounded-lg">
-                                  <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                                  <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
-                                </Avatar>
+                                <UserAvatar user={user} size="sm" className="rounded-lg" />
                                 <div className="grid flex-1 text-left text-sm leading-tight">
                                   <span className="truncate font-semibold">{user.name}</span>
                                   <span className="truncate text-xs">{user.email}</span>
@@ -1222,7 +1327,7 @@ export function Dashboard() {
         case "reports":
           return <FinancialReports onNavigate={setBursarCurrentView} />
         case "profile":
-          return <ProfileSettings />
+          return <BursarProfile />
         default:
           return <BursarDashboard onNavigate={setBursarCurrentView} />
       }
@@ -1277,10 +1382,7 @@ export function Dashboard() {
                           size="lg"
                           className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                         >
-                          <Avatar className="h-8 w-8 rounded-lg">
-                            <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                            <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
-                          </Avatar>
+                          <UserAvatar user={user} size="sm" className="rounded-lg" />
                           <div className="grid flex-1 text-left text-sm leading-tight">
                             <span className="truncate font-semibold">{user.name}</span>
                             <span className="truncate text-xs">{user.email}</span>
@@ -1296,10 +1398,7 @@ export function Dashboard() {
                       >
                         <DropdownMenuLabel className="p-0 font-normal">
                           <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                            <Avatar className="h-8 w-8 rounded-lg">
-                              <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-                              <AvatarFallback className="rounded-lg">{getInitials(user.name)}</AvatarFallback>
-                            </Avatar>
+                            <UserAvatar user={user} size="sm" className="rounded-lg" />
                             <div className="grid flex-1 text-left text-sm leading-tight">
                               <span className="truncate font-semibold">{user.name}</span>
                               <span className="truncate text-xs">{user.email}</span>

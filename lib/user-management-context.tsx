@@ -48,6 +48,7 @@ interface UserManagementContextType {
   createUser: (userData: Omit<User, 'id' | 'createdAt' | 'createdBy'>) => Promise<{ success: boolean; password?: string }>
   updateUser: (userId: string, userData: Partial<User>) => Promise<boolean>
   deleteUser: (userId: string) => Promise<boolean>
+  bulkDeleteUsers: (userIds: string[]) => Promise<{ success: boolean; deletedCount: number; errors: string[] }>
   toggleUserStatus: (userId: string, status: 'active' | 'inactive' | 'suspended') => Promise<boolean>
   resetUserPassword: (userId: string) => Promise<{ success: boolean; password?: string }>
   getUserById: (userId: string) => User | undefined
@@ -108,7 +109,7 @@ const mockActivityLogs: ActivityLog[] = [
     userId: '5',
     userName: 'Grace Tabi',
     action: 'PAYMENT_RECORDED',
-    details: 'Recorded fee payment of 50,000 XAF for student Marie Ngozi',
+            details: 'Recorded fee payment of 50,000 XOF for student Marie Ngozi',
     timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
     ipAddress: '192.168.1.103',
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -230,11 +231,29 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       const response = await fetch('/api/users?limit=50')
       
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
+        let parsedMessage: string | undefined
+        try {
+          const contentType = response.headers.get('content-type') || ''
+          if (contentType.includes('application/json')) {
+            const errorData = await response.json()
+            parsedMessage = errorData?.error || errorData?.message
+          } else {
+            const text = await response.text()
+            parsedMessage = text?.slice(0, 300)
+          }
+        } catch (e) {
+          // Swallow JSON parsing errors; we'll fall back to status
+        }
+        throw new Error(parsedMessage || `HTTP ${response.status}: ${response.statusText}`)
       }
 
-      const result = await response.json()
+      let result: any
+      try {
+        result = await response.json()
+      } catch (e) {
+        console.error('Failed to parse users API response as JSON. Falling back to empty list.', e)
+        throw new Error('Invalid response format from API')
+      }
 
       if (result.users) {
         // Transform API response to match our User interface
@@ -270,7 +289,11 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       }
     } catch (error) {
       console.error('Failed to load users:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load users'
+      let errorMessage = error instanceof Error ? error.message : 'Failed to load users'
+      // Network/Fetch failure (server down, CORS, DNS, etc.)
+      if (error instanceof TypeError && /fetch failed/i.test(error.message)) {
+        errorMessage = 'Unable to reach the server. Ensure the development server is running and environment variables are set.'
+      }
       setError(errorMessage)
       
       // If it's a database setup error, show a helpful message
@@ -343,6 +366,26 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       if (result.success) {
         // Refresh users from database
         await loadUsers()
+        
+        // Dispatch custom events to notify other contexts to refresh their data
+        if (userData.role === 'student') {
+          window.dispatchEvent(new CustomEvent('studentCreated', { 
+            detail: { 
+              studentId: userData.studentId,
+              name: userData.name,
+              email: userData.email 
+            } 
+          }))
+        } else if (userData.role === 'teacher') {
+          window.dispatchEvent(new CustomEvent('teacherCreated', { 
+            detail: { 
+              teacherId: userData.teacherRegNo,
+              name: userData.name,
+              email: userData.email 
+            } 
+          }))
+        }
+        
         logActivity('CREATE_USER', `Created new ${userData.role} account for ${userData.name} with default password`)
         return { success: true, password: result.password }
       } else {
@@ -432,6 +475,56 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete user'
       setError(errorMessage)
       return false
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const bulkDeleteUsers = async (userIds: string[]): Promise<{ success: boolean; deletedCount: number; errors: string[] }> => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      // Call the bulk delete API endpoint
+      const response = await fetch('/api/users/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userIds }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete users')
+      }
+
+      if (result.success) {
+        // Refresh users from database
+        await loadUsers()
+        
+        // Log activity for bulk deletion
+        const deletedUsers = users.filter(u => userIds.includes(u.id))
+        const userNames = deletedUsers.map(u => u.name).join(', ')
+        logActivity('BULK_DELETE_USERS', `Bulk deleted ${result.deletedCount} users: ${userNames}`)
+        
+        return {
+          success: true,
+          deletedCount: result.deletedCount,
+          errors: result.errors || []
+        }
+      } else {
+        throw new Error(result.error || 'Failed to delete users')
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete users'
+      setError(errorMessage)
+      return {
+        success: false,
+        deletedCount: 0,
+        errors: [errorMessage]
+      }
     } finally {
       setIsLoading(false)
     }
@@ -557,6 +650,7 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       createUser,
       updateUser,
       deleteUser,
+    bulkDeleteUsers,
       toggleUserStatus,
       resetUserPassword,
       getUserById,

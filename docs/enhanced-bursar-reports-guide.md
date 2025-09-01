@@ -193,7 +193,7 @@ metric_name        | metric_value | metric_unit | trend_direction | trend_percen
 -------------------|--------------|-------------|-----------------|------------------
 Total Students     | 150          | students    | up              | 5.2
 Collection Rate    | 78.5         | %           | up              | 2.1
-Outstanding Amount | 2500000      | XAF         | down            | -3.5
+Outstanding Amount | 2500000      | XOF         | down            | -3.5
 Overdue Students   | 12           | students    | down            | -15.2
 ```
 

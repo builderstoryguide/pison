@@ -123,6 +123,18 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
 
     checkDatabase()
     loadTeachers()
+    
+    // Listen for teacher creation events from user management
+    const handleTeacherCreated = () => {
+      console.log('Teacher created event received, refreshing teacher data...')
+      loadTeachers()
+    }
+    
+    window.addEventListener('teacherCreated', handleTeacherCreated)
+    
+    return () => {
+      window.removeEventListener('teacherCreated', handleTeacherCreated)
+    }
   }, [])
 
   const generateTeacherId = async (): Promise<string> => {
@@ -356,12 +368,62 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
     setError(null)
 
     try {
-      // Delete from database
-      const { error, count } = await supabase.from("teachers").delete().eq("id", id)
+      // First, get the teacher data to find the corresponding user
+      const { data: teacher, error: fetchError } = await supabase
+        .from("teachers")
+        .select("teacher_id, email")
+        .eq("id", id)
+        .single()
 
-      if (error) {
-        console.error("❌ Database error during deletion:", error)
-        throw error
+      if (fetchError) {
+        console.error("❌ Error fetching teacher data:", fetchError)
+        throw fetchError
+      }
+
+      if (!teacher) {
+        throw new Error("Teacher not found")
+      }
+
+      // Find the corresponding user record
+      const { data: user, error: userFetchError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("email", teacher.email)
+        .eq("role", "teacher")
+        .single()
+
+      if (userFetchError && userFetchError.code !== 'PGRST116') {
+        console.error("❌ Error fetching user data:", userFetchError)
+        // Continue with teacher deletion even if user not found
+      }
+
+      // Delete from teachers table
+      const { error: teacherDeleteError, count } = await supabase
+        .from("teachers")
+        .delete()
+        .eq("id", id)
+
+      if (teacherDeleteError) {
+        console.error("❌ Database error during teacher deletion:", teacherDeleteError)
+        throw teacherDeleteError
+      }
+
+      // Delete from users table if user record exists
+      if (user) {
+        const { error: userDeleteError } = await supabase
+          .from("users")
+          .delete()
+          .eq("id", user.id)
+
+        if (userDeleteError) {
+          console.error("❌ Error deleting user record:", userDeleteError)
+          // Don't throw error here, as teacher was already deleted
+          console.warn("⚠️ Teacher deleted but user record deletion failed")
+        } else {
+          console.log("✅ Teacher and user records deleted successfully")
+        }
+      } else {
+        console.log("✅ Teacher deleted successfully (no user record found)")
       }
 
       // Reload teachers to update the UI

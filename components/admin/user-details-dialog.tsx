@@ -2,6 +2,7 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { UserAvatar } from '@/components/ui/user-avatar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 
@@ -30,12 +31,7 @@ export function UserDetailsDialog({ user }: UserDetailsDialogProps) {
     <div className="space-y-4">
       {/* User Header */}
       <div className="flex items-center gap-4">
-        <Avatar className="h-14 w-14">
-          <AvatarImage src={user.avatar || "/placeholder.svg"} />
-          <AvatarFallback className="text-lg">
-            {user.name.split(' ').map(n => n[0]).join('')}
-          </AvatarFallback>
-        </Avatar>
+        <UserAvatar user={user} size="lg" />
         <div className="flex-1">
           <h3 className="text-lg font-semibold">{user.name}</h3>
           <p className="text-muted-foreground text-sm">{user.email}</p>

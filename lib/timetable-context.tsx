@@ -42,6 +42,7 @@ interface TimetableContextType {
   rooms: TimetableRoom[]
   generateTimetable: (classId: string) => Promise<{ success: boolean; error?: string }>
   deleteTimetable: (classId: string) => Promise<{ success: boolean; error?: string }>
+  bulkDeleteTimetables: (classIds: string[]) => Promise<{ success: boolean; deletedCount: number; errors: string[] }>
   exportTimetable: (classId: string) => Promise<{ success: boolean; error?: string }>
   refreshClasses: (filters?: { subsystem?: string; branch?: string; academicYear?: string }) => Promise<void>
   loadClassesWithFilters: (filters: { subsystem?: string; branch?: string; academicYear?: string }) => Promise<void>
@@ -326,6 +327,54 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const bulkDeleteTimetables = async (classIds: string[]): Promise<{ success: boolean; deletedCount: number; errors: string[] }> => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/timetable/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ classIds }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete timetables')
+      }
+
+      if (result.success) {
+        // Update the classes to remove periods for deleted timetables
+        setClasses(prev => prev.map(c => 
+          classIds.includes(c.id) 
+            ? { ...c, periods: [] }
+            : c
+        ))
+        
+        return {
+          success: true,
+          deletedCount: result.deletedCount,
+          errors: result.errors || []
+        }
+      } else {
+        throw new Error(result.error || 'Failed to delete timetables')
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete timetables'
+      setError(errorMessage)
+      return {
+        success: false,
+        deletedCount: 0,
+        errors: [errorMessage]
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const exportTimetable = async (classId: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const selectedClass = classes.find(c => c.id === classId)
@@ -369,6 +418,7 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       rooms,
       generateTimetable,
       deleteTimetable,
+      bulkDeleteTimetables,
       exportTimetable,
       refreshClasses,
       loadClassesWithFilters,

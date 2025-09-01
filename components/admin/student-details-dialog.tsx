@@ -180,15 +180,15 @@ export function StudentDetailsDialog({ student, onClose, onEdit }: StudentDetail
           <div className="grid gap-3 md:grid-cols-3">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Fees</p>
-              <p className="text-lg font-semibold">{student.total_fees.toLocaleString()} XAF</p>
+              <p className="text-lg font-semibold">{student.total_fees.toLocaleString()} XOF</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Paid Amount</p>
-              <p className="text-lg font-semibold text-green-600">{student.paid_fees.toLocaleString()} XAF</p>
+              <p className="text-lg font-semibold text-green-600">{student.paid_fees.toLocaleString()} XOF</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Outstanding</p>
-              <p className="text-lg font-semibold text-red-600">{(student.total_fees - student.paid_fees).toLocaleString()} XAF</p>
+              <p className="text-lg font-semibold text-red-600">{(student.total_fees - student.paid_fees).toLocaleString()} XOF</p>
             </div>
           </div>
           <div className="mt-4">

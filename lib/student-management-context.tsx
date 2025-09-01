@@ -418,6 +418,18 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
   // Load students on mount
   useEffect(() => {
     loadStudents()
+    
+    // Listen for student creation events from user management
+    const handleStudentCreated = () => {
+      console.log('Student created event received, refreshing student data...')
+      loadStudents(true) // Force refresh
+    }
+    
+    window.addEventListener('studentCreated', handleStudentCreated)
+    
+    return () => {
+      window.removeEventListener('studentCreated', handleStudentCreated)
+    }
   }, [])
 
   // Listen for student enrollment events and refresh the list

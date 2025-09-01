@@ -16,6 +16,7 @@ export interface ProfileData {
   gender?: "male" | "female"
   studentId?: string
   teacherRegNo?: string
+  bursarId?: string
   parentCode?: string
   subsystem?: "english" | "french"
   branch?: "grammar" | "technical" | "commercial"
@@ -175,6 +176,43 @@ const mockProfiles: Record<string, ProfileData> = {
       timezone: "Africa/Douala",
     },
     lastUpdated: "2024-01-18T16:45:00Z",
+  },
+  "5": {
+    id: "5",
+    name: "Grace Tabi",
+    email: "bursar@pisonacademy.cm",
+    role: "bursar",
+    bursarId: "BUR2024001",
+    avatar: "/placeholder.svg?height=100&width=100",
+    phone: "+237 677 567 890",
+    address: "Buea, Southwest Region, Cameroon",
+    dateOfBirth: "1980-12-10",
+    gender: "female",
+    bio: "Experienced financial administrator with expertise in school fee management and financial reporting.",
+    emergencyContact: {
+      name: "Michael Tabi",
+      phone: "+237 677 567 891",
+      relationship: "Spouse",
+    },
+    preferences: {
+      notifications: {
+        email: true,
+        sms: true,
+        push: true,
+        grades: false,
+        attendance: false,
+        fees: true,
+        announcements: true,
+        messages: true,
+      },
+      language: "en",
+      theme: "light",
+      timezone: "Africa/Douala",
+    },
+    socialMedia: {
+      linkedin: "https://linkedin.com/in/grace-tabi",
+    },
+    lastUpdated: "2024-01-17T09:15:00Z",
   },
 }
 

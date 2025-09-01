@@ -8,6 +8,22 @@ import { activityLogger } from "./activity-logger"
 import { generateDefaultPassword } from "./password-utils"
 import bcrypt from "bcryptjs"
 
+// Helper function to generate initials from name
+function generateInitials(name: string): string {
+  if (!name || typeof name !== 'string') {
+    return 'U'
+  }
+  
+  return name
+    .trim()
+    .split(' ')
+    .filter(word => word.length > 0)
+    .map(word => word[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) // Limit to 2 characters
+}
+
 // Fallback UUID generation function
 const generateUUID = (): string => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -286,14 +302,18 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
       // Create user account for student
       let studentUser = null
       if (studentData.email) {
+        const studentName = `${studentData.firstName} ${studentData.lastName}`
+        const studentInitials = generateInitials(studentName)
+        
         const { data: studentUserData, error: studentUserError } = await supabase
           .from('users')
           .insert({
             email: studentData.email,
             password_hash: await bcrypt.hash(studentPassword, 12),
-            name: `${studentData.firstName} ${studentData.lastName}`,
+            name: studentName,
             role: 'student',
             status: 'active',
+            avatar_url: `initials:${studentInitials}`, // Store initials as avatar URL
             phone: studentData.phone,
             has_default_password: true,
             password_last_changed: new Date().toISOString(),
@@ -312,6 +332,8 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
       // Create user account for parent
       let parentUser = null
       if (studentData.parentEmail) {
+        const parentInitials = generateInitials(studentData.parentName)
+        
         const { data: parentUserData, error: parentUserError } = await supabase
           .from('users')
           .insert({
@@ -320,6 +342,7 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
             name: studentData.parentName,
             role: 'parent',
             status: 'active',
+            avatar_url: `initials:${parentInitials}`, // Store initials as avatar URL
             phone: studentData.parentPhone,
             has_default_password: true,
             password_last_changed: new Date().toISOString(),

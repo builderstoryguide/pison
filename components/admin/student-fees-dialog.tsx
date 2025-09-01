@@ -100,7 +100,7 @@ export function StudentFeesDialog({ student, onClose }: StudentFeesDialogProps) 
     
     if (updateSuccess) {
       setPaymentAmount('')
-      setSuccess(`Payment of ${amount.toLocaleString()} XAF recorded successfully!`)
+              setSuccess(`Payment of ${amount.toLocaleString()} XOF recorded successfully!`)
       // Refresh data from database
       await fetchStudentData()
       // Clear success message after 3 seconds
@@ -120,7 +120,7 @@ export function StudentFeesDialog({ student, onClose }: StudentFeesDialogProps) 
     })
     
     if (updateSuccess) {
-      setSuccess(`Full payment of ${(currentStudent.total_fees || 0).toLocaleString()} XAF recorded successfully!`)
+              setSuccess(`Full payment of ${(currentStudent.total_fees || 0).toLocaleString()} XOF recorded successfully!`)
       // Refresh data from database
       await fetchStudentData()
       // Clear success message after 3 seconds
@@ -164,15 +164,15 @@ export function StudentFeesDialog({ student, onClose }: StudentFeesDialogProps) 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Total Fees</p>
-              <p className="text-2xl font-bold">{(currentStudent.total_fees || 0).toLocaleString()} XAF</p>
+              <p className="text-2xl font-bold">{(currentStudent.total_fees || 0).toLocaleString()} XOF</p>
             </div>
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Paid Amount</p>
-              <p className="text-2xl font-bold text-green-600">{(currentStudent.paid_fees || 0).toLocaleString()} XAF</p>
+              <p className="text-2xl font-bold text-green-600">{(currentStudent.paid_fees || 0).toLocaleString()} XOF</p>
             </div>
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Outstanding</p>
-              <p className="text-2xl font-bold text-red-600">{outstandingAmount.toLocaleString()} XAF</p>
+              <p className="text-2xl font-bold text-red-600">{outstandingAmount.toLocaleString()} XOF</p>
             </div>
           </div>
 
@@ -205,7 +205,7 @@ export function StudentFeesDialog({ student, onClose }: StudentFeesDialogProps) 
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="paymentAmount">Payment Amount (XAF)</Label>
+                              <Label htmlFor="paymentAmount">Payment Amount (XOF)</Label>
               <Input
                 id="paymentAmount"
                 type="number"
@@ -215,7 +215,7 @@ export function StudentFeesDialog({ student, onClose }: StudentFeesDialogProps) 
                 max={outstandingAmount}
               />
               <p className="text-xs text-muted-foreground">
-                Maximum: {outstandingAmount.toLocaleString()} XAF
+                Maximum: {outstandingAmount.toLocaleString()} XOF
               </p>
             </div>
 

@@ -38,13 +38,32 @@ export function FeeStructureManagement() {
     try {
       const response = await fetch('/api/bursar/fee-structures')
       const data = await response.json()
-      setFeeStructures(data)
-          } catch (error) {
-        toast.error("Failed to load fee structures")
-      } finally {
-        setIsLoading(false)
+      
+      // Check if the response contains an error
+      if (data.error) {
+        console.error('API Error:', data.error)
+        toast.error(data.error || "Failed to load fee structures")
+        setFeeStructures([])
+        return
       }
+      
+      // Ensure data is an array
+      if (Array.isArray(data)) {
+        console.log('Fee structures loaded:', data.length, 'items')
+        setFeeStructures(data)
+      } else {
+        console.error('Unexpected data format:', data)
+        toast.error("Invalid data format received")
+        setFeeStructures([])
+      }
+    } catch (error) {
+      console.error('Fetch error:', error)
+      toast.error("Failed to load fee structures")
+      setFeeStructures([])
+    } finally {
+      setIsLoading(false)
     }
+  }
 
     const handleDelete = async (id: string) => {
       if (!confirm('Are you sure you want to delete this fee structure?')) return
@@ -110,48 +129,55 @@ export function FeeStructureManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {feeStructures.map((structure) => (
-                <TableRow key={structure.id}>
-                  <TableCell className="font-medium">{structure.name}</TableCell>
-                  <TableCell>{structure.className}</TableCell>
-                  <TableCell>{structure.academicYear}</TableCell>
-                  <TableCell className="capitalize">{structure.term}</TableCell>
-                  <TableCell className="font-medium">{formatCurrency(structure.totalAmount)}</TableCell>
-                  <TableCell>
-                    <Badge variant={structure.isActive ? "default" : "secondary"}>
-                      {structure.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={() => handleDelete(structure.id)}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {Array.isArray(feeStructures) && feeStructures.length > 0 ? (
+                feeStructures.map((structure) => (
+                  <TableRow key={structure.id}>
+                    <TableCell className="font-medium">{structure.name}</TableCell>
+                    <TableCell>{structure.className}</TableCell>
+                    <TableCell>{structure.academicYear}</TableCell>
+                    <TableCell className="capitalize">{structure.term}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency(structure.totalAmount)}</TableCell>
+                    <TableCell>
+                      <Badge variant={structure.isActive ? "default" : "secondary"}>
+                        {structure.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Edit className="h-4 w-4 mr-2" />
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => handleDelete(structure.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    {Array.isArray(feeStructures) ? 'No fee structures found' : 'Loading fee structures...'}
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>

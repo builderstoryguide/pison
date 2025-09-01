@@ -31,6 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { UserAvatar } from "@/components/ui/user-avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -49,6 +50,7 @@ import {
 } from "@/components/ui/alert-dialog"
 
 import { useStudentManagement, type Student, type StudentFilters } from "@/lib/student-management-context"
+import { useUserManagement } from "@/lib/user-management-context"
 import { useToast } from "@/hooks/use-toast"
 import { StudentEnrollmentForm } from "./student-enrollment-form"
 import { EnrollmentSuccessDialog } from "./enrollment-success-dialog"
@@ -90,6 +92,7 @@ export function StudentManagement() {
     testDatabaseConnection,
   } = useStudentManagement()
 
+  const { users } = useUserManagement()
   const { success, error: showError } = useToast()
 
   const [showEnrollmentForm, setShowEnrollmentForm] = useState(false)
@@ -385,9 +388,7 @@ export function StudentManagement() {
     }
   }
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
-  }
+
 
   useEffect(() => {
     testDatabaseConnection()
@@ -433,6 +434,9 @@ export function StudentManagement() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
+          <Button variant="outline" onClick={() => console.log('Students state:', students)}>
+            Debug Log
+          </Button>
           <Button variant="outline" onClick={exportToCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export CSV
@@ -465,12 +469,18 @@ export function StudentManagement() {
       )}
 
       {/* Debug Information */}
-      <div className="text-sm text-muted-foreground">
-        <p>Total students loaded: {students.length}</p>
-        <p>Filtered students: {filteredStudents.length}</p>
-        <p>New students: {newStudents.length}</p>
-        <p>Using database: {isUsingDatabase ? 'Yes' : 'No'}</p>
-      </div>
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Debug Info:</strong> Students: {students.length} | 
+          Filtered: {filteredStudents.length} | 
+          Tab: {activeTab} | 
+          Tab Students: {tabStudents.length} | 
+          Paginated: {paginatedStudents.length} | 
+          Page: {currentPage}/{totalPages} | 
+          Database: {isUsingDatabase ? 'Yes' : 'No'}
+        </AlertDescription>
+      </Alert>
 
       {/* Statistics Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -480,9 +490,9 @@ export function StudentManagement() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-2xl font-bold">{students.length}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.enrolled} enrolled, {stats.pending} pending
+              {students.filter(s => s.status === 'active').length} active, {students.filter(s => s.status === 'inactive').length} inactive
             </p>
           </CardContent>
         </Card>
@@ -506,7 +516,7 @@ export function StudentManagement() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.feesPercentage}%</div>
             <p className="text-xs text-muted-foreground">
-              {stats.collectedFees.toLocaleString()} XAF of {stats.totalFees.toLocaleString()} XAF
+                              {stats.collectedFees.toLocaleString()} XOF of {stats.totalFees.toLocaleString()} XOF
             </p>
           </CardContent>
         </Card>
@@ -772,9 +782,9 @@ export function StudentManagement() {
             <TabsList>
               <TabsTrigger value="all">
                 All Students
-                {stats.total > 0 && (
+                {students.length > 0 && (
                   <Badge variant="secondary" className="ml-2">
-                    {stats.total}
+                    {students.length}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -899,12 +909,13 @@ export function StudentManagement() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8">
-                                <AvatarImage src={`/placeholder-xyltx.png?key=70r0a&height=32&width=32`} />
-                                <AvatarFallback className="text-xs">
-                                  {getInitials(student.first_name, student.last_name)}
-                                </AvatarFallback>
-                              </Avatar>
+                              <UserAvatar 
+                                user={{ 
+                                  name: `${student.first_name} ${student.last_name}`,
+                                  avatar: null 
+                                }} 
+                                size="sm" 
+                              />
                               <div>
                                 <div className="font-medium">
                                   {student.first_name} {student.last_name}
@@ -933,7 +944,7 @@ export function StudentManagement() {
                               {getFeesBadge(student.fees_status)}
                               <div className="text-sm text-muted-foreground">
                                 {student.paid_fees?.toLocaleString() || 0} / {student.total_fees?.toLocaleString() || 0}{" "}
-                                XAF
+                                XOF
                               </div>
                             </div>
                           </TableCell>

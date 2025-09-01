@@ -7,6 +7,22 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// Helper function to generate initials from name
+function generateInitials(name: string): string {
+  if (!name || typeof name !== 'string') {
+    return 'U'
+  }
+  
+  return name
+    .trim()
+    .split(' ')
+    .filter(word => word.length > 0)
+    .map(word => word[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) // Limit to 2 characters
+}
+
 // Helper function to generate role-specific ID
 function generateRoleSpecificId(role: string): string {
   const year = new Date().getFullYear();
@@ -75,25 +91,39 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let query = supabase
+    let baseQuery = supabase
       .from('user_details')
       .select('*', { count: 'exact' });
 
     // Apply filters
     if (role) {
-      query = query.eq('role', role);
+      baseQuery = baseQuery.eq('role', role);
     }
     if (status) {
-      query = query.eq('status', status);
+      baseQuery = baseQuery.eq('status', status);
     }
     if (search) {
-      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,role_specific_id.ilike.%${search}%`);
+      baseQuery = baseQuery.or(`name.ilike.%${search}%,email.ilike.%${search}%,role_specific_id.ilike.%${search}%`);
     }
 
-    // Apply pagination
-    query = query.range(offset, offset + limit - 1).order('created_at', { ascending: false });
+    // Try ordering by created_at; if it fails because the column doesn't exist in the view,
+    // fall back to ordering by id.
+    let users, error, count;
+    let firstAttempt = await baseQuery
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    users = firstAttempt.data as any;
+    error = firstAttempt.error as any;
+    count = firstAttempt.count as any;
 
-    const { data: users, error, count } = await query;
+    if (error && /created_at/i.test(error.message || '') && /column|does not exist/i.test(error.message || '')) {
+      const secondAttempt = await baseQuery
+        .order('id', { ascending: false })
+        .range(offset, offset + limit - 1);
+      users = secondAttempt.data as any;
+      error = secondAttempt.error as any;
+      count = secondAttempt.count as any;
+    }
 
     if (error) {
       console.error('Error fetching users:', error);
@@ -101,7 +131,8 @@ export async function GET(request: NextRequest) {
         { 
           error: 'Failed to fetch users',
           message: error.message,
-          code: error.code
+          code: error.code,
+          details: error.details || null
         },
         { status: 500 }
       );
@@ -193,6 +224,9 @@ export async function POST(request: NextRequest) {
     // Generate role-specific ID
     const roleSpecificId = generateRoleSpecificId(role);
 
+    // Generate initials for avatar
+    const initials = generateInitials(name);
+
     // Set password expiry (30 days from now)
     const passwordExpiryDate = new Date();
     passwordExpiryDate.setDate(passwordExpiryDate.getDate() + 30);
@@ -206,6 +240,7 @@ export async function POST(request: NextRequest) {
         name,
         role,
         status: 'active',
+        avatar_url: `initials:${initials}`, // Store initials as avatar URL
         phone,
         address,
         date_of_birth: dateOfBirth,
@@ -253,13 +288,121 @@ export async function POST(request: NextRequest) {
       // Note: We don't fail here as the user was created successfully
     }
 
+    // If creating a student, also create a record in the students table
+    if (role === 'student') {
+      try {
+        // Check if student record already exists (from enrollment form)
+        const { data: existingStudent } = await supabase
+          .from('students')
+          .select('id')
+          .eq('student_id', roleSpecificId)
+          .single();
+
+        if (!existingStudent) {
+          // Only create if it doesn't exist
+          const studentData = {
+            student_id: roleSpecificId,
+            first_name: name.split(' ')[0] || name,
+            last_name: name.split(' ').slice(1).join(' ') || '',
+            email,
+            phone,
+            date_of_birth: dateOfBirth,
+            gender,
+            address,
+            subsystem,
+            branch,
+            class: className,
+            status: 'active',
+            enrollment_status: 'enrolled',
+            academic_year: new Date().getFullYear() + '/' + (new Date().getFullYear() + 1),
+            enrollment_date: new Date().toISOString().split('T')[0]
+          };
+
+          const { error: studentError } = await supabase
+            .from('students')
+            .insert(studentData);
+
+          if (studentError) {
+            console.error('Error creating student record:', studentError);
+            // Note: We don't fail here as the user was created successfully
+          } else {
+            console.log('Student record created successfully:', roleSpecificId);
+          }
+        } else {
+          console.log('Student record already exists, skipping creation:', roleSpecificId);
+        }
+      } catch (studentErr) {
+        console.error('Error in student creation:', studentErr);
+        // Note: We don't fail here as the user was created successfully
+      }
+    }
+
+    // If creating a teacher, also create a record in the teachers table
+    if (role === 'teacher') {
+      try {
+        // Check if teacher record already exists (from enrollment form)
+        const { data: existingTeacher } = await supabase
+          .from('teachers')
+          .select('id')
+          .eq('teacher_id', roleSpecificId)
+          .single();
+
+        if (!existingTeacher) {
+          // Only create if it doesn't exist
+          const teacherData = {
+            teacher_id: roleSpecificId,
+            title: '', // Will be set to empty, can be updated later
+            first_name: name.split(' ')[0] || name,
+            last_name: name.split(' ').slice(1).join(' ') || '',
+            email,
+            phone,
+            date_of_birth: dateOfBirth,
+            gender,
+            nationality: 'Cameroonian', // Default value
+            id_number: '', // Will be set to empty, can be updated later
+            address,
+            city: '', // Will be set to empty, can be updated later
+            region: '', // Will be set to empty, can be updated later
+            subsystem,
+            subjects: [], // Empty array, can be updated later
+            classes: [], // Empty array, can be updated later
+            qualifications: [], // Empty array, can be updated later
+            experience: '', // Will be set to empty, can be updated later
+            employment_type: 'full-time', // Default value
+            salary: 0, // Default value, can be updated later
+            start_date: new Date().toISOString().split('T')[0],
+            emergency_contact_name: emergencyContactName || '',
+            emergency_contact_relationship: emergencyContactRelationship || '',
+            emergency_contact_phone: emergencyContactPhone || '',
+            status: 'active'
+          };
+
+          const { error: teacherError } = await supabase
+            .from('teachers')
+            .insert(teacherData);
+
+          if (teacherError) {
+            console.error('Error creating teacher record:', teacherError);
+            // Note: We don't fail here as the user was created successfully
+          } else {
+            console.log('Teacher record created successfully:', roleSpecificId);
+          }
+        } else {
+          console.log('Teacher record already exists, skipping creation:', roleSpecificId);
+        }
+      } catch (teacherErr) {
+        console.error('Error in teacher creation:', teacherErr);
+        // Note: We don't fail here as the user was created successfully
+      }
+    }
+
     // Log activity (only if createdBy is provided)
     if (createdBy) {
       await supabase.rpc('log_user_activity', {
         p_user_id: createdBy,
         p_action: 'CREATE_USER',
         p_details: `Created new ${role} account for ${name}`,
-        p_ip_address: request.headers.get('x-forwarded-for') || request.ip,
+        p_ip_address: request.headers.get('x-forwarded-for') || '',
         p_user_agent: request.headers.get('user-agent')
       });
     }
@@ -300,7 +443,7 @@ export async function PUT(request: NextRequest) {
     // Check if user exists
     const { data: existingUser } = await supabase
       .from('users')
-      .select('id, email')
+      .select('id, email, role, name')
       .eq('id', userId)
       .single();
 
@@ -360,13 +503,102 @@ export async function PUT(request: NextRequest) {
       console.error('Error updating user profile:', profileError);
     }
 
+    // If updating a student, also update the students table
+    if (updateData.role === 'student' || existingUser.role === 'student') {
+      try {
+        // Get the user profile to get the role_specific_id
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('role_specific_id')
+          .eq('user_id', userId)
+          .single();
+
+        if (profile?.role_specific_id) {
+          const studentUpdateData = {
+            first_name: updateData.name?.split(' ')[0] || existingUser.name?.split(' ')[0] || '',
+            last_name: updateData.name?.split(' ').slice(1).join(' ') || existingUser.name?.split(' ').slice(1).join(' ') || '',
+            email: updateData.email || existingUser.email,
+            phone: updateData.phone,
+            date_of_birth: updateData.dateOfBirth,
+            gender: updateData.gender,
+            address: updateData.address,
+            subsystem: updateData.subsystem,
+            branch: updateData.branch,
+            class: updateData.class,
+            status: updateData.status || 'active',
+            updated_at: new Date().toISOString()
+          };
+
+          // Try to update existing student record
+          const { error: studentUpdateError } = await supabase
+            .from('students')
+            .update(studentUpdateData)
+            .eq('student_id', profile.role_specific_id);
+
+          if (studentUpdateError) {
+            console.error('Error updating student record:', studentUpdateError);
+            // Note: We don't fail here as the user was updated successfully
+          } else {
+            console.log('Student record updated successfully:', profile.role_specific_id);
+          }
+        }
+      } catch (studentErr) {
+        console.error('Error in student update:', studentErr);
+        // Note: We don't fail here as the user was updated successfully
+      }
+    }
+
+    // If updating a teacher, also update the teachers table
+    if (updateData.role === 'teacher' || existingUser.role === 'teacher') {
+      try {
+        // Get the user profile to get the role_specific_id
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('role_specific_id')
+          .eq('user_id', userId)
+          .single();
+
+        if (profile?.role_specific_id) {
+          const teacherUpdateData = {
+            first_name: updateData.name?.split(' ')[0] || existingUser.name?.split(' ')[0] || '',
+            last_name: updateData.name?.split(' ').slice(1).join(' ') || existingUser.name?.split(' ').slice(1).join(' ') || '',
+            email: updateData.email || existingUser.email,
+            phone: updateData.phone,
+            date_of_birth: updateData.dateOfBirth,
+            gender: updateData.gender,
+            address: updateData.address,
+            subsystem: updateData.subsystem,
+            branch: updateData.branch,
+            status: updateData.status || 'active',
+            updated_at: new Date().toISOString()
+          };
+
+          // Try to update existing teacher record
+          const { error: teacherUpdateError } = await supabase
+            .from('teachers')
+            .update(teacherUpdateData)
+            .eq('teacher_id', profile.role_specific_id);
+
+          if (teacherUpdateError) {
+            console.error('Error updating teacher record:', teacherUpdateError);
+            // Note: We don't fail here as the user was updated successfully
+          } else {
+            console.log('Teacher record updated successfully:', profile.role_specific_id);
+          }
+        }
+      } catch (teacherErr) {
+        console.error('Error in teacher update:', teacherErr);
+        // Note: We don't fail here as the user was updated successfully
+      }
+    }
+
     // Log activity (only if updatedBy is provided)
     if (updateData.updatedBy) {
       await supabase.rpc('log_user_activity', {
         p_user_id: updateData.updatedBy,
         p_action: 'UPDATE_USER',
         p_details: `Updated profile for ${user.name}`,
-        p_ip_address: request.headers.get('x-forwarded-for') || request.ip,
+        p_ip_address: request.headers.get('x-forwarded-for') || '',
         p_user_agent: request.headers.get('user-agent')
       });
     }
@@ -403,7 +635,7 @@ export async function DELETE(request: NextRequest) {
     // Check if user exists
     const { data: existingUser } = await supabase
       .from('users')
-      .select('id, name')
+      .select('id, name, role')
       .eq('id', userId)
       .single();
 
@@ -412,6 +644,66 @@ export async function DELETE(request: NextRequest) {
         { error: 'User not found' },
         { status: 404 }
       );
+    }
+
+    // If deleting a student, also delete the corresponding student record
+    if (existingUser.role === 'student') {
+      try {
+        // Get the user profile to get the role_specific_id
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('role_specific_id')
+          .eq('user_id', userId)
+          .single();
+
+        if (profile?.role_specific_id) {
+          // Delete the student record
+          const { error: studentDeleteError } = await supabase
+            .from('students')
+            .delete()
+            .eq('student_id', profile.role_specific_id);
+
+          if (studentDeleteError) {
+            console.error('Error deleting student record:', studentDeleteError);
+            // Note: We don't fail here as the user was deleted successfully
+          } else {
+            console.log('Student record deleted successfully:', profile.role_specific_id);
+          }
+        }
+      } catch (studentErr) {
+        console.error('Error in student deletion:', studentErr);
+        // Note: We don't fail here as the user was deleted successfully
+      }
+    }
+
+    // If deleting a teacher, also delete the corresponding teacher record
+    if (existingUser.role === 'teacher') {
+      try {
+        // Get the user profile to get the role_specific_id
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('role_specific_id')
+          .eq('user_id', userId)
+          .single();
+
+        if (profile?.role_specific_id) {
+          // Delete the teacher record
+          const { error: teacherDeleteError } = await supabase
+            .from('teachers')
+            .delete()
+            .eq('teacher_id', profile.role_specific_id);
+
+          if (teacherDeleteError) {
+            console.error('Error deleting teacher record:', teacherDeleteError);
+            // Note: We don't fail here as the user was deleted successfully
+          } else {
+            console.log('Teacher record deleted successfully:', profile.role_specific_id);
+          }
+        }
+      } catch (teacherErr) {
+        console.error('Error in teacher deletion:', teacherErr);
+        // Note: We don't fail here as the user was deleted successfully
+      }
     }
 
     // Delete user (this will cascade to user_profiles due to foreign key constraint)
@@ -434,7 +726,7 @@ export async function DELETE(request: NextRequest) {
         p_user_id: deletedBy,
         p_action: 'DELETE_USER',
         p_details: `Deleted user account for ${existingUser.name}`,
-        p_ip_address: request.headers.get('x-forwarded-for') || request.ip,
+        p_ip_address: request.headers.get('x-forwarded-for') || '',
         p_user_agent: request.headers.get('user-agent')
       });
     }

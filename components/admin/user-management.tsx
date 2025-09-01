@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from 'react'
-import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, UserX, UserCheck, RotateCcw, Eye, Download, Users, UserPlus, Activity, RefreshCw, AlertCircle, Users2 } from 'lucide-react'
+import React, { useState } from 'react'
+import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, UserX, UserCheck, RotateCcw, Eye, Download, Users, UserPlus, Activity, RefreshCw, AlertCircle, Users2, CheckSquare, Square, Trash2 as TrashIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -55,9 +55,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Pagination } from '@/components/ui/pagination'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Checkbox } from '@/components/ui/checkbox'
+import { useToast } from '@/hooks/use-toast'
 
 import { useUserManagement, User, UserFilters } from '@/lib/user-management-context'
-import { CreateUserForm } from './create-user-form'
+import { useStudentManagement } from '@/lib/student-management-context'
+import { useTeacherManagement } from '@/lib/teacher-management-context'
+import { DynamicUserForm } from './dynamic-user-form'
 import { EditUserForm } from './edit-user-form'
 import { UserDetailsDialog } from './user-details-dialog'
 import { ActivityLogsView } from './activity-logs-view'
@@ -77,17 +81,25 @@ const statusColors = {
 }
 
 export function UserManagement() {
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast()
   const {
     users,
     searchUsers,
     filterUsers,
     toggleUserStatus,
     deleteUser,
+    bulkDeleteUsers,
     resetUserPassword,
     isLoading,
     error,
     refreshUsers
   } = useUserManagement()
+
+  // Get students from student management context to ensure consistency
+  const { students: studentManagementStudents } = useStudentManagement()
+  
+  // Get teachers from teacher management context to ensure consistency
+  const { teachers: teacherManagementTeachers } = useTeacherManagement()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [filters, setFilters] = useState<UserFilters>({})
@@ -100,9 +112,20 @@ export function UserManagement() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
 
+  // Bulk selection state
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
+  const [selectAll, setSelectAll] = useState(false)
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
+
   // Get filtered and searched users
   const filteredUsers = filterUsers(filters)
   const displayUsers = searchQuery ? searchUsers(searchQuery) : filteredUsers
+
+  // Reset selection when filters or search change
+  React.useEffect(() => {
+    setSelectedUsers(new Set())
+    setSelectAll(false)
+  }, [filters, searchQuery])
 
   // Pagination logic
   const totalPages = Math.ceil(displayUsers.length / itemsPerPage)
@@ -119,6 +142,58 @@ export function UserManagement() {
   const handleItemsPerPageChange = (newItemsPerPage: number) => {
     setItemsPerPage(newItemsPerPage)
     setCurrentPage(1) // Reset to first page
+  }
+
+  // Bulk selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedUsers(new Set(paginatedUsers.map(user => user.id)))
+      setSelectAll(true)
+    } else {
+      setSelectedUsers(new Set())
+      setSelectAll(false)
+    }
+  }
+
+  const handleSelectUser = (userId: string, checked: boolean) => {
+    const newSelected = new Set(selectedUsers)
+    if (checked) {
+      newSelected.add(userId)
+    } else {
+      newSelected.delete(userId)
+    }
+    setSelectedUsers(newSelected)
+    setSelectAll(newSelected.size === paginatedUsers.length)
+  }
+
+  const handleBulkDelete = () => {
+    if (selectedUsers.size === 0) return
+    setIsBulkDeleteDialogOpen(true)
+  }
+
+  const handleConfirmBulkDelete = async () => {
+    if (selectedUsers.size === 0) {
+      setIsBulkDeleteDialogOpen(false)
+      return
+    }
+
+    const result = await bulkDeleteUsers(Array.from(selectedUsers))
+    
+    if (result.success) {
+      // Clear selection after successful deletion
+      setSelectedUsers(new Set())
+      setSelectAll(false)
+      
+      // Toast notifications
+      if (result.errors.length > 0) {
+        toastWarning('Bulk delete completed with issues', `Deleted ${result.deletedCount} users. ${result.errors.length} errors occurred.`)
+      } else {
+        toastSuccess('Bulk delete successful', `Deleted ${result.deletedCount} users.`)
+      }
+    } else {
+      toastError('Bulk delete failed', result.errors?.[0] || 'Failed to delete users. Please try again.')
+    }
+    setIsBulkDeleteDialogOpen(false)
   }
 
   const handleStatusChange = async (userId: string, status: 'active' | 'inactive' | 'suspended') => {
@@ -170,8 +245,10 @@ export function UserManagement() {
     active: users.filter(u => u.status === 'active').length,
     inactive: users.filter(u => u.status === 'inactive').length,
     suspended: users.filter(u => u.status === 'suspended').length,
-    teachers: users.filter(u => u.role === 'teacher').length,
-    students: users.filter(u => u.role === 'student').length,
+    // Use teacher management data for consistency with Teacher Management dashboard
+    teachers: teacherManagementTeachers.length,
+    // Use student management data for consistency with Student Management dashboard
+    students: studentManagementStudents.length,
     parents: users.filter(u => u.role === 'parent').length,
     admins: users.filter(u => u.role === 'admin').length,
     bursars: users.filter(u => u.role === 'bursar').length
@@ -248,7 +325,7 @@ export function UserManagement() {
                   Add a new user to the school management system
                 </DialogDescription>
               </DialogHeader>
-              <CreateUserForm onSuccess={() => setShowCreateDialog(false)} />
+              <DynamicUserForm onSuccess={() => setShowCreateDialog(false)} />
             </DialogContent>
           </Dialog>
         </div>
@@ -261,6 +338,18 @@ export function UserManagement() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+
+      {/* Data Consistency Alert */}
+      <Alert>
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Data Consistency:</strong> 
+          Students: {users.filter(u => u.role === 'student').length} vs {studentManagementStudents.length} | 
+          Teachers: {users.filter(u => u.role === 'teacher').length} vs {teacherManagementTeachers.length} | 
+          {users.filter(u => u.role === 'student').length === studentManagementStudents.length && 
+           users.filter(u => u.role === 'teacher').length === teacherManagementTeachers.length ? '✅ All Consistent' : '⚠️ Some Inconsistent'}
+        </AlertDescription>
+      </Alert>
 
       {/* Stats Cards */}
       <div className="grid gap-4 grid-cols-6">
@@ -288,18 +377,18 @@ export function UserManagement() {
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Teachers</CardTitle>
-            <UserPlus className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{userStats.teachers}</div>
-            <p className="text-xs text-muted-foreground">
-              Teaching staff members
-            </p>
-          </CardContent>
-        </Card>
+                          <Card>
+           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+             <CardTitle className="text-sm font-medium">Teachers</CardTitle>
+             <UserPlus className="h-4 w-4 text-muted-foreground" />
+           </CardHeader>
+           <CardContent>
+             <div className="text-2xl font-bold">{userStats.teachers}</div>
+             <p className="text-xs text-muted-foreground">
+               {teacherManagementTeachers.filter(t => t.status === 'active').length} active, {teacherManagementTeachers.filter(t => t.status === 'inactive').length} inactive
+             </p>
+           </CardContent>
+         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Students</CardTitle>
@@ -308,7 +397,7 @@ export function UserManagement() {
           <CardContent>
             <div className="text-2xl font-bold">{userStats.students}</div>
             <p className="text-xs text-muted-foreground">
-              Enrolled students
+              {studentManagementStudents.filter(s => s.status === 'active').length} active, {studentManagementStudents.filter(s => s.status === 'inactive').length} inactive
             </p>
           </CardContent>
         </Card>
@@ -418,10 +507,66 @@ export function UserManagement() {
             <CardHeader>
               <CardTitle>Users ({displayUsers.length})</CardTitle>
               <CardDescription>
-                Manage user accounts and permissions
+                Manage user accounts and permissions. 
+                {filters.role === 'student' && (
+                  <span className="text-blue-600 font-medium">
+                    {' '}Note: Student data is synchronized with Student Management dashboard for consistency.
+                  </span>
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Bulk Actions Toolbar */}
+              {selectedUsers.size > 0 && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-blue-800">
+                        {selectedUsers.size} user{selectedUsers.size !== 1 ? 's' : ''} selected
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <AlertDialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={handleBulkDelete}
+                            disabled={isLoading}
+                          >
+                            <TrashIcon className="h-4 w-4 mr-2" />
+                            Delete Selected ({selectedUsers.size})
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Selected Users</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action will permanently delete {selectedUsers.size} selected user{selectedUsers.size !== 1 ? 's' : ''}. This cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleConfirmBulkDelete}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedUsers(new Set())
+                          setSelectAll(false)
+                        }}
+                      >
+                        Clear Selection
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
               {isLoading ? (
                 <LoadingState />
               ) : error ? (
@@ -441,6 +586,13 @@ export function UserManagement() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={selectAll}
+                            onCheckedChange={handleSelectAll}
+                            aria-label="Select all users"
+                          />
+                        </TableHead>
                         <TableHead>User</TableHead>
                         <TableHead>Role</TableHead>
                         <TableHead>Status</TableHead>
@@ -452,6 +604,13 @@ export function UserManagement() {
                     <TableBody>
                       {paginatedUsers.map((user) => (
                         <TableRow key={user.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedUsers.has(user.id)}
+                              onCheckedChange={(checked) => handleSelectUser(user.id, checked as boolean)}
+                              aria-label={`Select ${user.name}`}
+                            />
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <Avatar className="h-8 w-8">
