@@ -25,6 +25,7 @@ import {
   ArrowLeft
 } from "lucide-react"
 import { useClassManagement, type ClassFormData, type ClassData } from "@/lib/class-management-context"
+import { useTeacherManagement } from "@/lib/teacher-management-context"
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
@@ -116,6 +117,7 @@ const availableSubjects = {
 
 export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
   const { createClass, updateClass } = useClassManagement()
+  const { teachers, isLoading: teachersLoading } = useTeacherManagement()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -149,6 +151,15 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
 
   const getAvailableSubjects = () => {
     return availableSubjects[formData.subsystem][formData.branch] || []
+  }
+
+  const getTeacherNames = () => {
+    return teachers
+      .filter(teacher => teacher.status === 'active')
+      .map(teacher => ({
+        value: `${teacher.title} ${teacher.firstName} ${teacher.lastName}`,
+        label: `${teacher.title} ${teacher.firstName} ${teacher.lastName}`
+      }))
   }
 
   const handleSubjectToggle = (subject: string) => {
@@ -199,9 +210,6 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-4">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-full mb-4">
-            <BookOpen className="h-8 w-8 text-primary-foreground" />
-          </div>
           <h1 className="text-3xl font-bold text-foreground">
             {editClass ? "Edit Class" : "Create New Class"}
           </h1>
@@ -227,18 +235,13 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
         {/* Form Content */}
         <Card>
           <CardHeader className="pb-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center bg-primary">
-                <BookOpen className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <div>
-                <CardTitle className="text-2xl font-bold">
-                  Class Configuration
-                </CardTitle>
-                <CardDescription className="text-base">
-                  Configure all aspects of the class including basic information, capacity, teacher assignment, and subjects
-                </CardDescription>
-              </div>
+            <div>
+              <CardTitle className="text-2xl font-bold">
+                Class Configuration
+              </CardTitle>
+              <CardDescription className="text-base">
+                Configure all aspects of the class including basic information, capacity, teacher assignment, and subjects
+              </CardDescription>
             </div>
           </CardHeader>
 
@@ -361,13 +364,28 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                     <Label htmlFor="classTeacher">
                       Class Teacher <span className="text-destructive">*</span>
                     </Label>
-                    <Input
-                      id="classTeacher"
-                      value={formData.classTeacher}
-                      onChange={(e) => setFormData({ ...formData, classTeacher: e.target.value })}
-                      placeholder="e.g., Mrs. Sarah Johnson"
-                      required
-                    />
+                    {teachersLoading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                        <span className="text-sm text-muted-foreground">Loading teachers...</span>
+                      </div>
+                    ) : (
+                      <Select 
+                        value={formData.classTeacher} 
+                        onValueChange={(value) => setFormData({ ...formData, classTeacher: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a teacher" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getTeacherNames().map((teacher) => (
+                            <SelectItem key={teacher.value} value={teacher.value}>
+                              {teacher.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
 
                   <div className="space-y-2">

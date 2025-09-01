@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toast"
 import "./globals.css"
+import "react-initials-avatar/lib/ReactInitialsAvatar.css"
 
 const inter = Inter({ subsets: ["latin"] })
 

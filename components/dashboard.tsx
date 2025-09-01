@@ -46,6 +46,8 @@ import { AcademicPerformance } from "@/components/admin/academic-performance"
 import { ReportTemplates } from "@/components/admin/report-templates"
 import { GeneratedReports } from "@/components/admin/generated-reports"
 import { ReportCards } from "@/components/admin/report-cards"
+import { Dashboard01 } from "./dashboard-01"
+import { QuickActionsDashboard } from "./admin/quick-actions-dashboard"
 
 // Teacher Components
 import { TeacherDashboard } from "./teacher/teacher-dashboard"
@@ -77,20 +79,18 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
-  SidebarInset,
+  SidebarHeaderTitle,
+  SidebarHeaderDescription,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarProvider,
-  SidebarRail,
-  SidebarTrigger,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-} from "@/components/ui/sidebar"
+  SidebarTrigger,
+} from "@/components/ui/sidebar-07"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -119,6 +119,7 @@ import {
   LogOut,
   Home,
   ChevronUp,
+  ChevronLeft,
   UserPlus,
   School,
   ClipboardList,
@@ -139,7 +140,7 @@ import {
 } from "lucide-react"
 
 type AdminView =
-  | "dashboard"
+  | "quick-actions"
   | "users"
   | "students"
   | "teachers"
@@ -345,15 +346,27 @@ function DashboardHeader({
   user,
   onProfileClick,
   onLogout,
+  sidebarCollapsed,
+  onSidebarToggle,
 }: {
   user: any
   onProfileClick: () => void
   onLogout: () => void
+  sidebarCollapsed?: boolean
+  onSidebarToggle?: () => void
 }) {
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center gap-2 px-4">
-        <SidebarTrigger className="-ml-1" />
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="-ml-1 h-9 w-9 p-0"
+          onClick={onSidebarToggle}
+        >
+          <ChevronLeft className={`h-4 w-4 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} />
+          <span className="sr-only">Toggle sidebar</span>
+        </Button>
         <Separator orientation="vertical" className="mr-2 h-4" />
         <Badge variant="outline" className="capitalize">
           {user.role}
@@ -367,6 +380,26 @@ function DashboardHeader({
       </div>
     </header>
   )
+}
+
+interface QuickActionsDashboardProps {
+  onNavigate?: (view: AdminView) => void
+}
+
+interface ParentDashboardProps {
+  onNavigate?: (view: ParentView) => void
+}
+
+interface StudentDashboardProps {
+  onNavigate?: (view: StudentView) => void
+}
+
+interface TeacherDashboardProps {
+  onNavigate?: (view: TeacherView) => void
+}
+
+interface BursarDashboardProps {
+  onNavigate?: (view: BursarView) => void
 }
 
 export function Dashboard() {
@@ -389,9 +422,9 @@ export function Dashboard() {
   const [adminCurrentView, setAdminCurrentView] = useState<AdminView>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('adminCurrentView')
-      return saved ? (saved as AdminView) : "dashboard"
+      return saved ? (saved as AdminView) : "quick-actions"
     }
-    return "dashboard"
+    return "quick-actions"
   })
   
   const [teacherCurrentView, setTeacherCurrentView] = useState<TeacherView>(() => {
@@ -427,12 +460,13 @@ export function Dashboard() {
   })
   
   const [reportsDropdownOpen, setReportsDropdownOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   
   // Get data from contexts for Admin Dashboard
   const { students, isLoading: studentsLoading, error: studentsError } = useStudentManagement()
   const { teachers, isLoading: teachersLoading, error: teachersError } = useTeacherManagement()
   const { classes, isLoading: classesLoading, error: classesError } = useClassManagement()
-  const { payments, isLoading: paymentsLoading, error: paymentsError } = useFinancial()
+  const { payments, isLoading: paymentsLoading } = useFinancial()
   
   // Calculate total revenue from payments
   const totalRevenue = payments.reduce((sum, payment) => sum + payment.amountPaid, 0)
@@ -441,7 +475,7 @@ export function Dashboard() {
   const isDataLoading = studentsLoading || teachersLoading || classesLoading || paymentsLoading
   
   // Check if there are any errors
-  const hasErrors = studentsError || teachersError || classesError || paymentsError
+  const hasErrors = studentsError || teachersError || classesError
 
   // Save view states to localStorage whenever they change
   useEffect(() => {
@@ -503,41 +537,44 @@ export function Dashboard() {
 
     return (
       <ProfileProvider>
-        <SidebarProvider>
-          <Sidebar variant="inset">
+        <div className="flex h-screen">
+          <Sidebar 
+            collapsed={sidebarCollapsed} 
+            onCollapsedChange={setSidebarCollapsed}
+            className="border-r border-border/50"
+          >
             <SidebarHeader>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <div className="flex items-center gap-2 px-2 py-1">
-                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                      <School className="size-4" />
-                    </div>
-                                         <div className="grid flex-1 text-left text-sm leading-tight">
-                       <span className="truncate font-semibold">Pison Academy of Excellence</span>
-                       <span className="truncate text-xs">Parent Portal</span>
-                     </div>
+              <SidebarHeaderTitle>
+                <div className="flex items-center gap-2">
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <School className="size-4" />
                   </div>
-                </SidebarMenuItem>
-              </SidebarMenu>
+                  {!sidebarCollapsed && (
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-semibold">GBHS Yaoundé</span>
+                      <span className="truncate text-xs">Parent Portal</span>
+                    </div>
+                  )}
+                </div>
+              </SidebarHeaderTitle>
             </SidebarHeader>
             <SidebarContent>
               <SidebarGroup>
                 <SidebarGroupLabel>Parent Tools</SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {parentMenuItems.map((item) => (
-                      <SidebarMenuItem key={item.id}>
-                        <SidebarMenuButton
-                          onClick={() => setParentCurrentView(item.id as ParentView)}
-                          isActive={parentCurrentView === item.id}
-                        >
-                          <item.icon />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
+                <SidebarMenu>
+                  {parentMenuItems.map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        onClick={() => setParentCurrentView(item.id as ParentView)}
+                        isActive={parentCurrentView === item.id}
+                        className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {!sidebarCollapsed && <span>{item.label}</span>}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
               </SidebarGroup>
             </SidebarContent>
             <SidebarFooter>
@@ -546,15 +583,18 @@ export function Dashboard() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <SidebarMenuButton
-                        size="lg"
-                        className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                        className="hover:bg-accent hover:text-accent-foreground transition-colors"
                       >
                         <UserAvatar user={user} size="sm" className="rounded-lg" />
-                        <div className="grid flex-1 text-left text-sm leading-tight">
-                          <span className="truncate font-semibold">{user.name}</span>
-                          <span className="truncate text-xs">{user.email}</span>
-                        </div>
-                        <ChevronUp className="ml-auto size-4" />
+                        {!sidebarCollapsed && (
+                          <>
+                            <div className="grid flex-1 text-left text-sm leading-tight">
+                              <span className="truncate font-semibold">{user.name}</span>
+                              <span className="truncate text-xs">{user.email}</span>
+                            </div>
+                            <ChevronUp className="ml-auto size-4" />
+                          </>
+                        )}
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
@@ -587,13 +627,18 @@ export function Dashboard() {
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarFooter>
-            <SidebarRail />
           </Sidebar>
-          <SidebarInset>
-            <DashboardHeader user={user} onProfileClick={() => setParentCurrentView("profile")} onLogout={handleLogout} />
-            <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderParentContent()}</div>
-          </SidebarInset>
-        </SidebarProvider>
+          <div className="flex-1 flex flex-col">
+                         <DashboardHeader 
+               user={user} 
+               onProfileClick={() => setParentCurrentView("profile")} 
+               onLogout={handleLogout}
+               sidebarCollapsed={sidebarCollapsed}
+               onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+             />
+            <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderParentContent()}</div>
+          </div>
+        </div>
       </ProfileProvider>
     )
   }
@@ -637,41 +682,44 @@ export function Dashboard() {
 
     return (
       <ProfileProvider>
-        <SidebarProvider>
-          <Sidebar variant="inset">
+        <div className="flex h-screen">
+          <Sidebar 
+            collapsed={sidebarCollapsed} 
+            onCollapsedChange={setSidebarCollapsed}
+            className="border-r border-border/50"
+          >
             <SidebarHeader>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <div className="flex items-center gap-2 px-2 py-1">
-                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                      <School className="size-4" />
-                    </div>
-                                         <div className="grid flex-1 text-left text-sm leading-tight">
-                       <span className="truncate font-semibold">Pison Academy of Excellence</span>
-                       <span className="truncate text-xs">Student Portal</span>
-                     </div>
+              <SidebarHeaderTitle>
+                <div className="flex items-center gap-2">
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <School className="size-4" />
                   </div>
-                </SidebarMenuItem>
-              </SidebarMenu>
+                  {!sidebarCollapsed && (
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-semibold">GBHS Yaoundé</span>
+                      <span className="truncate text-xs">Student Portal</span>
+                    </div>
+                  )}
+                </div>
+              </SidebarHeaderTitle>
             </SidebarHeader>
             <SidebarContent>
               <SidebarGroup>
                 <SidebarGroupLabel>Student Tools</SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {studentMenuItems.map((item) => (
-                      <SidebarMenuItem key={item.id}>
-                        <SidebarMenuButton
-                          onClick={() => setStudentCurrentView(item.id as StudentView)}
-                          isActive={studentCurrentView === item.id}
-                        >
-                          <item.icon />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
+                <SidebarMenu>
+                  {studentMenuItems.map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        onClick={() => setStudentCurrentView(item.id as StudentView)}
+                        isActive={studentCurrentView === item.id}
+                        className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {!sidebarCollapsed && <span>{item.label}</span>}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
               </SidebarGroup>
             </SidebarContent>
             <SidebarFooter>
@@ -680,15 +728,18 @@ export function Dashboard() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <SidebarMenuButton
-                        size="lg"
-                        className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                        className="hover:bg-accent hover:text-accent-foreground transition-colors"
                       >
                         <UserAvatar user={user} size="sm" className="rounded-lg" />
-                        <div className="grid flex-1 text-left text-sm leading-tight">
-                          <span className="truncate font-semibold">{user.name}</span>
-                          <span className="truncate text-xs">{user.email}</span>
-                        </div>
-                        <ChevronUp className="ml-auto size-4" />
+                        {!sidebarCollapsed && (
+                          <>
+                            <div className="grid flex-1 text-left text-sm leading-tight">
+                              <span className="truncate font-semibold">{user.name}</span>
+                              <span className="truncate text-xs">{user.email}</span>
+                            </div>
+                            <ChevronUp className="ml-auto size-4" />
+                          </>
+                        )}
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
@@ -721,13 +772,18 @@ export function Dashboard() {
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarFooter>
-            <SidebarRail />
           </Sidebar>
-          <SidebarInset>
-            <DashboardHeader user={user} onProfileClick={() => setStudentCurrentView("profile")} onLogout={handleLogout} />
-            <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderStudentContent()}</div>
-          </SidebarInset>
-        </SidebarProvider>
+          <div className="flex-1 flex flex-col">
+                         <DashboardHeader 
+               user={user} 
+               onProfileClick={() => setStudentCurrentView("profile")} 
+               onLogout={handleLogout}
+               sidebarCollapsed={sidebarCollapsed}
+               onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+             />
+            <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderStudentContent()}</div>
+          </div>
+        </div>
       </ProfileProvider>
     )
   }
@@ -735,7 +791,7 @@ export function Dashboard() {
   // Admin Dashboard
   if (user.role === "admin") {
     const adminMenuItems = [
-      { id: "dashboard", label: "Dashboard", icon: Home },
+      { id: "quick-actions", label: "Dashboard", icon: Home },
       { id: "users", label: "User Management", icon: Users },
       { id: "students", label: "Student Management", icon: GraduationCap },
       { id: "teachers", label: "Teacher Management", icon: UserCheck },
@@ -756,6 +812,8 @@ export function Dashboard() {
 
     const renderAdminContent = () => {
       switch (adminCurrentView) {
+        case "quick-actions":
+          return <QuickActionsDashboard onNavigate={setAdminCurrentView} />
         case "users":
           return <UserManagement />
         case "students":
@@ -794,235 +852,7 @@ export function Dashboard() {
         case "profile":
           return <ProfileSettings />
         default:
-          return (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-                  <p className="text-muted-foreground">Welcome back, {user.name}! Manage your school system from here.</p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    // Refresh all data
-                    window.location.reload()
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Refresh Data
-                </Button>
-              </div>
-
-              {/* Data Status Alert */}
-              {hasErrors && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Some data failed to load. Please refresh the page or check your connection.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {isDataLoading && (
-                <Alert>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
-                  <AlertDescription>
-                    Loading dashboard data...
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    {studentsLoading ? (
-                      <div className="text-center py-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                        <p className="text-sm text-muted-foreground">Loading students...</p>
-                      </div>
-                    ) : studentsError ? (
-                      <div className="text-center py-4">
-                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
-                        <p className="text-sm text-destructive">Error loading students</p>
-                        <p className="text-xs text-muted-foreground">Please try refreshing</p>
-                      </div>
-                    ) : students.length > 0 ? (
-                      <>
-                        <div className="text-2xl font-bold">{students.length}</div>
-                        <p className="text-xs text-muted-foreground">
-                          {students.filter(s => s.status === 'active').length} active, {students.filter(s => s.status === 'inactive').length} inactive
-                        </p>
-                      </>
-                    ) : (
-                      <div className="text-center py-4">
-                        <GraduationCap className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">No students found</p>
-                        <p className="text-xs text-muted-foreground">Enroll your first student to get started</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Teachers</CardTitle>
-                    <UserCheck className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    {teachersLoading ? (
-                      <div className="text-center py-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                        <p className="text-sm text-muted-foreground">Loading teachers...</p>
-                      </div>
-                    ) : teachersError ? (
-                      <div className="text-center py-4">
-                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
-                        <p className="text-sm text-destructive">Error loading teachers</p>
-                        <p className="text-xs text-muted-foreground">Please try refreshing</p>
-                      </div>
-                    ) : teachers.length > 0 ? (
-                      <>
-                        <div className="text-2xl font-bold">{teachers.length}</div>
-                        <p className="text-xs text-muted-foreground">
-                          {teachers.filter(t => t.status === 'active').length} active, {teachers.filter(t => t.status === 'inactive').length} inactive
-                        </p>
-                      </>
-                    ) : (
-                      <div className="text-center py-4">
-                        <UserCheck className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">No teachers found</p>
-                        <p className="text-xs text-muted-foreground">Add your first teacher to get started</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Active Classes</CardTitle>
-                    <BookOpen className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    {classesLoading ? (
-                      <div className="text-center py-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                        <p className="text-sm text-muted-foreground">Loading classes...</p>
-                      </div>
-                    ) : classesError ? (
-                      <div className="text-center py-4">
-                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
-                        <p className="text-sm text-destructive">Error loading classes</p>
-                        <p className="text-xs text-muted-foreground">Please try refreshing</p>
-                      </div>
-                    ) : classes.filter(c => c.status === 'active').length > 0 ? (
-                      <>
-                        <div className="text-2xl font-bold">{classes.filter(c => c.status === 'active').length}</div>
-                        <p className="text-xs text-muted-foreground">
-                          {classes.filter(c => c.status === 'active').reduce((sum, c) => sum + c.currentEnrollment, 0)} total students enrolled
-                        </p>
-                      </>
-                    ) : (
-                      <div className="text-center py-4">
-                        <BookOpen className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">No active classes</p>
-                        <p className="text-xs text-muted-foreground">Create your first class to get started</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Revenue</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {paymentsLoading ? (
-                      <div className="text-center py-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                        <p className="text-sm text-muted-foreground">Loading revenue data...</p>
-                      </div>
-                    ) : paymentsError ? (
-                      <div className="text-center py-4">
-                        <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
-                        <p className="text-sm text-destructive">Error loading revenue</p>
-                        <p className="text-xs text-muted-foreground">Please try refreshing</p>
-                      </div>
-                    ) : totalRevenue > 0 ? (
-                      <>
-                        <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
-                        <p className="text-xs text-muted-foreground">
-                          {payments.length} payments received this month
-                        </p>
-                      </>
-                    ) : (
-                      <div className="text-center py-4">
-                        <DollarSign className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">No revenue data</p>
-                        <p className="text-xs text-muted-foreground">Set up fee structures to start tracking</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-4">
-                  <CardHeader>
-                    <CardTitle>Recent Activities</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <RecentActivities />
-                  </CardContent>
-                </Card>
-                <Card className="col-span-3">
-                  <CardHeader>
-                    <CardTitle>Quick Actions</CardTitle>
-                    <CardDescription>Common administrative tasks</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start bg-transparent"
-                      onClick={() => setAdminCurrentView("students")}
-                    >
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Enroll New Student
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start bg-transparent"
-                      onClick={() => setAdminCurrentView("teachers")}
-                    >
-                      <UserCheck className="mr-2 h-4 w-4" />
-                      Add New Teacher
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start bg-transparent"
-                      onClick={() => setAdminCurrentView("classes")}
-                    >
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      Create New Class
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start bg-transparent"
-                      onClick={() => setAdminCurrentView("reports")}
-                    >
-                      <BarChart3 className="mr-2 h-4 w-4" />
-                      Generate Reports
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )
+          return <QuickActionsDashboard onNavigate={setAdminCurrentView} />
       }
     }
 
@@ -1037,68 +867,77 @@ export function Dashboard() {
                     <AttendanceProvider>
                       <ReportsAnalyticsProvider>
                         <ProfileProvider>
-                          <SidebarProvider>
-                            <Sidebar variant="inset">
+                          <div className="flex h-screen">
+                            <Sidebar 
+                              collapsed={sidebarCollapsed} 
+                              onCollapsedChange={setSidebarCollapsed}
+                              className="border-r border-border/50"
+                            >
                               <SidebarHeader>
-                                <SidebarMenu>
-                                  <SidebarMenuItem>
-                                    <div className="flex items-center gap-2 px-2 py-1">
-                                      <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                                        <School className="size-4" />
-                                      </div>
-                                                           <div className="grid flex-1 text-left text-sm leading-tight">
-                       <span className="truncate font-semibold">Pison Academy of Excellence</span>
-                       <span className="truncate text-xs">Admin Panel</span>
-                     </div>
+                                <SidebarHeaderTitle>
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                                      <School className="size-4" />
                                     </div>
-                                  </SidebarMenuItem>
-                                </SidebarMenu>
+                                    {!sidebarCollapsed && (
+                                      <div className="grid flex-1 text-left text-sm leading-tight">
+                                        <span className="truncate font-semibold">GBHS Yaoundé</span>
+                                        <span className="truncate text-xs">Admin Panel</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </SidebarHeaderTitle>
                               </SidebarHeader>
                               <SidebarContent>
                                 <SidebarGroup>
                                   <SidebarGroupLabel>Management</SidebarGroupLabel>
-                                  <SidebarGroupContent>
-                                    <SidebarMenu>
-                                      {adminMenuItems.map((item) => (
-                                        <SidebarMenuItem key={item.id}>
-                                          <SidebarMenuButton
-                                            onClick={() => setAdminCurrentView(item.id as AdminView)}
-                                            isActive={adminCurrentView === item.id}
-                                          >
-                                            <item.icon />
-                                            <span>{item.label}</span>
-                                          </SidebarMenuButton>
-                                        </SidebarMenuItem>
-                                      ))}
-                                      
-                                      {/* Reports & Analytics Dropdown */}
-                                      <SidebarMenuItem>
+                                  <SidebarMenu>
+                                    {adminMenuItems.map((item) => (
+                                      <SidebarMenuItem key={item.id}>
                                         <SidebarMenuButton
-                                          onClick={() => setReportsDropdownOpen(!reportsDropdownOpen)}
-                                          isActive={adminCurrentView.startsWith('reports')}
+                                          onClick={() => setAdminCurrentView(item.id as AdminView)}
+                                          isActive={adminCurrentView === item.id}
+                                          className="hover:bg-accent hover:text-accent-foreground transition-colors"
                                         >
-                                          <BarChart3 />
-                                          <span>Reports & Analytics</span>
-                                          <ChevronDown className={`ml-auto size-4 transition-transform ${reportsDropdownOpen ? 'rotate-180' : ''}`} />
+                                          <item.icon className="h-4 w-4" />
+                                          {!sidebarCollapsed && <span>{item.label}</span>}
                                         </SidebarMenuButton>
-                                        {reportsDropdownOpen && (
-                                          <SidebarMenuSub>
-                                            {reportsSubItems.map((item) => (
-                                              <SidebarMenuSubItem key={item.id}>
-                                                <SidebarMenuSubButton
-                                                  onClick={() => setAdminCurrentView(item.id as AdminView)}
-                                                  isActive={adminCurrentView === item.id}
-                                                >
-                                                  <item.icon />
-                                                  <span>{item.label}</span>
-                                                </SidebarMenuSubButton>
-                                              </SidebarMenuSubItem>
-                                            ))}
-                                          </SidebarMenuSub>
-                                        )}
                                       </SidebarMenuItem>
-                                    </SidebarMenu>
-                                  </SidebarGroupContent>
+                                    ))}
+                                    
+                                    {/* Reports & Analytics Dropdown */}
+                                    <SidebarMenuItem>
+                                      <SidebarMenuButton
+                                        onClick={() => setReportsDropdownOpen(!reportsDropdownOpen)}
+                                        isActive={adminCurrentView.startsWith('reports')}
+                                        className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                                      >
+                                        <BarChart3 className="h-4 w-4" />
+                                        {!sidebarCollapsed && (
+                                          <>
+                                            <span>Reports & Analytics</span>
+                                            <ChevronDown className={`ml-auto size-4 transition-transform ${reportsDropdownOpen ? 'rotate-180' : ''}`} />
+                                          </>
+                                        )}
+                                      </SidebarMenuButton>
+                                      {reportsDropdownOpen && !sidebarCollapsed && (
+                                        <SidebarMenuSub>
+                                          {reportsSubItems.map((item) => (
+                                            <SidebarMenuSubItem key={item.id}>
+                                              <SidebarMenuSubButton
+                                                onClick={() => setAdminCurrentView(item.id as AdminView)}
+                                                isActive={adminCurrentView === item.id}
+                                                className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                                              >
+                                                <item.icon className="h-4 w-4" />
+                                                <span>{item.label}</span>
+                                              </SidebarMenuSubButton>
+                                            </SidebarMenuSubItem>
+                                          ))}
+                                        </SidebarMenuSub>
+                                      )}
+                                    </SidebarMenuItem>
+                                  </SidebarMenu>
                                 </SidebarGroup>
                               </SidebarContent>
                               <SidebarFooter>
@@ -1107,15 +946,18 @@ export function Dashboard() {
                                     <DropdownMenu>
                                       <DropdownMenuTrigger asChild>
                                         <SidebarMenuButton
-                                          size="lg"
-                                          className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                                          className="hover:bg-accent hover:text-accent-foreground transition-colors"
                                         >
                                           <UserAvatar user={user} size="sm" className="rounded-lg" />
-                                          <div className="grid flex-1 text-left text-sm leading-tight">
-                                            <span className="truncate font-semibold">{user.name}</span>
-                                            <span className="truncate text-xs">{user.email}</span>
-                                          </div>
-                                          <ChevronUp className="ml-auto size-4" />
+                                          {!sidebarCollapsed && (
+                                            <>
+                                              <div className="grid flex-1 text-left text-sm leading-tight">
+                                                <span className="truncate font-semibold">{user.name}</span>
+                                                <span className="truncate text-xs">{user.email}</span>
+                                              </div>
+                                              <ChevronUp className="ml-auto size-4" />
+                                            </>
+                                          )}
                                         </SidebarMenuButton>
                                       </DropdownMenuTrigger>
                                       <DropdownMenuContent
@@ -1148,17 +990,18 @@ export function Dashboard() {
                                   </SidebarMenuItem>
                                 </SidebarMenu>
                               </SidebarFooter>
-                              <SidebarRail />
                             </Sidebar>
-                            <SidebarInset>
-                              <DashboardHeader
-                                user={user}
-                                onProfileClick={() => setAdminCurrentView("profile")}
-                                onLogout={handleLogout}
-                              />
-                              <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderAdminContent()}</div>
-                            </SidebarInset>
-                          </SidebarProvider>
+                            <div className="flex-1 flex flex-col">
+                                                             <DashboardHeader
+                                 user={user}
+                                 onProfileClick={() => setAdminCurrentView("profile")}
+                                 onLogout={handleLogout}
+                                 sidebarCollapsed={sidebarCollapsed}
+                                 onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+                               />
+                              <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderAdminContent()}</div>
+                            </div>
+                          </div>
                         </ProfileProvider>
                       </ReportsAnalyticsProvider>
                     </AttendanceProvider>
@@ -1202,41 +1045,44 @@ export function Dashboard() {
         <TeacherClassesProvider>
           <TeacherGradesProvider>
             <ProfileProvider>
-              <SidebarProvider>
-                <Sidebar variant="inset">
+              <div className="flex h-screen">
+                <Sidebar 
+                  collapsed={sidebarCollapsed} 
+                  onCollapsedChange={setSidebarCollapsed}
+                  className="border-r border-border/50"
+                >
                   <SidebarHeader>
-                    <SidebarMenu>
-                      <SidebarMenuItem>
-                        <div className="flex items-center gap-2 px-2 py-1">
-                          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                            <School className="size-4" />
-                          </div>
-                                               <div className="grid flex-1 text-left text-sm leading-tight">
-                       <span className="truncate font-semibold">Pison Academy of Excellence</span>
-                       <span className="truncate text-xs">Teacher Portal</span>
-                     </div>
+                    <SidebarHeaderTitle>
+                      <div className="flex items-center gap-2">
+                        <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                          <School className="size-4" />
                         </div>
-                      </SidebarMenuItem>
-                    </SidebarMenu>
+                        {!sidebarCollapsed && (
+                          <div className="grid flex-1 text-left text-sm leading-tight">
+                            <span className="truncate font-semibold">GBHS Yaoundé</span>
+                            <span className="truncate text-xs">Teacher Portal</span>
+                          </div>
+                        )}
+                      </div>
+                    </SidebarHeaderTitle>
                   </SidebarHeader>
                   <SidebarContent>
                     <SidebarGroup>
                       <SidebarGroupLabel>Teaching</SidebarGroupLabel>
-                      <SidebarGroupContent>
-                        <SidebarMenu>
-                          {teacherMenuItems.map((item) => (
-                            <SidebarMenuItem key={item.id}>
-                              <SidebarMenuButton
-                                onClick={() => setTeacherCurrentView(item.id as TeacherView)}
-                                isActive={teacherCurrentView === item.id}
-                              >
-                                <item.icon />
-                                <span>{item.label}</span>
-                              </SidebarMenuButton>
-                            </SidebarMenuItem>
-                          ))}
-                        </SidebarMenu>
-                      </SidebarGroupContent>
+                      <SidebarMenu>
+                        {teacherMenuItems.map((item) => (
+                          <SidebarMenuItem key={item.id}>
+                            <SidebarMenuButton
+                              onClick={() => setTeacherCurrentView(item.id as TeacherView)}
+                              isActive={teacherCurrentView === item.id}
+                              className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                            >
+                              <item.icon className="h-4 w-4" />
+                              {!sidebarCollapsed && <span>{item.label}</span>}
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarMenu>
                     </SidebarGroup>
                   </SidebarContent>
                   <SidebarFooter>
@@ -1245,15 +1091,18 @@ export function Dashboard() {
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <SidebarMenuButton
-                              size="lg"
-                              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                              className="hover:bg-accent hover:text-accent-foreground transition-colors"
                             >
                               <UserAvatar user={user} size="sm" className="rounded-lg" />
-                              <div className="grid flex-1 text-left text-sm leading-tight">
-                                <span className="truncate font-semibold">{user.name}</span>
-                                <span className="truncate text-xs">{user.email}</span>
-                              </div>
-                              <ChevronUp className="ml-auto size-4" />
+                              {!sidebarCollapsed && (
+                                <>
+                                  <div className="grid flex-1 text-left text-sm leading-tight">
+                                    <span className="truncate font-semibold">{user.name}</span>
+                                    <span className="truncate text-xs">{user.email}</span>
+                                  </div>
+                                  <ChevronUp className="ml-auto size-4" />
+                                </>
+                              )}
                             </SidebarMenuButton>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent
@@ -1286,17 +1135,18 @@ export function Dashboard() {
                       </SidebarMenuItem>
                     </SidebarMenu>
                   </SidebarFooter>
-                  <SidebarRail />
                 </Sidebar>
-                <SidebarInset>
-                  <DashboardHeader
-                    user={user}
-                    onProfileClick={() => setTeacherCurrentView("profile")}
-                    onLogout={handleLogout}
-                  />
-                  <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderTeacherContent()}</div>
-                </SidebarInset>
-              </SidebarProvider>
+                <div className="flex-1 flex flex-col">
+                                     <DashboardHeader
+                     user={user}
+                     onProfileClick={() => setTeacherCurrentView("profile")}
+                     onLogout={handleLogout}
+                     sidebarCollapsed={sidebarCollapsed}
+                     onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+                   />
+                  <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderTeacherContent()}</div>
+                </div>
+              </div>
             </ProfileProvider>
           </TeacherGradesProvider>
         </TeacherClassesProvider>
@@ -1336,41 +1186,44 @@ export function Dashboard() {
     return (
       <BursarProvider>
         <ProfileProvider>
-          <SidebarProvider>
-            <Sidebar variant="inset">
+          <div className="flex h-screen">
+            <Sidebar 
+              collapsed={sidebarCollapsed} 
+              onCollapsedChange={setSidebarCollapsed}
+              className="border-r border-border/50"
+            >
               <SidebarHeader>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <div className="flex items-center gap-2 px-2 py-1">
-                      <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                        <School className="size-4" />
-                      </div>
-                                           <div className="grid flex-1 text-left text-sm leading-tight">
-                       <span className="truncate font-semibold">Pison Academy of Excellence</span>
-                       <span className="truncate text-xs">Bursar Portal</span>
-                     </div>
+                <SidebarHeaderTitle>
+                  <div className="flex items-center gap-2">
+                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                      <School className="size-4" />
                     </div>
-                  </SidebarMenuItem>
-                </SidebarMenu>
+                    {!sidebarCollapsed && (
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-semibold">GBHS Yaoundé</span>
+                        <span className="truncate text-xs">Bursar Portal</span>
+                      </div>
+                    )}
+                  </div>
+                </SidebarHeaderTitle>
               </SidebarHeader>
               <SidebarContent>
                 <SidebarGroup>
                   <SidebarGroupLabel>Financial Management</SidebarGroupLabel>
-                  <SidebarGroupContent>
-                    <SidebarMenu>
-                      {bursarMenuItems.map((item) => (
-                        <SidebarMenuItem key={item.id}>
-                          <SidebarMenuButton
-                            onClick={() => setBursarCurrentView(item.id as BursarView)}
-                            isActive={bursarCurrentView === item.id}
-                          >
-                            <item.icon />
-                            <span>{item.label}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
+                  <SidebarMenu>
+                    {bursarMenuItems.map((item) => (
+                      <SidebarMenuItem key={item.id}>
+                        <SidebarMenuButton
+                          onClick={() => setBursarCurrentView(item.id as BursarView)}
+                          isActive={bursarCurrentView === item.id}
+                          className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {!sidebarCollapsed && <span>{item.label}</span>}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
                 </SidebarGroup>
               </SidebarContent>
               <SidebarFooter>
@@ -1379,15 +1232,18 @@ export function Dashboard() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <SidebarMenuButton
-                          size="lg"
-                          className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                          className="hover:bg-accent hover:text-accent-foreground transition-colors"
                         >
                           <UserAvatar user={user} size="sm" className="rounded-lg" />
-                          <div className="grid flex-1 text-left text-sm leading-tight">
-                            <span className="truncate font-semibold">{user.name}</span>
-                            <span className="truncate text-xs">{user.email}</span>
-                          </div>
-                          <ChevronUp className="ml-auto size-4" />
+                          {!sidebarCollapsed && (
+                            <>
+                              <div className="grid flex-1 text-left text-sm leading-tight">
+                                <span className="truncate font-semibold">{user.name}</span>
+                                <span className="truncate text-xs">{user.email}</span>
+                              </div>
+                              <ChevronUp className="ml-auto size-4" />
+                            </>
+                          )}
                         </SidebarMenuButton>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
@@ -1420,13 +1276,18 @@ export function Dashboard() {
                   </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarFooter>
-              <SidebarRail />
             </Sidebar>
-            <SidebarInset>
-              <DashboardHeader user={user} onProfileClick={() => setBursarCurrentView("profile")} onLogout={handleLogout} />
-              <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{renderBursarContent()}</div>
-            </SidebarInset>
-          </SidebarProvider>
+            <div className="flex-1 flex flex-col">
+                             <DashboardHeader 
+                 user={user} 
+                 onProfileClick={() => setBursarCurrentView("profile")} 
+                 onLogout={handleLogout}
+                 sidebarCollapsed={sidebarCollapsed}
+                 onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+               />
+              <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderBursarContent()}</div>
+            </div>
+          </div>
         </ProfileProvider>
       </BursarProvider>
     )

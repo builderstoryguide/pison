@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { User, GraduationCap, Users, UserCheck, DollarSign } from 'lucide-react'
 import { useUserManagement, User as UserType } from '@/lib/user-management-context'
 import { useStudentEnrollment } from '@/lib/student-enrollment-context'
@@ -74,7 +74,7 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
       subsystem: 'english' as const,
       phone: '',
       address: '',
-      dateOfBirth: new Date(),
+      dateOfBirth: new Date().toISOString().split('T')[0],
       gender: 'male' as const,
       permissions: ['view_grades', 'view_schedule', 'submit_assignments', 'communicate_teachers']
     }
@@ -98,7 +98,7 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
       subsystem: result.teacherData.subsystem,
       phone: result.teacherData.phone,
       address: result.teacherData.address,
-      dateOfBirth: new Date(result.teacherData.dateOfBirth),
+      dateOfBirth: result.teacherData.dateOfBirth,
       gender: result.teacherData.gender as 'male' | 'female',
       permissions: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents']
     }
@@ -193,7 +193,7 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
               ← Back to Role Selection
             </Button>
             <div className="flex items-center gap-2">
-              {roleIcons[selectedRole] && <roleIcons[selectedRole] className="h-4 w-4" />}
+              {selectedRole && roleIcons[selectedRole as keyof typeof roleIcons] && React.createElement(roleIcons[selectedRole as keyof typeof roleIcons], { className: "h-4 w-4" })}
               <span className="font-medium capitalize">Creating {selectedRole}</span>
             </div>
           </div>

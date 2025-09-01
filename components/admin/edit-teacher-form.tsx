@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress"
 import { User, Mail, MapPin, GraduationCap, Briefcase, X, Plus, AlertCircle } from "lucide-react"
 import { useTeacherManagement, type TeacherFormData, type Teacher } from "@/lib/teacher-management-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useToast } from "@/hooks/use-toast"
 
 interface EditTeacherFormProps {
   teacher: Teacher
@@ -34,6 +35,7 @@ const regions = ["Adamawa", "Centre", "East", "Far North", "Littoral", "North", 
 
 export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFormProps) {
   const { updateTeacher } = useTeacherManagement()
+  const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -155,14 +157,31 @@ export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFor
     setIsSubmitting(true)
     setError(null)
 
+    // Show loading toast
+    toast.info("Updating teacher...", {
+      description: "Please wait while we save your changes."
+    })
+
     try {
       await updateTeacher(teacher.id, formData)
+      
+      // Show success toast
+      toast.success("Teacher updated successfully!", {
+        description: `${formData.firstName} ${formData.lastName}'s information has been updated.`
+      })
+      
       onSuccess()
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 
         typeof err === 'string' ? err : 
         err && typeof err === 'object' && 'message' in err ? String(err.message) :
         "Failed to update teacher"
+      
+      // Show error toast
+      toast.error("Failed to update teacher", {
+        description: errorMessage
+      })
+      
       setError(errorMessage)
       console.error("Error updating teacher:", err)
     } finally {

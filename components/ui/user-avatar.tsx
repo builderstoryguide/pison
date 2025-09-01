@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Avatar, AvatarImage, AvatarFallback } from "./avatar"
 import { generateInitials } from "@/lib/utils"
+import InitialsAvatar from "react-initials-avatar"
 
 interface UserAvatarProps {
   user: {
@@ -20,21 +21,39 @@ const sizeClasses = {
   xl: "h-16 w-16 text-lg"
 }
 
+const sizeValues = {
+  sm: 24,
+  md: 32,
+  lg: 48,
+  xl: 64
+}
+
 export function UserAvatar({ user, className, size = "md" }: UserAvatarProps) {
   const isInitialsAvatar = user.avatar?.startsWith('initials:')
   const initials = isInitialsAvatar 
     ? user.avatar?.replace('initials:', '') 
     : generateInitials(user.name)
 
-  return (
-    <Avatar className={cn(sizeClasses[size], className)}>
-      {!isInitialsAvatar && user.avatar && (
+  // If user has a regular avatar image, use the standard Avatar component
+  if (!isInitialsAvatar && user.avatar) {
+    return (
+      <Avatar className={cn(sizeClasses[size], className)}>
         <AvatarImage src={user.avatar} alt={user.name} />
-      )}
-      <AvatarFallback className={sizeClasses[size]}>
-        {initials}
-      </AvatarFallback>
-    </Avatar>
+        <AvatarFallback className={sizeClasses[size]}>
+          {initials}
+        </AvatarFallback>
+      </Avatar>
+    )
+  }
+
+  // Use react-initials-avatar for initials-based avatars
+  return (
+    <div className={cn("flex items-center justify-center", className)}>
+      <InitialsAvatar
+        name={user.name}
+        className={cn("rounded-full", sizeClasses[size])}
+      />
+    </div>
   )
 }
 

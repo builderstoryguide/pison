@@ -3,8 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const supabase = await createClient()
     
@@ -18,7 +19,7 @@ export async function GET(
           fee_categories (name, code, description)
         )
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (error) {
@@ -72,8 +73,9 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const supabase = await createClient()
     const body = await request.json()
@@ -94,7 +96,7 @@ export async function PUT(
         is_active: isActive,
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (structureError) {
       console.error('Error updating fee structure:', structureError)
@@ -110,11 +112,11 @@ export async function PUT(
       await supabase
         .from('fee_structure_items')
         .delete()
-        .eq('fee_structure_id', params.id)
+        .eq('fee_structure_id', id)
 
       // Insert new items
       const feeStructureItems = items.map((item: any) => ({
-        fee_structure_id: params.id,
+        fee_structure_id: id,
         fee_category_id: item.categoryId,
         amount: item.amount,
         is_optional: item.isOptional || false,
@@ -151,8 +153,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const supabase = await createClient()
 
@@ -160,7 +163,7 @@ export async function DELETE(
     const { data: studentFees, error: checkError } = await supabase
       .from('student_fees')
       .select('id')
-      .eq('fee_structure_id', params.id)
+      .eq('fee_structure_id', id)
       .limit(1)
 
     if (checkError) {
@@ -182,7 +185,7 @@ export async function DELETE(
     const { error: itemsError } = await supabase
       .from('fee_structure_items')
       .delete()
-      .eq('fee_structure_id', params.id)
+      .eq('fee_structure_id', id)
 
     if (itemsError) {
       console.error('Error deleting fee structure items:', itemsError)
@@ -196,7 +199,7 @@ export async function DELETE(
     const { error: structureError } = await supabase
       .from('fee_structures')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (structureError) {
       console.error('Error deleting fee structure:', structureError)

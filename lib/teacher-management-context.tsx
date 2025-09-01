@@ -285,6 +285,12 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
 
       if (teacherError) {
         console.error("❌ Database error:", teacherError)
+        console.error("❌ Error details:", {
+          message: teacherError.message,
+          details: teacherError.details,
+          hint: teacherError.hint,
+          code: teacherError.code
+        })
         throw teacherError
       }
 

@@ -3,8 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const supabase = await createClient()
     
@@ -17,7 +18,7 @@ export async function GET(
         payment_methods (name, code),
         users!payments_collected_by_fkey (first_name, last_name)
       `)
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (error) {
@@ -66,8 +67,9 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const supabase = await createClient()
     const body = await request.json()
@@ -94,7 +96,7 @@ export async function PUT(
     const { data: currentPayment, error: fetchError } = await supabase
       .from('payments')
       .select('amount, student_fee_id')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (fetchError) {
@@ -121,7 +123,7 @@ export async function PUT(
     const { error: updateError } = await supabase
       .from('payments')
       .update(updateData)
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (updateError) {
       console.error('Error updating payment:', updateError)
@@ -199,8 +201,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const supabase = await createClient()
 
@@ -208,7 +211,7 @@ export async function DELETE(
     const { data: payment, error: fetchError } = await supabase
       .from('payments')
       .select('amount, student_fee_id, status')
-      .eq('id', params.id)
+      .eq('id', id)
       .single()
 
     if (fetchError) {
@@ -234,7 +237,7 @@ export async function DELETE(
         status: 'cancelled',
         updated_at: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
 
     if (updateError) {
       console.error('Error cancelling payment:', updateError)

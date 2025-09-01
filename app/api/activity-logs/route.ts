@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     const transformedLogs = logs?.map(log => ({
       id: log.id,
       userId: log.user_id,
-      userName: log.users?.name || 'Unknown User',
+      userName: log.users?.[0]?.name || 'Unknown User',
       action: log.action,
       details: log.details || '',
       timestamp: log.created_at,

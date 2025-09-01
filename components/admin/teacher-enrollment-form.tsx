@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress"
 import { User, Mail, MapPin, GraduationCap, Briefcase, X, Plus, AlertCircle } from "lucide-react"
 import { useTeacherManagement, type TeacherFormData } from "@/lib/teacher-management-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useToast } from "@/hooks/use-toast"
 
 interface TeacherEnrollmentFormProps {
   onSuccess: (result: { teacherId: string; teacherData: TeacherFormData }) => void
@@ -63,6 +64,7 @@ const regions = [
 
 export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollmentFormProps) {
   const { addTeacher } = useTeacherManagement()
+  const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -172,11 +174,19 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
     
     if (!validateStep(currentStep)) {
       console.log("❌ Step validation failed")
+      toast.error("Form validation failed", {
+        description: "Please fill in all required fields before proceeding."
+      })
       return
     }
 
     setIsSubmitting(true)
     setError(null)
+
+    // Show loading toast
+    toast.info("Enrolling teacher...", {
+      description: "Please wait while we process your request."
+    })
 
     try {
       console.log("📤 Submitting teacher data...")
@@ -185,6 +195,11 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
       const teacherId = await addTeacher(formData)
       console.log("✅ Teacher added successfully with ID:", teacherId)
       
+      // Show success toast
+      toast.success("Teacher enrolled successfully!", {
+        description: `${formData.title} ${formData.firstName} ${formData.lastName} has been added to the system.`
+      })
+      
       onSuccess({ teacherId, teacherData: formData })
     } catch (err) {
       console.error("❌ Error in form submission:", err)
@@ -192,6 +207,12 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
         typeof err === 'string' ? err : 
         err && typeof err === 'object' && 'message' in err ? String(err.message) :
         "Failed to enroll teacher"
+      
+      // Show error toast
+      toast.error("Failed to enroll teacher", {
+        description: errorMessage
+      })
+      
       setError(errorMessage)
       console.error("Error enrolling teacher:", err)
     } finally {
