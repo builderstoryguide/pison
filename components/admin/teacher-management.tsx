@@ -746,29 +746,26 @@ export function TeacherManagement() {
       </Dialog>
 
       {/* Teacher Enrollment Success Dialog */}
-      {teacherEnrollmentSuccess && (
-        <>
-          <TeacherEnrollmentSuccessDialog
-            teacherId={teacherEnrollmentSuccess.teacherId}
-            teacherName={teacherEnrollmentSuccess.teacherName}
-            email={teacherEnrollmentSuccess.email}
-            phone={teacherEnrollmentSuccess.phone}
-            subsystem={teacherEnrollmentSuccess.subsystem}
-            subjects={teacherEnrollmentSuccess.subjects}
-            classes={teacherEnrollmentSuccess.classes}
-            password={teacherEnrollmentSuccess.password}
-            onClose={() => setTeacherEnrollmentSuccess(null)}
-            onViewTeacher={() => {
-              setTeacherEnrollmentSuccess(null)
-              // Could navigate to teacher details here
-            }}
-            onEnrollAnother={() => {
-              setTeacherEnrollmentSuccess(null)
-              setShowAddTeacherForm(true)
-            }}
-          />
-        </>
-      )}
+      <TeacherEnrollmentSuccessDialog
+        open={!!teacherEnrollmentSuccess}
+        teacherId={teacherEnrollmentSuccess?.teacherId || ""}
+        teacherName={teacherEnrollmentSuccess?.teacherName || ""}
+        email={teacherEnrollmentSuccess?.email || ""}
+        phone={teacherEnrollmentSuccess?.phone || ""}
+        subsystem={teacherEnrollmentSuccess?.subsystem || ""}
+        subjects={teacherEnrollmentSuccess?.subjects || []}
+        classes={teacherEnrollmentSuccess?.classes || []}
+        password={teacherEnrollmentSuccess?.password || ""}
+        onClose={() => setTeacherEnrollmentSuccess(null)}
+        onViewTeacher={() => {
+          setTeacherEnrollmentSuccess(null)
+          // Could navigate to teacher details here
+        }}
+        onEnrollAnother={() => {
+          setTeacherEnrollmentSuccess(null)
+          setShowAddTeacherForm(true)
+        }}
+      />
 
       {/* Export Teacher Data Dialog */}
       <Dialog open={showExportForm} onOpenChange={setShowExportForm}>
