@@ -30,23 +30,23 @@ export class EmailService {
    */
   static async sendWelcomeEmail(data: WelcomeEmailData): Promise<{ success: boolean; error?: string }> {
     try {
-      // Send email to student
+      // Send combined email to student
       if (data.studentEmail) {
         await resend.emails.send({
           from: 'Government Bilingual High School <noreply@gbhs-yaounde.cm>',
           to: [data.studentEmail],
-          subject: 'Welcome to Government Bilingual High School Yaoundé - Your Login Credentials',
+          subject: 'Welcome to Government Bilingual High School Yaoundé',
           html: this.generateStudentWelcomeEmail(data),
         });
       }
 
-      // Send email to parent
+      // Send combined email to parent as well
       if (data.parentEmail) {
         await resend.emails.send({
           from: 'Government Bilingual High School <noreply@gbhs-yaounde.cm>',
           to: [data.parentEmail],
-          subject: 'Welcome to Government Bilingual High School Yaoundé - Parent Access Credentials',
-          html: this.generateParentWelcomeEmail(data),
+          subject: 'Welcome to Government Bilingual High School Yaoundé',
+          html: this.generateStudentWelcomeEmail(data),
         });
       }
 
@@ -198,56 +198,51 @@ export class EmailService {
           </div>
           
           <div class="content">
-            <h2>Dear ${data.studentName},</h2>
+            <h2>Dear ${data.studentName} and Parent/Guardian,</h2>
             
             <p>Congratulations! Your enrollment at Government Bilingual High School Yaoundé has been successfully completed.</p>
             
             <div class="credentials">
-              <h3>Your Login Credentials</h3>
+              <h3>Student Details:</h3>
               <div class="credential-item">
-                <span class="credential-label">Student ID:</span>
+                <span class="credential-label">• Student ID:</span>
                 <div class="credential-value">${data.studentId}</div>
               </div>
               <div class="credential-item">
-                <span class="credential-label">Email:</span>
-                <div class="credential-value">${data.studentEmail}</div>
+                <span class="credential-label">• Parent Access Code:</span>
+                <div class="credential-value">${data.parentCode}</div>
               </div>
               <div class="credential-item">
-                <span class="credential-label">Password:</span>
+                <span class="credential-label">• Student Password:</span>
                 <div class="credential-value">${data.studentPassword}</div>
               </div>
               <div class="credential-item">
-                <span class="credential-label">Class:</span>
-                <div class="credential-value">${data.className}</div>
+                <span class="credential-label">• Parent Password:</span>
+                <div class="credential-value">${data.parentPassword}</div>
               </div>
             </div>
 
             <div class="important">
-              <strong>Important:</strong> Please keep these credentials safe. You will need them to access the school management system.
-              For security reasons, please change your password after your first login.
+              <strong>Please keep these credentials safe as they will be needed to access the school management system.</strong>
             </div>
 
             <div class="steps">
-              <h3>Next Steps</h3>
+              <h3>Next Steps:</h3>
               <div class="step">
-                <strong>1. Complete Document Submission</strong><br>
-                Visit the school office with original documents for verification
+                <strong>1. Complete document submission at the school office</strong>
               </div>
               <div class="step">
-                <strong>2. Pay Enrollment Fees</strong><br>
-                Complete fee payment at the bursar's office
+                <strong>2. Pay enrollment fees at the bursar's office</strong>
               </div>
               <div class="step">
-                <strong>3. Collect Student ID Card</strong><br>
-                Pick up your official student identification card
+                <strong>3. Collect your student ID card</strong>
               </div>
               <div class="step">
-                <strong>4. Attend Orientation</strong><br>
-                Join the new student orientation session
+                <strong>4. Attend orientation session</strong>
               </div>
             </div>
 
-            <p>Welcome to our school community! We look forward to supporting your academic journey.</p>
+            <p>Welcome to our school community!</p>
             
             <p>Best regards,<br>
             Administration Team<br>

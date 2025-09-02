@@ -50,54 +50,7 @@ interface RegisterData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Mock user database
-const mockUsers: User[] = [
-  {
-    id: "1",
-    name: "Dr. Marie Ngozi",
-    email: "admin@pisonacademy.cm",
-    role: "admin",
-    permissions: ["all"],
-    subsystem: "english",
-  },
-  {
-    id: "2",
-    name: "Paul Biya Mbeki",
-    email: "p.mbeki@pisonacademy.cm",
-    role: "teacher",
-    teacherRegNo: "TCH2024001",
-    permissions: ["manage_classes", "grade_students", "mark_attendance"],
-    subsystem: "english",
-  },
-  {
-    id: "3",
-    name: "Amina Fru",
-    email: "amina.fru@student.pisonacademy.cm",
-    role: "student",
-    studentId: "STU2024001",
-    branch: "grammar",
-    class: "Form 5A",
-    permissions: ["view_grades", "view_schedule"],
-    subsystem: "english",
-  },
-  {
-    id: "4",
-    name: "John Fru",
-    email: "john.fru@parent.pisonacademy.cm",
-    role: "parent",
-    parentCode: "PAR2024001",
-    permissions: ["view_child_progress", "communicate_teachers"],
-    subsystem: "english",
-  },
-  {
-    id: '5',
-    name: 'Grace Tabi',
-    email: 'bursar@pisonacademy.cm',
-    role: 'bursar',
-    permissions: ['manage_finances', 'track_payments', 'generate_reports'],
-    subsystem: 'english'
-  }
-]
+// Mock user database - REMOVED - Now using real API
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -118,37 +71,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Find user based on role and identifier
-      const foundUser = mockUsers.find((u) => {
-        if (u.role !== credentials.role) return false
-
-        switch (credentials.role) {
-          case 'admin':
-          case 'teacher':
-          case 'bursar':
-            return u.email === credentials.identifier || u.teacherRegNo === credentials.identifier
-          case "student":
-            return u.studentId === credentials.identifier || u.email === credentials.identifier
-          case "parent":
-            return u.parentCode === credentials.identifier || u.email === credentials.identifier
-          default:
-            return false
-        }
+      // Call the real authentication API
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(credentials),
       })
 
-      if (foundUser && credentials.password === "password123") {
-        // Mock password check
-        setUser(foundUser)
-        localStorage.setItem("school_user", JSON.stringify(foundUser))
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        // Transform the API response to match our User interface
+        const userData: User = {
+          id: data.user.id,
+          name: data.user.name,
+          email: data.user.email,
+          role: data.user.role,
+          avatar: data.user.avatar,
+          permissions: data.user.permissions,
+          subsystem: data.user.subsystem,
+          branch: data.user.branch,
+          class: data.user.class,
+          studentId: data.user.roleSpecificId,
+          teacherRegNo: data.user.roleSpecificId,
+          parentCode: data.user.roleSpecificId,
+        }
+
+        setUser(userData)
+        localStorage.setItem("school_user", JSON.stringify(userData))
         return true
       } else {
-        setError("Invalid credentials. Please check your login details.")
+        setError(data.error || "Login failed. Please try again.")
         return false
       }
     } catch (err) {
+      console.error('Login error:', err)
       setError("Login failed. Please try again.")
       return false
     } finally {

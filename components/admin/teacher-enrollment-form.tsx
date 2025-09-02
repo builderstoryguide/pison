@@ -108,7 +108,27 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
         },
       }))
     } else {
-      setFormData((prev) => ({ ...prev, [field]: value }))
+      setFormData((prev) => {
+        const updatedData = { ...prev, [field]: value }
+        
+        // Auto-set gender based on title selection
+        if (field === "title") {
+          switch (value) {
+            case "Mr.":
+              updatedData.gender = "male"
+              break
+            case "Mrs.":
+            case "Ms.":
+              updatedData.gender = "female"
+              break
+            // For Dr. and Prof., don't auto-set gender as they can be either
+            default:
+              break
+          }
+        }
+        
+        return updatedData
+      })
     }
   }
 
@@ -326,7 +346,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
                   id="phone"
                   value={formData.phone}
                   onChange={(e) => updateFormData("phone", e.target.value)}
-                  placeholder="Enter phone number"
+                  placeholder="+237 6XX XXX XXX"
                 />
               </div>
             </div>
@@ -542,7 +562,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
                   onChange={(e) => updateFormData("emergencyContact.relationship", e.target.value)}
                 />
                 <Input
-                  placeholder="Phone number"
+                  placeholder="+237 6XX XXX XXX"
                   value={formData.emergencyContact.phone}
                   onChange={(e) => updateFormData("emergencyContact.phone", e.target.value)}
                 />

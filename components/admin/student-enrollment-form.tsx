@@ -29,7 +29,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { cn } from '@/lib/utils'
+
 
 import { useStudentEnrollment, StudentEnrollmentData } from '@/lib/student-enrollment-context'
 
@@ -240,10 +240,6 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
             Complete the enrollment process for a new student. This form will guide you through all necessary information.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 flex-wrap">
-            <Badge variant="secondary" className="px-3 py-1 md:px-4 md:py-2 text-xs md:text-sm">
-              <CheckCircle2 className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
-              Step {currentStep} of {totalSteps}
-            </Badge>
             <Badge variant="outline" className="px-3 py-1 md:px-4 md:py-2 text-xs md:text-sm font-mono">
               ID: {generateStudentId()}
             </Badge>
@@ -259,44 +255,6 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                 <span className="text-sm font-bold text-primary">{Math.round(progress)}% Complete</span>
               </div>
               <Progress value={progress} className="h-3" />
-              
-              {/* Step Indicators */}
-              <div className="flex justify-center items-center mt-6">
-                <div className="flex items-center space-x-2 md:space-x-4 flex-wrap justify-center">
-                  {steps.map((step, index) => (
-                    <div key={step.id} className="flex flex-col items-center space-y-2 min-w-0">
-                      <div className={cn(
-                        "w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-xs md:text-sm font-medium transition-all duration-300",
-                        currentStep > step.id 
-                          ? "bg-green-500 text-white" 
-                          : currentStep === step.id 
-                          ? "bg-primary text-primary-foreground shadow-lg scale-110" 
-                          : "bg-muted text-muted-foreground"
-                      )}>
-                        {currentStep > step.id ? (
-                          <Check className="h-4 w-4 md:h-5 md:w-5" />
-                        ) : (
-                          React.createElement(step.icon, { className: "h-4 w-4 md:h-5 md:w-5" })
-                        )}
-                      </div>
-                      <div className="text-center max-w-16 md:max-w-20">
-                        <p className={cn(
-                          "text-xs font-medium transition-colors leading-tight",
-                          currentStep >= step.id ? "text-primary" : "text-muted-foreground"
-                        )}>
-                          {step.title}
-                        </p>
-                      </div>
-                      {index < steps.length - 1 && (
-                        <div className={cn(
-                          "w-6 md:w-12 h-0.5 transition-colors hidden md:block",
-                          currentStep > step.id ? "bg-green-500" : "bg-muted"
-                        )} />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -304,18 +262,13 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
         {/* Form Content */}
         <Card>
           <CardHeader className="pb-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center bg-primary">
-                {React.createElement(steps[currentStep - 1].icon, { className: "h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" })}
-              </div>
-              <div>
-                <CardTitle className="text-xl sm:text-2xl font-bold">
-                  {steps[currentStep - 1].title}
-                </CardTitle>
-                <CardDescription className="text-sm sm:text-base">
-                  {steps[currentStep - 1].description}
-                </CardDescription>
-              </div>
+            <div className="text-center">
+              <CardTitle className="text-xl sm:text-2xl font-bold">
+                Student Enrollment Form
+              </CardTitle>
+              <CardDescription className="text-sm sm:text-base">
+                Please fill in all required information
+              </CardDescription>
             </div>
           </CardHeader>
 
@@ -388,10 +341,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                               <FormControl>
                                 <Button
                                   variant={"outline"}
-                                  className={cn(
-                                    "pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                  )}
+                                  className={`pl-3 text-left font-normal ${!field.value ? "text-muted-foreground" : ""}`}
                                 >
                                   {field.value ? (
                                     format(field.value, "PPP")

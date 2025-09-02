@@ -148,6 +148,7 @@ export function BursarProfile() {
                       type="tel"
                       value={formData.phone || ""}
                       onChange={(e) => handleInputChange("phone", e.target.value)}
+                      placeholder="+237 6XX XXX XXX"
                     />
                   </div>
                   <div className="space-y-2">
@@ -232,6 +233,7 @@ export function BursarProfile() {
                     type="tel"
                     value={formData.emergencyContact?.phone || ""}
                     onChange={(e) => handleNestedChange("emergencyContact", "phone", e.target.value)}
+                    placeholder="+237 6XX XXX XXX"
                   />
                 </div>
                 <div className="space-y-2">

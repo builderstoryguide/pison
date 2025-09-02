@@ -205,15 +205,15 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
     return formData.name && formData.level && formData.classTeacher && formData.subjects.length > 0
   }
 
-  return (
-        <div className="min-h-screen bg-background p-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-3xl font-bold text-foreground">
+    return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-5xl mx-auto space-y-8">
+                {/* Header */}
+        <div className="text-center space-y-6">
+          <h1 className="text-4xl font-bold text-foreground">
             {editClass ? "Edit Class" : "Create New Class"}
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
             {editClass
               ? "Update the class information and configuration"
               : "Set up a new class with all necessary details and subject assignments"
@@ -232,23 +232,23 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
           </div>
         </div>
 
-        {/* Form Content */}
-        <Card>
-          <CardHeader className="pb-6">
+                {/* Form Content */}
+        <Card className="shadow-lg">
+          <CardHeader className="pb-8">
             <div>
-              <CardTitle className="text-2xl font-bold">
+              <CardTitle className="text-3xl font-bold">
                 Class Configuration
               </CardTitle>
-              <CardDescription className="text-base">
+              <CardDescription className="text-lg mt-2">
                 Configure all aspects of the class including basic information, capacity, teacher assignment, and subjects
               </CardDescription>
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-6">
+                    <CardContent className="space-y-8 p-8">
             {/* Error Alert */}
             {error && (
-              <Alert>
+              <Alert className="mb-6">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   {error}
@@ -256,19 +256,19 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
               </Alert>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Basic Information Section */}
-              <div className="space-y-6">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <GraduationCap className="h-4 w-4 text-primary" />
+            <form onSubmit={handleSubmit} className="space-y-12">
+                            {/* Basic Information Section */}
+              <div className="space-y-8">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <GraduationCap className="h-5 w-5 text-primary" />
                   </div>
-                  <h3 className="text-lg font-semibold">Basic Information</h3>
+                  <h3 className="text-xl font-semibold">Basic Information</h3>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">
+                                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-3">
+                    <Label htmlFor="name" className="text-base font-medium">
                       Class Name <span className="text-destructive">*</span>
                     </Label>
                     <Input
@@ -276,16 +276,17 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       placeholder="e.g., Form 1A, Terminale C"
+                      className="h-12 text-base"
                       required
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="level">
+                  <div className="space-y-3">
+                    <Label htmlFor="level" className="text-base font-medium">
                       Level <span className="text-destructive">*</span>
                     </Label>
                     <Select value={formData.level} onValueChange={(value) => setFormData({ ...formData, level: value })}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-12 text-base">
                         <SelectValue placeholder="Select level" />
                       </SelectTrigger>
                       <SelectContent>
@@ -299,12 +300,12 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="subsystem">
+                  <div className="space-y-3">
+                    <Label htmlFor="subsystem" className="text-base font-medium">
                       Educational Subsystem <span className="text-destructive">*</span>
                     </Label>
                     <Select value={formData.subsystem} onValueChange={(value: "english" | "french") => setFormData({ ...formData, subsystem: value })}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-12 text-base">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -314,12 +315,12 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="branch">
+                  <div className="space-y-3">
+                    <Label htmlFor="branch" className="text-base font-medium">
                       Branch <span className="text-destructive">*</span>
                     </Label>
                     <Select value={formData.branch} onValueChange={(value: "grammar" | "technical" | "commercial") => setFormData({ ...formData, branch: value })}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-12 text-base">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -332,20 +333,20 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                 </div>
               </div>
 
-              <Separator />
+                            <Separator className="my-8" />
 
               {/* Capacity and Teacher Section */}
-              <div className="space-y-6">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Users className="h-4 w-4 text-primary" />
+              <div className="space-y-8">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Users className="h-5 w-5 text-primary" />
                   </div>
-                  <h3 className="text-lg font-semibold">Capacity & Teacher Assignment</h3>
+                  <h3 className="text-xl font-semibold">Capacity & Teacher Assignment</h3>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="capacity">
+                <div className="grid gap-6 md:grid-cols-3">
+                  <div className="space-y-3">
+                    <Label htmlFor="capacity" className="text-base font-medium">
                       Class Capacity <span className="text-destructive">*</span>
                     </Label>
                     <Input
@@ -355,26 +356,27 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                       max="100"
                       value={formData.capacity}
                       onChange={(e) => setFormData({ ...formData, capacity: parseInt(e.target.value) || 0 })}
+                      className="h-12 text-base"
                       required
                     />
-                    <p className="text-xs text-muted-foreground">Maximum number of students</p>
+                    <p className="text-sm text-muted-foreground">Maximum number of students</p>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="classTeacher">
+                  <div className="space-y-3">
+                    <Label htmlFor="classTeacher" className="text-base font-medium">
                       Class Teacher <span className="text-destructive">*</span>
                     </Label>
                     {teachersLoading ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                        <span className="text-sm text-muted-foreground">Loading teachers...</span>
+                      <div className="flex items-center space-x-3 h-12">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                        <span className="text-base text-muted-foreground">Loading teachers...</span>
                       </div>
                     ) : (
                       <Select 
                         value={formData.classTeacher} 
                         onValueChange={(value) => setFormData({ ...formData, classTeacher: value })}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="h-12 text-base">
                           <SelectValue placeholder="Select a teacher" />
                         </SelectTrigger>
                         <SelectContent>
@@ -388,8 +390,8 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="academicYear">
+                  <div className="space-y-3">
+                    <Label htmlFor="academicYear" className="text-base font-medium">
                       Academic Year <span className="text-destructive">*</span>
                     </Label>
                     <Input
@@ -397,44 +399,46 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                       value={formData.academicYear}
                       onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
                       placeholder="e.g., 2024/2025"
+                      className="h-12 text-base"
                       required
                     />
                   </div>
                 </div>
               </div>
 
-              <Separator />
+                            <Separator className="my-8" />
 
               {/* Subjects Selection Section */}
-              <div className="space-y-6">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <BookOpen className="h-4 w-4 text-primary" />
+              <div className="space-y-8">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <BookOpen className="h-5 w-5 text-primary" />
                   </div>
-                  <h3 className="text-lg font-semibold">Subject Selection</h3>
+                  <h3 className="text-xl font-semibold">Subject Selection</h3>
                 </div>
 
-                <div className="bg-muted/50 border rounded-lg p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-sm font-semibold">
+                                <div className="bg-muted/50 border rounded-xl p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h4 className="text-lg font-semibold">
                       Available Subjects for {formData.subsystem === 'english' ? 'English' : 'French'} {formData.branch}
                     </h4>
-                    <Badge variant="secondary">
+                    <Badge variant="secondary" className="px-3 py-1 text-sm">
                       {formData.subjects.length} selected
                     </Badge>
                   </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {getAvailableSubjects().map((subject) => (
-                      <div key={subject} className="flex items-center space-x-3 p-3 bg-background rounded-lg border hover:border-primary transition-colors">
+                      <div key={subject} className="flex items-center space-x-4 p-4 bg-background rounded-lg border hover:border-primary transition-colors">
                         <Checkbox
                           id={subject}
                           checked={formData.subjects.includes(subject)}
                           onCheckedChange={() => handleSubjectToggle(subject)}
+                          className="h-5 w-5"
                         />
                         <Label
                           htmlFor={subject}
-                          className="text-sm font-medium cursor-pointer hover:text-primary transition-colors"
+                          className="text-base font-medium cursor-pointer hover:text-primary transition-colors"
                         >
                           {subject}
                         </Label>
@@ -442,21 +446,21 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                     ))}
                   </div>
 
-                                    {formData.subjects.length > 0 && (
-                    <div className="mt-6">
-                      <h5 className="text-sm font-semibold mb-3">
+                                                      {formData.subjects.length > 0 && (
+                    <div className="mt-8">
+                      <h5 className="text-lg font-semibold mb-4">
                         Selected Subjects ({formData.subjects.length})
                       </h5>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-3">
                         {formData.subjects.map((subject) => (
                           <Badge
                             key={subject}
                             variant="secondary"
-                            className="flex items-center gap-2"
+                            className="flex items-center gap-2 px-3 py-2 text-sm"
                           >
                             {subject}
                             <X
-                              className="h-3 w-3 cursor-pointer hover:text-destructive"
+                              className="h-4 w-4 cursor-pointer hover:text-destructive"
                               onClick={() => handleSubjectToggle(subject)}
                             />
                           </Badge>
@@ -467,29 +471,31 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                 </div>
               </div>
 
-              {/* Form Actions */}
-              <div className="flex justify-between items-center gap-4 pt-6 border-t">
+                            {/* Form Actions */}
+              <div className="flex justify-between items-center gap-6 pt-8 border-t">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={onCancel}
+                  className="h-12 px-8 text-base"
                 >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  <ArrowLeft className="h-5 w-5 mr-2" />
                   Cancel
                 </Button>
 
                 <Button
                   type="submit"
                   disabled={isSubmitting || !isFormValid()}
+                  className="h-12 px-8 text-base"
                 >
                   {isSubmitting ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2" />
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-foreground mr-2" />
                       {editClass ? "Updating..." : "Creating..."}
                     </>
                   ) : (
                     <>
-                      <ArrowRight className="h-4 w-4 mr-2" />
+                      <ArrowRight className="h-5 w-5 mr-2" />
                       {editClass ? "Update Class" : "Create Class"}
                     </>
                   )}

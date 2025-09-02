@@ -144,7 +144,7 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
               <FormItem>
                 <FormLabel>Phone Number</FormLabel>
                 <FormControl>
-                  <Input {...field} type="tel" />
+                  <Input {...field} type="tel" placeholder="+237 6XX XXX XXX" />
                 </FormControl>
                 <FormMessage />
               </FormItem>

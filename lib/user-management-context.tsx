@@ -45,7 +45,7 @@ export interface ActivityLog {
 interface UserManagementContextType {
   users: User[]
   activityLogs: ActivityLog[]
-  createUser: (userData: Omit<User, 'id' | 'createdAt' | 'createdBy'>) => Promise<{ success: boolean; password?: string }>
+  createUser: (userData: Omit<User, 'id' | 'createdAt' | 'createdBy'>) => Promise<{ success: boolean; password?: string; roleSpecificId?: string }>
   updateUser: (userId: string, userData: Partial<User>) => Promise<boolean>
   deleteUser: (userId: string) => Promise<boolean>
   bulkDeleteUsers: (userIds: string[]) => Promise<{ success: boolean; deletedCount: number; errors: string[] }>
@@ -340,7 +340,7 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
     return unsubscribe
   }, [])
 
-  const createUser = async (userData: Omit<User, 'id' | 'createdAt' | 'createdBy'>): Promise<{ success: boolean; password?: string }> => {
+  const createUser = async (userData: Omit<User, 'id' | 'createdAt' | 'createdBy'>): Promise<{ success: boolean; password?: string; roleSpecificId?: string }> => {
     setIsLoading(true)
     setError(null)
 
@@ -387,7 +387,11 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
         }
         
         logActivity('CREATE_USER', `Created new ${userData.role} account for ${userData.name} with default password`)
-        return { success: true, password: result.password }
+        return { 
+          success: true, 
+          password: result.password,
+          roleSpecificId: result.user?.role_specific_id
+        }
       } else {
         throw new Error(result.error || 'Failed to create user')
       }

@@ -413,7 +413,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                     id="phone"
                     value={formData.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
-                    placeholder="Phone number"
+                    placeholder="+237 6XX XXX XXX"
                   />
                 </div>
               </div>

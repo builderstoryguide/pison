@@ -36,13 +36,7 @@ const placeholderTexts = {
   bursar: 'Enter your email address'
 }
 
-const demoCredentials = {
-  admin: { identifier: 'admin@pisonacademy.cm', password: 'password123' },
-  teacher: { identifier: 'TCH2024001', password: 'password123' },
-  student: { identifier: 'STU2024001', password: 'password123' },
-  parent: { identifier: 'PAR2024001', password: 'password123' },
-  bursar: { identifier: 'bursar@pisonacademy.cm', password: 'password123' }
-}
+// Demo credentials removed - use real user credentials from the system
 
 export function LoginForm() {
   const { login, isLoading, error } = useAuth()
@@ -53,8 +47,6 @@ export function LoginForm() {
     subsystem: 'english' as 'english' | 'french'
   })
   const [showPassword, setShowPassword] = useState(false)
-  const [showDemo, setShowDemo] = useState(false)
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.role) return
@@ -63,16 +55,6 @@ export function LoginForm() {
     if (!success) {
       // Error is handled by the auth context
     }
-  }
-
-  const fillDemoCredentials = (role: keyof typeof demoCredentials) => {
-    const demo = demoCredentials[role]
-    setFormData(prev => ({
-      ...prev,
-      identifier: demo.identifier,
-      password: demo.password,
-      role: role
-    }))
   }
 
   return (
@@ -213,45 +195,15 @@ export function LoginForm() {
                 {isLoading ? 'Signing in...' : 'Sign In'}
               </Button>
 
-              {/* Demo Credentials Toggle */}
-              <div className="text-center">
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  onClick={() => setShowDemo(!showDemo)}
-                >
-                  {showDemo ? 'Hide' : 'Show'} Demo Credentials
-                </Button>
+              {/* Help Text */}
+              <div className="text-center text-xs text-muted-foreground">
+                <p>Use the credentials provided when your account was created</p>
+                <p>For students: Use Student ID or email</p>
+                <p>For teachers: Use Teacher ID or email</p>
+                <p>For parents: Use Parent Code or email</p>
               </div>
 
-              {/* Demo Credentials */}
-              {showDemo && (
-                <div className="space-y-2 p-3 bg-muted rounded-lg">
-                  <p className="text-sm font-medium">Demo Credentials:</p>
-                  <div className="grid gap-2">
-                    {Object.entries(demoCredentials).map(([role, creds]) => (
-                      <Button
-                        key={role}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="justify-start text-xs"
-                        onClick={() => fillDemoCredentials(role as keyof typeof demoCredentials)}
-                      >
-                        <div className="flex items-center gap-2">
-                          {React.createElement(roleIcons[role as keyof typeof roleIcons], { className: "h-3 w-3" })}
-                          <span className="capitalize">{role}</span>
-                          <span className="text-muted-foreground">- {creds.identifier}</span>
-                        </div>
-                      </Button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Password for all demo accounts: password123
-                  </p>
-                </div>
-              )}
+
             </form>
           </CardContent>
         </Card>

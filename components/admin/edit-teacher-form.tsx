@@ -358,7 +358,7 @@ export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFor
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => updateFormData("phone", e.target.value)}
-                placeholder="Enter phone number"
+                placeholder="+237 6XX XXX XXX"
               />
             </div>
 
@@ -434,7 +434,7 @@ export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFor
                     id="emergencyPhone"
                     value={formData.emergencyContact.phone}
                     onChange={(e) => updateFormData("emergencyContact.phone", e.target.value)}
-                    placeholder="Enter phone number"
+                    placeholder="+237 6XX XXX XXX"
                   />
                 </div>
               </div>

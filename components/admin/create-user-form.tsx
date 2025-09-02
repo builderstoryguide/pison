@@ -5,6 +5,8 @@ import { User, GraduationCap, Users, UserCheck, DollarSign } from 'lucide-react'
 import { useUserManagement, User as UserType } from '@/lib/user-management-context'
 import { useStudentEnrollment } from '@/lib/student-enrollment-context'
 import { useTeacherManagement } from '@/lib/teacher-management-context'
+import { downloadEmailContent, sendWelcomeEmail, type EmailData } from '@/lib/email-utils'
+import { useToast } from '@/hooks/use-toast'
 
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -21,6 +23,7 @@ import {
 
 import { StudentEnrollmentForm } from './student-enrollment-form'
 import { TeacherEnrollmentForm } from './teacher-enrollment-form'
+import { UserCreationSuccessDialog } from './user-creation-success-dialog'
 
 const roleIcons = {
   admin: User,
@@ -38,11 +41,15 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
   const { createUser, isLoading, error } = useUserManagement()
   const { enrollStudent } = useStudentEnrollment()
   const { addTeacher } = useTeacherManagement()
+  const { toast } = useToast()
   
   const [selectedRole, setSelectedRole] = useState<UserType['role'] | ''>('')
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null)
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
   const [showRoleSelection, setShowRoleSelection] = useState(true)
+  const [userData, setUserData] = useState<EmailData | null>(null)
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
+
 
   const handleRoleChange = (role: UserType['role']) => {
     setSelectedRole(role)
@@ -62,6 +69,7 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
     parentPassword?: string;
     studentEmail?: string;
     parentEmail?: string;
+    parentName?: string;
     className?: string;
   }) => {
     // Create user account for the student
@@ -81,7 +89,20 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
 
     const userResult = await createUser(userData)
     if (userResult.success) {
+      console.log('Student enrollment success:', { userResult, result })
       setGeneratedPassword(userResult.password || null)
+      setUserData({
+        name: result.studentName,
+        email: result.studentEmail || '',
+        role: 'student',
+        password: userResult.password || '',
+        userId: userResult.roleSpecificId || result.studentId, // Use role-specific ID from API
+        className: result.className,
+        parentName: result.parentName,
+        parentEmail: result.parentEmail,
+        parentCode: result.parentCode,
+        parentPassword: result.parentPassword
+      })
       setShowPasswordDialog(true)
       onSuccess()
     }
@@ -105,7 +126,16 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
 
     const userResult = await createUser(userData)
     if (userResult.success) {
+      console.log('Teacher enrollment success:', { userResult, result })
       setGeneratedPassword(userResult.password || null)
+      setUserData({
+        name: `${result.teacherData.firstName} ${result.teacherData.lastName}`,
+        email: result.teacherData.email,
+        role: 'teacher',
+        password: userResult.password || '',
+        userId: userResult.roleSpecificId || result.teacherId, // Use role-specific ID from API
+        className: result.teacherData.class
+      })
       setShowPasswordDialog(true)
       onSuccess()
     }
@@ -114,7 +144,16 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
   const handleAdminBursarParentSuccess = async (formData: any) => {
     const userResult = await createUser(formData)
     if (userResult.success) {
+      console.log('Admin/Bursar/Parent creation success:', { userResult, formData })
       setGeneratedPassword(userResult.password || null)
+      setUserData({
+        name: formData.name,
+        email: formData.email,
+        role: formData.role,
+        password: userResult.password || '',
+        userId: userResult.roleSpecificId || formData.studentId || formData.teacherRegNo || formData.parentCode, // Use role-specific ID from API
+        className: formData.class
+      })
       setShowPasswordDialog(true)
       onSuccess()
     }
@@ -209,51 +248,21 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
         </Alert>
       )}
 
-      {/* Password Dialog */}
+      {/* User Creation Success Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>User Created Successfully</DialogTitle>
-            <DialogDescription>
-              A new user account has been created with a default password. Please share this password with the user securely.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="generated-password">Default Password</Label>
-              <div className="flex items-center space-x-2">
-                <input
-                  id="generated-password"
-                  type="text"
-                  value={generatedPassword || ''}
-                  readOnly
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (generatedPassword) {
-                      navigator.clipboard.writeText(generatedPassword)
-                    }
-                  }}
-                >
-                  Copy
-                </Button>
-              </div>
-            </div>
-            <Alert>
-              <AlertDescription>
-                <strong>Important:</strong> This password will expire in 30 days. The user should change their password upon first login.
-              </AlertDescription>
-            </Alert>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setShowPasswordDialog(false)}>
-              Close
-            </Button>
-          </DialogFooter>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {userData && (
+            <UserCreationSuccessDialog
+              userData={userData}
+              onClose={() => {
+                setShowPasswordDialog(false)
+                setShowRoleSelection(true)
+                setSelectedRole('')
+                setGeneratedPassword(null)
+                setUserData(null)
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </>

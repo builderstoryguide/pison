@@ -39,7 +39,7 @@ import { TeacherExportForm } from "./teacher-export-form"
 
 export function TeacherManagement() {
   const { teachers, isLoading, deleteTeacher } = useTeacherManagement()
-  const { users } = useUserManagement()
+  const { users, createUser } = useUserManagement()
   const { toast } = useToast()
   
 
@@ -65,6 +65,84 @@ export function TeacherManagement() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  // Function to sync existing teachers with User Management system
+  const syncTeachersWithUserManagement = async () => {
+    setIsSyncing(true)
+    try {
+      // Get all teachers from Teacher Management
+      const teacherManagementTeachers = teachers
+      
+      // Get all users from User Management
+      const userManagementUsers = users.filter(user => user.role === 'teacher')
+      
+      // Find teachers that don't have corresponding user accounts
+      const teachersWithoutUserAccounts = teacherManagementTeachers.filter(teacher => {
+        return !userManagementUsers.some(user => 
+          user.teacherRegNo === teacher.teacherId || 
+          user.email === teacher.email
+        )
+      })
+      
+      if (teachersWithoutUserAccounts.length === 0) {
+        toast.success("All teachers are already synced!", {
+          description: "No teachers found without user accounts."
+        })
+        return
+      }
+      
+      // Create user accounts for teachers that don't have them
+      let successCount = 0
+      let errorCount = 0
+      
+      for (const teacher of teachersWithoutUserAccounts) {
+        try {
+          const userData = {
+            name: `${teacher.firstName} ${teacher.lastName}`,
+            email: teacher.email,
+            role: 'teacher' as const,
+            status: 'active' as const,
+            teacherRegNo: teacher.teacherId,
+            subsystem: teacher.subsystem,
+            phone: teacher.phone,
+            address: teacher.address,
+            dateOfBirth: teacher.dateOfBirth,
+            gender: teacher.gender as 'male' | 'female',
+            permissions: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents']
+          }
+          
+          const userResult = await createUser(userData)
+          if (userResult.success) {
+            successCount++
+          } else {
+            errorCount++
+          }
+        } catch (error) {
+          console.error(`Error creating user account for teacher ${teacher.firstName} ${teacher.lastName}:`, error)
+          errorCount++
+        }
+      }
+      
+      if (successCount > 0) {
+        toast.success(`Sync completed!`, {
+          description: `Successfully created ${successCount} user account(s). ${errorCount > 0 ? `${errorCount} failed.` : ''}`
+        })
+      } else if (errorCount > 0) {
+        toast.error("Sync failed", {
+          description: `Failed to create ${errorCount} user account(s). Please try again.`
+        })
+      }
+      
+    } catch (error) {
+      console.error("Error syncing teachers:", error)
+      toast.error("Sync failed", {
+        description: "An error occurred while syncing teachers with User Management."
+      })
+    } finally {
+      setIsSyncing(false)
+    }
+  }
 
   // Filter teachers based on search term and filters
   const filteredTeachers = teachers.filter((teacher) => {
@@ -80,21 +158,51 @@ export function TeacherManagement() {
     return matchesSearch && matchesSubsystem && matchesStatus
   })
 
-  const handleTeacherEnrollmentSuccess = (result: { teacherId: string; teacherData: any }) => {
-    setTeacherEnrollmentSuccess({
-      teacherId: result.teacherId,
-      teacherName:
-        `${result.teacherData.title || ""} ${result.teacherData.firstName} ${result.teacherData.lastName}`.trim(),
-      email: result.teacherData.email,
-      phone: result.teacherData.phone,
-      subsystem: result.teacherData.subsystem,
-      subjects: result.teacherData.subjects || [],
-      classes: result.teacherData.classes || [],
-    })
-    setShowAddTeacherForm(false)
-    toast.success("Teacher enrolled successfully!", {
-      description: `${result.teacherData.firstName} ${result.teacherData.lastName} has been added to the system.`
-    })
+  const handleTeacherEnrollmentSuccess = async (result: { teacherId: string; teacherData: any }) => {
+    try {
+      // Create user account for the teacher
+      const userData = {
+        name: `${result.teacherData.firstName} ${result.teacherData.lastName}`,
+        email: result.teacherData.email,
+        role: 'teacher' as const,
+        status: 'active' as const,
+        teacherRegNo: result.teacherId,
+        subsystem: result.teacherData.subsystem,
+        phone: result.teacherData.phone,
+        address: result.teacherData.address,
+        dateOfBirth: result.teacherData.dateOfBirth,
+        gender: result.teacherData.gender as 'male' | 'female',
+        permissions: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents']
+      }
+
+      const userResult = await createUser(userData)
+      
+      if (userResult.success) {
+        setTeacherEnrollmentSuccess({
+          teacherId: result.teacherId,
+          teacherName:
+            `${result.teacherData.title || ""} ${result.teacherData.firstName} ${result.teacherData.lastName}`.trim(),
+          email: result.teacherData.email,
+          phone: result.teacherData.phone,
+          subsystem: result.teacherData.subsystem,
+          subjects: result.teacherData.subjects || [],
+          classes: result.teacherData.classes || [],
+        })
+        setShowAddTeacherForm(false)
+        toast.success("Teacher enrolled successfully!", {
+          description: `${result.teacherData.firstName} ${result.teacherData.lastName} has been added to the system with login credentials.`
+        })
+      } else {
+        toast.error("Teacher enrolled but user account creation failed", {
+          description: "The teacher was added to the system but login credentials could not be created."
+        })
+      }
+    } catch (error) {
+      console.error("Error creating user account for teacher:", error)
+      toast.error("Teacher enrolled but user account creation failed", {
+        description: "The teacher was added to the system but login credentials could not be created."
+      })
+    }
   }
 
   const handleViewTeacher = (teacher: any) => {
@@ -174,6 +282,18 @@ export function TeacherManagement() {
           <p className="text-muted-foreground">Manage teachers and their information</p>
         </div>
         <div className="flex items-center space-x-2">
+          <Button 
+            variant="outline" 
+            onClick={syncTeachersWithUserManagement}
+            disabled={isSyncing}
+          >
+            {isSyncing ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+            ) : (
+              <AlertCircle className="h-4 w-4 mr-2" />
+            )}
+            {isSyncing ? 'Syncing...' : 'Sync with User Management'}
+          </Button>
           <Button variant="outline" onClick={() => setShowExportForm(true)}>
             <Download className="h-4 w-4 mr-2" />
             Export Data

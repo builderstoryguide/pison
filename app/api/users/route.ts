@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
+import { EmailService } from '@/lib/email-service';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -23,22 +24,92 @@ function generateInitials(name: string): string {
     .slice(0, 2) // Limit to 2 characters
 }
 
-// Helper function to generate role-specific ID
-function generateRoleSpecificId(role: string): string {
+// Helper function to generate role-specific ID using database-consistent logic
+async function generateRoleSpecificId(role: string): Promise<string> {
   const year = new Date().getFullYear();
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
   
   switch (role) {
-    case 'student':
-      return `STU${year}${random}`;
-    case 'teacher':
-      return `TCH${year}${random}`;
-    case 'parent':
-      return `PAR${year}${random}`;
-    case 'bursar':
-      return `BUR${year}${random}`;
-    default:
+    case 'student': {
+      let nextNumber = 1;
+      try {
+        const { data } = await supabase
+          .from("students")
+          .select("student_id")
+          .like("student_id", `STU${year}%`)
+          .order("student_id", { ascending: false })
+          .limit(1);
+
+        if (data && data.length > 0) {
+          const lastId = data[0].student_id;
+          const lastNumber = Number.parseInt(lastId.substring(7));
+          nextNumber = lastNumber + 1;
+        }
+      } catch (error) {
+        console.error("Error generating student ID:", error);
+      }
+      return `STU${year}${nextNumber.toString().padStart(3, "0")}`;
+    }
+    
+    case 'teacher': {
+      let counter = 1;
+      let teacherId: string;
+      let isUnique = false;
+
+      while (!isUnique) {
+        teacherId = `TCH${year}${counter.toString().padStart(3, "0")}`;
+        const { data } = await supabase.from("teachers").select("teacher_id").eq("teacher_id", teacherId).single();
+        isUnique = !data;
+        if (!isUnique) counter++;
+      }
+      return teacherId!;
+    }
+    
+    case 'parent': {
+      let nextNumber = 1;
+      try {
+        const { data } = await supabase
+          .from("parents")
+          .select("parent_code")
+          .like("parent_code", `PAR${year}%`)
+          .order("parent_code", { ascending: false })
+          .limit(1);
+
+        if (data && data.length > 0) {
+          const lastCode = data[0].parent_code;
+          const lastNumber = Number.parseInt(lastCode.substring(7));
+          nextNumber = lastNumber + 1;
+        }
+      } catch (error) {
+        console.error("Error generating parent code:", error);
+      }
+      return `PAR${year}${nextNumber.toString().padStart(3, "0")}`;
+    }
+    
+    case 'bursar': {
+      let nextNumber = 1;
+      try {
+        const { data } = await supabase
+          .from("users")
+          .select("bursar_id")
+          .like("bursar_id", `BUR${year}%`)
+          .order("bursar_id", { ascending: false })
+          .limit(1);
+
+        if (data && data.length > 0) {
+          const lastId = data[0].bursar_id;
+          const lastNumber = Number.parseInt(lastId.substring(7));
+          nextNumber = lastNumber + 1;
+        }
+      } catch (error) {
+        console.error("Error generating bursar ID:", error);
+      }
+      return `BUR${year}${nextNumber.toString().padStart(3, "0")}`;
+    }
+    
+    default: {
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
       return `USR${year}${random}`;
+    }
   }
 }
 
@@ -222,7 +293,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Generate role-specific ID
-    const roleSpecificId = generateRoleSpecificId(role);
+    const roleSpecificId = await generateRoleSpecificId(role);
 
     // Generate initials for avatar
     const initials = generateInitials(name);
@@ -309,13 +380,23 @@ export async function POST(request: NextRequest) {
             date_of_birth: dateOfBirth,
             gender,
             address,
-            subsystem,
-            branch,
+            city: null, // Set to null instead of empty string
+            region: null, // Set to null instead of empty string
+            subsystem: subsystem || 'english', // Default to english if not provided
+            branch: branch || 'grammar', // Default to grammar if not provided
             class: className,
             status: 'active',
             enrollment_status: 'enrolled',
             academic_year: new Date().getFullYear() + '/' + (new Date().getFullYear() + 1),
-            enrollment_date: new Date().toISOString().split('T')[0]
+            enrollment_date: new Date().toISOString().split('T')[0],
+            nationality: 'Cameroonian', // Default value
+            religion: null, // Set to null instead of empty string
+            place_of_birth: null, // Set to null instead of empty string
+            previous_school: null, // Set to null instead of empty string
+            previous_class: null, // Set to null instead of empty string
+            blood_group: bloodGroup || null,
+            allergies: allergies || null,
+            medical_conditions: medicalConditions || null
           };
 
           const { error: studentError } = await supabase
@@ -351,7 +432,7 @@ export async function POST(request: NextRequest) {
           // Only create if it doesn't exist
           const teacherData = {
             teacher_id: roleSpecificId,
-            title: '', // Will be set to empty, can be updated later
+            title: gender === 'female' ? 'Ms.' : 'Mr.', // Set valid title based on gender
             first_name: name.split(' ')[0] || name,
             last_name: name.split(' ').slice(1).join(' ') || '',
             email,
@@ -359,21 +440,21 @@ export async function POST(request: NextRequest) {
             date_of_birth: dateOfBirth,
             gender,
             nationality: 'Cameroonian', // Default value
-            id_number: '', // Will be set to empty, can be updated later
+            id_number: null, // Set to null instead of empty string
             address,
-            city: '', // Will be set to empty, can be updated later
-            region: '', // Will be set to empty, can be updated later
-            subsystem,
+            city: null, // Set to null instead of empty string
+            region: null, // Set to null instead of empty string
+            subsystem: subsystem || 'english', // Default to english if not provided
             subjects: [], // Empty array, can be updated later
             classes: [], // Empty array, can be updated later
             qualifications: [], // Empty array, can be updated later
-            experience: '', // Will be set to empty, can be updated later
+            experience: null, // Set to null instead of empty string
             employment_type: 'full-time', // Default value
             salary: 0, // Default value, can be updated later
             start_date: new Date().toISOString().split('T')[0],
-            emergency_contact_name: emergencyContactName || '',
-            emergency_contact_relationship: emergencyContactRelationship || '',
-            emergency_contact_phone: emergencyContactPhone || '',
+            emergency_contact_name: emergencyContactName || null,
+            emergency_contact_relationship: emergencyContactRelationship || null,
+            emergency_contact_phone: emergencyContactPhone || null,
             status: 'active'
           };
 
