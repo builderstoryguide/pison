@@ -319,6 +319,25 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
   useEffect(() => {
     loadUsers()
     loadActivityLogs()
+    
+    // Listen for student and teacher creation events to refresh the user list
+    const handleStudentCreated = () => {
+      console.log('Student created event received, refreshing user data...')
+      loadUsers(true) // Force refresh
+    }
+    
+    const handleTeacherCreated = () => {
+      console.log('Teacher created event received, refreshing user data...')
+      loadUsers(true) // Force refresh
+    }
+    
+    window.addEventListener('studentCreated', handleStudentCreated)
+    window.addEventListener('teacherCreated', handleTeacherCreated)
+    
+    return () => {
+      window.removeEventListener('studentCreated', handleStudentCreated)
+      window.removeEventListener('teacherCreated', handleTeacherCreated)
+    }
   }, [])
 
   // Subscribe to activity logger

@@ -2,6 +2,24 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { supabase, isSupabaseAvailable } from "./supabase"
+import { generateDefaultPassword } from "./password-utils"
+import bcrypt from "bcryptjs"
+
+// Helper function to generate initials from name
+function generateInitials(name: string): string {
+  if (!name || typeof name !== 'string') {
+    return 'U'
+  }
+  
+  return name
+    .trim()
+    .split(' ')
+    .filter(word => word.length > 0)
+    .map(word => word[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2) // Limit to 2 characters
+}
 
 // Fallback UUID generation function
 const generateUUID = (): string => {
@@ -83,7 +101,7 @@ interface TeacherManagementContextType {
   teachers: Teacher[]
   isLoading: boolean
   error: string | null
-  addTeacher: (teacherData: TeacherFormData) => Promise<string>
+  addTeacher: (teacherData: TeacherFormData) => Promise<{ teacherId: string; password: string }>
   updateTeacher: (id: string, teacherData: Partial<Teacher>) => Promise<void>
   deleteTeacher: (id: string) => Promise<void>
   getTeacher: (id: string) => Teacher | undefined
@@ -228,7 +246,7 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
     }
   }
 
-  const addTeacher = async (teacherData: TeacherFormData): Promise<string> => {
+  const addTeacher = async (teacherData: TeacherFormData): Promise<{ teacherId: string; password: string }> => {
     if (!supabase) {
       throw new Error("Supabase client not available")
     }
@@ -311,10 +329,77 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
       }
 
       console.log("✅ Teacher saved to database successfully")
+      
+      // Generate password for teacher
+      const teacherPassword = generateDefaultPassword('teacher')
+      console.log("🔑 Generated password for teacher:", teacherPassword)
+      
+      // Create user account for teacher
+      try {
+        const teacherName = `${teacherData.firstName} ${teacherData.lastName}`
+        const teacherInitials = generateInitials(teacherName)
+        
+        const { data: teacherUser, error: userError } = await supabase
+          .from('users')
+          .insert({
+            email: teacherData.email,
+            password_hash: await bcrypt.hash(teacherPassword, 12),
+            name: teacherName,
+            role: 'teacher',
+            status: 'active',
+            avatar_url: `initials:${teacherInitials}`,
+            phone: teacherData.phone,
+            has_default_password: true,
+            password_last_changed: new Date().toISOString(),
+            password_expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            permissions: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents'],
+          })
+          .select()
+          .single()
+
+        if (userError) {
+          console.warn("Failed to create teacher user account:", userError.message)
+        } else {
+          console.log("✅ Teacher user account created successfully")
+          
+          // Create user profile for teacher
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .insert({
+              user_id: teacherUser.id,
+              role_specific_id: teacherId,
+              subsystem: teacherData.subsystem,
+              occupation: teacherData.employmentType,
+              emergency_contact_name: teacherData.emergencyContact.name,
+              emergency_contact_phone: teacherData.emergencyContact.phone,
+              emergency_contact_relationship: teacherData.emergencyContact.relationship,
+            })
+          
+          if (profileError) {
+            console.warn("Failed to create teacher user profile:", profileError.message)
+          } else {
+            console.log("✅ Teacher user profile created successfully")
+          }
+        }
+      } catch (userErr) {
+        console.warn("Failed to create teacher user account:", userErr)
+        // Continue with teacher creation even if user account creation fails
+      }
+      
       await loadTeachers() // Reload to get the complete data
 
+      // Dispatch teacherCreated event to notify User Management context
+      window.dispatchEvent(new CustomEvent('teacherCreated', { 
+        detail: { 
+          teacherId: teacherId,
+          name: `${teacherData.firstName} ${teacherData.lastName}`,
+          email: teacherData.email 
+        } 
+      }))
+
       console.log("🎉 Teacher enrollment completed successfully!")
-      return teacherId
+      console.log("📤 Returning result:", { teacherId, password: teacherPassword })
+      return { teacherId, password: teacherPassword }
     } catch (err) {
       console.error("Error adding teacher:", err)
       const errorMessage = err instanceof Error ? err.message : 

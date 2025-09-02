@@ -356,7 +356,7 @@ function DashboardHeader({
   onSidebarToggle?: () => void
 }) {
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 fixed top-0 right-0 left-[var(--sidebar-width)] z-40">
       <div className="flex items-center gap-2 px-4">
         <Button 
           variant="ghost" 
@@ -461,6 +461,15 @@ export function Dashboard() {
   
   const [reportsDropdownOpen, setReportsDropdownOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  
+  // Update CSS variable when sidebar state changes
+  useEffect(() => {
+    if (sidebarCollapsed) {
+      document.documentElement.style.setProperty('--sidebar-width', '4rem')
+    } else {
+      document.documentElement.style.setProperty('--sidebar-width', '18rem')
+    }
+  }, [sidebarCollapsed])
   
   // Get data from contexts for Admin Dashboard
   const { students, isLoading: studentsLoading, error: studentsError } = useStudentManagement()
@@ -871,7 +880,7 @@ export function Dashboard() {
                             <Sidebar 
                               collapsed={sidebarCollapsed} 
                               onCollapsedChange={setSidebarCollapsed}
-                              className="border-r border-border/50"
+                              className="border-r border-border/50 fixed left-0 top-0 h-full z-50"
                             >
                               <SidebarHeader>
                                 <SidebarHeaderTitle>
@@ -991,15 +1000,15 @@ export function Dashboard() {
                                 </SidebarMenu>
                               </SidebarFooter>
                             </Sidebar>
-                            <div className="flex-1 flex flex-col">
-                                                             <DashboardHeader
-                                 user={user}
-                                 onProfileClick={() => setAdminCurrentView("profile")}
-                                 onLogout={handleLogout}
-                                 sidebarCollapsed={sidebarCollapsed}
-                                 onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-                               />
-                              <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderAdminContent()}</div>
+                            <div className="flex-1 flex flex-col ml-[var(--sidebar-width)]">
+                              <DashboardHeader
+                                user={user}
+                                onProfileClick={() => setAdminCurrentView("profile")}
+                                onLogout={handleLogout}
+                                sidebarCollapsed={sidebarCollapsed}
+                                onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+                              />
+                              <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderAdminContent()}</div>
                             </div>
                           </div>
                         </ProfileProvider>
@@ -1049,7 +1058,7 @@ export function Dashboard() {
                 <Sidebar 
                   collapsed={sidebarCollapsed} 
                   onCollapsedChange={setSidebarCollapsed}
-                  className="border-r border-border/50"
+                  className="border-r border-border/50 fixed left-0 top-0 h-full z-50"
                 >
                   <SidebarHeader>
                     <SidebarHeaderTitle>
@@ -1136,15 +1145,15 @@ export function Dashboard() {
                     </SidebarMenu>
                   </SidebarFooter>
                 </Sidebar>
-                <div className="flex-1 flex flex-col">
-                                     <DashboardHeader
-                     user={user}
-                     onProfileClick={() => setTeacherCurrentView("profile")}
-                     onLogout={handleLogout}
-                     sidebarCollapsed={sidebarCollapsed}
-                     onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-                   />
-                  <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderTeacherContent()}</div>
+                <div className="flex-1 flex flex-col ml-[var(--sidebar-width)]">
+                  <DashboardHeader
+                    user={user}
+                    onProfileClick={() => setTeacherCurrentView("profile")}
+                    onLogout={handleLogout}
+                    sidebarCollapsed={sidebarCollapsed}
+                    onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  />
+                  <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderTeacherContent()}</div>
                 </div>
               </div>
             </ProfileProvider>
@@ -1190,7 +1199,7 @@ export function Dashboard() {
             <Sidebar 
               collapsed={sidebarCollapsed} 
               onCollapsedChange={setSidebarCollapsed}
-              className="border-r border-border/50"
+              className="border-r border-border/50 fixed left-0 top-0 h-full z-50"
             >
               <SidebarHeader>
                 <SidebarHeaderTitle>
@@ -1277,15 +1286,15 @@ export function Dashboard() {
                 </SidebarMenu>
               </SidebarFooter>
             </Sidebar>
-            <div className="flex-1 flex flex-col">
-                             <DashboardHeader 
-                 user={user} 
-                 onProfileClick={() => setBursarCurrentView("profile")} 
-                 onLogout={handleLogout}
-                 sidebarCollapsed={sidebarCollapsed}
-                 onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-               />
-              <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderBursarContent()}</div>
+            <div className="flex-1 flex flex-col ml-[var(--sidebar-width)]">
+              <DashboardHeader 
+                user={user} 
+                onProfileClick={() => setBursarCurrentView("profile")} 
+                onLogout={handleLogout}
+                sidebarCollapsed={sidebarCollapsed}
+                onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+              />
+              <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderBursarContent()}</div>
             </div>
           </div>
         </ProfileProvider>

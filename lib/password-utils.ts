@@ -11,7 +11,15 @@ export function generateDefaultPassword(role: string, year?: number): string {
   const currentYear = year || new Date().getFullYear()
   const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase()
   const capitalizedRole = role.charAt(0).toUpperCase() + role.slice(1)
-  return `${capitalizedRole}@${currentYear}${randomChars}`
+  const password = `${capitalizedRole}@${currentYear}${randomChars}`
+  
+  // Add debugging
+  console.log("🔐 Generating password for role:", role)
+  console.log("🔐 Current year:", currentYear)
+  console.log("🔐 Random chars:", randomChars)
+  console.log("🔐 Generated password:", password)
+  
+  return password
 }
 
 /**

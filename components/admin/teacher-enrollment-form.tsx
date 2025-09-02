@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 
 interface TeacherEnrollmentFormProps {
-  onSuccess: (result: { teacherId: string; teacherData: TeacherFormData }) => void
+  onSuccess: (result: { teacherId: string; teacherData: TeacherFormData; password: string }) => void
   onCancel: () => void
 }
 
@@ -108,7 +108,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
       // Remove any invalid characters and ensure proper format
       formattedPhone = formattedPhone.replace(/[^0-9\s\+\-\(\)]/g, "")
       
-      if (field.includes(".")) {
+    if (field.includes(".")) {
         const [parent, child] = field.split(".")
         setFormData((prev) => ({
           ...prev,
@@ -272,15 +272,21 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
       console.log("📊 Original form data:", formData)
       console.log("📊 Formatted form data:", formattedFormData)
       
-      const teacherId = await addTeacher(formattedFormData)
-      console.log("✅ Teacher added successfully with ID:", teacherId)
+      const result = await addTeacher(formattedFormData)
+      console.log("✅ Teacher added successfully with ID:", result.teacherId)
+      console.log("🔑 Password received:", result.password)
+      console.log("📊 Full result:", result)
       
       // Show success toast
       toast.success("Teacher enrolled successfully!", {
         description: `${formData.title} ${formData.firstName} ${formData.lastName} has been added to the system.`
       })
       
-      onSuccess({ teacherId, teacherData: formData })
+      onSuccess({ 
+        teacherId: result.teacherId, 
+        teacherData: formData,
+        password: result.password
+      })
     } catch (err) {
       console.error("❌ Error in form submission:", err)
       const errorMessage = err instanceof Error ? err.message : 

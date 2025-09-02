@@ -66,6 +66,16 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Sidebar width variables */
+  :root {
+    --sidebar-width: 18rem; /* 288px - default expanded width */
+  }
+  
+  /* Collapsed sidebar width */
+  .sidebar-collapsed {
+    --sidebar-width: 4rem; /* 64px - collapsed width */
+  }
 }
 
 @layer components {

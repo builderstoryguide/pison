@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Mail, Phone, Download, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,7 +41,7 @@ export function TeacherManagement() {
   const { teachers, isLoading, deleteTeacher } = useTeacherManagement()
   const { users, createUser } = useUserManagement()
   const { toast } = useToast()
-  
+ 
 
   const [searchTerm, setSearchTerm] = useState("")
   const [filterSubsystem, setFilterSubsystem] = useState("all")
@@ -60,12 +60,42 @@ export function TeacherManagement() {
     subsystem: string
     subjects: string[]
     classes: string[]
+    password: string
   } | null>(null)
   const [teacherToDelete, setTeacherToDelete] = useState<any>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [isSyncing, setIsSyncing] = useState(false)
+
+  // Debug effect for teacher enrollment success - placed after all state declarations
+  React.useEffect(() => {
+    console.log("🎯 Teacher enrollment success state changed:", teacherEnrollmentSuccess)
+  }, [teacherEnrollmentSuccess])
+
+  // Test password generation
+  const testPasswordGeneration = () => {
+    try {
+      // Import the function dynamically
+      import('@/lib/password-utils').then(({ generateDefaultPassword }) => {
+        const testPassword = generateDefaultPassword('teacher')
+        console.log("🧪 Test password generation:", testPassword)
+        toast.info("Password generation test", {
+          description: `Generated: ${testPassword}`
+        })
+      }).catch(err => {
+        console.error("Error importing password utils:", err)
+        toast.error("Password generation test failed", {
+          description: "Could not import password utility function"
+        })
+      })
+    } catch (error) {
+      console.error("Error in test function:", error)
+      toast.error("Password generation test failed", {
+        description: "Unexpected error occurred"
+      })
+    }
+  }
 
   // Function to sync existing teachers with User Management system
   const syncTeachersWithUserManagement = async () => {
@@ -158,9 +188,26 @@ export function TeacherManagement() {
     return matchesSearch && matchesSubsystem && matchesStatus
   })
 
-  const handleTeacherEnrollmentSuccess = async (result: { teacherId: string; teacherData: any }) => {
+  const handleTeacherEnrollmentSuccess = async (result: { teacherId: string; teacherData: any; password: string }) => {
+    console.log("🎉 Teacher enrollment success handler called with:", result)
+    
+    // Always show success dialog first, regardless of user account creation
+    setTeacherEnrollmentSuccess({
+      teacherId: result.teacherId,
+      teacherName:
+        `${result.teacherData.title || ""} ${result.teacherData.firstName} ${result.teacherData.lastName}`.trim(),
+      email: result.teacherData.email,
+      phone: result.teacherData.phone,
+      subsystem: result.teacherData.subsystem,
+      subjects: result.teacherData.subjects || [],
+      classes: result.teacherData.classes || [],
+      password: result.password,
+    })
+    
+    setShowAddTeacherForm(false)
+    
     try {
-      // Create user account for the teacher
+      // Create user account for the teacher (this happens in background)
       const userData = {
         name: `${result.teacherData.firstName} ${result.teacherData.lastName}`,
         email: result.teacherData.email,
@@ -178,29 +225,18 @@ export function TeacherManagement() {
       const userResult = await createUser(userData)
       
       if (userResult.success) {
-        setTeacherEnrollmentSuccess({
-          teacherId: result.teacherId,
-          teacherName:
-            `${result.teacherData.title || ""} ${result.teacherData.firstName} ${result.teacherData.lastName}`.trim(),
-          email: result.teacherData.email,
-          phone: result.teacherData.phone,
-          subsystem: result.teacherData.subsystem,
-          subjects: result.teacherData.subjects || [],
-          classes: result.teacherData.classes || [],
-        })
-        setShowAddTeacherForm(false)
         toast.success("Teacher enrolled successfully!", {
           description: `${result.teacherData.firstName} ${result.teacherData.lastName} has been added to the system with login credentials.`
         })
       } else {
-        toast.error("Teacher enrolled but user account creation failed", {
-          description: "The teacher was added to the system but login credentials could not be created."
+        toast.warning("Teacher enrolled but user account creation failed", {
+          description: "The teacher was added to the system but login credentials could not be created. Please contact support."
         })
       }
     } catch (error) {
       console.error("Error creating user account for teacher:", error)
-      toast.error("Teacher enrolled but user account creation failed", {
-        description: "The teacher was added to the system but login credentials could not be created."
+      toast.warning("Teacher enrolled but user account creation failed", {
+        description: "The teacher was added to the system but login credentials could not be created. Please contact support."
       })
     }
   }
@@ -302,6 +338,9 @@ export function TeacherManagement() {
             <Plus className="h-4 w-4 mr-2" />
             Add Teacher
           </Button>
+          <Button onClick={testPasswordGeneration} variant="outline">
+            🧪 Test Password
+          </Button>
         </div>
       </div>
 
@@ -321,7 +360,9 @@ export function TeacherManagement() {
         <AlertDescription>
           <strong>Debug Info:</strong> Teachers: {teachers.length} | 
           Filtered: {filteredTeachers.length} | 
-          Database: {teachers.length > 0 ? 'Connected' : 'No Data'}
+          Database: {teachers.length > 0 ? 'Connected' : 'No Data'} |
+          Success State: {teacherEnrollmentSuccess ? 'Set' : 'Not Set'} |
+          Success Password: {teacherEnrollmentSuccess?.password || 'None'}
         </AlertDescription>
       </Alert>
 
@@ -706,24 +747,27 @@ export function TeacherManagement() {
 
       {/* Teacher Enrollment Success Dialog */}
       {teacherEnrollmentSuccess && (
-        <TeacherEnrollmentSuccessDialog
-          teacherId={teacherEnrollmentSuccess.teacherId}
-          teacherName={teacherEnrollmentSuccess.teacherName}
-          email={teacherEnrollmentSuccess.email}
-          phone={teacherEnrollmentSuccess.phone}
-          subsystem={teacherEnrollmentSuccess.subsystem}
-          subjects={teacherEnrollmentSuccess.subjects}
-          classes={teacherEnrollmentSuccess.classes}
-          onClose={() => setTeacherEnrollmentSuccess(null)}
-          onViewTeacher={() => {
-            setTeacherEnrollmentSuccess(null)
-            // Could navigate to teacher details here
-          }}
-          onEnrollAnother={() => {
-            setTeacherEnrollmentSuccess(null)
-            setShowAddTeacherForm(true)
-          }}
-        />
+        <>
+          <TeacherEnrollmentSuccessDialog
+            teacherId={teacherEnrollmentSuccess.teacherId}
+            teacherName={teacherEnrollmentSuccess.teacherName}
+            email={teacherEnrollmentSuccess.email}
+            phone={teacherEnrollmentSuccess.phone}
+            subsystem={teacherEnrollmentSuccess.subsystem}
+            subjects={teacherEnrollmentSuccess.subjects}
+            classes={teacherEnrollmentSuccess.classes}
+            password={teacherEnrollmentSuccess.password}
+            onClose={() => setTeacherEnrollmentSuccess(null)}
+            onViewTeacher={() => {
+              setTeacherEnrollmentSuccess(null)
+              // Could navigate to teacher details here
+            }}
+            onEnrollAnother={() => {
+              setTeacherEnrollmentSuccess(null)
+              setShowAddTeacherForm(true)
+            }}
+          />
+        </>
       )}
 
       {/* Export Teacher Data Dialog */}

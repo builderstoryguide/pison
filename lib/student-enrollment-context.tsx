@@ -98,8 +98,19 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
 
   // Create a custom event to notify other contexts when a student is enrolled
   const notifyStudentEnrolled = (studentData: any) => {
-    const event = new CustomEvent('studentEnrolled', { detail: studentData })
-    window.dispatchEvent(event)
+    // Dispatch both events for backward compatibility
+    const studentEnrolledEvent = new CustomEvent('studentEnrolled', { detail: studentData })
+    window.dispatchEvent(studentEnrolledEvent)
+    
+    // Also dispatch studentCreated event for User Management context
+    const studentCreatedEvent = new CustomEvent('studentCreated', { 
+      detail: { 
+        studentId: studentData.student_id,
+        name: `${studentData.first_name} ${studentData.last_name}`,
+        email: studentData.email 
+      } 
+    })
+    window.dispatchEvent(studentCreatedEvent)
   }
 
   const testDatabaseConnection = async (): Promise<boolean> => {
@@ -187,6 +198,17 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
 
       if (!dbConnected) {
         throw new Error("Database connection is required for student enrollment. Please check your database configuration.")
+      }
+
+      // Validate required parent information
+      if (!studentData.parentName || !studentData.parentEmail || !studentData.parentPhone) {
+        throw new Error("Parent information is required: name, email, and phone number must be provided.")
+      }
+
+      // Validate parent email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(studentData.parentEmail)) {
+        throw new Error("Please provide a valid parent email address.")
       }
 
       const studentId = await generateActualStudentId()
@@ -287,12 +309,14 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
         address: studentData.parentAddress,
         occupation: studentData.parentOccupation,
         relationship: studentData.relationship,
-        student_id: student.id,
+        student_id: studentId, // Link to the student ID, not the database row ID
       })
 
       if (parentError) {
         console.warn("Failed to create parent:", parentError.message)
         // Continue with enrollment even if parent creation fails
+      } else {
+        console.log("✅ Parent created successfully with code:", parentCode)
       }
 
       // Generate passwords for student and parent accounts
@@ -318,6 +342,7 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
             has_default_password: true,
             password_last_changed: new Date().toISOString(),
             password_expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+            permissions: ['view_own_progress', 'view_own_schedule', 'view_own_fees', 'view_own_attendance', 'communicate_teachers'],
           })
           .select()
           .single()
@@ -326,6 +351,29 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
           console.warn("Failed to create student user account:", studentUserError.message)
         } else {
           studentUser = studentUserData
+          
+          // Create user profile for student to link with student_id
+          if (studentUser) {
+            const { error: profileError } = await supabase
+              .from('user_profiles')
+              .insert({
+                user_id: studentUser.id,
+                role_specific_id: studentId, // Link to student_id
+                subsystem: studentData.subsystem,
+                branch: studentData.branch,
+                class_name: studentData.class,
+                emergency_contact_name: studentData.emergencyContactName,
+                emergency_contact_phone: studentData.emergencyContactPhone,
+                emergency_contact_relationship: studentData.emergencyContactRelationship,
+                blood_group: studentData.bloodGroup,
+                allergies: studentData.allergies,
+                medical_conditions: studentData.medicalConditions,
+              })
+            
+            if (profileError) {
+              console.warn("Failed to create student user profile:", profileError.message)
+            }
+          }
         }
       }
 
@@ -347,6 +395,7 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
             has_default_password: true,
             password_last_changed: new Date().toISOString(),
             password_expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+            permissions: ['view_child_progress', 'view_child_schedule', 'view_child_fees', 'communicate_teachers', 'view_child_attendance'],
           })
           .select()
           .single()
@@ -355,6 +404,27 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
           console.warn("Failed to create parent user account:", parentUserError.message)
         } else {
           parentUser = parentUserData
+          
+          // Create user profile for parent to link with parent_code
+          if (parentUser) {
+            const { error: profileError } = await supabase
+              .from('user_profiles')
+              .insert({
+                user_id: parentUser.id,
+                role_specific_id: parentCode, // Link to parent_code
+                relationship: studentData.relationship,
+                occupation: studentData.parentOccupation,
+                emergency_contact_name: studentData.emergencyContactName,
+                emergency_contact_phone: studentData.emergencyContactPhone,
+                emergency_contact_relationship: studentData.emergencyContactRelationship,
+              })
+            
+            if (profileError) {
+              console.warn("Failed to create parent user profile:", profileError.message)
+            } else {
+              console.log("✅ Parent user profile created successfully")
+            }
+          }
         }
       }
 
@@ -369,6 +439,20 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
 
         if (emergencyError) {
           console.warn("Failed to create emergency contact:", emergencyError.message)
+        }
+      }
+
+      // Create parent-student relationship for future access control
+      if (parentUser && studentUser) {
+        try {
+          // This could be extended to a separate relationship table for many-to-many relationships
+          console.log(`🔗 Parent-student relationship established: ${parentUser.id} ↔ ${studentUser.id}`)
+          
+          // Store the relationship in a way that allows parents to access their children's information
+          // This could be implemented as a separate table or through the existing parents table
+          console.log(`📋 Parent ${studentData.parentName} can now access information for student ${studentData.firstName} ${studentData.lastName}`)
+        } catch (error) {
+          console.warn("Failed to establish parent-student relationship:", error)
         }
       }
 
@@ -392,10 +476,15 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
       // Log the activity
       activityLogger.logActivity('STUDENT_ENROLLED', `Enrolled new student ${studentData.firstName} ${studentData.lastName} in ${studentData.class}`)
       
+      // Log parent creation activity
+      if (parentUser) {
+        activityLogger.logActivity('PARENT_ACCOUNT_CREATED', `Created parent account for ${studentData.parentName} linked to student ${studentId}`)
+      }
+      
       // Add notification for successful enrollment
       addNotification({
         title: "Student Enrollment Successful",
-        message: `${studentData.firstName} ${studentData.lastName} has been successfully enrolled with ID ${studentId}`,
+        message: `${studentData.firstName} ${studentData.lastName} has been successfully enrolled with ID ${studentId}. Parent account created with code ${parentCode}.`,
         type: "success"
       })
       

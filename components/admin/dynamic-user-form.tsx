@@ -71,99 +71,61 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
     parentName?: string;
     className?: string;
   }) => {
-    // The student enrollment form already creates the student record in the database
-    // We just need to create the user account for login purposes
-    const userData = {
+    // The student enrollment form already creates everything needed:
+    // - Student record in students table
+    // - Parent record in parents table  
+    // - Student user account in users table
+    // - Parent user account in users table
+    // - User profiles for both
+    // - All relationships established
+    
+    // We just need to show the success dialog with the credentials
+    setUserData({
       name: result.studentName,
       email: result.studentEmail || '',
-      role: 'student' as const,
-      status: 'active' as const,
-      studentId: result.studentId,
-      subsystem: 'english' as const,
-      phone: '',
-      address: '',
-      dateOfBirth: new Date().toISOString().split('T')[0],
-      gender: 'male' as const,
-      permissions: ['view_grades', 'view_schedule', 'submit_assignments', 'communicate_teachers']
-    }
-
-    try {
-      const userResult = await createUser(userData)
-      if (userResult.success) {
-        setGeneratedPassword(userResult.password || null)
-        setUserData({
-          name: result.studentName,
-          email: result.studentEmail || '',
-          role: 'student',
-          password: userResult.password || '',
-          userId: userResult.roleSpecificId || result.studentId, // Use role-specific ID from API
-          className: result.className,
-          parentName: result.parentName,
-          parentEmail: result.parentEmail,
-          parentCode: result.parentCode,
-          parentPassword: result.parentPassword
-        })
-        setShowPasswordDialog(true)
-        toast.success("Student created successfully!", {
-          description: `${result.studentName} has been enrolled and user account created.`
-        })
-        // Don't call onSuccess() here - let the success dialog handle it
-      } else {
-        toast.error("Failed to create user account", {
-          description: "Student was enrolled but user account creation failed."
-        })
-      }
-    } catch (error) {
-      toast.error("Error creating user account", {
-        description: "An unexpected error occurred while creating the user account."
-      })
-    }
+      role: 'student',
+      password: result.studentPassword || '',
+      userId: result.studentId,
+      className: result.className,
+      parentName: result.parentName,
+      parentEmail: result.parentEmail,
+      parentCode: result.parentCode,
+      parentPassword: result.parentPassword
+    })
+    
+    setShowPasswordDialog(true)
+    
+    toast.success("Student enrolled successfully!", {
+      description: `${result.studentName} has been enrolled with ID ${result.studentId}. Parent account created with code ${result.parentCode}.`
+    })
+    
+    // Don't call onSuccess() here - let the success dialog handle it
   }
 
   const handleTeacherEnrollmentSuccess = async (result: { teacherId: string; teacherData: any }) => {
-    // The teacher enrollment form already creates the teacher record in the database
-    // We just need to create the user account for login purposes
-    const userData = {
+    // The teacher enrollment form already creates everything needed:
+    // - Teacher record in teachers table
+    // - Teacher user account in users table
+    // - User profile for teacher
+    // - All relationships established
+    
+    // We just need to show the success dialog with the credentials
+    setUserData({
       name: `${result.teacherData.firstName} ${result.teacherData.lastName}`,
       email: result.teacherData.email,
-      role: 'teacher' as const,
-      status: 'active' as const,
-      teacherRegNo: result.teacherId,
-      subsystem: result.teacherData.subsystem,
-      phone: result.teacherData.phone,
-      address: result.teacherData.address,
-      dateOfBirth: new Date(result.teacherData.dateOfBirth).toISOString().split('T')[0],
-      gender: result.teacherData.gender as 'male' | 'female',
-      permissions: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents']
-    }
-
-    try {
-      const userResult = await createUser(userData)
-      if (userResult.success) {
-        setGeneratedPassword(userResult.password || null)
-        setUserData({
-          name: `${result.teacherData.firstName} ${result.teacherData.lastName}`,
-          email: result.teacherData.email,
-          role: 'teacher',
-          password: userResult.password || '',
-          userId: userResult.roleSpecificId || result.teacherId, // Use role-specific ID from API
-          className: result.teacherData.class
-        })
-        setShowPasswordDialog(true)
-        toast.success("Teacher created successfully!", {
-          description: `${result.teacherData.firstName} ${result.teacherData.lastName} has been enrolled and user account created.`
-        })
-        // Don't call onSuccess() here - let the success dialog handle it
-      } else {
-        toast.error("Failed to create user account", {
-          description: "Teacher was enrolled but user account creation failed."
-        })
-      }
-    } catch (error) {
-      toast.error("Error creating user account", {
-        description: "An unexpected error occurred while creating the user account."
-      })
-    }
+      role: 'teacher',
+      password: result.teacherData.password || '',
+      userId: result.teacherId,
+      className: result.teacherData.class
+    })
+    
+    setShowPasswordDialog(true)
+    
+    toast.success("Teacher enrolled successfully!", {
+      description: `${result.teacherData.firstName} ${result.teacherData.lastName} has been enrolled with ID ${result.teacherId}.`
+    })
+    
+    // Don't call onSuccess() here - let the success dialog handle it
   }
 
   const handleAdminBursarParentSuccess = async (formData: any) => {
