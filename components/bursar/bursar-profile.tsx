@@ -30,6 +30,16 @@ export function BursarProfile() {
   }
 
   const handleInputChange = (field: keyof ProfileData, value: any) => {
+    // Special handling for phone numbers
+    if (field === 'phone') {
+      let formattedPhone = value
+      if (!formattedPhone.startsWith('+237 6')) {
+        formattedPhone = '+237 6'
+      }
+      formattedPhone = formattedPhone.replace(/[^0-9\s\+\-\(\)]/g, '')
+      value = formattedPhone
+    }
+    
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -39,6 +49,16 @@ export function BursarProfile() {
   }
 
   const handleNestedChange = (parent: keyof ProfileData, field: string, value: any) => {
+    // Special handling for emergency contact phone
+    if (parent === 'emergencyContact' && field === 'phone') {
+      let formattedPhone = value
+      if (!formattedPhone.startsWith('+237 6')) {
+        formattedPhone = '+237 6'
+      }
+      formattedPhone = formattedPhone.replace(/[^0-9\s\+\-\(\)]/g, '')
+      value = formattedPhone
+    }
+    
     setFormData((prev) => ({
       ...prev,
       [parent]: {

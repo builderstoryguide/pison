@@ -75,7 +75,7 @@ export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFor
       firstName: teacher.firstName || "",
       lastName: teacher.lastName || "",
       email: teacher.email || "",
-      phone: teacher.phone || "",
+      phone: teacher.phone || "+237 6",
       dateOfBirth: teacher.dateOfBirth || "",
       gender: teacher.gender || "",
       address: teacher.address || "",
@@ -94,14 +94,36 @@ export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFor
       emergencyContact: {
         name: teacher.emergencyContact?.name || "",
         relationship: teacher.emergencyContact?.relationship || "",
-        phone: teacher.emergencyContact?.phone || "",
+        phone: teacher.emergencyContact?.phone || "+237 6",
       },
       status: teacher.status || "active",
     })
   }, [teacher])
 
   const updateFormData = (field: string, value: any) => {
-    if (field.includes(".")) {
+    // Special handling for phone numbers
+    if (field === 'phone' || (field.includes('.') && field.endsWith('phone'))) {
+      // Ensure phone number starts with +237 6 for Cameroon
+      let formattedPhone = value
+      if (!formattedPhone.startsWith('+237 6')) {
+        formattedPhone = '+237 6'
+      }
+      // Remove any invalid characters and ensure proper format
+      formattedPhone = formattedPhone.replace(/[^0-9\s\+\-\(\)]/g, '')
+      
+      if (field.includes(".")) {
+        const [parent, child] = field.split(".")
+        setFormData((prev) => ({
+          ...prev,
+          [parent]: {
+            ...(prev[parent as keyof typeof prev] as any),
+            [child]: formattedPhone,
+          },
+        }))
+      } else {
+        setFormData((prev) => ({ ...prev, [field]: formattedPhone }))
+      }
+    } else if (field.includes(".")) {
       const [parent, child] = field.split(".")
       setFormData((prev) => ({
         ...prev,
@@ -356,10 +378,15 @@ export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFor
               <Label htmlFor="phone">Phone Number *</Label>
               <Input
                 id="phone"
+                type="tel"
                 value={formData.phone}
                 onChange={(e) => updateFormData("phone", e.target.value)}
                 placeholder="+237 6XX XXX XXX"
+                maxLength={15}
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Format: +237 6XXXXXXXX (Cameroon mobile number)
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -432,10 +459,15 @@ export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFor
                   <Label htmlFor="emergencyPhone">Phone Number</Label>
                   <Input
                     id="emergencyPhone"
+                    type="tel"
                     value={formData.emergencyContact.phone}
                     onChange={(e) => updateFormData("emergencyContact.phone", e.target.value)}
                     placeholder="+237 6XX XXX XXX"
+                    maxLength={15}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Format: +237 6XXXXXXXX (Cameroon mobile number)
+                  </p>
                 </div>
               </div>
             </div>

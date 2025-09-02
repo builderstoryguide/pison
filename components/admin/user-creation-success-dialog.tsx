@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast'
 interface UserCreationSuccessDialogProps {
   userData: EmailData
   onClose: () => void
+  onSuccess?: () => void
 }
 
 export function UserCreationSuccessDialog({ 
@@ -82,22 +83,29 @@ export function UserCreationSuccessDialog({
   return (
     <div className="w-full max-w-lg mx-auto space-y-4 p-2">
       {/* Success Header */}
-      <div className="text-center space-y-4">
+      <div className="text-center space-y-4 animate-in fade-in-0 slide-in-from-top-2 duration-500">
         <div className="flex justify-center">
-          <div className="flex h-12 w-12 md:h-16 md:w-16 items-center justify-center rounded-full bg-green-100">
+          <div className="flex h-12 w-12 md:h-16 md:w-16 items-center justify-center rounded-full bg-green-100 animate-in zoom-in-0 duration-500 animate-pulse">
             <Check className="h-6 w-6 md:h-8 md:w-8 text-green-600" />
           </div>
         </div>
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-green-600">User Created Successfully!</h2>
-          <p className="text-xs md:text-sm text-muted-foreground px-1 leading-relaxed">
+          <h2 className="text-xl md:text-2xl font-bold text-green-600 animate-in fade-in-0 duration-700 delay-200">User Created Successfully!</h2>
+          <p className="text-xs md:text-sm text-muted-foreground px-1 leading-relaxed animate-in fade-in-0 duration-700 delay-300">
             {userData.name} has been successfully created as a {getRoleDisplayName(userData.role)} in the system
           </p>
+          <div className="flex justify-center mt-2">
+            <div className="flex gap-1">
+              <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse"></div>
+              <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse delay-100"></div>
+              <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse delay-200"></div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* User Information */}
-      <Card>
+      <Card className="animate-in fade-in-0 slide-in-from-left-2 duration-500 delay-100">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <RoleIcon className="h-4 w-4" />
@@ -196,7 +204,7 @@ export function UserCreationSuccessDialog({
             )}
           </div>
 
-          <Alert className="p-3">
+          <Alert className="p-3 animate-in fade-in-0 duration-700 delay-400">
             <AlertDescription className="text-xs leading-relaxed">
               <strong>Important:</strong> Please save these credentials securely. The user should change their password upon first login. This password will expire in 30 days.
             </AlertDescription>
@@ -205,7 +213,7 @@ export function UserCreationSuccessDialog({
       </Card>
 
       {/* Next Steps */}
-      <Card>
+      <Card className="animate-in fade-in-0 slide-in-from-right-2 duration-500 delay-200">
         <CardHeader>
           <CardTitle className="text-base">Next Steps</CardTitle>
           <CardDescription className="text-xs">
@@ -255,7 +263,7 @@ export function UserCreationSuccessDialog({
       </Card>
 
       {/* Actions */}
-      <div className="flex flex-col gap-2 justify-center">
+      <div className="flex flex-col gap-2 justify-center animate-in fade-in-0 slide-in-from-bottom-2 duration-500 delay-300">
         <div className="flex flex-col gap-2 w-full">
           <Button variant="outline" onClick={handleDownloadEmail} className="w-full">
             <Download className="h-4 w-4 mr-2" />
@@ -271,9 +279,16 @@ export function UserCreationSuccessDialog({
             {isSendingEmail ? 'Sending...' : 'Send Welcome Email'}
           </Button>
         </div>
-        <Button onClick={onClose} className="w-full">
-          Complete
-        </Button>
+        <div className="flex gap-2 w-full">
+          <Button variant="outline" onClick={onClose} className="flex-1">
+            Close
+          </Button>
+          {onSuccess && (
+            <Button onClick={onSuccess} className="flex-1 bg-green-600 hover:bg-green-700">
+              Continue
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )

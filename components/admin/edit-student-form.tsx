@@ -86,7 +86,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
       last_name: student.last_name || "",
       middle_name: student.middle_name || "",
       email: student.email || "",
-      phone: student.phone || "",
+      phone: student.phone || "+237 6",
       date_of_birth: student.date_of_birth || "",
       gender: student.gender || "",
       place_of_birth: student.place_of_birth || "",
@@ -109,7 +109,19 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
   }, [student])
 
   const handleInputChange = (field: keyof Student, value: string | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    // Special handling for phone numbers
+    if (field === 'phone') {
+      // Ensure phone number starts with +237 6 for Cameroon
+      let formattedPhone = String(value)
+      if (!formattedPhone.startsWith('+237 6')) {
+        formattedPhone = '+237 6'
+      }
+      // Remove any invalid characters and ensure proper format
+      formattedPhone = formattedPhone.replace(/[^0-9\s\+\-\(\)]/g, '')
+      setFormData(prev => ({ ...prev, [field]: formattedPhone }))
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }))
+    }
   }
 
   const handleSubmit = async () => {
@@ -411,10 +423,15 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                   <Label htmlFor="phone">Phone</Label>
                   <Input
                     id="phone"
+                    type="tel"
                     value={formData.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
                     placeholder="+237 6XX XXX XXX"
+                    maxLength={15}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Format: +237 6XXXXXXXX (Cameroon mobile number)
+                  </p>
                 </div>
               </div>
 

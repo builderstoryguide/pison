@@ -87,23 +87,36 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
       permissions: ['view_grades', 'view_schedule', 'submit_assignments', 'communicate_teachers']
     }
 
-    const userResult = await createUser(userData)
-    if (userResult.success) {
-      setGeneratedPassword(userResult.password || null)
-      setUserData({
-        name: result.studentName,
-        email: result.studentEmail || '',
-        role: 'student',
-        password: userResult.password || '',
-        userId: userResult.roleSpecificId || result.studentId, // Use role-specific ID from API
-        className: result.className,
-        parentName: result.parentName,
-        parentEmail: result.parentEmail,
-        parentCode: result.parentCode,
-        parentPassword: result.parentPassword
+    try {
+      const userResult = await createUser(userData)
+      if (userResult.success) {
+        setGeneratedPassword(userResult.password || null)
+        setUserData({
+          name: result.studentName,
+          email: result.studentEmail || '',
+          role: 'student',
+          password: userResult.password || '',
+          userId: userResult.roleSpecificId || result.studentId, // Use role-specific ID from API
+          className: result.className,
+          parentName: result.parentName,
+          parentEmail: result.parentEmail,
+          parentCode: result.parentCode,
+          parentPassword: result.parentPassword
+        })
+        setShowPasswordDialog(true)
+        toast.success("Student created successfully!", {
+          description: `${result.studentName} has been enrolled and user account created.`
+        })
+        // Don't call onSuccess() here - let the success dialog handle it
+      } else {
+        toast.error("Failed to create user account", {
+          description: "Student was enrolled but user account creation failed."
+        })
+      }
+    } catch (error) {
+      toast.error("Error creating user account", {
+        description: "An unexpected error occurred while creating the user account."
       })
-      setShowPasswordDialog(true)
-      onSuccess()
     }
   }
 
@@ -124,36 +137,62 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
       permissions: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents']
     }
 
-    const userResult = await createUser(userData)
-    if (userResult.success) {
-      setGeneratedPassword(userResult.password || null)
-      setUserData({
-        name: `${result.teacherData.firstName} ${result.teacherData.lastName}`,
-        email: result.teacherData.email,
-        role: 'teacher',
-        password: userResult.password || '',
-        userId: userResult.roleSpecificId || result.teacherId, // Use role-specific ID from API
-        className: result.teacherData.class
+    try {
+      const userResult = await createUser(userData)
+      if (userResult.success) {
+        setGeneratedPassword(userResult.password || null)
+        setUserData({
+          name: `${result.teacherData.firstName} ${result.teacherData.lastName}`,
+          email: result.teacherData.email,
+          role: 'teacher',
+          password: userResult.password || '',
+          userId: userResult.roleSpecificId || result.teacherId, // Use role-specific ID from API
+          className: result.teacherData.class
+        })
+        setShowPasswordDialog(true)
+        toast.success("Teacher created successfully!", {
+          description: `${result.teacherData.firstName} ${result.teacherData.lastName} has been enrolled and user account created.`
+        })
+        // Don't call onSuccess() here - let the success dialog handle it
+      } else {
+        toast.error("Failed to create user account", {
+          description: "Teacher was enrolled but user account creation failed."
+        })
+      }
+    } catch (error) {
+      toast.error("Error creating user account", {
+        description: "An unexpected error occurred while creating the user account."
       })
-      setShowPasswordDialog(true)
-      onSuccess()
     }
   }
 
   const handleAdminBursarParentSuccess = async (formData: any) => {
-    const userResult = await createUser(formData)
-    if (userResult.success) {
-      setGeneratedPassword(userResult.password || null)
-      setUserData({
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        password: userResult.password || '',
-        userId: userResult.roleSpecificId || formData.studentId || formData.teacherRegNo || formData.parentCode, // Use role-specific ID from API
-        className: formData.class
+    try {
+      const userResult = await createUser(formData)
+      if (userResult.success) {
+        setGeneratedPassword(userResult.password || null)
+        setUserData({
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          password: userResult.password || '',
+          userId: userResult.roleSpecificId || formData.studentId || formData.teacherRegNo || formData.parentCode, // Use role-specific ID from API
+          className: formData.class
+        })
+        setShowPasswordDialog(true)
+        toast.success(`${formData.role.charAt(0).toUpperCase() + formData.role.slice(1)} created successfully!`, {
+          description: `${formData.name} has been created and user account is ready.`
+        })
+        // Don't call onSuccess() here - let the success dialog handle it
+      } else {
+        toast.error("Failed to create user account", {
+          description: "An error occurred while creating the user account."
+        })
+      }
+    } catch (error) {
+      toast.error("Error creating user account", {
+        description: "An unexpected error occurred while creating the user account."
       })
-      setShowPasswordDialog(true)
-      onSuccess()
     }
   }
 
@@ -224,7 +263,16 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 relative">
+          {isLoading && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
+              <div className="flex flex-col items-center gap-2">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <p className="text-sm text-muted-foreground">Creating user account...</p>
+              </div>
+            </div>
+          )}
+          
           <div className="flex items-center gap-2 mb-4">
             <Button variant="ghost" size="sm" onClick={handleBackToRoleSelection}>
               ← Back to Role Selection
@@ -251,7 +299,7 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
 
       {/* User Creation Success Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300">
           {userData && (
             <UserCreationSuccessDialog
               userData={userData}
@@ -261,6 +309,14 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
                 setSelectedRole('')
                 setGeneratedPassword(null)
                 setUserData(null)
+              }}
+              onSuccess={() => {
+                setShowPasswordDialog(false)
+                setShowRoleSelection(true)
+                setSelectedRole('')
+                setGeneratedPassword(null)
+                setUserData(null)
+                onSuccess() // Call the parent's onSuccess callback
               }}
             />
           )}
@@ -283,7 +339,7 @@ function AdminBursarParentForm({
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
+    phone: '+237 6',
     address: '',
     dateOfBirth: '',
     gender: 'male' as 'male' | 'female',
@@ -301,9 +357,17 @@ function AdminBursarParentForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
+    // Ensure phone number is properly formatted
+    let formattedPhone = formData.phone
+    if (!formattedPhone.startsWith('+237 6')) {
+      formattedPhone = '+237 6'
+    }
+    formattedPhone = formattedPhone.replace(/[^0-9\s\+\-\(\)]/g, '')
+    
     const submitData = {
       ...formData,
-              dateOfBirth: new Date(formData.dateOfBirth).toISOString().split('T')[0],
+      phone: formattedPhone,
+      dateOfBirth: new Date(formData.dateOfBirth).toISOString().split('T')[0],
       permissions: rolePermissions[role]
     }
     

@@ -282,7 +282,7 @@ function AdminBursarParentForm({
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
+    phone: '+237 6',
     address: '',
     dateOfBirth: '',
     gender: 'male' as 'male' | 'female',
@@ -295,6 +295,17 @@ function AdminBursarParentForm({
     admin: ['all'],
     parent: ['view_child_progress', 'communicate_teachers', 'view_financial_records'],
     bursar: ['manage_finances', 'track_payments', 'generate_reports', 'send_fee_notices']
+  }
+
+  const handlePhoneChange = (value: string) => {
+    // Ensure phone number starts with +237 6 for Cameroon
+    let formattedPhone = value
+    if (!formattedPhone.startsWith('+237 6')) {
+      formattedPhone = '+237 6'
+    }
+    // Remove any invalid characters and ensure proper format
+    formattedPhone = formattedPhone.replace(/[^0-9\s\+\-\(\)]/g, '')
+    setFormData(prev => ({ ...prev, phone: formattedPhone }))
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -344,10 +355,14 @@ function AdminBursarParentForm({
             id="phone"
             type="tel"
             value={formData.phone}
-            onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+            onChange={(e) => handlePhoneChange(e.target.value)}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             placeholder="+237 6XX XXX XXX"
+            maxLength={15}
           />
+          <p className="text-xs text-muted-foreground mt-1">
+            Format: +237 6XXXXXXXX (Cameroon mobile number)
+          </p>
         </div>
 
         <div>

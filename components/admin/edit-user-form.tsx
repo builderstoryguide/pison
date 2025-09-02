@@ -76,7 +76,7 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
     subsystem: user.subsystem || 'english',
     branch: user.branch,
     class: user.class || '',
-    phone: user.phone || '',
+    phone: user.phone || '+237 6',
     address: user.address || '',
       dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth) : undefined,
     gender: user.gender,

@@ -32,6 +32,7 @@ import {
 
 
 import { useStudentEnrollment, StudentEnrollmentData } from '@/lib/student-enrollment-context'
+import { formatPhoneNumber, isValidPhoneFormat } from '@/lib/phone-utils'
 
 const cameroonRegions = [
   'Adamawa', 'Centre', 'East', 'Far North', 'Littoral', 
@@ -87,7 +88,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
     nationality: 'Cameroonian',
     religion: '',
     email: '',
-    phone: '',
+    phone: '+237 6',
     address: '',
     city: '',
     region: 'Centre',
@@ -98,12 +99,12 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
     previousClass: '',
     parentName: '',
     parentEmail: '',
-    parentPhone: '',
+    parentPhone: '+237 6',
     parentAddress: '',
     parentOccupation: '',
     relationship: 'father',
     emergencyContactName: '',
-    emergencyContactPhone: '',
+    emergencyContactPhone: '+237 6',
     emergencyContactRelationship: '',
     medicalConditions: '',
     allergies: '',
@@ -130,7 +131,14 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
   const progress = (currentStep / totalSteps) * 100
 
   const updateFormData = (field: keyof StudentEnrollmentData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    // Special handling for phone numbers
+    if (field === 'phone' || field === 'parentPhone' || field === 'emergencyContactPhone') {
+      // Use the centralized phone utility for formatting
+      const formattedPhone = formatPhoneNumber(value)
+      setFormData(prev => ({ ...prev, [field]: formattedPhone }))
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }))
+    }
   }
 
   const nextStep = () => {
@@ -167,13 +175,13 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
       case 1:
         return !!(formData.firstName && formData.lastName && formData.dateOfBirth && formData.placeOfBirth)
       case 2:
-        return !!(formData.email && formData.address && formData.city)
+        return !!(formData.email && formData.address && formData.city && isValidPhoneFormat(formData.phone))
       case 3:
         return !!(formData.class)
       case 4:
-        return !!(formData.parentName && formData.parentEmail && formData.parentPhone)
+        return !!(formData.parentName && formData.parentEmail && isValidPhoneFormat(formData.parentPhone))
       case 5:
-        return !!(formData.emergencyContactName && formData.emergencyContactPhone)
+        return !!(formData.emergencyContactName && isValidPhoneFormat(formData.emergencyContactPhone))
       case 6:
         return formData.birthCertificate && formData.passportPhoto
       default:
@@ -193,6 +201,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
         if (!formData.email) return "Email address is required"
         if (!formData.address) return "Home address is required"
         if (!formData.city) return "City is required"
+        if (!isValidPhoneFormat(formData.phone)) return "Valid phone number is required (Format: +237 6XXXXXXXX)"
         break
       case 3:
         if (!formData.class) return "Class selection is required"
@@ -200,11 +209,11 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
       case 4:
         if (!formData.parentName) return "Parent/guardian name is required"
         if (!formData.parentEmail) return "Parent email is required"
-        if (!formData.parentPhone) return "Parent phone is required"
+        if (!isValidPhoneFormat(formData.parentPhone)) return "Valid parent phone number is required (Format: +237 6XXXXXXXX)"
         break
       case 5:
         if (!formData.emergencyContactName) return "Emergency contact name is required"
-        if (!formData.emergencyContactPhone) return "Emergency contact phone is required"
+        if (!isValidPhoneFormat(formData.emergencyContactPhone)) return "Valid emergency contact phone number is required (Format: +237 6XXXXXXXX)"
         break
       case 6:
         if (!formData.birthCertificate) return "Birth certificate confirmation is required"
@@ -451,7 +460,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">
-                      Phone Number
+                      Phone Number <span className="text-destructive">*</span>
                     </Label>
                     <Input
                       id="phone"
@@ -459,7 +468,11 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                       value={formData.phone}
                       onChange={(e) => updateFormData('phone', e.target.value)}
                       placeholder="+237 6XX XXX XXX"
+                      maxLength={15}
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Format: +237 6XXXXXXXX (Cameroon mobile number)
+                    </p>
                   </div>
                 </div>
 
@@ -665,8 +678,12 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                       value={formData.parentPhone}
                       onChange={(e) => updateFormData('parentPhone', e.target.value)}
                       placeholder="+237 6XX XXX XXX"
+                      maxLength={15}
                       required
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Format: +237 6XXXXXXXX (Cameroon mobile number)
+                    </p>
                   </div>
                 </div>
 
@@ -724,8 +741,12 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                       value={formData.emergencyContactPhone}
                       onChange={(e) => updateFormData('emergencyContactPhone', e.target.value)}
                       placeholder="+237 6XX XXX XXX"
+                      maxLength={15}
                       required
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Format: +237 6XXXXXXXX (Cameroon mobile number)
+                    </p>
                   </div>
                 </div>
 

@@ -73,7 +73,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
     firstName: "",
     lastName: "",
     email: "",
-    phone: "",
+    phone: "+237 6", // Prefill with Cameroon country code
     dateOfBirth: "",
     gender: "",
     address: "",
@@ -92,13 +92,35 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
     emergencyContact: {
       name: "",
       relationship: "",
-      phone: "",
+      phone: "+237 6", // Prefill emergency contact phone too
     },
     status: "active",
   })
 
   const updateFormData = (field: string, value: any) => {
-    if (field.includes(".")) {
+    // Special handling for phone numbers
+    if (field === "phone" || field === "emergencyContact.phone") {
+      // Ensure phone number starts with +237 6 for Cameroon
+      let formattedPhone = value
+      if (!formattedPhone.startsWith("+237 6")) {
+        formattedPhone = "+237 6"
+      }
+      // Remove any invalid characters and ensure proper format
+      formattedPhone = formattedPhone.replace(/[^0-9\s\+\-\(\)]/g, "")
+      
+      if (field.includes(".")) {
+        const [parent, child] = field.split(".")
+        setFormData((prev) => ({
+          ...prev,
+          [parent]: {
+            ...(prev[parent as keyof typeof prev] as any),
+            [child]: formattedPhone,
+          },
+        }))
+      } else {
+        setFormData((prev) => ({ ...prev, [field]: formattedPhone }))
+      }
+    } else if (field.includes(".")) {
       const [parent, child] = field.split(".")
       setFormData((prev) => ({
         ...prev,
@@ -148,12 +170,37 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
     }))
   }
 
+  // Helper function to format phone number for database
+  const formatPhoneForDatabase = (phone: string): string => {
+    // Remove all non-numeric characters except + and spaces
+    let formatted = phone.replace(/[^0-9\s\+]/g, "")
+    
+    // Ensure it starts with +237
+    if (!formatted.startsWith("+237")) {
+      formatted = "+237" + formatted.replace(/^\+/, "")
+    }
+    
+    // Ensure it's at least 13 characters (+237 + 9 digits)
+    if (formatted.length < 13) {
+      formatted = formatted + "0".repeat(13 - formatted.length)
+    }
+    
+    return formatted
+  }
+
+  // Helper function to validate phone number format
+  const isValidPhoneFormat = (phone: string): boolean => {
+    // Check if phone matches Cameroon mobile format: +237 6XXXXXXXX
+    const phoneRegex = /^\+237\s?6\d{8}$/
+    return phoneRegex.test(phone.replace(/\s/g, ''))
+  }
+
   const validateStep = (step: number): boolean => {
     switch (step) {
       case 1:
         return !!(formData.title && formData.firstName && formData.lastName && formData.dateOfBirth && formData.gender)
       case 2:
-        return !!(formData.email && formData.phone)
+        return !!(formData.email && formData.phone && isValidPhoneFormat(formData.phone))
       case 3:
         return !!(formData.address && formData.city && formData.region)
       case 4:
@@ -166,7 +213,8 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
           formData.salary &&
           formData.startDate &&
           formData.emergencyContact.name &&
-          formData.emergencyContact.phone
+          formData.emergencyContact.phone &&
+          isValidPhoneFormat(formData.emergencyContact.phone)
         )
       default:
         return true
@@ -210,9 +258,21 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
 
     try {
       console.log("📤 Submitting teacher data...")
-      console.log("📊 Form data:", formData)
       
-      const teacherId = await addTeacher(formData)
+      // Format phone numbers for database submission
+      const formattedFormData = {
+        ...formData,
+        phone: formatPhoneForDatabase(formData.phone),
+        emergencyContact: {
+          ...formData.emergencyContact,
+          phone: formatPhoneForDatabase(formData.emergencyContact.phone)
+        }
+      }
+      
+      console.log("📊 Original form data:", formData)
+      console.log("📊 Formatted form data:", formattedFormData)
+      
+      const teacherId = await addTeacher(formattedFormData)
       console.log("✅ Teacher added successfully with ID:", teacherId)
       
       // Show success toast
@@ -347,7 +407,11 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
                   value={formData.phone}
                   onChange={(e) => updateFormData("phone", e.target.value)}
                   placeholder="+237 6XX XXX XXX"
+                  maxLength={15}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Format: +237 6XXXXXXXX (Cameroon mobile number)
+                </p>
               </div>
             </div>
           </div>
@@ -565,7 +629,11 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
                   placeholder="+237 6XX XXX XXX"
                   value={formData.emergencyContact.phone}
                   onChange={(e) => updateFormData("emergencyContact.phone", e.target.value)}
+                  maxLength={15}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Format: +237 6XXXXXXXX (Cameroon mobile number)
+                </p>
               </div>
             </div>
           </div>

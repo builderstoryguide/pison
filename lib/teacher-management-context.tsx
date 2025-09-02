@@ -291,7 +291,23 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
           hint: teacherError.hint,
           code: teacherError.code
         })
-        throw teacherError
+        
+        // Provide more specific error messages based on the error
+        let errorMessage = "Failed to add teacher"
+        
+        if (teacherError.message) {
+          if (teacherError.message.includes("valid_phone")) {
+            errorMessage = "Invalid phone number format. Please ensure the phone number follows the Cameroon format (+237 6XXXXXXXX)."
+          } else if (teacherError.message.includes("duplicate key")) {
+            errorMessage = "A teacher with this email or ID number already exists."
+          } else if (teacherError.message.includes("not null")) {
+            errorMessage = "Missing required information. Please fill in all required fields."
+          } else {
+            errorMessage = teacherError.message
+          }
+        }
+        
+        throw new Error(errorMessage)
       }
 
       console.log("✅ Teacher saved to database successfully")
