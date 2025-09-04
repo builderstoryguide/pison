@@ -3,10 +3,11 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useTeacherGrades } from "@/lib/teacher-grades-context"
+import { useTeacherGrades, TeacherGradesProvider } from "@/lib/teacher-grades-context"
+import { AuthProvider } from "@/lib/auth-context"
 import { testConnection, getConnectionError } from "@/lib/supabase"
 
-export default function TestAssessmentCreation() {
+function TestAssessmentCreationContent() {
   const [testResults, setTestResults] = useState<string[]>([])
   const [isTesting, setIsTesting] = useState(false)
   const { createAssessment, error, loading } = useTeacherGrades()
@@ -164,5 +165,15 @@ export default function TestAssessmentCreation() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function TestAssessmentCreation() {
+  return (
+    <AuthProvider>
+      <TeacherGradesProvider>
+        <TestAssessmentCreationContent />
+      </TeacherGradesProvider>
+    </AuthProvider>
   )
 }

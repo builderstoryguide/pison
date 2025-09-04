@@ -1,8 +1,9 @@
 "use client"
 
 import { ActivityLogsView } from '@/components/admin/activity-logs-view'
+import { UserManagementProvider } from '@/lib/user-management-context'
 
-export default function TestActivityLogsPage() {
+function TestActivityLogsContent() {
   return (
     <div className="container mx-auto py-6">
       <div className="mb-6">
@@ -14,5 +15,13 @@ export default function TestActivityLogsPage() {
       
       <ActivityLogsView />
     </div>
+  )
+}
+
+export default function TestActivityLogsPage() {
+  return (
+    <UserManagementProvider>
+      <TestActivityLogsContent />
+    </UserManagementProvider>
   )
 }

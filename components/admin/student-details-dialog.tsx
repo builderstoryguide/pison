@@ -36,7 +36,7 @@ export function StudentDetailsDialog({ student, onClose, onEdit }: StudentDetail
       {/* Student Header */}
       <div className="flex items-center gap-4">
         <Avatar className="h-16 w-16">
-          <AvatarImage src={student.avatar || "/placeholder.svg"} />
+          <AvatarImage src={"/placeholder.svg"} />
           <AvatarFallback className="text-lg">
             {`${student.first_name.charAt(0)}${student.last_name.charAt(0)}`.toUpperCase()}
           </AvatarFallback>

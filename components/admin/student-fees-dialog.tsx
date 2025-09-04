@@ -36,6 +36,11 @@ export function StudentFeesDialog({ student, onClose }: StudentFeesDialogProps) 
 
   // Fetch real-time student data from database
   const fetchStudentData = async () => {
+    if (!supabase) {
+      console.error('Supabase client not available')
+      return
+    }
+    
     setIsRefreshing(true)
     try {
       const { data, error } = await supabase

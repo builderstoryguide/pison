@@ -61,13 +61,13 @@ export interface PDFOptions {
 }
 
 export class PDFGenerator {
-  private browser: puppeteer.Browser | null = null
+  private browser: any | null = null
 
   async initialize() {
     if (!this.browser) {
       try {
         // Use different launch options for different environments
-        const launchOptions: puppeteer.LaunchOptions = {
+        const launchOptions: any = {
           headless: 'new',
           args: [
             '--no-sandbox',

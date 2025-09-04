@@ -3,11 +3,11 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useFinancial } from "@/lib/financial-context"
+import { useFinancial, FinancialProvider } from "@/lib/financial-context"
 import { usePDFExport } from "@/hooks/use-pdf-export"
 import { Download, FileText, Receipt, Users, CreditCard } from "lucide-react"
 
-export default function TestPDFExportPage() {
+function TestPDFExportContent() {
   const { 
     payments, 
     feeStructures, 
@@ -289,5 +289,13 @@ export default function TestPDFExportPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function TestPDFExportPage() {
+  return (
+    <FinancialProvider>
+      <TestPDFExportContent />
+    </FinancialProvider>
   )
 }

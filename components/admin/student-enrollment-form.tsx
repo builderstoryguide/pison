@@ -175,13 +175,13 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
       case 1:
         return !!(formData.firstName && formData.lastName && formData.dateOfBirth && formData.placeOfBirth)
       case 2:
-        return !!(formData.email && formData.address && formData.city && isValidPhoneFormat(formData.phone))
+        return !!(formData.email && formData.address && formData.city && (!formData.phone || isValidPhoneFormat(formData.phone)))
       case 3:
         return !!(formData.class)
       case 4:
-        return !!(formData.parentName && formData.parentEmail && isValidPhoneFormat(formData.parentPhone))
+        return !!(formData.parentName && formData.parentEmail && (!formData.parentPhone || isValidPhoneFormat(formData.parentPhone)))
       case 5:
-        return !!(formData.emergencyContactName && isValidPhoneFormat(formData.emergencyContactPhone))
+        return !!(formData.emergencyContactName && (!formData.emergencyContactPhone || isValidPhoneFormat(formData.emergencyContactPhone)))
       case 6:
         return formData.birthCertificate && formData.passportPhoto
       default:
@@ -201,7 +201,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
         if (!formData.email) return "Email address is required"
         if (!formData.address) return "Home address is required"
         if (!formData.city) return "City is required"
-        if (!isValidPhoneFormat(formData.phone)) return "Valid phone number is required (Format: +237 6XXXXXXXX)"
+        if (formData.phone && !isValidPhoneFormat(formData.phone)) return "Valid phone number is required (Format: +237 6XXXXXXXX)"
         break
       case 3:
         if (!formData.class) return "Class selection is required"
@@ -209,11 +209,11 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
       case 4:
         if (!formData.parentName) return "Parent/guardian name is required"
         if (!formData.parentEmail) return "Parent email is required"
-        if (!isValidPhoneFormat(formData.parentPhone)) return "Valid parent phone number is required (Format: +237 6XXXXXXXX)"
+        if (formData.parentPhone && !isValidPhoneFormat(formData.parentPhone)) return "Valid parent phone number is required (Format: +237 6XXXXXXXX)"
         break
       case 5:
         if (!formData.emergencyContactName) return "Emergency contact name is required"
-        if (!isValidPhoneFormat(formData.emergencyContactPhone)) return "Valid emergency contact phone number is required (Format: +237 6XXXXXXXX)"
+        if (formData.emergencyContactPhone && !isValidPhoneFormat(formData.emergencyContactPhone)) return "Valid emergency contact phone number is required (Format: +237 6XXXXXXXX)"
         break
       case 6:
         if (!formData.birthCertificate) return "Birth certificate confirmation is required"

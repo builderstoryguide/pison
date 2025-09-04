@@ -110,6 +110,7 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
       const formattedData = {
         ...data,
         dueDate: format(data.dueDate, "yyyy-MM-dd"),
+        description: data.description || "", // Ensure description is not undefined
       }
 
       if (editData) {

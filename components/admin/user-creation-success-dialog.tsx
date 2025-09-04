@@ -18,7 +18,8 @@ interface UserCreationSuccessDialogProps {
 
 export function UserCreationSuccessDialog({ 
   userData, 
-  onClose 
+  onClose,
+  onSuccess 
 }: UserCreationSuccessDialogProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [isSendingEmail, setIsSendingEmail] = useState(false)

@@ -138,6 +138,10 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
     let nextNumber = 1
 
     try {
+      if (!supabase) {
+        throw new Error("Supabase client not available")
+      }
+      
       // Get existing student IDs for this year from database
       const { data } = await supabase
         .from("students")
@@ -164,6 +168,10 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
     let nextNumber = 1
 
     try {
+      if (!supabase) {
+        throw new Error("Supabase client not available")
+      }
+      
       // Get existing parent codes for this year from database
       const { data } = await supabase
         .from("parents")
@@ -187,7 +195,7 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
 
   const enrollStudent = async (
     studentData: StudentEnrollmentData,
-  ): Promise<{ success: boolean; studentId?: string; parentCode?: string; error?: string }> => {
+  ): Promise<{ success: boolean; studentId?: string; parentCode?: string; studentPassword?: string; parentPassword?: string; error?: string }> => {
     setIsLoading(true)
     setError(null)
 
@@ -215,6 +223,10 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
       const parentCode = await generateParentCode()
 
       console.log("Database connected, attempting to save to Supabase...")
+      
+      if (!supabase) {
+        throw new Error("Supabase client not available")
+      }
       
       // First, let's check if the students table exists and is accessible
       const { data: tableCheckData, error: tableCheckError } = await supabase

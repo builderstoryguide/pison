@@ -19,7 +19,7 @@ import {
   XCircle,
   AlertCircle,
   UserCheck,
-  SelectAll
+  CheckSquare
 } from "lucide-react"
 import { useAttendance } from "@/lib/attendance-context"
 import { AttendanceRecord } from "@/lib/attendance-context"

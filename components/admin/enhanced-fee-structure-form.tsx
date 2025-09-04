@@ -140,10 +140,8 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
       }
     } catch (error) {
       console.error("Error loading classes:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load classes. Using sample data.",
-        variant: "destructive"
+      toast.error("Error loading classes", {
+        description: "Failed to load classes. Using sample data."
       })
     } finally {
       setIsLoadingClasses(false)
@@ -226,9 +224,8 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
       const successfulResults = results.filter(result => result !== null)
 
       if (successfulResults.length > 0) {
-        toast({
-          title: "Success",
-          description: `Created fee structures for ${successfulResults.length} class(es)`,
+        toast.success("Fee structures created", {
+          description: `Successfully created fee structures for ${successfulResults.length} class(es)`
         })
         onSuccess(successfulResults[0].feeStructureId)
       } else {
@@ -236,10 +233,8 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
       }
     } catch (error) {
       console.error("Error creating fee structures:", error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create fee structures",
-        variant: "destructive"
+      toast.error("Error creating fee structures", {
+        description: error instanceof Error ? error.message : "Failed to create fee structures"
       })
     }
   }

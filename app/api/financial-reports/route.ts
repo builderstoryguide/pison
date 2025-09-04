@@ -95,7 +95,8 @@ export async function POST(request: NextRequest) {
       'Content-Length': pdfBuffer.length.toString(),
     }
 
-    return new NextResponse(pdfBuffer, {
+    // Convert Buffer to Uint8Array which is acceptable for NextResponse
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: responseHeaders,
     })
   } catch (error) {

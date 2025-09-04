@@ -175,19 +175,15 @@ export function TeacherExportForm({ onCancel, onSuccess, preSelectedTeacher, pre
     }
 
     if (teachersToExport.length === 0) {
-      toast({
-        title: "No teachers selected",
-        description: "Please select at least one teacher to export.",
-        variant: "destructive",
+      toast.error("No teachers selected", {
+        description: "Please select at least one teacher to export."
       })
       return
     }
 
     if (selectedFields.length === 0) {
-      toast({
-        title: "No fields selected",
-        description: "Please select at least one field to export.",
-        variant: "destructive",
+      toast.error("No fields selected", {
+        description: "Please select at least one field to export."
       })
       return
     }
@@ -209,17 +205,14 @@ export function TeacherExportForm({ onCancel, onSuccess, preSelectedTeacher, pre
         exportToJSON(exportData)
       }
 
-      toast({
-        title: "Export successful",
-        description: `Successfully exported ${teachersToExport.length} teacher(s) to ${exportFormat.toUpperCase()} format.`,
+      toast.success("Export successful", {
+        description: `Successfully exported ${teachersToExport.length} teacher(s) to ${exportFormat.toUpperCase()} format.`
       })
 
       onSuccess?.()
     } catch (error) {
-      toast({
-        title: "Export failed",
-        description: "An error occurred while exporting the data. Please try again.",
-        variant: "destructive",
+      toast.error("Export failed", {
+        description: "An error occurred while exporting the data. Please try again."
       })
     }
   }

@@ -1,10 +1,11 @@
 "use client"
 
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
+import { AuthProvider } from "@/lib/auth-context"
 import { GradesManagement } from "@/components/teacher/grades-management"
 import { useEffect } from "react"
 
-export default function TestTeacherGradesPage() {
+function TestTeacherGradesContent() {
   useEffect(() => {
     console.log("🔍 Teacher Grades Test Page loaded")
     return () => {
@@ -30,5 +31,13 @@ export default function TestTeacherGradesPage() {
         <GradesManagement />
       </div>
     </TeacherGradesProvider>
+  )
+}
+
+export default function TestTeacherGradesPage() {
+  return (
+    <AuthProvider>
+      <TestTeacherGradesContent />
+    </AuthProvider>
   )
 }

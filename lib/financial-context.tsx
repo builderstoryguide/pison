@@ -99,6 +99,7 @@ interface FinancialContextType {
   studentFeeAssignments: StudentFeeAssignment[]
   reports: FinancialReport[]
   isLoading: boolean
+  error: string | null
 
   // Fee Structure Management
   createFeeStructure: (data: Omit<FeeStructure, "id" | "createdAt" | "updatedAt">) => Promise<{ success: boolean; feeStructureId?: string; error?: string }>
@@ -134,6 +135,9 @@ interface FinancialContextType {
     paidStudents: number
     overduePayments: number
   }
+  
+  // Data Loading
+  loadFinancialData: () => Promise<void>
 }
 
 const FinancialContext = createContext<FinancialContextType | undefined>(undefined)
@@ -262,6 +266,7 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
   const [studentFeeAssignments, setStudentFeeAssignments] = useState<StudentFeeAssignment[]>([])
   const [reports, setReports] = useState<FinancialReport[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Load data from database on mount
   useEffect(() => {
@@ -1175,6 +1180,7 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
     studentFeeAssignments,
     reports,
     isLoading,
+    error,
     createFeeStructure,
     updateFeeStructure,
     deleteFeeStructure,
@@ -1193,6 +1199,7 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
     deletePaymentPlan,
     generateReport,
     getFinancialSummary,
+    loadFinancialData,
   }
 
   return <FinancialContext.Provider value={value}>{children}</FinancialContext.Provider>

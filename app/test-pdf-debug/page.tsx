@@ -3,11 +3,11 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useFinancial } from "@/lib/financial-context"
+import { useFinancial, FinancialProvider } from "@/lib/financial-context"
 import { usePDFExport } from "@/hooks/use-pdf-export"
 import { Download, Bug, FileText, AlertCircle } from "lucide-react"
 
-export default function TestPDFDebugPage() {
+function TestPDFDebugContent() {
   const { payments, feeStructures, studentFeeAssignments } = useFinancial()
   const { isGenerating, exportPaymentReport } = usePDFExport()
   const [debugInfo, setDebugInfo] = useState<string[]>([])
@@ -309,5 +309,13 @@ export default function TestPDFDebugPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function TestPDFDebugPage() {
+  return (
+    <FinancialProvider>
+      <TestPDFDebugContent />
+    </FinancialProvider>
   )
 }

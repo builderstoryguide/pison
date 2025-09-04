@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, Download, Calendar, Clock, MapPin, Users, BookOpen, Save, RefreshCw, AlertCircle, FileText, Eye, Printer, Trash2 as TrashIcon } from 'lucide-react'
+import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, Download, Calendar, Clock, MapPin, Users, BookOpen, Save, RefreshCw, AlertCircle, FileText, Eye, Printer, Settings, Trash2 as TrashIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -53,9 +53,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useTimetable } from '@/lib/timetable-context'
+import { useTimetable, TimetableGenerationOptions } from '@/lib/timetable-context'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
+import { TimetableGenerationOptions as TimetableOptionsComponent, TimetableGenerationParams } from './timetable-generation-options'
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 const timeSlots = [
@@ -85,6 +86,8 @@ export function TimetableManagement() {
   const [selectedSubsystem, setSelectedSubsystem] = useState<string>("all")
   const [selectedBranch, setSelectedBranch] = useState<string>("all")
   const [isGenerating, setIsGenerating] = useState(false)
+  const [showGenerationOptions, setShowGenerationOptions] = useState(false)
+  const [generationOptions, setGenerationOptions] = useState<TimetableGenerationOptions>({})
 
   // Generation selection state (for classes without timetables)
   const [selectedClassesForGeneration, setSelectedClassesForGeneration] = useState<Set<string>>(new Set())
@@ -150,11 +153,45 @@ export function TimetableManagement() {
       toastError("Please select a class to generate timetable")
       return
     }
+    
+    // Show generation options dialog instead of generating immediately
+    setShowGenerationOptions(true)
+  }
+  
+  const handleGenerateWithOptions = async (options: TimetableGenerationParams) => {
+    if (!selectedClass) {
+      toastError("Please select a class to generate timetable")
+      return
+    }
 
     setIsGenerating(true)
+    setShowGenerationOptions(false)
+    
+    // Convert the options to the format expected by the API
+    const apiOptions: TimetableGenerationOptions = {
+      schoolStartTime: options.schoolStartTime,
+      schoolEndTime: options.schoolEndTime,
+      periodDuration: options.periodDuration,
+      breakDuration: options.breakDuration,
+      includeLunchBreak: options.includeLunchBreak,
+      lunchBreakStartTime: options.lunchBreakStartTime,
+      lunchBreakDuration: options.lunchBreakDuration,
+      daysPerWeek: options.daysPerWeek,
+      periodsPerDay: options.periodsPerDay,
+      customPeriodsPerDay: options.customPeriodsPerDay,
+      mondayPeriods: options.mondayPeriods,
+      tuesdayPeriods: options.tuesdayPeriods,
+      wednesdayPeriods: options.wednesdayPeriods,
+      thursdayPeriods: options.thursdayPeriods,
+      fridayPeriods: options.fridayPeriods,
+      saturdayPeriods: options.saturdayPeriods
+    }
+    
+    // Save options for future use
+    setGenerationOptions(apiOptions)
 
     try {
-      const result = await generateTimetable(selectedClass)
+      const result = await generateTimetable(selectedClass, apiOptions)
       if (result.success) {
         toastSuccess(`Timetable generated successfully for ${classes.find(c => c.id === selectedClass)?.name}`)
       } else {
@@ -183,7 +220,8 @@ export function TimetableManagement() {
     try {
       for (const classId of classIds) {
         try {
-          const result = await generateTimetable(classId)
+          // Use the saved generation options for bulk generation as well
+          const result = await generateTimetable(classId, generationOptions)
           if (result.success) {
             successCount++
           } else {
@@ -916,6 +954,27 @@ export function TimetableManagement() {
         </Card>
       )}
 
+      {/* Timetable Generation Options Dialog */}
+      <Dialog open={showGenerationOptions} onOpenChange={setShowGenerationOptions}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Timetable Generation Options
+            </DialogTitle>
+            <DialogDescription>
+              Customize how your timetable will be generated for {classes.find(c => c.id === selectedClass)?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <TimetableOptionsComponent
+            onSave={handleGenerateWithOptions}
+            onCancel={() => setShowGenerationOptions(false)}
+            initialParams={generationOptions}
+          />
+        </DialogContent>
+      </Dialog>
+      
       {/* Bulk Generation Confirmation Dialog */}
       <AlertDialog open={isGenerationDialogOpen} onOpenChange={setIsGenerationDialogOpen}>
         <AlertDialogContent>

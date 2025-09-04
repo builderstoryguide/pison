@@ -60,6 +60,7 @@ interface UserManagementContextType {
   error: string | null
   refreshUsers: () => Promise<void>
   refreshActivityLogs: () => Promise<void>
+  loadUsers: (forceRefresh?: boolean) => Promise<void>
 }
 
 export interface UserFilters {
@@ -684,7 +685,8 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       isLoadingLogs,
       error,
       refreshUsers,
-      refreshActivityLogs
+      refreshActivityLogs,
+      loadUsers
     }}>
       {children}
     </UserManagementContext.Provider>

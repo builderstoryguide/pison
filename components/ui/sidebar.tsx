@@ -343,6 +343,17 @@ function SidebarHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+function SidebarHeaderTitle({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="sidebar-header-title"
+      data-sidebar="header-title"
+      className={cn("flex items-center gap-2 text-lg font-semibold", className)}
+      {...props}
+    />
+  )
+}
+
 function SidebarFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -707,6 +718,7 @@ export {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
+  SidebarHeaderTitle,
   SidebarInput,
   SidebarInset,
   SidebarMenu,

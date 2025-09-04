@@ -36,11 +36,31 @@ export interface TimetableRoom {
   type: "classroom" | "laboratory" | "library" | "hall"
 }
 
+// Timetable generation options interface
+export interface TimetableGenerationOptions {
+  schoolStartTime?: string;
+  schoolEndTime?: string;
+  periodDuration?: number;
+  breakDuration?: number;
+  includeLunchBreak?: boolean;
+  lunchBreakStartTime?: string;
+  lunchBreakDuration?: number;
+  daysPerWeek?: number;
+  periodsPerDay?: number;
+  customPeriodsPerDay?: boolean;
+  mondayPeriods?: number;
+  tuesdayPeriods?: number;
+  wednesdayPeriods?: number;
+  thursdayPeriods?: number;
+  fridayPeriods?: number;
+  saturdayPeriods?: number;
+}
+
 interface TimetableContextType {
   classes: TimetableClass[]
   teachers: TimetableTeacher[]
   rooms: TimetableRoom[]
-  generateTimetable: (classId: string) => Promise<{ success: boolean; error?: string }>
+  generateTimetable: (classId: string, options?: TimetableGenerationOptions) => Promise<{ success: boolean; error?: string }>
   deleteTimetable: (classId: string) => Promise<{ success: boolean; error?: string }>
   bulkDeleteTimetables: (classIds: string[]) => Promise<{ success: boolean; deletedCount: number; errors: string[] }>
   exportTimetable: (classId: string) => Promise<{ success: boolean; error?: string }>
@@ -156,7 +176,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
         params.append('academicYear', filters.academicYear)
       }
 
-      const url = `/api/timetable/classes${params.toString() ? `?${params.toString()}` : ''}`
+      // Use the new admin-classes endpoint to fetch classes from the main classes table
+      const url = `/api/timetable/admin-classes${params.toString() ? `?${params.toString()}` : ''}`
       const response = await fetch(url)
       
       if (!response.ok) {
@@ -186,12 +207,54 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       setError(errorMessage)
       
       // If it's a database setup error, show a helpful message
-      if (errorMessage.includes('Database not set up') || errorMessage.includes('Please run the database setup script')) {
-        setError('Database not configured. Please run the timetable setup script in Supabase SQL Editor.')
+      if (errorMessage.includes('Classes table not found')) {
+        setError('Classes not found. Please ensure classes have been created in the Class Management section.')
       }
       
-      // Keep empty array if API fails
-      setClasses([])
+      // Try to fall back to the original timetable classes endpoint if admin classes fails
+      try {
+        // Build query parameters
+        const params = new URLSearchParams()
+        if (filters.subsystem && filters.subsystem !== 'all') {
+          params.append('subsystem', filters.subsystem)
+        }
+        if (filters.branch && filters.branch !== 'all') {
+          params.append('branch', filters.branch)
+        }
+        if (filters.academicYear) {
+          params.append('academicYear', filters.academicYear)
+        }
+
+        const url = `/api/timetable/classes${params.toString() ? `?${params.toString()}` : ''}`
+        const response = await fetch(url)
+        
+        if (!response.ok) {
+          throw new Error('Fallback to timetable classes failed')
+        }
+
+        const result = await response.json()
+
+        if (result.success && result.classes) {
+          // Transform API response to match our interface
+          const transformedClasses: TimetableClass[] = result.classes.map((apiClass: any) => ({
+            id: apiClass.id,
+            name: apiClass.name,
+            level: apiClass.level,
+            subsystem: apiClass.subsystem,
+            branch: apiClass.branch,
+            periods: [] // Will be loaded separately when needed
+          }))
+          setClasses(transformedClasses)
+          setError('Using timetable classes instead of admin classes. For full functionality, please create classes in the Class Management section.')
+        } else {
+          // Keep empty array if both APIs fail
+          setClasses([])
+        }
+      } catch (fallbackError) {
+        console.error('Failed to load fallback classes:', fallbackError)
+        // Keep empty array if both APIs fail
+        setClasses([])
+      }
     } finally {
       setIsLoading(false)
     }
@@ -252,12 +315,13 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     loadClasses()
   }, [])
 
-  const generateTimetable = async (classId: string): Promise<{ success: boolean; error?: string }> => {
+  const generateTimetable = async (classId: string, options?: TimetableGenerationOptions): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const response = await fetch('/api/timetable', {
+      // Use the new API endpoint that handles admin classes
+      const response = await fetch('/api/timetable/generate-from-admin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -266,14 +330,47 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           classId,
           academicYear: '2024-2025',
           term: 'first',
-          generatedBy: 'admin' // In production, get from auth context
+          generatedBy: 'admin', // In production, get from auth context
+          // Include custom timetable generation options if provided
+          ...options
         }),
       })
 
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to generate timetable')
+        // If the new endpoint fails, try the original endpoint as fallback
+        if (response.status === 404 && result.error?.includes('Admin class not found')) {
+          // Try the original endpoint
+          const fallbackResponse = await fetch('/api/timetable', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              classId,
+              academicYear: '2024-2025',
+              term: 'first',
+              generatedBy: 'admin'
+            }),
+          })
+
+          const fallbackResult = await fallbackResponse.json()
+
+          if (!fallbackResponse.ok) {
+            throw new Error(fallbackResult.error || 'Failed to generate timetable')
+          }
+
+          if (fallbackResult.success) {
+            // Load the generated timetable
+            await loadTimetableForClass(classId)
+            return { success: true }
+          } else {
+            throw new Error(fallbackResult.error || 'Failed to generate timetable')
+          }
+        } else {
+          throw new Error(result.error || 'Failed to generate timetable')
+        }
       }
 
       if (result.success) {
@@ -297,14 +394,41 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     setError(null)
 
     try {
-      const response = await fetch(`/api/timetable?classId=${classId}`, {
+      // Try to delete using the admin class ID first
+      const response = await fetch(`/api/timetable/delete-from-admin?classId=${classId}`, {
         method: 'DELETE',
       })
 
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete timetable')
+        // If the admin endpoint fails, try the original endpoint as fallback
+        if (response.status === 404) {
+          // Try the original endpoint
+          const fallbackResponse = await fetch(`/api/timetable?classId=${classId}`, {
+            method: 'DELETE',
+          })
+
+          const fallbackResult = await fallbackResponse.json()
+
+          if (!fallbackResponse.ok) {
+            throw new Error(fallbackResult.error || 'Failed to delete timetable')
+          }
+
+          if (fallbackResult.success) {
+            // Update the class to remove periods
+            setClasses(prev => prev.map(c => 
+              c.id === classId 
+                ? { ...c, periods: [] }
+                : c
+            ))
+            return { success: true }
+          } else {
+            throw new Error(fallbackResult.error || 'Failed to delete timetable')
+          }
+        } else {
+          throw new Error(result.error || 'Failed to delete timetable')
+        }
       }
 
       if (result.success) {
@@ -332,7 +456,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     setError(null)
 
     try {
-      const response = await fetch('/api/timetable/bulk-delete', {
+      // Try to delete using the admin class IDs first
+      const response = await fetch('/api/timetable/bulk-delete-from-admin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -343,7 +468,42 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete timetables')
+        // If the admin endpoint fails, try the original endpoint as fallback
+        if (response.status === 404) {
+          // Try the original endpoint
+          const fallbackResponse = await fetch('/api/timetable/bulk-delete', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ classIds }),
+          })
+
+          const fallbackResult = await fallbackResponse.json()
+
+          if (!fallbackResponse.ok) {
+            throw new Error(fallbackResult.error || 'Failed to delete timetables')
+          }
+
+          if (fallbackResult.success) {
+            // Update the classes to remove periods for deleted timetables
+            setClasses(prev => prev.map(c => 
+              classIds.includes(c.id) 
+                ? { ...c, periods: [] }
+                : c
+            ))
+            
+            return {
+              success: true,
+              deletedCount: fallbackResult.deletedCount,
+              errors: fallbackResult.errors || []
+            }
+          } else {
+            throw new Error(fallbackResult.error || 'Failed to delete timetables')
+          }
+        } else {
+          throw new Error(result.error || 'Failed to delete timetables')
+        }
       }
 
       if (result.success) {

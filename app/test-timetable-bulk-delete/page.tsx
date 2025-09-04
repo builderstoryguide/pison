@@ -1,8 +1,9 @@
 "use client"
 
 import { TimetableManagement } from '@/components/admin/timetable-management'
+import { TimetableProvider } from '@/lib/timetable-context'
 
-export default function TestTimetableBulkDeletePage() {
+function TestTimetableBulkDeleteContent() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="text-center space-y-2">
@@ -14,5 +15,13 @@ export default function TestTimetableBulkDeletePage() {
 
       <TimetableManagement />
     </div>
+  )
+}
+
+export default function TestTimetableBulkDeletePage() {
+  return (
+    <TimetableProvider>
+      <TestTimetableBulkDeleteContent />
+    </TimetableProvider>
   )
 }

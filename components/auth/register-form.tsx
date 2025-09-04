@@ -47,7 +47,11 @@ export function RegisterForm({ onBack }: RegisterFormProps) {
       return
     }
 
-    const success = await register(formData)
+    const success = await register({
+      ...formData,
+      role: formData.role as 'admin' | 'teacher' | 'student' | 'parent' | 'bursar',
+      branch: formData.branch || undefined
+    })
     if (success) {
       setSuccess(true)
       // Reset form

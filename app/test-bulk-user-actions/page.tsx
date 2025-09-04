@@ -1,8 +1,11 @@
 "use client"
 
 import { UserManagement } from '@/components/admin/user-management'
+import { UserManagementProvider } from '@/lib/user-management-context'
+import { StudentManagementProvider } from '@/lib/student-management-context'
+import { TeacherManagementProvider } from '@/lib/teacher-management-context'
 
-export default function TestBulkUserActionsPage() {
+function TestBulkUserActionsContent() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="text-center space-y-2">
@@ -14,5 +17,17 @@ export default function TestBulkUserActionsPage() {
       
       <UserManagement />
     </div>
+  )
+}
+
+export default function TestBulkUserActionsPage() {
+  return (
+    <UserManagementProvider>
+      <StudentManagementProvider>
+        <TeacherManagementProvider>
+          <TestBulkUserActionsContent />
+        </TeacherManagementProvider>
+      </StudentManagementProvider>
+    </UserManagementProvider>
   )
 }

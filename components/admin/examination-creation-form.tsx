@@ -31,8 +31,8 @@ const examinationSchema = z.object({
   branch: z.enum(["grammar", "technical", "commercial"]),
   level: z.string().min(1, "Level is required"),
   subjects: z.array(z.string()).min(1, "At least one subject is required"),
-  startDate: z.string().optional(), // We'll validate this manually
-  endDate: z.string().optional(), // We'll validate this manually
+  startDate: z.string().min(1, "Start date is required"),
+  endDate: z.string().min(1, "End date is required"),
   duration: z.number().min(30, "Duration must be at least 30 minutes"),
   totalMarks: z.number().min(1, "Total marks must be greater than 0"),
   passingMarks: z.number().min(1, "Passing marks must be greater than 0"),

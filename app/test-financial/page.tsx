@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useFinancial } from '@/lib/financial-context'
+import { useFinancial, FinancialProvider } from '@/lib/financial-context'
 
-export default function TestFinancial() {
+function TestFinancialContent() {
   const { 
     feeStructures, 
     payments, 
@@ -217,5 +217,13 @@ export default function TestFinancial() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function TestFinancial() {
+  return (
+    <FinancialProvider>
+      <TestFinancialContent />
+    </FinancialProvider>
   )
 }

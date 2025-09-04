@@ -1,8 +1,10 @@
 "use client"
 
 import { TeacherAssignmentManagement } from "@/components/teacher/teacher-assignment-management"
+import { AuthProvider } from "@/lib/auth-context"
+import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 
-export default function TestTeacherAssignmentsPage() {
+function TestTeacherAssignmentsContent() {
   return (
     <div className="container mx-auto py-8">
       <div className="mb-6">
@@ -14,5 +16,15 @@ export default function TestTeacherAssignmentsPage() {
       
       <TeacherAssignmentManagement />
     </div>
+  )
+}
+
+export default function TestTeacherAssignmentsPage() {
+  return (
+    <AuthProvider>
+      <TeacherGradesProvider>
+        <TestTeacherAssignmentsContent />
+      </TeacherGradesProvider>
+    </AuthProvider>
   )
 }

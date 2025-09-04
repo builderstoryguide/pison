@@ -52,7 +52,7 @@ const FormSchema = z.object({
   address: z.string().optional(),
   dateOfBirth: z.date().optional(),
   gender: z.enum(['male', 'female']).optional(),
-  permissions: z.array(z.string()).default([])
+  permissions: z.array(z.string())
 })
 
 interface EditUserFormProps {

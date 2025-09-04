@@ -93,14 +93,19 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
         paymentDate: format(data.paymentDate, "yyyy-MM-dd"),
         term: "first" as const, // This should be determined from fee structure
         academicYear: "2024-2025", // This should be determined from fee structure
+        receiptNumber: `REC-${Date.now().toString().slice(-6)}`, // Generate a receipt number
       }
 
       if (editData) {
         await updatePayment(editData.id, paymentData)
         onSuccess(editData.id)
       } else {
-        const paymentId = await recordPayment(paymentData)
-        onSuccess(paymentId)
+        const result = await recordPayment(paymentData)
+        if (result.success && result.paymentId) {
+          onSuccess(result.paymentId)
+        } else {
+          console.error("Failed to record payment:", result.error)
+        }
       }
     } catch (error) {
       console.error("Error saving payment:", error)

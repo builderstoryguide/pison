@@ -1,12 +1,12 @@
 "use client"
 
-import { useAuth } from "@/lib/auth-context"
-import { useProfile } from "@/lib/profile-context"
+import { useAuth, AuthProvider } from "@/lib/auth-context"
+import { useProfile, ProfileProvider } from "@/lib/profile-context"
 import { BursarProfile } from "@/components/bursar/bursar-profile"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-export default function TestBursarProfile() {
+function TestBursarProfileContent() {
   const { user, login } = useAuth()
   const { profile } = useProfile()
 
@@ -89,5 +89,15 @@ export default function TestBursarProfile() {
         </Card>
       )}
     </div>
+  )
+}
+
+export default function TestBursarProfile() {
+  return (
+    <AuthProvider>
+      <ProfileProvider>
+        <TestBursarProfileContent />
+      </ProfileProvider>
+    </AuthProvider>
   )
 }

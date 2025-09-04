@@ -43,7 +43,7 @@ export function LoginForm() {
   const [formData, setFormData] = useState({
     identifier: '',
     password: '',
-    role: '' as any,
+    role: '' as keyof typeof placeholderTexts | '',
     subsystem: 'english' as 'english' | 'french'
   })
   const [showPassword, setShowPassword] = useState(false)
@@ -51,7 +51,10 @@ export function LoginForm() {
     e.preventDefault()
     if (!formData.role) return
 
-    const success = await login(formData)
+    const success = await login({
+      ...formData,
+      role: formData.role as 'admin' | 'teacher' | 'student' | 'parent' | 'bursar'
+    })
     if (!success) {
       // Error is handled by the auth context
     }
@@ -92,7 +95,7 @@ export function LoginForm() {
                 <Label htmlFor="role">Select Your Role</Label>
                 <Select 
                   value={formData.role} 
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, role: value as any }))}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, role: value as keyof typeof placeholderTexts }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Choose your role" />
@@ -118,7 +121,7 @@ export function LoginForm() {
                 <Label htmlFor="subsystem">Educational Sub-system</Label>
                 <Select 
                   value={formData.subsystem} 
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, subsystem: value as any }))}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, subsystem: value as 'english' | 'french' }))}
                 >
                   <SelectTrigger>
                     <SelectValue />

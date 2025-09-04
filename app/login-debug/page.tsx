@@ -50,7 +50,7 @@ export default function LoginDebugPage() {
         addTestResult('Environment Variables', false, 'Missing required environment variables', envTest)
       }
     } catch (error) {
-      addTestResult('Environment Variables', false, `Error: ${error}`, { error: error.toString() })
+      addTestResult('Environment Variables', false, `Error: ${error}`, { error: error instanceof Error ? error.message : String(error) })
     }
 
     // Test 2: API Endpoint Availability
@@ -79,7 +79,7 @@ export default function LoginDebugPage() {
         })
       }
     } catch (error) {
-      addTestResult('API Endpoint', false, `API endpoint error: ${error}`, { error: error.toString() })
+      addTestResult('API Endpoint', false, `API endpoint error: ${error}`, { error: error instanceof Error ? error.message : String(error) })
     }
 
     // Test 3: Database Connection (via API)
@@ -107,7 +107,7 @@ export default function LoginDebugPage() {
         })
       }
     } catch (error) {
-      addTestResult('Database Connection', false, `Database test error: ${error}`, { error: error.toString() })
+      addTestResult('Database Connection', false, `Database test error: ${error}`, { error: error instanceof Error ? error.message : String(error) })
     }
 
     // Test 4: Admin User Existence
@@ -139,7 +139,7 @@ export default function LoginDebugPage() {
         })
       }
     } catch (error) {
-      addTestResult('Admin User Existence', false, `Admin user test error: ${error}`, { error: error.toString() })
+      addTestResult('Admin User Existence', false, `Admin user test error: ${error}`, { error: error instanceof Error ? error.message : String(error) })
     }
 
     // Test 5: Password Verification
@@ -169,7 +169,7 @@ export default function LoginDebugPage() {
         })
       }
     } catch (error) {
-      addTestResult('Password Verification', false, `Password verification error: ${error}`, { error: error.toString() })
+      addTestResult('Password Verification', false, `Password verification error: ${error}`, { error: error instanceof Error ? error.message : String(error) })
     }
 
     // Test 6: Form Validation
@@ -201,7 +201,7 @@ export default function LoginDebugPage() {
         addTestResult('Form Validation', false, 'Form validation has issues')
       }
     } catch (error) {
-      addTestResult('Form Validation', false, `Form validation error: ${error}`, { error: error.toString() })
+      addTestResult('Form Validation', false, `Form validation error: ${error}`, { error: error instanceof Error ? error.message : String(error) })
     }
 
     // Test 7: Role-based Authentication
@@ -227,7 +227,7 @@ export default function LoginDebugPage() {
         })
       }
     } catch (error) {
-      addTestResult('Role-based Authentication', false, `Role-based auth error: ${error}`, { error: error.toString() })
+      addTestResult('Role-based Authentication', false, `Role-based auth error: ${error}`, { error: error instanceof Error ? error.message : String(error) })
     }
 
     console.log('✅ All tests completed!')
@@ -256,7 +256,7 @@ export default function LoginDebugPage() {
         })
       }
     } catch (error) {
-      addTestResult('Specific Login Test', false, `Login test error: ${error}`, { error: error.toString() })
+      addTestResult('Specific Login Test', false, `Login test error: ${error}`, { error: error instanceof Error ? error.message : String(error) })
     }
   }
 

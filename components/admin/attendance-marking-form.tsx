@@ -170,6 +170,7 @@ export function AttendanceMarkingForm({ onSuccess, onCancel }: AttendanceMarking
 
     try {
       const records: Omit<AttendanceRecord, "id" | "markedAt">[] = students.map((student) => ({
+        sessionId,
         studentId: student.id,
         studentName: student.name,
         classId: selectedClass,

@@ -64,9 +64,9 @@ export function PaymentPlanForm({ onSuccess, onCancel, editData }: PaymentPlanFo
   })
 
   const filteredStudents = students.filter((student) =>
-    student.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.studentId.toLowerCase().includes(searchTerm.toLowerCase())
+    student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.student_id.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   useEffect(() => {
@@ -86,6 +86,21 @@ export function PaymentPlanForm({ onSuccess, onCancel, editData }: PaymentPlanFo
       const formattedData = {
         ...data,
         startDate: data.startDate.toISOString().split('T')[0],
+        studentName: students.find(s => s.id === data.studentId)?.first_name + ' ' + students.find(s => s.id === data.studentId)?.last_name || 'Unknown Student',
+        status: 'active' as 'active' | 'completed' | 'defaulted',
+        amountPaid: 0,
+        installments: Array.from({ length: data.numberOfInstallments }, (_, i) => {
+          const installmentAmount = Math.round(data.totalAmount / data.numberOfInstallments * 100) / 100;
+          const dueDate = new Date(data.startDate);
+          dueDate.setMonth(dueDate.getMonth() + i);
+          
+          return {
+            id: `inst-${Date.now()}-${i}`,
+            amount: installmentAmount,
+            dueDate: dueDate.toISOString().split('T')[0],
+            status: 'pending' as 'pending' | 'paid' | 'overdue'
+          };
+        })
       }
 
       if (editData) {
@@ -153,7 +168,7 @@ export function PaymentPlanForm({ onSuccess, onCancel, editData }: PaymentPlanFo
                       <SelectContent>
                         {filteredStudents.map((student) => (
                           <SelectItem key={student.id} value={student.id}>
-                            {student.firstName} {student.lastName} - {student.studentId}
+                            {student.first_name} {student.last_name} - {student.student_id}
                           </SelectItem>
                         ))}
                       </SelectContent>

@@ -599,7 +599,7 @@ export function StudentAssignmentsView() {
                               Grade: {submission.grade_letter} ({submission.marks_obtained}/{assignment.total_marks})
                             </p>
                             <p className="text-sm text-green-800">
-                              Average: {submission.grade_point}/20 • {getGradeDescription(submission.grade_letter)}
+                              Average: {submission.grade_point}/20 • {submission.grade_letter ? getGradeDescription(submission.grade_letter) : 'N/A'}
                             </p>
                             <p className="text-sm text-green-800">
                               Percentage: {submission.percentage}%

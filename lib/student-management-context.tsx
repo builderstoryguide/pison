@@ -422,7 +422,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
     // Listen for student creation events from user management
     const handleStudentCreated = () => {
       console.log('Student created event received, refreshing student data...')
-      loadStudents(true) // Force refresh
+      loadStudents() // Force refresh
     }
     
     window.addEventListener('studentCreated', handleStudentCreated)

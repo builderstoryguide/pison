@@ -531,7 +531,7 @@ export function SchoolDashboard() {
       case "admin":
         switch (currentView) {
           case "quick-actions":
-            return <QuickActionsDashboard onNavigate={setAdminCurrentView} />
+            return <QuickActionsDashboard onNavigate={(view: string) => setAdminCurrentView(view as AdminView)} />
           case "users":
             return <UserManagement />
           case "students":
@@ -562,7 +562,7 @@ export function SchoolDashboard() {
           case "profile":
             return <ProfileSettings />
           default:
-            return <QuickActionsDashboard onNavigate={setAdminCurrentView} />
+            return <QuickActionsDashboard onNavigate={(view: string) => setAdminCurrentView(view as AdminView)} />
         }
 
       case "teacher":
@@ -576,7 +576,7 @@ export function SchoolDashboard() {
           case "profile":
             return <ProfileSettings />
           default:
-            return <TeacherDashboard onNavigate={setTeacherCurrentView} />
+            return <TeacherDashboard onNavigate={(view: string) => setTeacherCurrentView(view as TeacherView)} />
         }
 
       case "parent":
@@ -588,7 +588,7 @@ export function SchoolDashboard() {
           case "profile":
             return <ProfileSettings />
           default:
-            return <ParentDashboard onNavigate={setParentCurrentView} />
+            return <ParentDashboard onNavigate={(view: string) => setParentCurrentView(view as ParentView)} />
         }
 
       case "student":
@@ -614,7 +614,7 @@ export function SchoolDashboard() {
           case "profile":
             return <ProfileSettings />
           default:
-            return <StudentDashboard onNavigate={setStudentCurrentView} />
+            return <StudentDashboard onNavigate={(view: string) => setStudentCurrentView(view as StudentView)} />
         }
 
       case "bursar":
@@ -630,11 +630,11 @@ export function SchoolDashboard() {
               </div>
             )
           case "reports":
-            return <FinancialReports onNavigate={setBursarCurrentView} />
+            return <FinancialReports onNavigate={(view: string) => setBursarCurrentView(view as BursarView)} />
           case "profile":
             return <BursarProfile />
           default:
-            return <BursarDashboard onNavigate={setBursarCurrentView} />
+            return <BursarDashboard onNavigate={(view: string) => setBursarCurrentView(view as BursarView)} />
         }
 
       default:

@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       p_user_id: resetBy || 'system',
       p_action: 'PASSWORD_RESET',
       p_details: `Password reset for ${existingUser.name} (${existingUser.email})`,
-      p_ip_address: request.headers.get('x-forwarded-for') || request.ip,
+      p_ip_address: request.headers.get('x-forwarded-for') || '',
       p_user_agent: request.headers.get('user-agent')
     });
 
@@ -133,7 +133,7 @@ export async function PUT(request: NextRequest) {
       p_user_id: existingUser.id,
       p_action: 'PASSWORD_RESET_REQUESTED',
       p_details: `Password reset requested for ${existingUser.email}`,
-      p_ip_address: request.headers.get('x-forwarded-for') || request.ip,
+      p_ip_address: request.headers.get('x-forwarded-for') || '',
       p_user_agent: request.headers.get('user-agent')
     });
 

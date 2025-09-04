@@ -4,11 +4,11 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { PaymentForm } from "@/components/admin/payment-form"
-import { useStudentManagement } from "@/lib/student-management-context"
-import { useFinancial } from "@/lib/financial-context"
+import { useStudentManagement, StudentManagementProvider } from "@/lib/student-management-context"
+import { useFinancial, FinancialProvider } from "@/lib/financial-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-export default function TestPaymentFixPage() {
+function TestPaymentFixContent() {
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const { students, loadStudents } = useStudentManagement()
   const { payments } = useFinancial()
@@ -168,5 +168,15 @@ export default function TestPaymentFixPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function TestPaymentFixPage() {
+  return (
+    <StudentManagementProvider>
+      <FinancialProvider>
+        <TestPaymentFixContent />
+      </FinancialProvider>
+    </StudentManagementProvider>
   )
 }

@@ -4,13 +4,13 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { useExamination, type Examination } from "@/lib/examination-context"
+import { useExamination, ExaminationProvider, type Examination } from "@/lib/examination-context"
 import { ExaminationCreationForm } from "@/components/admin/examination-creation-form"
 import { ExaminationEditForm } from "@/components/admin/examination-edit-form"
 import { ExaminationDetailsDialog } from "@/components/admin/examination-details-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
-export default function TestExamCRUD() {
+function TestExamCRUDContent() {
   const { examinations, createExamination, updateExamination, deleteExamination, getExaminationById } = useExamination()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
@@ -341,5 +341,13 @@ export default function TestExamCRUD() {
         </>
       )}
     </div>
+  )
+}
+
+export default function TestExamCRUD() {
+  return (
+    <ExaminationProvider>
+      <TestExamCRUDContent />
+    </ExaminationProvider>
   )
 }

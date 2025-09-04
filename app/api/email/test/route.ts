@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Test email sent successfully',
-      emailId: result.id
+      emailId: 'data' in result && result.data ? result.data.id : 'unknown'
     });
 
   } catch (error) {

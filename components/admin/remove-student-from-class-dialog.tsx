@@ -61,10 +61,8 @@ export function RemoveStudentFromClassDialog({
 
   const handleRemoveStudents = async () => {
     if (selectedStudents.length === 0) {
-      toast({
-        title: "No students selected",
-        description: "Please select at least one student to remove from the class.",
-        variant: "destructive",
+      toast.error("No students selected", {
+        description: "Please select at least one student to remove from the class."
       })
       return
     }
@@ -77,19 +75,16 @@ export function RemoveStudentFromClassDialog({
       
       onSuccess(removedStudents)
       
-      toast({
-        title: "Students removed successfully",
-        description: `${selectedStudents.length} student${selectedStudents.length === 1 ? '' : 's'} removed from ${className}`,
+      toast.success("Students removed successfully", {
+        description: `${selectedStudents.length} student${selectedStudents.length === 1 ? '' : 's'} removed from ${className}`
       })
       
       setSelectedStudents([])
       setSearchQuery("")
       onOpenChange(false)
     } catch (error) {
-      toast({
-        title: "Error removing students",
-        description: "Failed to remove students from the class. Please try again.",
-        variant: "destructive",
+      toast.error("Error removing students", {
+        description: "Failed to remove students from the class. Please try again."
       })
     } finally {
       setIsRemoving(false)

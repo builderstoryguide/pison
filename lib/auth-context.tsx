@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
+import { apiPost } from './api-utils'
 
 interface User {
   id: string
@@ -58,12 +59,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Check for stored session
-    const storedUser = localStorage.getItem("school_user")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
+    // Check for stored session with safe JSON parsing
+    try {
+      const storedUser = localStorage.getItem("school_user")
+      if (storedUser && storedUser.trim()) {
+        const parsedUser = JSON.parse(storedUser)
+        if (parsedUser && typeof parsedUser === 'object' && parsedUser.id) {
+          console.log('📋 Restored user session for:', parsedUser.name)
+          setUser(parsedUser)
+        } else {
+          console.warn('⚠️ Invalid stored user data, clearing localStorage')
+          localStorage.removeItem("school_user")
+        }
+      }
+    } catch (err) {
+      console.error('❌ Error parsing stored user data:', err)
+      localStorage.removeItem("school_user")
+    } finally {
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }, [])
 
   const login = async (credentials: LoginCredentials): Promise<boolean> => {
@@ -71,18 +85,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null)
 
     try {
-      // Call the real authentication API
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
+      console.log('🔐 Attempting login for:', { 
+        identifier: credentials.identifier, 
+        role: credentials.role,
+        subsystem: credentials.subsystem 
       })
 
-      const data = await response.json()
+      // Use the safer API utility
+      const result = await apiPost('/api/auth/login', credentials)
+      
+      if (!result.success) {
+        console.warn('🚫 Login failed:', result.error)
+        setError(result.error || "Login failed. Please check your credentials and try again.")
+        return false
+      }
 
-      if (response.ok && data.success) {
+      const data = result.data
+      if (data && data.success && data.user) {
         // Transform the API response to match our User interface
         const userData: User = {
           id: data.user.id,
@@ -90,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: data.user.email,
           role: data.user.role,
           avatar: data.user.avatar,
-          permissions: data.user.permissions,
+          permissions: data.user.permissions || [],
           subsystem: data.user.subsystem,
           branch: data.user.branch,
           class: data.user.class,
@@ -99,16 +118,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           parentCode: data.user.roleSpecificId,
         }
 
+        console.log('✅ Login successful for:', userData.name)
         setUser(userData)
         localStorage.setItem("school_user", JSON.stringify(userData))
         return true
       } else {
-        setError(data.error || "Login failed. Please try again.")
+        const errorMsg = data?.error || "Invalid response from server. Please try again."
+        console.warn('🚫 Invalid login response:', data)
+        setError(errorMsg)
         return false
       }
     } catch (err) {
-      console.error('Login error:', err)
-      setError("Login failed. Please try again.")
+      console.error('💥 Login error:', err)
+      
+      let errorMessage = "Login failed. Please try again."
+      
+      if (err instanceof Error) {
+        if (err.message.includes('JSON Parse Error')) {
+          errorMessage = "Server communication error. The server may be down or returning an unexpected response."
+        } else if (err.message.includes('fetch failed') || err.message.includes('Network')) {
+          errorMessage = "Network error. Please check your internet connection and ensure the server is running."
+        } else if (err.message.includes('timeout')) {
+          errorMessage = "Request timeout. The server is taking too long to respond."
+        }
+      }
+      
+      setError(errorMessage)
       return false
     } finally {
       setIsLoading(false)

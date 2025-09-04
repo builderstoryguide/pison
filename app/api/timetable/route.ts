@@ -122,7 +122,29 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { classId, academicYear, term, generatedBy } = body;
+    const { 
+      classId, 
+      academicYear, 
+      term, 
+      generatedBy,
+      // Custom timetable generation parameters
+      schoolStartTime,
+      schoolEndTime,
+      periodDuration,
+      breakDuration,
+      includeLunchBreak,
+      lunchBreakStartTime,
+      lunchBreakDuration,
+      daysPerWeek,
+      periodsPerDay,
+      customPeriodsPerDay,
+      mondayPeriods,
+      tuesdayPeriods,
+      wednesdayPeriods,
+      thursdayPeriods,
+      fridayPeriods,
+      saturdayPeriods
+    } = body;
 
     if (!classId || !academicYear || !term) {
       return NextResponse.json(
@@ -145,14 +167,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate timetable using the database function
+    // Generate timetable using the database function with custom parameters
+    const generationParams: Record<string, any> = {
+      p_class_id: classId,
+      p_academic_year: academicYear,
+      p_term: term,
+      p_generated_by: generatedBy || 'system'
+    };
+    
+    // Add custom parameters if provided
+    if (schoolStartTime) generationParams.p_school_start_time = schoolStartTime;
+    if (schoolEndTime) generationParams.p_school_end_time = schoolEndTime;
+    if (periodDuration) generationParams.p_period_duration = periodDuration;
+    if (breakDuration) generationParams.p_break_duration = breakDuration;
+    if (includeLunchBreak !== undefined) generationParams.p_include_lunch_break = includeLunchBreak;
+    if (lunchBreakStartTime) generationParams.p_lunch_break_start_time = lunchBreakStartTime;
+    if (lunchBreakDuration) generationParams.p_lunch_break_duration = lunchBreakDuration;
+    if (daysPerWeek) generationParams.p_days_per_week = daysPerWeek;
+    if (periodsPerDay) generationParams.p_periods_per_day = periodsPerDay;
+    if (customPeriodsPerDay !== undefined) generationParams.p_custom_periods_per_day = customPeriodsPerDay;
+    if (mondayPeriods) generationParams.p_monday_periods = mondayPeriods;
+    if (tuesdayPeriods) generationParams.p_tuesday_periods = tuesdayPeriods;
+    if (wednesdayPeriods) generationParams.p_wednesday_periods = wednesdayPeriods;
+    if (thursdayPeriods) generationParams.p_thursday_periods = thursdayPeriods;
+    if (fridayPeriods) generationParams.p_friday_periods = fridayPeriods;
+    if (saturdayPeriods) generationParams.p_saturday_periods = saturdayPeriods;
+    
     const { data: scheduleId, error: generationError } = await supabase
-      .rpc('generate_class_timetable', {
-        p_class_id: classId,
-        p_academic_year: academicYear,
-        p_term: term,
-        p_generated_by: generatedBy || 'system'
-      });
+      .rpc('generate_class_timetable', generationParams);
 
     if (generationError) {
       console.error('Error generating timetable:', generationError);

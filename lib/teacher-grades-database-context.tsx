@@ -393,8 +393,12 @@ export function TeacherGradesDatabaseProvider({ children }: { children: ReactNod
 
       const gradeId = gradeIdData
 
+      // Get assessment to get total marks
+      const assessment = assessments.find(a => a.id === gradeData.assessmentId)
+      const totalMarks = assessment?.totalMarks || 100
+      
       // Calculate grade letter and point
-      const gradeLetter = calculateGrade(gradeData.marksObtained, gradeData.totalMarks || 100)
+      const gradeLetter = calculateGrade(gradeData.marksObtained, totalMarks)
       const gradePoint = calculateGradePoint(gradeLetter)
 
       const newGrade = {
@@ -514,8 +518,12 @@ export function TeacherGradesDatabaseProvider({ children }: { children: ReactNod
           const { data: gradeIdData } = await supabase!.rpc("generate_grade_id")
           const gradeId = gradeIdData
 
+          // Get assessment to get total marks
+          const assessment = assessments.find(a => a.id === gradeData.assessmentId)
+          const totalMarks = assessment?.totalMarks || 100
+          
           // Calculate grade letter and point
-          const gradeLetter = calculateGrade(gradeData.marksObtained, gradeData.totalMarks || 100)
+          const gradeLetter = calculateGrade(gradeData.marksObtained, totalMarks)
           const gradePoint = calculateGradePoint(gradeLetter)
 
           return {
@@ -691,8 +699,8 @@ export function TeacherGradesDatabaseProvider({ children }: { children: ReactNod
         completedAssessments: studentGrades.length,
         averagePercentage: percentages.reduce((sum, p) => sum + p, 0) / percentages.length,
         averageGradePoint: gradePoints.reduce((sum, gp) => sum + gp, 0) / gradePoints.length,
-        highestGrade: Math.max(...gradeLetters),
-        lowestGrade: Math.min(...gradeLetters),
+        highestGrade: gradeLetters.sort().pop() || "",
+        lowestGrade: gradeLetters.sort().shift() || "",
         passRate: (passCount / studentGrades.length) * 100,
         gradeDistribution,
       }

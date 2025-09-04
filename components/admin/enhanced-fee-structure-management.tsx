@@ -56,18 +56,14 @@ export function EnhancedFeeStructureManagement() {
         const data = await response.json()
         setFeeStructures(data)
       } else {
-        toast({
-          title: "Error",
-          description: "Failed to load fee structures",
-          variant: "destructive"
+        toast.error("Error loading fee structures", {
+          description: "Failed to load fee structures"
         })
       }
     } catch (error) {
       console.error("Error loading fee structures:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load fee structures",
-        variant: "destructive"
+      toast.error("Error loading fee structures", {
+        description: "Failed to load fee structures"
       })
     } finally {
       setIsLoading(false)
@@ -86,23 +82,18 @@ export function EnhancedFeeStructureManagement() {
       const result = await response.json()
 
       if (result.success) {
-        toast({
-          title: "Success",
+        toast.success("Fee structure deleted", {
           description: "Fee structure deleted successfully"
         })
         loadFeeStructures()
       } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to delete fee structure",
-          variant: "destructive"
+        toast.error("Error deleting fee structure", {
+          description: result.error || "Failed to delete fee structure"
         })
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete fee structure",
-        variant: "destructive"
+      toast.error("Error deleting fee structure", {
+        description: "Failed to delete fee structure"
       })
     }
   }
@@ -111,8 +102,7 @@ export function EnhancedFeeStructureManagement() {
     setShowCreateForm(false)
     setEditingFeeStructure(null)
     loadFeeStructures()
-    toast({
-      title: "Success",
+    toast.success("Fee structure created", {
       description: "Fee structure created successfully"
     })
   }

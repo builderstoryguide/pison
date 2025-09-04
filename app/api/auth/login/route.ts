@@ -79,8 +79,11 @@ export async function POST(request: NextRequest) {
           .eq('status', 'active')
           .single();
 
+        // Execute the query to check if user exists by email
+        const { data: teacherByEmail } = await userQuery;
+        
         // If not found by email, try teacher registration number
-        if (!userQuery.data) {
+        if (!teacherByEmail) {
           const { data: profileData } = await supabase
             .from('user_profiles')
             .select('user_id')
@@ -132,8 +135,11 @@ export async function POST(request: NextRequest) {
           .eq('status', 'active')
           .single();
 
+        // Execute the query to check if user exists by email
+        const { data: studentByEmail } = await userQuery;
+        
         // If not found by email, try student ID
-        if (!userQuery.data) {
+        if (!studentByEmail) {
           const { data: profileData } = await supabase
             .from('user_profiles')
             .select('user_id')
@@ -185,8 +191,11 @@ export async function POST(request: NextRequest) {
           .eq('status', 'active')
           .single();
 
+        // Execute the query to check if user exists by email
+        const { data: parentByEmail } = await userQuery;
+        
         // If not found by email, try parent code
-        if (!userQuery.data) {
+        if (!parentByEmail) {
           const { data: profileData } = await supabase
             .from('user_profiles')
             .select('user_id')

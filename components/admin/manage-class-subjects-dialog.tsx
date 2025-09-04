@@ -160,10 +160,8 @@ export function ManageClassSubjectsDialog({
 
   const handleAddSubjects = () => {
     if (selectedSubjects.length === 0) {
-      toast({
-        title: "No subjects selected",
-        description: "Please select at least one subject to add to the class.",
-        variant: "destructive",
+      toast.error("No subjects selected", {
+        description: "Please select at least one subject to add to the class."
       })
       return
     }
@@ -179,19 +177,16 @@ export function ManageClassSubjectsDialog({
       // For now, we'll simulate the update
       onSuccess(updatedSubjects)
       
-      toast({
-        title: "Subjects updated successfully",
-        description: `Subjects for ${classData.name} have been updated.`,
+      toast.success("Subjects updated successfully", {
+        description: `Subjects for ${classData.name} have been updated.`
       })
       
       setSelectedSubjects([])
       setSearchQuery("")
       onOpenChange(false)
     } catch (error) {
-      toast({
-        title: "Error updating subjects",
-        description: "Failed to update subjects. Please try again.",
-        variant: "destructive",
+      toast.error("Error updating subjects", {
+        description: "Failed to update subjects. Please try again."
       })
     } finally {
       setIsSaving(false)

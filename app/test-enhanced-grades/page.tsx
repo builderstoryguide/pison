@@ -1,10 +1,11 @@
 "use client"
 
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
+import { AuthProvider } from "@/lib/auth-context"
 import { EnhancedGradesManagement } from "@/components/teacher/enhanced-grades-management"
 import { useEffect } from "react"
 
-export default function TestEnhancedGradesPage() {
+function TestEnhancedGradesContent() {
   useEffect(() => {
     console.log("🔍 Enhanced Grades Management Test Page loaded")
     return () => {
@@ -39,5 +40,13 @@ export default function TestEnhancedGradesPage() {
         <EnhancedGradesManagement />
       </div>
     </TeacherGradesProvider>
+  )
+}
+
+export default function TestEnhancedGradesPage() {
+  return (
+    <AuthProvider>
+      <TestEnhancedGradesContent />
+    </AuthProvider>
   )
 }
