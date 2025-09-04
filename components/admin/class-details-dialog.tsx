@@ -147,23 +147,25 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-6">
+        <DialogHeader className="pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <DialogTitle className="text-xl break-words">{classData.name}</DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1 break-words">
+              <DialogTitle className="text-2xl font-bold break-words">{classData.name}</DialogTitle>
+              <p className="text-sm text-muted-foreground mt-2 break-words">
                 {classData.level} • {classData.subsystem === "english" ? "English" : "French"} Subsystem •{" "}
                 {classData.branch}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <Badge variant={classData.status === "active" ? "default" : "secondary"}>{classData.status}</Badge>
-              <Button variant="outline" size="sm" onClick={() => onEdit(classData)}>
+              <Badge variant={classData.status === "active" ? "default" : "secondary"} className="px-2.5 py-0.5">
+                {classData.status}
+              </Badge>
+              <Button variant="outline" size="sm" onClick={() => onEdit(classData)} className="h-9">
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
               </Button>
-              <Button variant="outline" size="sm" onClick={() => onDelete(classData.id)}>
+              <Button variant="outline" size="sm" onClick={() => onDelete(classData.id)} className="h-9">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
               </Button>
@@ -172,116 +174,165 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="students">Students</TabsTrigger>
-            <TabsTrigger value="schedule">Schedule</TabsTrigger>
-            <TabsTrigger value="subjects">Subjects</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 mb-2">
+            <TabsTrigger value="overview" className="font-medium">Overview</TabsTrigger>
+            <TabsTrigger value="students" className="font-medium">Students</TabsTrigger>
+            <TabsTrigger value="schedule" className="font-medium">Schedule</TabsTrigger>
+            <TabsTrigger value="subjects" className="font-medium">Subjects</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-              <Card>
+          <TabsContent value="overview" className="space-y-6 py-4">
+            {/* Key Metrics */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Enrollment</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {classData.currentEnrollment}/{classData.capacity}
+                  <CardTitle className="text-sm font-medium">Enrollment Status</CardTitle>
+                  <div className="p-1.5 rounded-md bg-primary/10">
+                    <Users className="h-4 w-4 text-primary" />
                   </div>
-                  <p className="text-xs text-muted-foreground">{utilizationPercentage}% capacity</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Class Teacher</CardTitle>
-                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-sm font-medium break-words">{classData.classTeacher}</div>
-                  <p className="text-xs text-muted-foreground">Primary instructor</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Subjects</CardTitle>
-                  <BookOpen className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{classData.subjects.length}</div>
-                  <p className="text-xs text-muted-foreground">Total subjects</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Academic Year</CardTitle>
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-sm font-medium break-words">{classData.academicYear}</div>
-                  <p className="text-xs text-muted-foreground">Current session</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Schedule</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {classData.schedule.reduce((total, day) => total + day.periods.length, 0)}
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <div className="text-2xl font-bold">
+                        {classData.currentEnrollment}/{classData.capacity}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">Students enrolled</p>
+                    </div>
+                    <Badge 
+                      className="ml-2" 
+                      variant={utilizationPercentage > 90 ? "destructive" : utilizationPercentage > 75 ? "default" : "outline"}
+                    >
+                      {utilizationPercentage}% capacity
+                    </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {classData.schedule.filter(day => day.periods.length > 0).length} day{classData.schedule.filter(day => day.periods.length > 0).length !== 1 ? 's' : ''} scheduled
-                  </p>
+                  <div className="mt-4 w-full h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full ${utilizationPercentage > 90 ? 'bg-destructive' : utilizationPercentage > 75 ? 'bg-primary' : 'bg-primary/70'}`}
+                      style={{ width: `${Math.min(utilizationPercentage, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                    <span>0%</span>
+                    <span>50%</span>
+                    <span>100%</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Class Information</CardTitle>
+                  <div className="p-1.5 rounded-md bg-primary/10">
+                    <GraduationCap className="h-4 w-4 text-primary" />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <span className="text-sm text-muted-foreground">Teacher</span>
+                    <span className="text-sm font-medium truncate max-w-[180px]" title={classData.classTeacher}>{classData.classTeacher}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <span className="text-sm text-muted-foreground">Academic Year</span>
+                    <span className="text-sm font-medium">{classData.academicYear}</span>
+                  </div>
+                  <div className="flex items-center justify-between pb-2">
+                    <span className="text-sm text-muted-foreground">Status</span>
+                    <Badge variant={classData.status === "active" ? "default" : "secondary"}>{classData.status}</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Resources & Schedule</CardTitle>
+                  <div className="p-1.5 rounded-md bg-primary/10">
+                    <BookOpen className="h-4 w-4 text-primary" />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <span className="text-sm text-muted-foreground">Subjects</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{classData.subjects.length}</span>
+                      <Badge variant="outline" className="text-xs">Total</Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-border pb-2">
+                    <span className="text-sm text-muted-foreground">Schedule</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{classData.schedule.reduce((total, day) => total + day.periods.length, 0)}</span>
+                      <Badge variant="outline" className="text-xs">Periods</Badge>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pb-2">
+                    <span className="text-sm text-muted-foreground">Days</span>
+                    <span className="text-sm font-medium">{classData.schedule.filter(day => day.periods.length > 0).length} scheduled</span>
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
-            <Card>
+            {/* Detailed Information */}
+            <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle>Class Information</CardTitle>
-                <CardDescription>Detailed information about this class</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-6 md:grid-cols-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-md bg-primary/10">
+                    <Settings className="h-5 w-5 text-primary" />
+                  </div>
                   <div>
-                    <h4 className="font-medium mb-2">System Configuration</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground flex-shrink-0">Subsystem:</span>
-                        <span className="capitalize text-right ml-2">{classData.subsystem}</span>
+                    <CardTitle>Class Details</CardTitle>
+                    <CardDescription>Comprehensive information about this class</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-8 md:grid-cols-2">
+                  {/* System Configuration */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="p-1.5 rounded-md bg-primary/10">
+                        <GraduationCap className="h-4 w-4 text-primary" />
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground flex-shrink-0">Branch:</span>
-                        <span className="capitalize text-right ml-2">{classData.branch}</span>
+                      <h4 className="font-medium text-base">System Configuration</h4>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between bg-muted/40 p-3 rounded-md">
+                        <span className="text-sm font-medium">Subsystem</span>
+                        <Badge variant="secondary" className="capitalize">{classData.subsystem}</Badge>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground flex-shrink-0">Level:</span>
-                        <span className="text-right ml-2">{classData.level}</span>
+                      <div className="flex items-center justify-between bg-muted/40 p-3 rounded-md">
+                        <span className="text-sm font-medium">Branch</span>
+                        <Badge variant="secondary" className="capitalize">{classData.branch}</Badge>
+                      </div>
+                      <div className="flex items-center justify-between bg-muted/40 p-3 rounded-md">
+                        <span className="text-sm font-medium">Level</span>
+                        <Badge variant="secondary">{classData.level}</Badge>
                       </div>
                     </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium mb-2">Class Details</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between items-start">
-                        <span className="text-muted-foreground flex-shrink-0">Created:</span>
-                        <span className="text-right ml-2 break-words">{formatDate(classData.createdAt)}</span>
+                  
+                  {/* Class Details */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="p-1.5 rounded-md bg-primary/10">
+                        <Clock className="h-4 w-4 text-primary" />
                       </div>
-                      <div className="flex justify-between items-start">
-                        <span className="text-muted-foreground flex-shrink-0">Last Updated:</span>
-                        <span className="text-right ml-2 break-words">{formatDate(classData.updatedAt)}</span>
+                      <h4 className="font-medium text-base">Time Information</h4>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between bg-muted/40 p-3 rounded-md">
+                        <span className="text-sm font-medium">Created</span>
+                        <div className="text-sm">{formatDate(classData.createdAt)}</div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Status:</span>
-                        <Badge variant={classData.status === "active" ? "default" : "secondary"}>
-                          {classData.status}
+                      <div className="flex items-center justify-between bg-muted/40 p-3 rounded-md">
+                        <span className="text-sm font-medium">Last Updated</span>
+                        <div className="text-sm">{formatDate(classData.updatedAt)}</div>
+                      </div>
+                      <div className="flex items-center justify-between bg-muted/40 p-3 rounded-md">
+                        <span className="text-sm font-medium">Available Spots</span>
+                        <Badge variant={classData.capacity - classData.currentEnrollment <= 5 ? "destructive" : "secondary"}>
+                          {classData.capacity - classData.currentEnrollment} remaining
                         </Badge>
                       </div>
                     </div>
@@ -398,34 +449,91 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
             </Card>
           </TabsContent>
 
-          <TabsContent value="subjects" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium">Class Subjects</h3>
-                <p className="text-sm text-muted-foreground">
-                  {classData.subjects.length} subjects assigned to this class
-                </p>
+          <TabsContent value="subjects" className="space-y-6 py-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-md bg-primary/10">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium">Class Subjects</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {classData.subjects.length} subject{classData.subjects.length !== 1 ? 's' : ''} assigned to this class
+                  </p>
+                </div>
               </div>
-              <Button size="sm" onClick={() => setShowManageSubjectsDialog(true)}>
-                <BookOpen className="h-4 w-4 mr-2" />
+              <Button size="sm" onClick={() => setShowManageSubjectsDialog(true)} className="shadow-sm">
+                <Settings className="h-4 w-4 mr-2" />
                 Manage Subjects
               </Button>
             </div>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                  {classData.subjects.map((subject, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <BookOpen className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{subject}</span>
-                      </div>
-                      <Badge variant="outline">Active</Badge>
-                    </div>
-                  ))}
+            <Card className="shadow-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Subject List</CardTitle>
+                  <Badge variant="outline">{classData.subjects.length} total</Badge>
                 </div>
+              </CardHeader>
+              <CardContent>
+                {classData.subjects.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="p-3 rounded-full bg-muted mb-4">
+                      <BookOpen className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <h4 className="text-lg font-medium mb-2">No subjects assigned</h4>
+                    <p className="text-sm text-muted-foreground max-w-md mb-6">
+                      This class doesn't have any subjects assigned yet. Add subjects to create a curriculum for this class.
+                    </p>
+                    <Button onClick={() => setShowManageSubjectsDialog(true)}>
+                      <BookOpen className="h-4 w-4 mr-2" />
+                      Add Subjects
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {classData.subjects.map((subject, index) => (
+                      <div 
+                        key={index} 
+                        className="flex flex-col bg-card border rounded-lg shadow-sm overflow-hidden hover:border-primary/50 transition-colors"
+                      >
+                        <div className="bg-muted/30 p-4 border-b">
+                          <div className="flex items-center gap-3">
+                            <div className="p-1.5 rounded-md bg-primary/10">
+                              <BookOpen className="h-4 w-4 text-primary flex-shrink-0" />
+                            </div>
+                            <h4 className="font-medium text-sm leading-tight truncate" title={subject}>
+                              {subject}
+                            </h4>
+                          </div>
+                        </div>
+                        <div className="p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                            <span className="text-xs text-muted-foreground">Active</span>
+                          </div>
+                          <Badge variant="secondary" className="text-xs">
+                            Core Subject
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
+              {classData.subjects.length > 0 && (
+                <div className="border-t p-4 bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Showing all {classData.subjects.length} subjects
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => setShowManageSubjectsDialog(true)}>
+                      <Settings className="h-3.5 w-3.5 mr-1.5" />
+                      Manage
+                    </Button>
+                  </div>
+                </div>
+              )}
             </Card>
           </TabsContent>
         </Tabs>

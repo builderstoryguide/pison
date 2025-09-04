@@ -17,21 +17,59 @@ export async function GET(request: NextRequest) {
 
     // Use optimized database function for better performance when no filters are applied
     if (!action && !userId && !search) {
-      // Use the optimized function for recent logs
-      const { data, error } = await supabase.rpc('get_recent_activity_logs', {
-        p_limit: limit,
-        p_offset: offset
-      })
+      try {
+        // Try using the optimized function for recent logs first
+        const { data, error } = await supabase.rpc('get_recent_activity_logs', {
+          p_limit: limit,
+          p_offset: offset
+        })
 
-      if (error) {
-        console.error('Error calling get_recent_activity_logs:', error)
-        return NextResponse.json(
-          { error: 'Failed to fetch activity logs' },
-          { status: 500 }
-        )
+        if (error) {
+          console.error('Error calling get_recent_activity_logs:', error)
+          // Fall back to regular query if function fails
+          throw error
+        }
+
+        result = data
+      } catch (functionError) {
+        console.error('Database function failed, falling back to regular query:', functionError)
+        
+        // Fallback to regular query
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('user_activity_logs')
+          .select(`
+            id,
+            action,
+            details,
+            ip_address,
+            user_agent,
+            created_at,
+            user_id,
+            users!user_activity_logs_user_id_fkey(
+              id,
+              name,
+              email,
+              role
+            )
+          `)
+          .order('created_at', { ascending: false })
+          .limit(limit)
+          .range(offset, offset + limit - 1)
+        
+        if (fallbackError) {
+          console.error('Fallback query also failed:', fallbackError)
+          return NextResponse.json(
+            { 
+              error: 'Failed to fetch activity logs',
+              details: fallbackError.message,
+              suggestion: 'Please run the database setup script to fix table structure issues.'
+            },
+            { status: 500 }
+          )
+        }
+        
+        result = fallbackData
       }
-
-      result = data
     } else {
       // Use regular query for filtered results
       let query = supabase

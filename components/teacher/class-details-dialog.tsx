@@ -46,128 +46,158 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-6">
+        <DialogHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div>
-              <DialogTitle className="text-2xl">{classData.name}</DialogTitle>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline">{classData.code}</Badge>
-                <Badge variant="secondary" className="capitalize">
+              <DialogTitle className="text-2xl font-bold">{classData.name}</DialogTitle>
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                <Badge variant="outline" className="px-2 py-1">{classData.code}</Badge>
+                <Badge variant="secondary" className="capitalize px-2 py-1">
                   {classData.subsystem}
                 </Badge>
-                <Badge variant="outline" className="capitalize">
+                <Badge variant="outline" className="capitalize px-2 py-1">
                   {classData.branch}
                 </Badge>
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="rounded-full h-8 w-8">
               <X className="h-4 w-4" />
             </Button>
           </div>
         </DialogHeader>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="students">Students</TabsTrigger>
-            <TabsTrigger value="subjects">Subjects</TabsTrigger>
-            <TabsTrigger value="schedule">Schedule</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 mb-2">
+            <TabsTrigger value="overview" className="font-medium">Overview</TabsTrigger>
+            <TabsTrigger value="students" className="font-medium">Students</TabsTrigger>
+            <TabsTrigger value="subjects" className="font-medium">Subjects</TabsTrigger>
+            <TabsTrigger value="schedule" className="font-medium">Schedule</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
+          <TabsContent value="overview" className="space-y-6 py-4">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <div className="p-1 rounded-md bg-primary/10">
+                    <Users className="h-4 w-4 text-primary" />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{enrolledCount}</div>
-                  <p className="text-xs text-muted-foreground">of {classData.capacity} capacity</p>
+                  <div className="flex justify-between items-center mt-2">
+                    <p className="text-sm text-muted-foreground">of {classData.capacity} capacity</p>
+                    <Badge variant="outline" className="ml-2">{Math.round((enrolledCount / classData.capacity) * 100)}%</Badge>
+                  </div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Subjects</CardTitle>
-                  <BookOpen className="h-4 w-4 text-muted-foreground" />
+                  <div className="p-1 rounded-md bg-primary/10">
+                    <BookOpen className="h-4 w-4 text-primary" />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{classData.subjects.length}</div>
-                  <p className="text-xs text-muted-foreground">Active subjects</p>
+                  <p className="text-sm text-muted-foreground mt-2">Active subjects</p>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Capacity</CardTitle>
-                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">Capacity Utilization</CardTitle>
+                  <div className="p-1 rounded-md bg-primary/10">
+                    <GraduationCap className="h-4 w-4 text-primary" />
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{capacityPercentage.toFixed(0)}%</div>
-                  <p className="text-xs text-muted-foreground">Utilization</p>
+                  <div className="w-full h-2 bg-muted rounded-full mt-2 overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full ${capacityPercentage > 90 ? 'bg-destructive' : capacityPercentage > 75 ? 'bg-warning' : 'bg-primary'}`}
+                      style={{ width: `${Math.min(capacityPercentage, 100)}%` }}
+                    />
+                  </div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Room</CardTitle>
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <div className="p-1 rounded-md bg-primary/10">
+                    <MapPin className="h-4 w-4 text-primary" />
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{classData.room}</div>
-                  <p className="text-xs text-muted-foreground">Primary classroom</p>
+                  <div className="text-2xl font-bold truncate" title={classData.room}>{classData.room}</div>
+                  <p className="text-sm text-muted-foreground mt-2">Primary classroom</p>
                 </CardContent>
               </Card>
             </div>
 
-            <Card>
+            <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle>Class Information</CardTitle>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <div className="p-1 rounded-md bg-primary/10">
+                    <GraduationCap className="h-5 w-5 text-primary" />
+                  </div>
+                  Class Information
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <h4 className="font-medium mb-2">Basic Details</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Level:</span>
-                        <span>{classData.level}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Academic Year:</span>
-                        <span>{classData.academicYear}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Subsystem:</span>
-                        <span className="capitalize">{classData.subsystem}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Branch:</span>
-                        <span className="capitalize">{classData.branch}</span>
-                      </div>
+              <CardContent>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground mb-3">Basic Details</h4>
+                      <dl className="space-y-3">
+                        <div className="flex items-center justify-between border-b border-border pb-2">
+                          <dt className="text-sm text-muted-foreground">Level</dt>
+                          <dd className="text-sm font-medium">{classData.level}</dd>
+                        </div>
+                        <div className="flex items-center justify-between border-b border-border pb-2">
+                          <dt className="text-sm text-muted-foreground">Academic Year</dt>
+                          <dd className="text-sm font-medium">{classData.academicYear}</dd>
+                        </div>
+                        <div className="flex items-center justify-between border-b border-border pb-2">
+                          <dt className="text-sm text-muted-foreground">Subsystem</dt>
+                          <dd className="text-sm font-medium capitalize">{classData.subsystem}</dd>
+                        </div>
+                        <div className="flex items-center justify-between pb-2">
+                          <dt className="text-sm text-muted-foreground">Branch</dt>
+                          <dd className="text-sm font-medium capitalize">{classData.branch}</dd>
+                        </div>
+                      </dl>
                     </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium mb-2">Statistics</h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Enrolled Students:</span>
-                        <span>{enrolledCount}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Maximum Capacity:</span>
-                        <span>{classData.capacity}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Available Spots:</span>
-                        <span>{classData.capacity - enrolledCount}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total Subjects:</span>
-                        <span>{classData.subjects.length}</span>
-                      </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground mb-3">Enrollment Statistics</h4>
+                      <dl className="space-y-3">
+                        <div className="flex items-center justify-between border-b border-border pb-2">
+                          <dt className="text-sm text-muted-foreground">Enrolled Students</dt>
+                          <dd className="text-sm font-medium">{enrolledCount}</dd>
+                        </div>
+                        <div className="flex items-center justify-between border-b border-border pb-2">
+                          <dt className="text-sm text-muted-foreground">Maximum Capacity</dt>
+                          <dd className="text-sm font-medium">{classData.capacity}</dd>
+                        </div>
+                        <div className="flex items-center justify-between border-b border-border pb-2">
+                          <dt className="text-sm text-muted-foreground">Available Spots</dt>
+                          <dd className="text-sm font-medium">
+                            <span className={classData.capacity - enrolledCount <= 5 ? "text-destructive" : ""}>
+                              {classData.capacity - enrolledCount}
+                            </span>
+                          </dd>
+                        </div>
+                        <div className="flex items-center justify-between pb-2">
+                          <dt className="text-sm text-muted-foreground">Total Subjects</dt>
+                          <dd className="text-sm font-medium">{classData.subjects.length}</dd>
+                        </div>
+                      </dl>
                     </div>
                   </div>
                 </div>
@@ -296,30 +326,48 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
             </Card>
           </TabsContent>
 
-          <TabsContent value="subjects" className="space-y-4">
-            <Card>
+          <TabsContent value="subjects" className="space-y-6 py-4">
+            <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle>Subjects ({classData.subjects.length})</CardTitle>
-                <CardDescription>Subjects taught in this class</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1 rounded-md bg-primary/10">
+                      <BookOpen className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg font-semibold">Subjects ({classData.subjects.length})</CardTitle>
+                      <CardDescription>Subjects taught in this class</CardDescription>
+                    </div>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {classData.subjects.map((subject) => (
-                    <Card key={subject.id}>
-                      <CardHeader className="pb-3">
+                    <Card key={subject.id} className="shadow-sm border-l-4 border-l-primary/50">
+                      <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg">{subject.name}</CardTitle>
-                          <Badge variant="secondary">{subject.code}</Badge>
+                          <CardTitle className="text-base font-medium line-clamp-2" title={subject.name}>
+                            {subject.name}
+                          </CardTitle>
+                          <Badge variant="outline" className="ml-2 whitespace-nowrap">
+                            {subject.code}
+                          </Badge>
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Coefficient:</span>
-                            <span className="font-medium">{subject.coefficient}</span>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Coefficient</span>
+                            <Badge variant="secondary">{subject.coefficient}</Badge>
                           </div>
                           {subject.description && (
-                            <p className="text-sm text-muted-foreground">{subject.description}</p>
+                            <div className="pt-2 border-t border-border">
+                              <h5 className="text-xs font-medium text-muted-foreground mb-1">Description</h5>
+                              <p className="text-sm line-clamp-3" title={subject.description}>
+                                {subject.description}
+                              </p>
+                            </div>
                           )}
                         </div>
                       </CardContent>

@@ -144,11 +144,27 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50'); // Increased default limit
     const offset = (page - 1) * limit;
 
-    // First, check if the user_details view exists
-    const { data: viewCheck, error: viewError } = await supabase
-      .from('user_details')
-      .select('id')
-      .limit(1);
+    // First, check if the user_details view exists with better error handling
+    let viewCheck, viewError;
+    try {
+      const result = await supabase
+        .from('user_details')
+        .select('id')
+        .limit(1);
+      
+      viewCheck = result.data;
+      viewError = result.error;
+    } catch (networkError) {
+      console.error('Network error when checking database view:', networkError);
+      return NextResponse.json(
+        { 
+          error: 'Database connection error',
+          message: 'Unable to connect to the database. Please check your network connection.',
+          details: networkError instanceof Error ? networkError.message : 'Network connection failed'
+        },
+        { status: 500 }
+      );
+    }
 
     if (viewError) {
       console.error('Database view error:', viewError);

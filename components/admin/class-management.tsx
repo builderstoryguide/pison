@@ -40,7 +40,7 @@ import { ClassDetailsDialog } from "./class-details-dialog"
 import { ClassStudentManagement } from "./class-student-management"
 
 export function ClassManagement() {
-  const { classes, isLoading, deleteClass } = useClassManagement()
+  const { isLoading, deleteClass, getClassesPaginated, totalClassesCount } = useClassManagement()
   const [searchTerm, setSearchTerm] = useState("")
   const [subsystemFilter, setSubsystemFilter] = useState<string>("all")
   const [branchFilter, setBranchFilter] = useState<string>("all")
@@ -59,38 +59,55 @@ export function ClassManagement() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [selectedClasses, setSelectedClasses] = useState<string[]>([])
+  const [paginatedClasses, setPaginatedClasses] = useState<ClassData[]>([])
+  const [totalItems, setTotalItems] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
 
-  // Filter classes based on search and filters
-  const filteredClasses = classes.filter((cls) => {
-    const matchesSearch =
-      cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cls.level.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cls.classTeacher.toLowerCase().includes(searchTerm.toLowerCase())
-
-    const matchesSubsystem = subsystemFilter === "all" || cls.subsystem === subsystemFilter
-    const matchesBranch = branchFilter === "all" || cls.branch === branchFilter
-    const matchesStatus = statusFilter === "all" || cls.status === statusFilter
-
-    return matchesSearch && matchesSubsystem && matchesBranch && matchesStatus
-  })
-
-  // Pagination logic
-  const totalItems = filteredClasses.length
-  const totalPages = Math.ceil(totalItems / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const paginatedClasses = filteredClasses.slice(startIndex, endIndex)
-
+  // Load classes with pagination and filters
+  const loadPaginatedClasses = React.useCallback(async () => {
+    try {
+      const result = await getClassesPaginated({
+        page: currentPage,
+        pageSize: itemsPerPage,
+        filters: {
+          searchTerm: searchTerm,
+          subsystem: subsystemFilter,
+          branch: branchFilter,
+          status: statusFilter
+        }
+      })
+      
+      setPaginatedClasses(result.classes)
+      setTotalItems(result.totalCount)
+      setTotalPages(result.totalPages)
+      
+      // Clear selected classes when page changes
+      setSelectedClasses([])
+    } catch (error) {
+      console.error("Error loading paginated classes:", error)
+    }
+  }, [currentPage, itemsPerPage, searchTerm, subsystemFilter, branchFilter, statusFilter, getClassesPaginated])
+  
+  // Load classes when component mounts or filters/pagination changes
+  React.useEffect(() => {
+    loadPaginatedClasses()
+  }, [loadPaginatedClasses])
+  
   // Reset to first page when filters change
   React.useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, subsystemFilter, branchFilter, statusFilter])
-
-  // Calculate statistics
-  const totalClasses = classes.length
-  const activeClasses = classes.filter((cls) => cls.status === "active").length
-  const totalEnrollment = classes.reduce((sum, cls) => sum + cls.currentEnrollment, 0)
-  const totalCapacity = classes.reduce((sum, cls) => sum + cls.capacity, 0)
+  
+  // Calculate statistics based on the total counts from the database
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems)
+  
+  // These statistics will now come from separate API calls or be calculated from the paginated data
+  // For now, we'll use the totalClassesCount from context and calculate others from current page
+  const totalClasses = totalClassesCount
+  const activeClasses = paginatedClasses.filter((cls) => cls.status === "active").length
+  const totalEnrollment = paginatedClasses.reduce((sum, cls) => sum + cls.currentEnrollment, 0)
+  const totalCapacity = paginatedClasses.reduce((sum, cls) => sum + cls.capacity, 0)
   const utilizationRate = totalCapacity > 0 ? Math.round((totalEnrollment / totalCapacity) * 100) : 0
 
   const handleFormSuccess = (result: { classId: string; classData: ClassFormData } | { classIds: string[]; classData: ClassFormData[] }) => {
@@ -156,49 +173,98 @@ export function ClassManagement() {
 
       {/* Statistics Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Classes</CardTitle>
-            <School className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalClasses}</div>
-            <p className="text-xs text-muted-foreground">{activeClasses} active classes</p>
-          </CardContent>
-        </Card>
+        {isLoading && paginatedClasses.length === 0 ? (
+          // Skeleton UI for statistics cards during initial load
+          <>
+            <Card className="animate-pulse">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="h-5 bg-muted rounded w-24"></div>
+                <div className="h-4 w-4 bg-muted rounded"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-muted rounded w-16 mb-2"></div>
+                <div className="h-4 bg-muted rounded w-32"></div>
+              </CardContent>
+            </Card>
+            <Card className="animate-pulse">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="h-5 bg-muted rounded w-32"></div>
+                <div className="h-4 w-4 bg-muted rounded"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-muted rounded w-16 mb-2"></div>
+                <div className="h-4 bg-muted rounded w-40"></div>
+              </CardContent>
+            </Card>
+            <Card className="animate-pulse">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="h-5 bg-muted rounded w-28"></div>
+                <div className="h-4 w-4 bg-muted rounded"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-muted rounded w-16 mb-2"></div>
+                <div className="h-4 bg-muted rounded w-36"></div>
+              </CardContent>
+            </Card>
+            <Card className="animate-pulse">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="h-5 bg-muted rounded w-28"></div>
+                <div className="h-4 w-4 bg-muted rounded"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-muted rounded w-16 mb-2"></div>
+                <div className="h-4 bg-muted rounded w-32"></div>
+              </CardContent>
+            </Card>
+          </>
+        ) : (
+          // Actual statistics cards
+          <>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Classes</CardTitle>
+                <School className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalClasses}</div>
+                <p className="text-xs text-muted-foreground">{activeClasses} active classes</p>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Enrollment</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalEnrollment}</div>
-            <p className="text-xs text-muted-foreground">Students across all classes</p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Enrollment</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalEnrollment}</div>
+                <p className="text-xs text-muted-foreground">Students across all classes</p>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Capacity</CardTitle>
-            <GraduationCap className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalCapacity}</div>
-            <p className="text-xs text-muted-foreground">Maximum student capacity</p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Capacity</CardTitle>
+                <GraduationCap className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalCapacity}</div>
+                <p className="text-xs text-muted-foreground">Maximum student capacity</p>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Utilization Rate</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{utilizationRate}%</div>
-            <p className="text-xs text-muted-foreground">Current capacity usage</p>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Utilization Rate</CardTitle>
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{utilizationRate}%</div>
+                <p className="text-xs text-muted-foreground">Current capacity usage</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Filters and Search */}
@@ -305,11 +371,11 @@ export function ClassManagement() {
           </div>
 
           {/* Classes Table */}
-          <div className="rounded-md border">
-            <Table>
+          <div className="rounded-md border overflow-hidden">
+            <Table className="w-full">
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]">
+                <TableRow className="bg-muted/30 border-b-2">
+                  <TableHead className="w-[60px] px-4 py-3">
                     <input
                       type="checkbox"
                       checked={selectedClasses.length === paginatedClasses.length && paginatedClasses.length > 0}
@@ -323,24 +389,54 @@ export function ClassManagement() {
                       className="rounded"
                     />
                   </TableHead>
-                  <TableHead>Class Name</TableHead>
-                  <TableHead>Level</TableHead>
-                  <TableHead>System</TableHead>
-                  <TableHead>Branch</TableHead>
-                  <TableHead>Class Teacher</TableHead>
-                  <TableHead>Enrollment</TableHead>
-                  <TableHead>Subjects</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="px-4 py-3 font-semibold text-sm uppercase tracking-wide text-muted-foreground">Class Name</TableHead>
+                  <TableHead className="px-4 py-3 font-semibold text-sm uppercase tracking-wide text-muted-foreground">Level</TableHead>
+                  <TableHead className="px-4 py-3 font-semibold text-sm uppercase tracking-wide text-muted-foreground">System</TableHead>
+                  <TableHead className="px-4 py-3 font-semibold text-sm uppercase tracking-wide text-muted-foreground">Branch</TableHead>
+                  <TableHead className="px-4 py-3 font-semibold text-sm uppercase tracking-wide text-muted-foreground">Class Teacher</TableHead>
+                  <TableHead className="px-4 py-3 font-semibold text-sm uppercase tracking-wide text-muted-foreground">Enrollment</TableHead>
+                  <TableHead className="px-4 py-3 font-semibold text-sm uppercase tracking-wide text-muted-foreground">Subjects</TableHead>
+                  <TableHead className="px-4 py-3 font-semibold text-sm uppercase tracking-wide text-muted-foreground">Status</TableHead>
+                  <TableHead className="w-[80px] px-4 py-3 font-semibold text-sm uppercase tracking-wide text-muted-foreground">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8">
-                      Loading classes...
-                    </TableCell>
-                  </TableRow>
+                  // Skeleton loading UI for better user experience
+                  Array.from({ length: itemsPerPage }).map((_, index) => (
+                    <TableRow key={`skeleton-${index}`} className="animate-pulse">
+                      <TableCell className="px-4 py-3">
+                        <div className="h-4 w-4 bg-muted rounded"></div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <div className="h-5 bg-muted rounded w-32"></div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <div className="h-5 bg-muted rounded w-20"></div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <div className="h-5 bg-muted rounded w-24"></div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <div className="h-5 bg-muted rounded w-24"></div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <div className="h-5 bg-muted rounded w-40"></div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <div className="h-5 bg-muted rounded w-28"></div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <div className="h-5 bg-muted rounded w-20"></div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <div className="h-5 bg-muted rounded w-16"></div>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <div className="h-8 w-8 bg-muted rounded"></div>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 ) : paginatedClasses.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} className="text-center py-8">
@@ -349,8 +445,8 @@ export function ClassManagement() {
                   </TableRow>
                 ) : (
                   paginatedClasses.map((cls) => (
-                    <TableRow key={cls.id}>
-                      <TableCell>
+                    <TableRow key={cls.id} className="hover:bg-muted/50 transition-colors border-b border-border/50">
+                      <TableCell className="px-4 py-3">
                         <input
                           type="checkbox"
                           checked={selectedClasses.includes(cls.id)}
@@ -364,19 +460,21 @@ export function ClassManagement() {
                           className="rounded"
                         />
                       </TableCell>
-                      <TableCell className="font-medium">{cls.name}</TableCell>
-                      <TableCell>{cls.level}</TableCell>
-                      <TableCell className="capitalize">{cls.subsystem}</TableCell>
-                      <TableCell className="capitalize">{cls.branch}</TableCell>
-                      <TableCell>{cls.classTeacher}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span>
+                      <TableCell className="px-4 py-3 font-medium">{cls.name}</TableCell>
+                      <TableCell className="px-4 py-3">{cls.level}</TableCell>
+                      <TableCell className="px-4 py-3 capitalize">{cls.subsystem}</TableCell>
+                      <TableCell className="px-4 py-3 capitalize">{cls.branch}</TableCell>
+                      <TableCell className="px-4 py-3 max-w-[200px] truncate" title={cls.classTeacher}>
+                        {cls.classTeacher}
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium">
                             {cls.currentEnrollment}/{cls.capacity}
                           </span>
-                          <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="w-20 h-2.5 bg-muted rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-primary rounded-full"
+                              className="h-full bg-primary rounded-full transition-all duration-300"
                               style={{
                                 width: `${Math.min((cls.currentEnrollment / cls.capacity) * 100, 100)}%`,
                               }}
@@ -384,35 +482,61 @@ export function ClassManagement() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{cls.subjects.length}</TableCell>
-                      <TableCell>
+                      <TableCell className="px-4 py-3 text-center">
+                        <Badge variant="outline" className="font-medium">
+                          {cls.subjects.length} subjects
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
                         <Badge variant={cls.status === "active" ? "default" : "secondary"}>{cls.status}</Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-4 py-3">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
+                            <Button 
+                              variant="ghost" 
+                              className="h-9 w-9 p-0 hover:bg-muted/50 transition-colors"
+                              aria-label="Open actions menu"
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleViewClass(cls)}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Details
+                          <DropdownMenuContent 
+                            align="end" 
+                            className="w-56 p-2 space-y-1"
+                            sideOffset={8}
+                          >
+                            <DropdownMenuLabel className="px-2 py-1.5 text-sm font-medium text-muted-foreground">
+                              Actions
+                            </DropdownMenuLabel>
+                            <DropdownMenuItem 
+                              onClick={() => handleViewClass(cls)}
+                              className="px-3 py-2.5 cursor-pointer hover:bg-accent rounded-md transition-colors"
+                            >
+                              <Eye className="h-4 w-4 mr-3 text-blue-600" />
+                              <span className="font-medium">View Details</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEditClass(cls)}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit Class
+                            <DropdownMenuItem 
+                              onClick={() => handleEditClass(cls)}
+                              className="px-3 py-2.5 cursor-pointer hover:bg-accent rounded-md transition-colors"
+                            >
+                              <Edit className="h-4 w-4 mr-3 text-green-600" />
+                              <span className="font-medium">Edit Class</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleManageStudents(cls)}>
-                              <UserPlus className="h-4 w-4 mr-2" />
-                              Manage Students
+                            <DropdownMenuItem 
+                              onClick={() => handleManageStudents(cls)}
+                              className="px-3 py-2.5 cursor-pointer hover:bg-accent rounded-md transition-colors"
+                            >
+                              <UserPlus className="h-4 w-4 mr-3 text-purple-600" />
+                              <span className="font-medium">Manage Students</span>
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleDeleteClass(cls.id)} className="text-red-600">
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete Class
+                            <DropdownMenuSeparator className="my-2" />
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteClass(cls.id)} 
+                              className="px-3 py-2.5 cursor-pointer hover:bg-destructive/10 hover:text-destructive rounded-md transition-colors text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4 mr-3" />
+                              <span className="font-medium">Delete Class</span>
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>

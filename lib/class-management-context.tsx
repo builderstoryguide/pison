@@ -40,6 +40,24 @@ export interface ClassFormData {
   academicYear: string
 }
 
+interface PaginationOptions {
+  page: number
+  pageSize: number
+  filters?: {
+    searchTerm?: string
+    subsystem?: string
+    branch?: string
+    status?: string
+  }
+}
+
+interface PaginatedClassesResult {
+  classes: ClassData[]
+  totalCount: number
+  totalPages: number
+  currentPage: number
+}
+
 interface ClassManagementContextType {
   classes: ClassData[]
   isLoading: boolean
@@ -55,6 +73,8 @@ interface ClassManagementContextType {
   updateClassSchedule: (classId: string, schedule: ClassData['schedule']) => Promise<{ success: boolean; error?: string }>
   refreshClasses: () => Promise<void>
   testDatabaseConnection: () => Promise<boolean>
+  getClassesPaginated: (options: PaginationOptions) => Promise<PaginatedClassesResult>
+  totalClassesCount: number
 }
 
 const ClassManagementContext = createContext<ClassManagementContextType | undefined>(undefined)
@@ -136,11 +156,41 @@ const mockClasses: ClassData[] = [
   },
 ]
 
+// Cache structure for storing paginated class results
+interface ClassCache {
+  timestamp: number;
+  data: {
+    [key: string]: {
+      classes: ClassData[];
+      totalCount: number;
+      totalPages: number;
+    };
+  };
+}
+
+// Cache expiration time in milliseconds (5 minutes)
+const CACHE_EXPIRATION = 5 * 60 * 1000;
+
 export function ClassManagementProvider({ children }: { children: React.ReactNode }) {
   const [classes, setClasses] = useState<ClassData[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isUsingDatabase, setIsUsingDatabase] = useState(false)
+  const [totalClassesCount, setTotalClassesCount] = useState(0)
+  
+  // Cache for paginated class results
+  const [classCache, setClassCache] = useState<ClassCache>({
+    timestamp: Date.now(),
+    data: {}
+  })
+  
+  // Function to invalidate the cache
+  const invalidateCache = useCallback(() => {
+    setClassCache({
+      timestamp: 0, // Setting timestamp to 0 invalidates all cache entries
+      data: {}
+    })
+  }, [])
 
   // Test database connection and load classes on mount
   useEffect(() => {
@@ -175,16 +225,26 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
     setError(null)
 
     try {
-      // Get classes with teacher information using a proper join
+      // Get classes with minimal teacher information using a more efficient join
+      // Only select the fields we actually need to improve query performance
       let { data, error: fetchError } = await supabase
         .from("classes")
         .select(`
-          *,
-          class_teacher:class_teacher_id(
-            id,
+          id,
+          class_name,
+          class_level,
+          subsystem,
+          stream,
+          capacity,
+          current_enrollment,
+          class_teacher_id,
+          academic_year,
+          status,
+          created_at,
+          updated_at,
+          teachers:class_teacher_id(
             first_name,
-            last_name,
-            email
+            last_name
           )
         `)
         .order("created_at", { ascending: false })
@@ -203,10 +263,10 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         branch: dbClass.stream || "grammar", // Default to grammar if stream is not set
         capacity: dbClass.capacity,
         currentEnrollment: dbClass.current_enrollment,
-        classTeacher: dbClass.class_teacher && dbClass.class_teacher.first_name && dbClass.class_teacher.last_name
-          ? `${dbClass.class_teacher.first_name} ${dbClass.class_teacher.last_name}`
+        classTeacher: dbClass.teachers && typeof dbClass.teachers === 'object' && 'first_name' in dbClass.teachers && 'last_name' in dbClass.teachers
+          ? `${dbClass.teachers.first_name} ${dbClass.teachers.last_name}`
           : (dbClass.class_teacher_id ? "Teacher ID: " + dbClass.class_teacher_id : "Not Assigned"),
-        subjects: dbClass.subjects || [], // Subjects will be loaded separately
+        subjects: [], // Will be populated in batch below
         schedule: [], // We'll need to implement schedule management later
         academicYear: dbClass.academic_year,
         status: dbClass.status,
@@ -214,25 +274,45 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         updatedAt: dbClass.updated_at,
       }))
 
-      // Load subjects for each class
-      for (const classData of transformedClasses) {
-        try {
-          const { data: subjectsData, error: subjectsError } = await supabase
+      // Early exit if no classes found
+      if (transformedClasses.length === 0) {
+        setClasses([])
+        setIsLoading(false)
+        return
+      }
+
+      // Batch fetch all subjects for all classes in a single query
+      const classIds = transformedClasses.map(cls => cls.id)
+      const academicYears = [...new Set(transformedClasses.map(cls => cls.academicYear))]
+      
+      try {
+        const { data: allSubjectsData, error: subjectsError } = await supabase
             .from("class_subjects")
-            .select("subject_name")
-            .eq("class_id", classData.id)
-            .eq("academic_year", classData.academicYear)
+          .select("class_id, subject_name, academic_year")
+          .in("class_id", classIds)
+          .in("academic_year", academicYears)
 
           if (subjectsError) {
-            console.warn(`Warning: Failed to load subjects for class ${classData.name}:`, subjectsError.message)
-            classData.subjects = []
-          } else {
-            classData.subjects = subjectsData.map(s => s.subject_name)
+          console.warn("Warning: Failed to load subjects for classes:", subjectsError.message)
+        } else if (allSubjectsData) {
+          // Create a map of classId -> subject names for quick lookup
+          const subjectsByClassId: Record<string, string[]> = {}
+          
+          allSubjectsData.forEach(subject => {
+            if (!subjectsByClassId[subject.class_id]) {
+              subjectsByClassId[subject.class_id] = []
+            }
+            subjectsByClassId[subject.class_id].push(subject.subject_name)
+          })
+          
+          // Assign subjects to each class
+          transformedClasses.forEach(classData => {
+            classData.subjects = subjectsByClassId[classData.id] || []
+          })
           }
         } catch (err) {
-          console.warn(`Warning: Failed to load subjects for class ${classData.name}:`, err)
-          classData.subjects = []
-        }
+        console.warn("Warning: Failed to batch load subjects:", err)
+        // Continue with empty subjects arrays rather than failing completely
       }
 
       setClasses(transformedClasses)
@@ -360,6 +440,9 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         // Log the activity
         activityLogger.logActivity('CLASS_CREATED', `Created new class ${classData.name} with capacity ${classData.capacity}`)
         
+        // Invalidate cache since data has changed
+        invalidateCache()
+        
         setIsLoading(false)
         return { success: true, classId: newClass.id }
       } catch (err) {
@@ -369,7 +452,7 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         return { success: false, error: errorMessage }
       }
     },
-    [],
+    [invalidateCache],
   )
 
   const updateClass = useCallback(
@@ -491,6 +574,9 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
               : cls,
           ),
         )
+        
+        // Invalidate cache since data has changed
+        invalidateCache()
 
         setIsLoading(false)
         return { success: true }
@@ -501,7 +587,7 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         return { success: false, error: errorMessage }
       }
     },
-    [],
+    [invalidateCache],
   )
 
   const deleteClass = useCallback(async (classId: string): Promise<{ success: boolean; error?: string }> => {
@@ -534,6 +620,10 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         }
 
       setClasses((prev) => prev.filter((cls) => cls.id !== classId))
+      
+      // Invalidate cache since data has changed
+      invalidateCache()
+      
       setIsLoading(false)
       return { success: true }
     } catch (err) {
@@ -607,6 +697,9 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
               : cls,
           ),
         )
+        
+        // Invalidate cache since enrollment data has changed
+        invalidateCache()
 
         setIsLoading(false)
         return { success: true }
@@ -617,7 +710,7 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         return { success: false, error: errorMessage }
       }
     },
-    [],
+    [invalidateCache],
   )
 
   const removeStudentFromClass = useCallback(
@@ -675,6 +768,9 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
               : cls,
           ),
         )
+        
+        // Invalidate cache since enrollment data has changed
+        invalidateCache()
 
         setIsLoading(false)
         return { success: true }
@@ -685,7 +781,7 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         return { success: false, error: errorMessage }
       }
     },
-    [],
+    [invalidateCache],
   )
 
   const getClassStudents = useCallback(async (classId: string): Promise<any[]> => {
@@ -755,9 +851,201 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
 
   const refreshClasses = useCallback(async (): Promise<void> => {
     if (isUsingDatabase) {
+      // Invalidate cache before reloading
+      invalidateCache()
       await loadClasses()
     }
-  }, [isUsingDatabase])
+  }, [isUsingDatabase, invalidateCache])
+  
+  const getClassesPaginated = useCallback(async (options: PaginationOptions): Promise<PaginatedClassesResult> => {
+    if (!supabase) {
+      throw new Error("Supabase client not available")
+    }
+
+    // Create a cache key based on the options
+    const cacheKey = JSON.stringify(options)
+    
+    // Check if we have a valid cached result
+    const now = Date.now()
+    const isCacheValid = classCache.timestamp > now - CACHE_EXPIRATION
+    const cachedResult = classCache.data[cacheKey]
+    
+    if (isCacheValid && cachedResult) {
+      return {
+        classes: cachedResult.classes,
+        totalCount: cachedResult.totalCount,
+        totalPages: cachedResult.totalPages,
+        currentPage: options.page
+      }
+    }
+    
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { page, pageSize, filters } = options
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+      
+      // Build query with filters
+      let query = supabase
+        .from("classes")
+        .select(`
+          id,
+          class_name,
+          class_level,
+          subsystem,
+          stream,
+          capacity,
+          current_enrollment,
+          class_teacher_id,
+          academic_year,
+          status,
+          created_at,
+          updated_at,
+          teachers:class_teacher_id(
+            first_name,
+            last_name
+          )
+        `, { count: 'exact' })
+        .order("created_at", { ascending: false })
+      
+      // Apply filters if provided
+      if (filters) {
+        if (filters.subsystem && filters.subsystem !== 'all') {
+          query = query.eq('subsystem', filters.subsystem)
+        }
+        
+        if (filters.branch && filters.branch !== 'all') {
+          query = query.eq('stream', filters.branch)
+        }
+        
+        if (filters.status && filters.status !== 'all') {
+          query = query.eq('status', filters.status)
+        }
+        
+        if (filters.searchTerm) {
+          // Search in class name, level, or teacher name
+          query = query.or(`class_name.ilike.%${filters.searchTerm}%,class_level.ilike.%${filters.searchTerm}%`)
+        }
+      }
+      
+      // Apply pagination
+      query = query.range(from, to)
+      
+      // Execute query
+      const { data, error: fetchError, count } = await query
+      
+      if (fetchError) {
+        console.error("Database error details:", fetchError)
+        throw new Error(`Failed to load classes: ${fetchError.message || 'Unknown error'}`)
+      }
+      
+      // Update total count
+      if (count !== null) {
+        setTotalClassesCount(count)
+      }
+      
+      // Transform database data to match our interface
+      const transformedClasses: ClassData[] = (data || []).map((dbClass) => ({
+        id: dbClass.id,
+        name: dbClass.class_name,
+        level: dbClass.class_level,
+        subsystem: dbClass.subsystem,
+        branch: dbClass.stream || "grammar",
+        capacity: dbClass.capacity,
+        currentEnrollment: dbClass.current_enrollment,
+        classTeacher: dbClass.teachers && typeof dbClass.teachers === 'object' && 'first_name' in dbClass.teachers && 'last_name' in dbClass.teachers
+          ? `${dbClass.teachers.first_name} ${dbClass.teachers.last_name}`
+          : (dbClass.class_teacher_id ? "Teacher ID: " + dbClass.class_teacher_id : "Not Assigned"),
+        subjects: [], // Will be populated in batch below
+        schedule: [],
+        academicYear: dbClass.academic_year,
+        status: dbClass.status,
+        createdAt: dbClass.created_at,
+        updatedAt: dbClass.updated_at,
+      }))
+
+      // Early exit if no classes found
+      if (transformedClasses.length === 0) {
+        setIsLoading(false)
+        return {
+          classes: [],
+          totalCount: count || 0,
+          totalPages: Math.ceil((count || 0) / pageSize),
+          currentPage: page
+        }
+      }
+
+      // Batch fetch all subjects for the paginated classes
+      const classIds = transformedClasses.map(cls => cls.id)
+      const academicYears = [...new Set(transformedClasses.map(cls => cls.academicYear))]
+      
+      try {
+        const { data: allSubjectsData, error: subjectsError } = await supabase
+          .from("class_subjects")
+          .select("class_id, subject_name, academic_year")
+          .in("class_id", classIds)
+          .in("academic_year", academicYears)
+
+        if (subjectsError) {
+          console.warn("Warning: Failed to load subjects for classes:", subjectsError.message)
+        } else if (allSubjectsData) {
+          // Create a map of classId -> subject names for quick lookup
+          const subjectsByClassId: Record<string, string[]> = {}
+          
+          allSubjectsData.forEach(subject => {
+            if (!subjectsByClassId[subject.class_id]) {
+              subjectsByClassId[subject.class_id] = []
+            }
+            subjectsByClassId[subject.class_id].push(subject.subject_name)
+          })
+          
+          // Assign subjects to each class
+          transformedClasses.forEach(classData => {
+            classData.subjects = subjectsByClassId[classData.id] || []
+          })
+        }
+      } catch (err) {
+        console.warn("Warning: Failed to batch load subjects:", err)
+        // Continue with empty subjects arrays rather than failing completely
+      }
+
+      // Store the result in cache
+      const result = {
+        classes: transformedClasses,
+        totalCount: count || 0,
+        totalPages: Math.ceil((count || 0) / pageSize),
+        currentPage: page
+      }
+      
+      // Update the cache
+      setClassCache(prevCache => ({
+        timestamp: Date.now(),
+        data: {
+          ...prevCache.data,
+          [cacheKey]: {
+            classes: transformedClasses,
+            totalCount: count || 0,
+            totalPages: Math.ceil((count || 0) / pageSize)
+          }
+        }
+      }))
+      
+      setIsLoading(false)
+      return result
+    } catch (err) {
+      console.error("Error loading paginated classes:", err)
+      setError(err instanceof Error ? err.message : "Failed to load classes")
+      setIsLoading(false)
+      return {
+        classes: [],
+        totalCount: 0,
+        totalPages: 0,
+        currentPage: options.page
+      }
+    }
+  }, [])
 
   const value: ClassManagementContextType = {
     classes,
@@ -774,6 +1062,8 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
     updateClassSchedule,
     refreshClasses,
     testDatabaseConnection,
+    getClassesPaginated,
+    totalClassesCount,
   }
 
   return <ClassManagementContext.Provider value={value}>{children}</ClassManagementContext.Provider>
