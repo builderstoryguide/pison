@@ -93,11 +93,24 @@ export function ClassManagement() {
   const totalCapacity = classes.reduce((sum, cls) => sum + cls.capacity, 0)
   const utilizationRate = totalCapacity > 0 ? Math.round((totalEnrollment / totalCapacity) * 100) : 0
 
-  const handleFormSuccess = (result: { classId: string; classData: ClassFormData }) => {
-    const type = selectedClass ? 'update' : 'create'
-    setSuccessMessage({ type, ...result })
-    setShowCreateForm(false)
-    setSelectedClass(null)
+  const handleFormSuccess = (result: { classId: string; classData: ClassFormData } | { classIds: string[]; classData: ClassFormData[] }) => {
+    if ('classIds' in result) {
+      // Multiple classes created
+      const type = 'create'
+      setSuccessMessage({ 
+        type, 
+        classId: result.classIds[0], // Use first ID for display
+        classData: result.classData[0] // Use first class data for display
+      })
+      setShowCreateForm(false)
+      setSelectedClass(null)
+    } else {
+      // Single class created/updated
+      const type = selectedClass ? 'update' : 'create'
+      setSuccessMessage({ type, ...result })
+      setShowCreateForm(false)
+      setSelectedClass(null)
+    }
   }
 
   const handleViewClass = (classData: ClassData) => {
@@ -488,6 +501,11 @@ export function ClassManagement() {
       {/* Create/Edit Class Dialog */}
       <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedClass ? "Edit Class" : "Create New Class"}
+            </DialogTitle>
+          </DialogHeader>
           <ClassForm 
             onSuccess={handleFormSuccess} 
             onCancel={() => {
@@ -524,9 +542,9 @@ export function ClassManagement() {
         <Dialog open={!!successMessage} onOpenChange={() => setSuccessMessage(null)}>
           <DialogContent className="max-w-md max-h-[85vh] overflow-hidden">
             <DialogHeader>
-              <DialogTitle>
-                {successMessage.type === 'create' ? 'Class Created Successfully!' : 'Class Updated Successfully!'}
-              </DialogTitle>
+                          <DialogTitle>
+              {successMessage.type === 'create' ? 'Class(es) Created Successfully!' : 'Class Updated Successfully!'}
+            </DialogTitle>
             </DialogHeader>
             <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2 text-center space-y-4">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">

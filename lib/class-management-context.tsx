@@ -175,12 +175,12 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
     setError(null)
 
     try {
-      // First, try to get classes with teacher information
+      // Get classes with teacher information using a proper join
       let { data, error: fetchError } = await supabase
         .from("classes")
         .select(`
           *,
-          teachers (
+          class_teacher:class_teacher_id(
             id,
             first_name,
             last_name,
@@ -189,25 +189,9 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         `)
         .order("created_at", { ascending: false })
 
-      // If the join fails, fall back to just getting classes without teacher info
-      if (fetchError && fetchError.message.includes('relationship')) {
-        console.warn("Teacher relationship not available, loading classes without teacher info:", fetchError.message)
-        const { data: classesOnly, error: classesError } = await supabase
-          .from("classes")
-          .select("*")
-          .order("created_at", { ascending: false })
-        
-        if (classesError) {
-          throw new Error(`Failed to load classes: ${classesError.message}`)
-        }
-        
-        data = classesOnly
-        fetchError = null
-      }
-
       if (fetchError) {
         console.error("Database error details:", fetchError)
-        throw new Error(`Failed to load classes: ${fetchError.message}`)
+        throw new Error(`Failed to load classes: ${fetchError.message || 'Unknown error'}`)
       }
 
       // Transform database data to match our interface
@@ -219,16 +203,37 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         branch: dbClass.stream || "grammar", // Default to grammar if stream is not set
         capacity: dbClass.capacity,
         currentEnrollment: dbClass.current_enrollment,
-        classTeacher: dbClass.teachers && dbClass.teachers.first_name && dbClass.teachers.last_name
-          ? `${dbClass.teachers.first_name} ${dbClass.teachers.last_name}`
-          : dbClass.class_teacher_id || "Not Assigned",
-        subjects: [], // We'll need to join with subjects table later
+        classTeacher: dbClass.class_teacher && dbClass.class_teacher.first_name && dbClass.class_teacher.last_name
+          ? `${dbClass.class_teacher.first_name} ${dbClass.class_teacher.last_name}`
+          : (dbClass.class_teacher_id ? "Teacher ID: " + dbClass.class_teacher_id : "Not Assigned"),
+        subjects: dbClass.subjects || [], // Subjects will be loaded separately
         schedule: [], // We'll need to implement schedule management later
         academicYear: dbClass.academic_year,
         status: dbClass.status,
         createdAt: dbClass.created_at,
         updatedAt: dbClass.updated_at,
       }))
+
+      // Load subjects for each class
+      for (const classData of transformedClasses) {
+        try {
+          const { data: subjectsData, error: subjectsError } = await supabase
+            .from("class_subjects")
+            .select("subject_name")
+            .eq("class_id", classData.id)
+            .eq("academic_year", classData.academicYear)
+
+          if (subjectsError) {
+            console.warn(`Warning: Failed to load subjects for class ${classData.name}:`, subjectsError.message)
+            classData.subjects = []
+          } else {
+            classData.subjects = subjectsData.map(s => s.subject_name)
+          }
+        } catch (err) {
+          console.warn(`Warning: Failed to load subjects for class ${classData.name}:`, err)
+          classData.subjects = []
+        }
+      }
 
       setClasses(transformedClasses)
       console.log("Loaded classes from database:", transformedClasses.length)
@@ -258,6 +263,22 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
           throw new Error("Database connection is required for class management. Please check your database configuration.")
         }
 
+        // Get the actual teacher UUID if a teacher is assigned
+        let teacherUuid = null
+        if (classData.classTeacher && classData.classTeacher !== "__global__") {
+          const { data: teacherData, error: teacherError } = await supabase
+            .from("teachers")
+            .select("id")
+            .eq("teacher_id", classData.classTeacher)
+            .single()
+
+          if (teacherError) {
+            console.warn("Warning: Failed to find teacher:", teacherError.message)
+          } else if (teacherData) {
+            teacherUuid = teacherData.id
+          }
+        }
+
         // Insert class into database
         const { data: newClass, error: insertError } = await supabase
           .from("classes")
@@ -269,7 +290,7 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
             academic_year: classData.academicYear,
             capacity: classData.capacity,
             current_enrollment: 0,
-            class_teacher_id: null, // We'll need to implement teacher assignment later
+            class_teacher_id: teacherUuid,
             status: "active",
           })
           .select()
@@ -277,6 +298,43 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
 
         if (insertError) {
           throw new Error(`Failed to create class: ${insertError.message}`)
+        }
+
+        // Insert subjects for this class
+        if (classData.subjects && classData.subjects.length > 0) {
+          const subjectRecords = classData.subjects.map(subject => ({
+            class_id: newClass.id,
+            subject_name: subject,
+            academic_year: classData.academicYear
+          }))
+
+          const { error: subjectsError } = await supabase
+            .from("class_subjects")
+            .insert(subjectRecords)
+
+          if (subjectsError) {
+            console.warn("Warning: Failed to save subjects for class:", subjectsError.message)
+            // Don't fail the entire operation if subjects fail to save
+          }
+        }
+
+        // Get teacher name if a teacher is assigned
+        let teacherName = "Not Assigned"
+        if (newClass.class_teacher_id) {
+          try {
+            const { data: teacherData } = await supabase
+              .from("teachers")
+              .select("first_name, last_name")
+              .eq("id", newClass.class_teacher_id)
+              .single()
+            
+            if (teacherData && teacherData.first_name && teacherData.last_name) {
+              teacherName = `${teacherData.first_name} ${teacherData.last_name}`
+            }
+          } catch (err) {
+            console.warn("Warning: Failed to fetch teacher name for new class:", err)
+            teacherName = "Teacher ID: " + newClass.class_teacher_id
+          }
         }
 
         // Transform the created class to match our interface
@@ -288,7 +346,7 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
           branch: newClass.stream || "grammar",
           capacity: newClass.capacity,
           currentEnrollment: newClass.current_enrollment,
-          classTeacher: newClass.class_teacher_id || "Not Assigned",
+          classTeacher: teacherName,
           subjects: classData.subjects,
           schedule: [],
           academicYear: newClass.academic_year,
@@ -324,6 +382,22 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
           throw new Error("Database connection is required for class management")
         }
 
+        // Get the actual teacher UUID if a teacher is being updated
+        let teacherUuid = undefined
+        if (classData.classTeacher && classData.classTeacher !== "__global__") {
+          const { data: teacherData, error: teacherError } = await supabase
+            .from("teachers")
+            .select("id")
+            .eq("teacher_id", classData.classTeacher)
+            .single()
+
+          if (teacherError) {
+            console.warn("Warning: Failed to find teacher for update:", teacherError.message)
+          } else if (teacherData) {
+            teacherUuid = teacherData.id
+          }
+        }
+
         const updateData: any = {}
         if (classData.name) updateData.class_name = classData.name
         if (classData.level) updateData.class_level = classData.level
@@ -331,7 +405,7 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         if (classData.subsystem) updateData.subsystem = classData.subsystem
         if (classData.academicYear) updateData.academic_year = classData.academicYear
         if (classData.capacity) updateData.capacity = classData.capacity
-        if (classData.subjects) updateData.subjects = classData.subjects
+        if (teacherUuid !== undefined) updateData.class_teacher_id = teacherUuid
         updateData.updated_at = new Date().toISOString()
 
         const { error: updateError } = await supabase
@@ -343,12 +417,75 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
           throw new Error(`Failed to update class: ${updateError.message}`)
         }
 
+        // Update subjects if provided
+        if (classData.subjects) {
+          // First, delete existing subjects for this class
+          const { error: deleteSubjectsError } = await supabase
+            .from("class_subjects")
+            .delete()
+            .eq("class_id", classId)
+
+          if (deleteSubjectsError) {
+            console.warn("Warning: Failed to delete existing subjects:", deleteSubjectsError.message)
+          }
+
+          // Then, insert new subjects
+          if (classData.subjects.length > 0) {
+            // Get the current academic year if not provided
+            let academicYear = classData.academicYear
+            if (!academicYear && supabase) {
+              const { data: currentClass } = await supabase
+                .from("classes")
+                .select("academic_year")
+                .eq("id", classId)
+                .single()
+              academicYear = currentClass?.academic_year
+            }
+
+            if (academicYear) {
+              const subjectRecords = classData.subjects.map(subject => ({
+                class_id: classId,
+                subject_name: subject,
+                academic_year: academicYear
+              }))
+
+              const { error: subjectsError } = await supabase
+                .from("class_subjects")
+                .insert(subjectRecords)
+
+              if (subjectsError) {
+                console.warn("Warning: Failed to update subjects for class:", subjectsError.message)
+              }
+            }
+          }
+        }
+
+        // Get updated teacher name if teacher was changed
+        let updatedTeacherName = undefined
+        if (teacherUuid !== undefined) {
+          try {
+            const { data: teacherData } = await supabase
+              .from("teachers")
+              .select("first_name, last_name")
+              .eq("id", teacherUuid)
+              .single()
+            
+            if (teacherData && teacherData.first_name && teacherData.last_name) {
+              updatedTeacherName = `${teacherData.first_name} ${teacherData.last_name}`
+            }
+          } catch (err) {
+            console.warn("Warning: Failed to fetch updated teacher name:", err)
+            updatedTeacherName = "Teacher ID: " + teacherUuid
+          }
+        }
+
         setClasses((prev) =>
           prev.map((cls) =>
             cls.id === classId
               ? {
                   ...cls,
                   ...classData,
+                  classTeacher: updatedTeacherName || cls.classTeacher,
                   updatedAt: new Date().toISOString().split("T")[0],
                 }
               : cls,
@@ -376,14 +513,25 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         throw new Error("Database connection is required for class management")
       }
 
-      const { error: deleteError } = await supabase
-        .from("classes")
-        .delete()
-        .eq("id", classId)
+              // First, delete associated subjects
+        const { error: deleteSubjectsError } = await supabase
+          .from("class_subjects")
+          .delete()
+          .eq("class_id", classId)
 
-      if (deleteError) {
-        throw new Error(`Failed to delete class: ${deleteError.message}`)
-      }
+        if (deleteSubjectsError) {
+          console.warn("Warning: Failed to delete class subjects:", deleteSubjectsError.message)
+        }
+
+        // Then delete the class
+        const { error: deleteError } = await supabase
+          .from("classes")
+          .delete()
+          .eq("id", classId)
+
+        if (deleteError) {
+          throw new Error(`Failed to delete class: ${deleteError.message}`)
+        }
 
       setClasses((prev) => prev.filter((cls) => cls.id !== classId))
       setIsLoading(false)
