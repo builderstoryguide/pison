@@ -108,7 +108,6 @@ export async function POST(request: NextRequest) {
           subsystem: adminClass.subsystem,
           branch: adminClass.stream || 'grammar',
           academic_year: adminClass.academic_year,
-          created_by: generatedBy || 'system',
           is_active: true
         })
         .select('id')
@@ -124,12 +123,31 @@ export async function POST(request: NextRequest) {
       timetableClassId = newTimetableClass.id;
     }
 
+    // Get a valid user ID for the generated_by parameter
+    let generatedByUserId = null;
+    if (generatedBy && generatedBy !== 'system' && generatedBy !== 'admin') {
+      // If generatedBy is a UUID, use it directly
+      generatedByUserId = generatedBy;
+    } else {
+      // Get the first admin user as a fallback
+      const { data: adminUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'admin')
+        .limit(1)
+        .single();
+      
+      if (adminUser) {
+        generatedByUserId = adminUser.id;
+      }
+    }
+
     // Generate timetable using the database function with custom parameters
     const generationParams: Record<string, any> = {
       p_class_id: timetableClassId,
       p_academic_year: academicYear,
       p_term: term,
-      p_generated_by: generatedBy || 'system'
+      p_generated_by: generatedByUserId
     };
     
     // Add custom parameters if provided

@@ -589,17 +589,24 @@ BEGIN
     VALUES ('automatic', p_class_id, p_generated_by, 'started')
     RETURNING id INTO v_generation_log_id;
     
-    -- Create new schedule
-    INSERT INTO timetable_schedules (name, academic_year, term, start_date, end_date, created_by)
-    VALUES (
-        'Auto-generated Schedule for Class ' || p_class_id,
-        p_academic_year,
-        p_term,
-        CURRENT_DATE,
-        CURRENT_DATE + INTERVAL '6 months',
-        p_generated_by
-    )
-    RETURNING id INTO v_schedule_id;
+    -- Check if schedule already exists for this academic year and term
+    SELECT id INTO v_schedule_id
+    FROM timetable_schedules
+    WHERE academic_year = p_academic_year AND term = p_term;
+    
+    -- If schedule doesn't exist, create new one
+    IF v_schedule_id IS NULL THEN
+        INSERT INTO timetable_schedules (name, academic_year, term, start_date, end_date, created_by)
+        VALUES (
+            'Auto-generated Schedule for ' || p_academic_year || ' - ' || p_term,
+            p_academic_year,
+            p_term,
+            CURRENT_DATE,
+            CURRENT_DATE + INTERVAL '6 months',
+            p_generated_by
+        )
+        RETURNING id INTO v_schedule_id;
+    END IF;
     
     -- Here you would implement the actual timetable generation algorithm
     -- This is a simplified version that creates basic periods

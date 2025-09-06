@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, Download, Calendar, Clock, MapPin, Users, BookOpen, Save, RefreshCw, AlertCircle, FileText, Eye, Printer, Settings, Trash2 as TrashIcon } from 'lucide-react'
+import { EnhancedBulkDeleteToolbar } from './enhanced-bulk-delete-toolbar'
+import { EnhancedTimetableSelection } from './enhanced-timetable-selection'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -631,36 +633,17 @@ export function TimetableManagement() {
             </div>
           )}
 
-          {/* Bulk Delete Toolbar */}
-          {selectedTimetables.size > 0 && (
-            <div className="flex items-center justify-between mb-4 p-3 bg-muted rounded-lg">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">
-                  {selectedTimetables.size} timetable{selectedTimetables.size !== 1 ? 's' : ''} selected
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleConfirmBulkDelete}
-                >
-                  <TrashIcon className="h-4 w-4 mr-2" />
-                  Delete Selected
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSelectedTimetables(new Set())
-                    setSelectAll(false)
-                  }}
-                >
-                  Clear Selection
-                </Button>
-              </div>
-            </div>
-          )}
+          {/* Enhanced Bulk Delete Toolbar */}
+          <EnhancedBulkDeleteToolbar
+            selectedTimetables={selectedTimetables}
+            classes={classes}
+            onDelete={handleBulkDelete}
+            onClearSelection={() => {
+              setSelectedTimetables(new Set())
+              setSelectAll(false)
+            }}
+            isDeleting={isLoading}
+          />
 
           {classes.length === 0 ? (
             <EmptyState 
@@ -983,18 +966,18 @@ export function TimetableManagement() {
             <AlertDialogDescription>
               Are you sure you want to generate timetables for {selectedClassesForGeneration.size} class{selectedClassesForGeneration.size !== 1 ? 'es' : ''}? 
               This will create new schedules for the selected classes.
-              {selectedClassesForGeneration.size > 0 && (
-                <div className="mt-2">
-                  <p className="font-medium text-sm">Selected classes:</p>
-                  <ul className="text-sm text-muted-foreground mt-1">
-                    {Array.from(selectedClassesForGeneration).map(classId => {
-                      const className = classes.find(c => c.id === classId)?.name
-                      return <li key={classId}>• {className}</li>
-                    })}
-                  </ul>
-                </div>
-              )}
             </AlertDialogDescription>
+            {selectedClassesForGeneration.size > 0 && (
+              <div className="mt-4">
+                <p className="font-medium text-sm mb-2">Selected classes:</p>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  {Array.from(selectedClassesForGeneration).map(classId => {
+                    const className = classes.find(c => c.id === classId)?.name
+                    return <li key={classId}>• {className}</li>
+                  })}
+                </ul>
+              </div>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isGenerating}>Cancel</AlertDialogCancel>
