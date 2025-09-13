@@ -58,7 +58,7 @@ async function setupUsersDatabase() {
     const { data: adminUser, error: adminError } = await supabase
       .from('users')
       .upsert({
-        email: 'admin@gbhs-yaounde.cm',
+        email: 'admin@pisonacademy.cm',
         password_hash: hashedPassword,
         name: 'System Administrator',
         role: 'admin',
@@ -76,7 +76,7 @@ async function setupUsersDatabase() {
       console.error('❌ Error creating admin user:', adminError);
     } else {
       console.log('✅ Default admin user created successfully');
-      console.log('📧 Email: admin@gbhs-yaounde.cm');
+      console.log('📧 Email: admin@pisonacademy.cm');
       console.log('🔑 Password: Admin@2024');
       console.log('⚠️  IMPORTANT: Change this password on first login!');
     }
@@ -86,7 +86,7 @@ async function setupUsersDatabase() {
     
     const sampleUsers = [
       {
-        email: 'teacher@gbhs-yaounde.cm',
+        email: 'teacher@pisonacademy.cm',
         password: 'Teacher@2024',
         name: 'Paul Biya Mbeki',
         role: 'teacher',
@@ -99,7 +99,7 @@ async function setupUsersDatabase() {
         permissions: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents']
       },
       {
-        email: 'student@gbhs-yaounde.cm',
+        email: 'student@pisonacademy.cm',
         password: 'Student@2024',
         name: 'Amina Fru',
         role: 'student',
@@ -114,7 +114,7 @@ async function setupUsersDatabase() {
         permissions: ['view_grades', 'view_schedule', 'submit_assignments', 'communicate_teachers']
       },
       {
-        email: 'parent@gbhs-yaounde.cm',
+        email: 'parent@pisonacademy.cm',
         password: 'Parent@2024',
         name: 'John Fru',
         role: 'parent',
@@ -125,7 +125,7 @@ async function setupUsersDatabase() {
         permissions: ['view_child_progress', 'communicate_teachers', 'view_financial_records']
       },
       {
-        email: 'bursar@gbhs-yaounde.cm',
+        email: 'bursar@pisonacademy.cm',
         password: 'Bursar@2024',
         name: 'Grace Tabi',
         role: 'bursar',
@@ -226,7 +226,7 @@ async function verifyDatabaseSetup() {
     const { data: adminUser, error: adminError } = await supabase
       .from('users')
       .select('id, email, role')
-      .eq('email', 'admin@gbhs-yaounde.cm')
+      .eq('email', 'admin@pisonacademy.cm')
       .single();
     
     if (adminError || !adminUser) {

@@ -32,7 +32,8 @@ import {
   Square,
   Filter
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+// Removed framer-motion import for compatibility
+import { TimetableStatusIndicator } from './timetable-status-indicator'
 
 interface TimetableClass {
   id: string
@@ -156,20 +157,15 @@ export function EnhancedTimetableSelection({
 
         {/* Timetables Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <AnimatePresence>
-            {filteredClasses.map((classData) => {
-              const isSelected = selectedTimetables.has(classData.id)
-              const stats = getClassStats(classData)
+          {filteredClasses.map((classData) => {
+            const isSelected = selectedTimetables.has(classData.id)
+            const stats = getClassStats(classData)
 
-              return (
-                <motion.div
-                  key={classData.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.2 }}
-                >
+            return (
+              <div
+                key={classData.id}
+                className="transition-all duration-200"
+              >
                   <Card 
                     className={`relative transition-all duration-200 hover:shadow-md ${
                       isSelected 
@@ -303,23 +299,18 @@ export function EnhancedTimetableSelection({
 
                       {/* Selection Indicator */}
                       {isSelected && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="mt-3 p-2 bg-red-100 dark:bg-red-900/30 rounded-md border border-red-200 dark:border-red-800"
-                        >
+                        <div className="mt-3 p-2 bg-red-100 dark:bg-red-900/30 rounded-md border border-red-200 dark:border-red-800 transition-all duration-200">
                           <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
                             <CheckSquare className="h-4 w-4" />
                             <span className="text-xs font-medium">Selected for deletion</span>
                           </div>
-                        </motion.div>
+                        </div>
                       )}
                     </CardContent>
                   </Card>
-                </motion.div>
+                </div>
               )
             })}
-          </AnimatePresence>
         </div>
 
         {filteredClasses.length === 0 && filterSubsystem !== 'all' && (

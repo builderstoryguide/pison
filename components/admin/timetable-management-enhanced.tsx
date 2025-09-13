@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, Download, Calendar, Clock, MapPin, User, Users, BookOpen, Save, RefreshCw, AlertCircle, FileText, Eye, Printer, Settings, Trash2 as TrashIcon, X } from 'lucide-react'
-import { EnhancedBulkDeleteToolbar } from './enhanced-bulk-delete-toolbar'
-import { EnhancedTimetableSelection } from './enhanced-timetable-selection'
+import { ImprovedBulkDeleteSystem } from './improved-bulk-delete-system'
+import { ModernTimetableCards } from './modern-timetable-cards'
+import { EnhancedTimetableView } from './enhanced-timetable-view'
+import { TimetableStatusIndicator } from './timetable-status-indicator'
+import { TimetableStatusBanner } from './timetable-status-banner'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -57,7 +60,7 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
-import { useTimetable } from '@/lib/timetable-context'
+import { useEnhancedTimetable } from '@/lib/enhanced-timetable-context'
 import { useToast } from '@/hooks/use-toast'
 // TimetableOptionsComponent import removed - component doesn't exist
 
@@ -79,6 +82,13 @@ interface TimetableClass {
   subsystem: string
   branch: string
   periods: TimetablePeriod[]
+  status: 'not_generated' | 'generating' | 'generated' | 'modified' | 'error'
+  lastGenerated?: string
+  lastModified?: string
+  generatedBy?: string
+  totalPeriods?: number
+  academicYear?: string
+  term?: string
 }
 
 interface TimetableGenerationOptions {
@@ -119,8 +129,12 @@ export function TimetableManagementEnhanced() {
     bulkDeleteTimetables,
     exportTimetable,
     refreshClasses,
-    loadClassesWithFilters
-  } = useTimetable()
+    loadClassesWithFilters,
+    createPeriod,
+    updatePeriod,
+    deletePeriod,
+    updateTimetableStatus
+  } = useEnhancedTimetable()
   
   const { toast } = useToast()
   
@@ -139,6 +153,11 @@ export function TimetableManagementEnhanced() {
   // Bulk selection state (for classes with timetables - for deletion)
   const [selectedTimetables, setSelectedTimetables] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
+
+  // Timetable viewing state
+  const [viewingTimetable, setViewingTimetable] = useState<TimetableClass | null>(null)
+  const [recentlyGenerated, setRecentlyGenerated] = useState<Set<string>>(new Set())
+  const [statusBanners, setStatusBanners] = useState<TimetableClass[]>([])
 
   // Empty state component
   const EmptyState = ({ message, description }: { message: string; description: string }) => (
@@ -165,15 +184,48 @@ export function TimetableManagementEnhanced() {
   // Handle timetable generation
   const handleGenerateTimetable = async (classId: string, options?: TimetableGenerationOptions) => {
     setIsGenerating(true)
+    
+    // Update status to generating
+    await updateTimetableStatus(classId, 'generating', { generatedBy: 'admin' })
+    
     try {
-      const result = await generateTimetable(classId, options)
+      const result = await generateTimetable(classId, '2024-2025', 'first', 'admin', options)
       if (result.success) {
-        toast.success("Timetable generated successfully")
+        // Update status to generated
+        await updateTimetableStatus(classId, 'generated', { 
+          generatedBy: 'admin',
+          lastModified: new Date().toISOString()
+        })
+        
+        // Add to recently generated set
+        setRecentlyGenerated(prev => new Set(prev).add(classId))
+        
+        // Refresh classes to get updated data
         await refreshClasses()
+        
+        // Find the generated class and add to status banners
+        const generatedClass = classes.find(c => c.id === classId)
+        if (generatedClass) {
+          const updatedClass = {
+            ...generatedClass,
+            status: 'generated' as const,
+            lastGenerated: new Date().toISOString(),
+            generatedBy: 'admin'
+          }
+          setStatusBanners(prev => [updatedClass, ...prev.filter(c => c.id !== classId)])
+        }
+        
+        toast.success("Timetable generated successfully", {
+          description: `${generatedClass?.name || 'Class'} timetable is now ready for use`
+        })
       } else {
+        // Update status to error
+        await updateTimetableStatus(classId, 'error', { generatedBy: 'admin' })
         toast.error("Failed to generate timetable", { description: result.error })
       }
     } catch (error) {
+      // Update status to error
+      await updateTimetableStatus(classId, 'error', { generatedBy: 'admin' })
       toast.error("An unexpected error occurred", { description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setIsGenerating(false)
@@ -287,7 +339,7 @@ export function TimetableManagementEnhanced() {
     setIsGenerating(true)
     try {
       const promises = Array.from(selectedClassesForGeneration).map(classId => 
-        generateTimetable(classId)
+        generateTimetable(classId, '2024-2025', 'first', 'admin')
       )
       
       const results = await Promise.allSettled(promises)
@@ -312,6 +364,77 @@ export function TimetableManagementEnhanced() {
 
   const handleConfirmBulkGeneration = () => {
     setIsGenerationDialogOpen(true)
+  }
+
+  // Enhanced timetable view handlers
+  const handleViewTimetable = (timetableClass: TimetableClass) => {
+    setViewingTimetable(timetableClass)
+  }
+
+  const handleCloseView = () => {
+    setViewingTimetable(null)
+  }
+
+  const handleCreatePeriod = async (period: Omit<TimetablePeriod, 'id'>) => {
+    if (!viewingTimetable) return { success: false, error: 'No timetable selected' }
+    
+    const result = await createPeriod(viewingTimetable.id, period)
+    if (result.success) {
+      await refreshClasses()
+      // Update the viewing timetable with the new data
+      const updatedClass = classes.find(c => c.id === viewingTimetable.id)
+      if (updatedClass) {
+        setViewingTimetable(updatedClass)
+      }
+    }
+    return result
+  }
+
+  const handleUpdatePeriod = async (periodId: string, updates: Partial<TimetablePeriod>) => {
+    if (!viewingTimetable) return { success: false, error: 'No timetable selected' }
+    
+    const result = await updatePeriod(viewingTimetable.id, periodId, updates)
+    if (result.success) {
+      await refreshClasses()
+      // Update the viewing timetable with the new data
+      const updatedClass = classes.find(c => c.id === viewingTimetable.id)
+      if (updatedClass) {
+        setViewingTimetable(updatedClass)
+      }
+    }
+    return result
+  }
+
+  const handleDeletePeriod = async (periodId: string) => {
+    if (!viewingTimetable) return { success: false, error: 'No timetable selected' }
+    
+    const result = await deletePeriod(viewingTimetable.id, periodId)
+    if (result.success) {
+      await refreshClasses()
+      // Update the viewing timetable with the new data
+      const updatedClass = classes.find(c => c.id === viewingTimetable.id)
+      if (updatedClass) {
+        setViewingTimetable(updatedClass)
+      }
+    }
+    return result
+  }
+
+  // Show enhanced timetable view if viewing a specific timetable
+  if (viewingTimetable) {
+    return (
+      <EnhancedTimetableView
+        timetableClass={viewingTimetable}
+        onClose={handleCloseView}
+        onUpdatePeriod={handleUpdatePeriod}
+        onCreatePeriod={handleCreatePeriod}
+        onDeletePeriod={handleDeletePeriod}
+        onRefresh={refreshClasses}
+        teachers={teachers}
+        rooms={rooms}
+        subjects={['Mathematics', 'English Language', 'Physics', 'Chemistry', 'Biology', 'History', 'Geography', 'French Language', 'Literature', 'Economics', 'Computer Science']}
+      />
+    )
   }
 
   if (isLoading) {
@@ -351,6 +474,28 @@ export function TimetableManagementEnhanced() {
           Refresh
         </Button>
       </div>
+
+      {/* Status Banners */}
+      {statusBanners.length > 0 && (
+        <div className="space-y-4">
+          {statusBanners.map((timetableClass) => (
+            <TimetableStatusBanner
+              key={timetableClass.id}
+              timetableClass={timetableClass}
+              onViewTimetable={() => handleViewTimetable(timetableClass)}
+              onDismiss={() => {
+                setStatusBanners(prev => prev.filter(c => c.id !== timetableClass.id))
+                setRecentlyGenerated(prev => {
+                  const newSet = new Set(prev)
+                  newSet.delete(timetableClass.id)
+                  return newSet
+                })
+              }}
+              showActions={true}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Filters */}
       <Card>
@@ -427,39 +572,36 @@ export function TimetableManagementEnhanced() {
         </div>
       )}
 
-      {/* Enhanced Bulk Delete Toolbar */}
-      <EnhancedBulkDeleteToolbar
-        selectedTimetables={selectedTimetables}
-        classes={classes}
-        onDelete={handleBulkDelete}
-        onClearSelection={() => {
-          setSelectedTimetables(new Set())
-          setSelectAll(false)
-        }}
-        isDeleting={isLoading}
-      />
+        {/* Improved Bulk Delete System */}
+        <ImprovedBulkDeleteSystem
+          classes={classes}
+          selectedTimetables={selectedTimetables}
+          onSelectTimetable={handleSelectTimetable}
+          onSelectAll={handleSelectAll}
+          onClearSelection={() => {
+            setSelectedTimetables(new Set())
+            setSelectAll(false)
+          }}
+          onDelete={handleBulkDelete}
+          selectAll={selectAll}
+          isDeleting={isLoading}
+        />
 
-      {/* Enhanced Timetable Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Timetable Selection</CardTitle>
-          <CardDescription>
-            Select timetables for bulk operations or view individual timetables
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <EnhancedTimetableSelection
-            classes={classes}
-            selectedTimetables={selectedTimetables}
-            onSelectTimetable={handleSelectTimetable}
-            onSelectAll={handleSelectAll}
-            selectAll={selectAll}
-            onViewTimetable={setSelectedClass}
-            onDeleteTimetable={handleDeleteTimetable}
-            onExportTimetable={handleExportTimetable}
-          />
-        </CardContent>
-      </Card>
+      {/* Modern Timetable Cards */}
+      <ModernTimetableCards
+        classes={classes}
+        selectedTimetables={selectedTimetables}
+        onSelectTimetable={handleSelectTimetable}
+        onViewTimetable={(classId) => {
+          const timetableClass = classes.find(c => c.id === classId)
+          if (timetableClass) {
+            handleViewTimetable(timetableClass)
+          }
+        }}
+        onDeleteTimetable={handleDeleteTimetable}
+        onExportTimetable={handleExportTimetable}
+        showOnlyWithTimetables={true}
+      />
 
       {/* Classes without timetables - Generation Section */}
       {classes.filter(c => c.periods.length === 0).length > 0 && (

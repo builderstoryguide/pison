@@ -164,7 +164,7 @@ export function EnhancedTimetableProvider({ children }: { children: React.ReactN
       if (filters.branch && filters.branch !== 'all') params.append('branch', filters.branch)
       if (filters.academicYear) params.append('academicYear', filters.academicYear)
 
-      const response = await fetch(`/api/timetable/admin-classes?${params}`)
+      const response = await fetch(`/api/timetable/enhanced-classes?${params}`)
       const result = await response.json()
 
       if (!response.ok) {
@@ -172,24 +172,7 @@ export function EnhancedTimetableProvider({ children }: { children: React.ReactN
       }
 
       if (result.success && result.classes) {
-        // Transform API response to include status
-        const transformedClasses: TimetableClass[] = result.classes.map((cls: any) => ({
-          id: cls.id,
-          name: cls.class_name || cls.name,
-          level: cls.class_level || cls.level,
-          subsystem: cls.subsystem,
-          branch: cls.stream || cls.branch,
-          periods: cls.periods || [],
-          status: cls.periods && cls.periods.length > 0 ? 'generated' : 'not_generated',
-          lastGenerated: cls.last_generated,
-          lastModified: cls.last_modified,
-          generatedBy: cls.generated_by,
-          totalPeriods: cls.periods ? cls.periods.length : 0,
-          academicYear: cls.academic_year,
-          term: cls.term
-        }))
-
-        setClasses(transformedClasses)
+        setClasses(result.classes)
       } else {
         setClasses([])
       }
@@ -274,22 +257,34 @@ export function EnhancedTimetableProvider({ children }: { children: React.ReactN
           ? { 
               ...cls, 
               status,
-              lastModified: metadata?.lastModified || cls.lastModified,
+              lastModified: metadata?.lastModified || new Date().toISOString(),
               generatedBy: metadata?.generatedBy || cls.generatedBy
             }
           : cls
       ))
 
-      // In a real implementation, you would also update the database
-      // const response = await fetch(`/api/timetable/status`, {
-      //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ classId, status, ...metadata })
-      // })
+      // Update the database
+      const response = await fetch(`/api/timetable/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          classId, 
+          status, 
+          lastModified: metadata?.lastModified || new Date().toISOString(),
+          generatedBy: metadata?.generatedBy
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update status')
+      }
 
       return { success: true }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update status'
+      console.error('Error updating timetable status:', err)
       return { success: false, error: errorMessage }
     }
   }, [])

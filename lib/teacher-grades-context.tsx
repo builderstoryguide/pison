@@ -164,7 +164,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     {
       id: "student-1",
       name: "Marie Ngozi",
-      email: "marie.ngozi@student.gbhs.cm",
+      email: "marie.ngozi@student.pisonacademy.cm",
       studentId: "STU001",
       classId: "class-1",
       className: "Form 5A",
@@ -172,7 +172,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     {
       id: "student-2",
       name: "Jean Kamga",
-      email: "jean.kamga@student.gbhs.cm",
+      email: "jean.kamga@student.pisonacademy.cm",
       studentId: "STU002",
       classId: "class-1",
       className: "Form 5A",
@@ -180,7 +180,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     {
       id: "student-3",
       name: "Fatima Bello",
-      email: "fatima.bello@student.gbhs.cm",
+      email: "fatima.bello@student.pisonacademy.cm",
       studentId: "STU003",
       classId: "class-2",
       className: "Form 6B",

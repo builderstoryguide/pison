@@ -49,14 +49,20 @@ class ErrorBoundaryClass extends React.Component<ErrorBoundaryProps, ErrorBounda
       errorInfo,
     })
 
-    // Log error details to console
-    console.error('🚨 Error Boundary Caught Error:', {
+    // Enhanced error logging with better error handling
+    const errorDetails = {
       errorId: this.state.errorId,
-      error: error.message,
-      stack: error.stack,
-      componentStack: errorInfo.componentStack,
+      error: {
+        message: error?.message || 'Unknown error',
+        name: error?.name || 'Error',
+        stack: error?.stack || 'No stack trace available',
+      },
+      componentStack: errorInfo?.componentStack || 'No component stack available',
       timestamp: new Date().toISOString(),
-    })
+    }
+
+    // Log error details to console
+    console.error('🚨 Error Boundary Caught Error:', errorDetails)
 
     // Call custom error handler if provided
     this.props.onError?.(error, errorInfo)

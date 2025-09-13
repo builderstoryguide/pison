@@ -31,7 +31,7 @@ RESEND_API_KEY=re_your_api_key_here
 For production use, you should verify your domain with Resend:
 
 1. Go to the Domains section in your Resend dashboard
-2. Add your domain (e.g., `gbhs-yaounde.cm`)
+2. Add your domain (e.g., `pisonacademy.cm`)
 3. Follow the DNS verification instructions
 4. Update the `from` email address in `lib/email-service.ts` to use your verified domain
 

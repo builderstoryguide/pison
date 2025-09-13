@@ -136,7 +136,7 @@ INSERT INTO users (
     has_default_password,
     created_by
 ) VALUES (
-    'admin@gbhs-yaounde.cm',
+    'admin@pisonacademy.cm',
     '$2b$10$default.hash.placeholder', -- Replace with actual bcrypt hash
     'System Administrator',
     'admin',

@@ -287,7 +287,7 @@ function AppSidebar({
               <School className="size-4" />
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">GBHS Yaoundé</span>
+              <span className="truncate font-semibold">Pison Academy</span>
               <span className="truncate text-xs capitalize">{user.role} Portal</span>
             </div>
           </div>

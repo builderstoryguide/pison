@@ -10,9 +10,9 @@ import "react-initials-avatar/lib/ReactInitialsAvatar.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "School Management System",
-  description: "Comprehensive school management system for Cameroon schools",
-    generator: 'v0.app'
+  title: "Pison School Management System",
+  description: "Comprehensive school management system for Pison Academy of Excellence",
+    generator: 'Cyrille Kuete'
 }
 
 export default function RootLayout({

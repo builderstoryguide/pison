@@ -13,7 +13,6 @@ import {
   XCircle,
   AlertCircle,
   UserCheck,
-  BarChart3,
   FileText,
   Edit,
 } from "lucide-react"
@@ -261,14 +260,6 @@ export function AttendanceManagement() {
           <TabsTrigger value="students" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Student Summary
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Analytics
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Reports
           </TabsTrigger>
         </TabsList>
 
@@ -546,107 +537,7 @@ export function AttendanceManagement() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Attendance Trends</CardTitle>
-                <CardDescription>Weekly attendance patterns</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Present Rate</span>
-                    <span className="text-sm font-medium text-green-600">
-                      {attendanceStats.presentRate.toFixed(1)}%
-                    </span>
-                  </div>
-                  <Progress value={attendanceStats.presentRate} className="h-2" />
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Late Rate</span>
-                    <span className="text-sm font-medium text-yellow-600">{attendanceStats.lateRate.toFixed(1)}%</span>
-                  </div>
-                  <Progress value={attendanceStats.lateRate} className="h-2" />
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Absent Rate</span>
-                    <span className="text-sm font-medium text-red-600">{attendanceStats.absentRate.toFixed(1)}%</span>
-                  </div>
-                  <Progress value={attendanceStats.absentRate} className="h-2" />
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Excused Rate</span>
-                    <span className="text-sm font-medium text-blue-600">{attendanceStats.excusedRate.toFixed(1)}%</span>
-                  </div>
-                  <Progress value={attendanceStats.excusedRate} className="h-2" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Class Performance</CardTitle>
-                <CardDescription>Attendance by class</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {classes.slice(1).map((cls) => {
-                    const classAttendance = Math.random() * 20 + 80 // Mock data
-                    return (
-                      <div key={cls.id} className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium">{cls.name}</span>
-                          <span className={`text-sm ${getAttendanceStatusColor(classAttendance)}`}>
-                            {classAttendance.toFixed(1)}%
-                          </span>
-                        </div>
-                        <Progress value={classAttendance} className="h-2" />
-                      </div>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="reports" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Generate Reports</CardTitle>
-              <CardDescription>Create detailed attendance reports</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Button variant="outline" className="h-24 flex flex-col gap-2 bg-transparent">
-                  <FileText className="h-6 w-6" />
-                  <span>Daily Report</span>
-                </Button>
-                <Button variant="outline" className="h-24 flex flex-col gap-2 bg-transparent">
-                  <FileText className="h-6 w-6" />
-                  <span>Weekly Report</span>
-                </Button>
-                <Button variant="outline" className="h-24 flex flex-col gap-2 bg-transparent">
-                  <FileText className="h-6 w-6" />
-                  <span>Monthly Report</span>
-                </Button>
-                <Button variant="outline" className="h-24 flex flex-col gap-2 bg-transparent">
-                  <FileText className="h-6 w-6" />
-                  <span>Student Report</span>
-                </Button>
-                <Button variant="outline" className="h-24 flex flex-col gap-2 bg-transparent">
-                  <FileText className="h-6 w-6" />
-                  <span>Class Report</span>
-                </Button>
-                <Button variant="outline" className="h-24 flex flex-col gap-2 bg-transparent">
-                  <FileText className="h-6 w-6" />
-                  <span>Custom Report</span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        
       </Tabs>
     </div>
   )

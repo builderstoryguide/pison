@@ -228,6 +228,44 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       const userProfile = mockProfiles[user.id]
       if (userProfile) {
         setProfile(userProfile)
+      } else {
+        // Create a default profile for users not in mock data
+        const defaultProfile: ProfileData = {
+          id: user.id,
+          name: user.name || 'Unknown User',
+          email: user.email || '',
+          role: user.role || 'admin',
+          avatar: user.avatar || '/placeholder-user.jpg',
+          phone: user.phone || '',
+          address: user.address || '',
+          dateOfBirth: user.dateOfBirth || '',
+          gender: user.gender || 'male',
+          bio: user.bio || '',
+          emergencyContact: {
+            name: '',
+            phone: '',
+            relationship: '',
+          },
+          preferences: {
+            notifications: {
+              email: true,
+              sms: true,
+              push: true,
+              grades: true,
+              attendance: true,
+              fees: true,
+              announcements: true,
+              messages: true,
+            },
+            language: 'en',
+            theme: 'light',
+            timezone: 'Africa/Douala',
+          },
+          lastUpdated: new Date().toISOString(),
+        }
+        setProfile(defaultProfile)
+        // Store in mock data for future use
+        mockProfiles[user.id] = defaultProfile
       }
     }
   }, [user])

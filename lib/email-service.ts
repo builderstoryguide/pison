@@ -33,7 +33,7 @@ export class EmailService {
       // Send combined email to student
       if (data.studentEmail) {
         await resend.emails.send({
-          from: 'Government Bilingual High School <noreply@gbhs-yaounde.cm>',
+          from: 'Pison Academy <noreply@pisonacademy.cm>',
           to: [data.studentEmail],
           subject: 'Welcome to Government Bilingual High School Yaoundé',
           html: this.generateStudentWelcomeEmail(data),
@@ -43,7 +43,7 @@ export class EmailService {
       // Send combined email to parent as well
       if (data.parentEmail) {
         await resend.emails.send({
-          from: 'Government Bilingual High School <noreply@gbhs-yaounde.cm>',
+          from: 'Pison Academy <noreply@pisonacademy.cm>',
           to: [data.parentEmail],
           subject: 'Welcome to Government Bilingual High School Yaoundé',
           html: this.generateStudentWelcomeEmail(data),

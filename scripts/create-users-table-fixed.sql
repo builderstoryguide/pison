@@ -170,7 +170,7 @@ INSERT INTO users (
     has_default_password,
     created_by
 ) VALUES (
-    'admin@gbhs-yaounde.cm',
+    'admin@pisonacademy.cm',
     '$2b$10$default.hash.placeholder', -- This should be replaced with actual hash
     'System Administrator',
     'admin',

@@ -63,6 +63,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { UserAvatar } from "@/components/ui/user-avatar"
+import { SchoolBranding } from "@/components/ui/school-branding"
 import { Separator } from "@/components/ui/separator"
 
 // Icons
@@ -183,7 +184,7 @@ function SiteHeader({ user, onProfileClick, onLogout }: {
               <User className="mr-2 h-4 w-4" />
               <span>Profile Settings</span>
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={onProfileClick}>
               <Settings className="mr-2 h-4 w-4" />
               <span>Account Settings</span>
             </DropdownMenuItem>
@@ -282,15 +283,11 @@ function AppSidebar({
     <Sidebar className="border-r">
       <SidebarHeader>
         <SidebarHeaderTitle>
-          <div className="flex items-center gap-2">
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <School className="size-4" />
-            </div>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-semibold">GBHS Yaoundé</span>
-              <span className="truncate text-xs capitalize">{user.role} Portal</span>
-            </div>
-          </div>
+          <SchoolBranding 
+            showSubtitle={true}
+            subtitle={`${user.role.charAt(0).toUpperCase() + user.role.slice(1)} Portal`}
+            collapsed={false}
+          />
         </SidebarHeaderTitle>
       </SidebarHeader>
       <SidebarContent>

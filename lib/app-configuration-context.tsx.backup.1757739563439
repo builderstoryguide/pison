@@ -1,0 +1,275 @@
+"use client"
+
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { useAuth } from './auth-context'
+
+export interface AppConfiguration {
+  id: string | null
+  school_name: string
+  school_logo_url: string | null
+  school_logo_alt_text: string
+  school_address: string | null
+  school_phone: string | null
+  school_email: string | null
+  school_website: string | null
+  school_motto: string | null
+  primary_color: string
+  secondary_color: string
+  academic_year: string
+  currency: string
+  timezone: string
+  language: string
+  date_format: string
+  time_format: string
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  updated_by: string | null
+}
+
+interface AppConfigurationContextType {
+  configuration: AppConfiguration | null
+  isLoading: boolean
+  error: string | null
+  updateConfiguration: (config: Partial<AppConfiguration>) => Promise<boolean>
+  resetConfiguration: () => Promise<boolean>
+  uploadLogo: (file: File) => Promise<string | null>
+  deleteLogo: (fileName: string) => Promise<boolean>
+  refreshConfiguration: () => Promise<void>
+}
+
+const AppConfigurationContext = createContext<AppConfigurationContextType | undefined>(undefined)
+
+interface AppConfigurationProviderProps {
+  children: ReactNode
+}
+
+export function AppConfigurationProvider({ children }: AppConfigurationProviderProps) {
+  const [configuration, setConfiguration] = useState<AppConfiguration | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
+
+  // Default configuration fallback
+  const defaultConfiguration: AppConfiguration = {
+    id: null,
+    school_name: 'Pison Academy',
+    school_logo_url: '/placeholder-logo.svg',
+    school_logo_alt_text: 'School Logo',
+    school_address: '',
+    school_phone: '',
+    school_email: '',
+    school_website: '',
+    school_motto: '',
+    primary_color: '#1f2937',
+    secondary_color: '#3b82f6',
+    academic_year: '2024-2025',
+    currency: 'XOF',
+    timezone: 'Africa/Douala',
+    language: 'en',
+    date_format: 'DD/MM/YYYY',
+    time_format: '24h',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    created_by: null,
+    updated_by: null
+  }
+
+  // Fetch configuration from API
+  const fetchConfiguration = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      const response = await fetch('/api/configuration', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch configuration')
+      }
+
+      const data = await response.json()
+      setConfiguration(data.configuration || defaultConfiguration)
+    } catch (err) {
+      console.error('Error fetching app configuration:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch configuration')
+      setConfiguration(defaultConfiguration)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Update configuration
+  const updateConfiguration = async (config: Partial<AppConfiguration>): Promise<boolean> => {
+    try {
+      setError(null)
+
+      const response = await fetch('/api/configuration', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(config),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update configuration')
+      }
+
+      const data = await response.json()
+      setConfiguration(data.configuration)
+      return true
+    } catch (err) {
+      console.error('Error updating app configuration:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update configuration')
+      return false
+    }
+  }
+
+  // Reset configuration to defaults
+  const resetConfiguration = async (): Promise<boolean> => {
+    try {
+      setError(null)
+
+      const response = await fetch('/api/configuration', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'reset' }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to reset configuration')
+      }
+
+      const data = await response.json()
+      setConfiguration(data.configuration)
+      return true
+    } catch (err) {
+      console.error('Error resetting app configuration:', err)
+      setError(err instanceof Error ? err.message : 'Failed to reset configuration')
+      return false
+    }
+  }
+
+  // Upload logo
+  const uploadLogo = async (file: File): Promise<string | null> => {
+    try {
+      setError(null)
+
+      const formData = new FormData()
+      formData.append('logo', file)
+
+      const response = await fetch('/api/configuration/upload-logo', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to upload logo')
+      }
+
+      const data = await response.json()
+      return data.logoUrl
+    } catch (err) {
+      console.error('Error uploading logo:', err)
+      setError(err instanceof Error ? err.message : 'Failed to upload logo')
+      return null
+    }
+  }
+
+  // Delete logo
+  const deleteLogo = async (fileName: string): Promise<boolean> => {
+    try {
+      setError(null)
+
+      const response = await fetch(`/api/configuration/upload-logo?fileName=${encodeURIComponent(fileName)}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete logo')
+      }
+
+      return true
+    } catch (err) {
+      console.error('Error deleting logo:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete logo')
+      return false
+    }
+  }
+
+  // Refresh configuration
+  const refreshConfiguration = async () => {
+    await fetchConfiguration()
+  }
+
+  // Load configuration when user is authenticated
+  useEffect(() => {
+    if (user) {
+      fetchConfiguration()
+    } else {
+      setConfiguration(defaultConfiguration)
+      setIsLoading(false)
+    }
+  }, [user])
+
+  const value: AppConfigurationContextType = {
+    configuration,
+    isLoading,
+    error,
+    updateConfiguration,
+    resetConfiguration,
+    uploadLogo,
+    deleteLogo,
+    refreshConfiguration,
+  }
+
+  return (
+    <AppConfigurationContext.Provider value={value}>
+      {children}
+    </AppConfigurationContext.Provider>
+  )
+}
+
+// Custom hook to use the app configuration context
+export function useAppConfiguration() {
+  const context = useContext(AppConfigurationContext)
+  if (context === undefined) {
+    throw new Error('useAppConfiguration must be used within an AppConfigurationProvider')
+  }
+  return context
+}
+
+// Helper hook to get school name
+export function useSchoolName() {
+  const { configuration } = useAppConfiguration()
+  return configuration?.school_name || 'Pison Academy'
+}
+
+// Helper hook to get school logo
+export function useSchoolLogo() {
+  const { configuration } = useAppConfiguration()
+  return {
+    url: configuration?.school_logo_url || '/placeholder-logo.svg',
+    alt: configuration?.school_logo_alt_text || 'School Logo'
+  }
+}
+
+// Helper hook to get theme colors
+export function useThemeColors() {
+  const { configuration } = useAppConfiguration()
+  return {
+    primary: configuration?.primary_color || '#1f2937',
+    secondary: configuration?.secondary_color || '#3b82f6'
+  }
+}

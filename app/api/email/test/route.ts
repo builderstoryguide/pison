@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     // Send test email
     const result = await resend.emails.send({
-      from: 'Government Bilingual High School <noreply@gbhs-yaounde.cm>',
+      from: 'Pison Academy <noreply@pisonacademy.cm>',
       to: [testEmail],
       subject: 'Email Service Test - School Management System',
       html: testEmailContent,

@@ -175,53 +175,63 @@ export function ReportsAnalyticsManagement() {
     const statusColorClass = statusColors[report.status]
 
     return (
-      <div key={report.id} className="flex items-center justify-between p-4 border rounded-lg">
-        <div className="flex items-center gap-4">
-          <div className="p-2 bg-gray-100 rounded-lg">
-            <FileText className="h-5 w-5 text-gray-600" />
-          </div>
-          <div>
-            <h4 className="font-medium">{report.title}</h4>
-            <p className="text-sm text-muted-foreground">{report.templateName}</p>
-            <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-              <span>Generated: {new Date(report.generatedAt).toLocaleString()}</span>
-              <span>By: {report.generatedBy}</span>
-              {report.fileSize && <span>Size: {report.fileSize}</span>}
+      <Card key={report.id} className="hover:shadow-md transition-shadow">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-4 min-w-0">
+              <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-base truncate">{report.title}</h4>
+                <p className="text-sm text-muted-foreground mt-1 truncate">{report.templateName}</p>
+                <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3 flex-shrink-0" />
+                    <span className="truncate">{new Date(report.generatedAt).toLocaleString()}</span>
+                  </span>
+                  <span className="truncate">By: {report.generatedBy}</span>
+                  {report.fileSize && <span className="truncate">Size: {report.fileSize}</span>}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <Badge className={`${statusColorClass} capitalize text-xs`}>
+                <StatusIcon className="h-3 w-3 mr-1" />
+                <span className="hidden sm:inline">{report.status}</span>
+              </Badge>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {report.status === "completed" && (
+                    <DropdownMenuItem onClick={() => downloadReport(report.id)}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Report
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem>
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => setReportToDelete(report.id)} 
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Report
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Badge className={statusColorClass}>
-            <StatusIcon className="h-3 w-3 mr-1" />
-            {report.status}
-          </Badge>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {report.status === "completed" && (
-                <DropdownMenuItem onClick={() => downloadReport(report.id)}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem>
-                <Eye className="h-4 w-4 mr-2" />
-                View Details
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setReportToDelete(report.id)} className="text-red-600">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     )
   }
 

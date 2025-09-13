@@ -111,14 +111,21 @@ export function AnalyticsDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Analytics Dashboard</h2>
-          <p className="text-muted-foreground">Real-time insights and performance metrics</p>
+          <p className="text-muted-foreground">Key metrics and insights for your school</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        </div>
+        <Button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          variant="outline"
+          size="sm"
+        >
+          {isRefreshing ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
+          {isRefreshing ? "Refreshing..." : "Refresh"}
+        </Button>
       </div>
 
       {/* Filters */}
@@ -126,11 +133,14 @@ export function AnalyticsDashboard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
-            Filters
+            Filters & Controls
           </CardTitle>
+          <CardDescription>
+            Customize your analytics view by selecting categories and time periods
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Category</label>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
@@ -166,7 +176,9 @@ export function AnalyticsDashboard() {
       </Card>
 
       {/* Metrics Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{filteredMetrics.map(renderMetricCard)}</div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {filteredMetrics.map(renderMetricCard)}
+      </div>
 
       {/* Performance Summary */}
       <Card>

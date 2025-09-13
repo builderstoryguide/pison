@@ -136,7 +136,7 @@ node scripts/setup-users-database.js verify
 ### 3. Default Admin User
 
 The setup creates a default admin user:
-- **Email**: admin@gbhs-yaounde.cm
+- **Email**: admin@pisonacademy.cm
 - **Password**: Admin@2024
 - **Role**: admin
 - **Permissions**: all
@@ -316,7 +316,7 @@ const response = await fetch('/api/users', {
   },
   body: JSON.stringify({
     name: 'Jane Smith',
-    email: 'jane.smith@gbhs-yaounde.cm',
+    email: 'jane.smith@pisonacademy.cm',
     role: 'teacher',
     phone: '+237 677 234 567',
     address: 'Douala, Cameroon',

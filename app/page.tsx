@@ -1,5 +1,6 @@
 "use client"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
+import { AppConfigurationProvider } from '@/lib/app-configuration-context-v2'
 import { UserManagementProvider } from "@/lib/user-management-context"
 import { StudentEnrollmentProvider } from "@/lib/student-enrollment-context"
 import { StudentManagementProvider } from "@/lib/student-management-context"
@@ -30,8 +31,9 @@ function AppContent() {
   }
 
   return (
-    <NotificationProvider>
-      <UserManagementProvider>
+    <AppConfigurationProvider>
+      <NotificationProvider>
+        <UserManagementProvider>
         <StudentEnrollmentProvider>
           <StudentManagementProvider>
             <TeacherManagementProvider>
@@ -57,6 +59,7 @@ function AppContent() {
         </StudentEnrollmentProvider>
       </UserManagementProvider>
     </NotificationProvider>
+    </AppConfigurationProvider>
   )
 }
 

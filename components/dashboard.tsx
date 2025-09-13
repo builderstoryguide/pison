@@ -38,6 +38,7 @@ import { TimetableManagement } from "./admin/timetable-management"
 import { FinancialManagement } from "./admin/financial-management"
 import { AttendanceManagement } from "./admin/attendance-management"
 import { ReportsAnalyticsManagement } from "./admin/reports-analytics-management"
+import { AppConfiguration } from "./admin/app-configuration"
 import { ProfileSettings } from "./profile/profile-settings"
 import { BursarProfile } from "./bursar/bursar-profile"
 import { RecentActivities } from "./admin/recent-activities"
@@ -102,6 +103,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserAvatar } from "@/components/ui/user-avatar"
+import { SchoolBranding } from "@/components/ui/school-branding"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -150,6 +152,7 @@ type AdminView =
   | "financial"
   | "attendance"
   | "reports"
+  | "configuration"
   | "profile"
   | "reports-analytics"
   | "reports-academic-performance"
@@ -327,7 +330,7 @@ function UserProfileDropdown({
           <User className="mr-2 h-4 w-4" />
           <span>Profile Settings</span>
         </DropdownMenuItem>
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={onProfileClick}>
           <Settings className="mr-2 h-4 w-4" />
           <span>Account Settings</span>
         </DropdownMenuItem>
@@ -554,17 +557,11 @@ export function Dashboard() {
           >
             <SidebarHeader>
               <SidebarHeaderTitle>
-                <div className="flex items-center gap-2">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <School className="size-4" />
-                  </div>
-                  {!sidebarCollapsed && (
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">GBHS Yaoundé</span>
-                      <span className="truncate text-xs">Parent Portal</span>
-                    </div>
-                  )}
-                </div>
+                <SchoolBranding 
+                  showSubtitle={true}
+                  subtitle="Parent Portal"
+                  collapsed={sidebarCollapsed}
+                />
               </SidebarHeaderTitle>
             </SidebarHeader>
             <SidebarContent>
@@ -699,17 +696,11 @@ export function Dashboard() {
           >
             <SidebarHeader>
               <SidebarHeaderTitle>
-                <div className="flex items-center gap-2">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                    <School className="size-4" />
-                  </div>
-                  {!sidebarCollapsed && (
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">GBHS Yaoundé</span>
-                      <span className="truncate text-xs">Student Portal</span>
-                    </div>
-                  )}
-                </div>
+                <SchoolBranding 
+                  showSubtitle={true}
+                  subtitle="Student Portal"
+                  collapsed={sidebarCollapsed}
+                />
               </SidebarHeaderTitle>
             </SidebarHeader>
             <SidebarContent>
@@ -809,6 +800,7 @@ export function Dashboard() {
       { id: "examinations", label: "Examinations", icon: FileText },
       { id: "financial", label: "Financial Management", icon: DollarSign },
       { id: "attendance", label: "Attendance", icon: Calendar },
+      { id: "configuration", label: "App Configuration", icon: Settings },
     ]
 
     const reportsSubItems = [
@@ -847,6 +839,8 @@ export function Dashboard() {
           return <FinancialManagement />
         case "attendance":
           return <AttendanceManagement />
+        case "configuration":
+          return <AppConfiguration />
         case "reports":
         case "reports-analytics":
           return <AnalyticsDashboard />
@@ -884,17 +878,11 @@ export function Dashboard() {
                             >
                               <SidebarHeader>
                                 <SidebarHeaderTitle>
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                                      <School className="size-4" />
-                                    </div>
-                                    {!sidebarCollapsed && (
-                                      <div className="grid flex-1 text-left text-sm leading-tight">
-                                        <span className="truncate font-semibold">GBHS Yaoundé</span>
-                                        <span className="truncate text-xs">Admin Panel</span>
-                                      </div>
-                                    )}
-                                  </div>
+                                  <SchoolBranding 
+                                    showSubtitle={true}
+                                    subtitle="Admin Panel"
+                                    collapsed={sidebarCollapsed}
+                                  />
                                 </SidebarHeaderTitle>
                               </SidebarHeader>
                               <SidebarContent>
@@ -1062,17 +1050,11 @@ export function Dashboard() {
                 >
                   <SidebarHeader>
                     <SidebarHeaderTitle>
-                      <div className="flex items-center gap-2">
-                        <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                          <School className="size-4" />
-                        </div>
-                        {!sidebarCollapsed && (
-                          <div className="grid flex-1 text-left text-sm leading-tight">
-                            <span className="truncate font-semibold">GBHS Yaoundé</span>
-                            <span className="truncate text-xs">Teacher Portal</span>
-                          </div>
-                        )}
-                      </div>
+                      <SchoolBranding 
+                        showSubtitle={true}
+                        subtitle="Teacher Portal"
+                        collapsed={sidebarCollapsed}
+                      />
                     </SidebarHeaderTitle>
                   </SidebarHeader>
                   <SidebarContent>
@@ -1203,17 +1185,11 @@ export function Dashboard() {
             >
               <SidebarHeader>
                 <SidebarHeaderTitle>
-                  <div className="flex items-center gap-2">
-                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                      <School className="size-4" />
-                    </div>
-                    {!sidebarCollapsed && (
-                      <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-semibold">GBHS Yaoundé</span>
-                        <span className="truncate text-xs">Bursar Portal</span>
-                      </div>
-                    )}
-                  </div>
+                  <SchoolBranding 
+                    showSubtitle={true}
+                    subtitle="Bursar Portal"
+                    collapsed={sidebarCollapsed}
+                  />
                 </SidebarHeaderTitle>
               </SidebarHeader>
               <SidebarContent>
