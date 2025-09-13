@@ -62,6 +62,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { useEnhancedTimetable } from '@/lib/enhanced-timetable-context'
 import { useToast } from '@/hooks/use-toast'
+import { ShimmerTimetableGrid, ShimmerList } from '@/components/ui/shimmer-loading'
 // TimetableOptionsComponent import removed - component doesn't exist
 
 // Types
@@ -439,9 +440,46 @@ export function TimetableManagementEnhanced() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <RefreshCw className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading timetables...</span>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Enhanced Timetable Management</h1>
+          <p className="text-muted-foreground">Advanced timetable generation and management system</p>
+        </div>
+        
+        {/* Shimmer for filters */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Filters</CardTitle>
+            <CardDescription>Filter classes by subsystem and branch</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <div className="h-4 w-16 bg-muted rounded animate-pulse"></div>
+                <div className="h-10 w-full bg-muted rounded animate-pulse"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 w-16 bg-muted rounded animate-pulse"></div>
+                <div className="h-10 w-full bg-muted rounded animate-pulse"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 w-16 bg-muted rounded animate-pulse"></div>
+                <div className="h-10 w-full bg-muted rounded animate-pulse"></div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Shimmer for timetable list */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Available Classes</CardTitle>
+            <CardDescription>Select a class to generate or view its timetable</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ShimmerList items={6} />
+          </CardContent>
+        </Card>
       </div>
     )
   }

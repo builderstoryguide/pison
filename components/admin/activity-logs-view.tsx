@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/table'
 
 import { useUserManagement } from '@/lib/user-management-context'
+import { ShimmerDataTable } from '@/components/ui/shimmer-loading'
 
 const actionColors = {
   LOGIN: 'bg-green-100 text-green-800',
@@ -263,12 +264,7 @@ export function ActivityLogsView() {
         </CardHeader>
         <CardContent>
           {isLoadingLogs ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="flex items-center gap-2">
-                <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-                <span className="text-muted-foreground">Loading activity logs...</span>
-              </div>
-            </div>
+            <ShimmerDataTable rows={8} columns={5} />
           ) : filteredLogs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Activity className="h-12 w-12 text-muted-foreground mb-4" />

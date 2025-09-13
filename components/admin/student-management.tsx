@@ -57,6 +57,7 @@ import { EnrollmentSuccessDialog } from "./enrollment-success-dialog"
 import { StudentDetailsDialog } from "./student-details-dialog"
 import { StudentFeesDialog } from "./student-fees-dialog"
 import { EditStudentForm } from "./edit-student-form"
+import { ShimmerStatsCards, ShimmerDataTable } from "@/components/ui/shimmer-loading"
 import { StudentBulkUpload } from "./student-bulk-upload"
 
 const classes = {
@@ -412,11 +413,52 @@ export function StudentManagement() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Loading students...</p>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Student Management</h2>
+            <p className="text-muted-foreground">
+              Manage student enrollment, information, and academic records
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <div className="h-10 w-20 bg-muted rounded animate-pulse"></div>
+            <div className="h-10 w-24 bg-muted rounded animate-pulse"></div>
+            <div className="h-10 w-28 bg-muted rounded animate-pulse"></div>
+          </div>
         </div>
+
+        {/* Statistics Cards */}
+        <ShimmerStatsCards />
+
+        {/* Filters */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Filters</CardTitle>
+            <CardDescription>Filter students by class, status, and other criteria</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <div className="h-10 flex-1 bg-muted rounded animate-pulse"></div>
+              <div className="h-10 w-32 bg-muted rounded animate-pulse"></div>
+              <div className="h-10 w-32 bg-muted rounded animate-pulse"></div>
+              <div className="h-10 w-32 bg-muted rounded animate-pulse"></div>
+              <div className="h-10 w-24 bg-muted rounded animate-pulse"></div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Student Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Students</CardTitle>
+            <CardDescription>View and manage all students in the system</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ShimmerDataTable rows={10} columns={8} />
+          </CardContent>
+        </Card>
       </div>
     )
   }

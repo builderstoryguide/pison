@@ -26,6 +26,7 @@ import {
   FileUp
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { ShimmerList } from "@/components/ui/shimmer-loading"
 
 // Form validation schema
 const submissionSchema = z.object({
@@ -434,11 +435,21 @@ export function StudentAssignmentsView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading assignments...</p>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold">My Assignments</h2>
+          <p className="text-muted-foreground">View and submit your assignments</p>
         </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Assignments</CardTitle>
+            <CardDescription>Your assigned tasks and submissions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ShimmerList items={5} />
+          </CardContent>
+        </Card>
       </div>
     )
   }

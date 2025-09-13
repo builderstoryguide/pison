@@ -38,6 +38,7 @@ import { useClassManagement, type ClassData, type ClassFormData } from "@/lib/cl
 import { ClassForm } from "./class-form"
 import { ClassDetailsDialog } from "./class-details-dialog"
 import { ClassStudentManagement } from "./class-student-management"
+import { ShimmerStatsCards, ShimmerDataTable } from "@/components/ui/shimmer-loading"
 
 export function ClassManagement() {
   const { isLoading, deleteClass, getClassesPaginated, totalClassesCount } = useClassManagement()
@@ -174,49 +175,7 @@ export function ClassManagement() {
       {/* Statistics Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {isLoading && paginatedClasses.length === 0 ? (
-          // Skeleton UI for statistics cards during initial load
-          <>
-            <Card className="animate-pulse">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <div className="h-5 bg-muted rounded w-24"></div>
-                <div className="h-4 w-4 bg-muted rounded"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-8 bg-muted rounded w-16 mb-2"></div>
-                <div className="h-4 bg-muted rounded w-32"></div>
-              </CardContent>
-            </Card>
-            <Card className="animate-pulse">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <div className="h-5 bg-muted rounded w-32"></div>
-                <div className="h-4 w-4 bg-muted rounded"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-8 bg-muted rounded w-16 mb-2"></div>
-                <div className="h-4 bg-muted rounded w-40"></div>
-              </CardContent>
-            </Card>
-            <Card className="animate-pulse">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <div className="h-5 bg-muted rounded w-28"></div>
-                <div className="h-4 w-4 bg-muted rounded"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-8 bg-muted rounded w-16 mb-2"></div>
-                <div className="h-4 bg-muted rounded w-36"></div>
-              </CardContent>
-            </Card>
-            <Card className="animate-pulse">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <div className="h-5 bg-muted rounded w-28"></div>
-                <div className="h-4 w-4 bg-muted rounded"></div>
-              </CardHeader>
-              <CardContent>
-                <div className="h-8 bg-muted rounded w-16 mb-2"></div>
-                <div className="h-4 bg-muted rounded w-32"></div>
-              </CardContent>
-            </Card>
-          </>
+          <ShimmerStatsCards />
         ) : (
           // Actual statistics cards
           <>

@@ -39,6 +39,7 @@ import { ChevronDownIcon } from "lucide-react"
 import * as React from "react"
 import { useTeacherGrades } from "@/lib/teacher-grades-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ShimmerList } from "@/components/ui/shimmer-loading"
 
 const assignmentSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -644,11 +645,21 @@ export function TeacherAssignmentManagement() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading assignments...</p>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold">Assignment Management</h2>
+          <p className="text-muted-foreground">Create and manage assignments for your classes</p>
         </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Assignments</CardTitle>
+            <CardDescription>Your created assignments and submissions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ShimmerList items={6} />
+          </CardContent>
+        </Card>
       </div>
     )
   }

@@ -65,6 +65,7 @@ import { DynamicUserForm } from './dynamic-user-form'
 import { EditUserForm } from './edit-user-form'
 import { UserDetailsDialog } from './user-details-dialog'
 import { ActivityLogsView } from './activity-logs-view'
+import { ShimmerDataTable, ShimmerList } from '@/components/ui/shimmer-loading'
 
 const roleColors = {
   admin: 'bg-red-100 text-red-800',
@@ -269,9 +270,48 @@ export function UserManagement() {
 
   // Loading state component
   const LoadingState = () => (
-    <div className="flex flex-col items-center justify-center py-12">
-      <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
-      <p className="text-muted-foreground">Loading users...</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">User Management</h2>
+          <p className="text-muted-foreground">
+            Manage user accounts, roles, and permissions
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <div className="h-10 w-20 bg-muted rounded animate-pulse"></div>
+          <div className="h-10 w-20 bg-muted rounded animate-pulse"></div>
+          <div className="h-10 w-24 bg-muted rounded animate-pulse"></div>
+        </div>
+      </div>
+
+      {/* Shimmer for filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+          <CardDescription>Filter users by role, status, and other criteria</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <div className="h-10 flex-1 bg-muted rounded animate-pulse"></div>
+            <div className="h-10 w-32 bg-muted rounded animate-pulse"></div>
+            <div className="h-10 w-32 bg-muted rounded animate-pulse"></div>
+            <div className="h-10 w-24 bg-muted rounded animate-pulse"></div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Shimmer for user table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Users</CardTitle>
+          <CardDescription>View and manage all users in the system</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ShimmerDataTable rows={8} columns={7} />
+        </CardContent>
+      </Card>
     </div>
   )
 

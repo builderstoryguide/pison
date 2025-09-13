@@ -28,6 +28,7 @@ import { useClassManagement } from "@/lib/class-management-context"
 import { useFinancial } from "@/lib/financial-context"
 import { formatCurrency } from "@/lib/currency-utils"
 import { useAuth } from "@/lib/auth-context"
+import { ShimmerStatsCards } from "@/components/ui/shimmer-loading"
 
 interface QuickActionsDashboardProps {
   onNavigate?: (view: string) => void
@@ -144,9 +145,9 @@ export function QuickActionsDashboard({ onNavigate }: QuickActionsDashboardProps
           </CardHeader>
           <CardContent>
             {studentsLoading ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                <p className="text-sm text-muted-foreground">Loading...</p>
+              <div className="animate-pulse">
+                <div className="h-8 w-16 bg-muted rounded mb-2"></div>
+                <div className="h-4 w-32 bg-muted rounded"></div>
               </div>
             ) : studentsError ? (
               <div className="text-center py-4">
@@ -170,9 +171,9 @@ export function QuickActionsDashboard({ onNavigate }: QuickActionsDashboardProps
           </CardHeader>
           <CardContent>
             {teachersLoading ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                <p className="text-sm text-muted-foreground">Loading...</p>
+              <div className="animate-pulse">
+                <div className="h-8 w-16 bg-muted rounded mb-2"></div>
+                <div className="h-4 w-32 bg-muted rounded"></div>
               </div>
             ) : teachersError ? (
               <div className="text-center py-4">
@@ -196,9 +197,9 @@ export function QuickActionsDashboard({ onNavigate }: QuickActionsDashboardProps
           </CardHeader>
           <CardContent>
             {classesLoading ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                <p className="text-sm text-muted-foreground">Loading...</p>
+              <div className="animate-pulse">
+                <div className="h-8 w-16 bg-muted rounded mb-2"></div>
+                <div className="h-4 w-32 bg-muted rounded"></div>
               </div>
             ) : classesError ? (
               <div className="text-center py-4">
@@ -222,9 +223,9 @@ export function QuickActionsDashboard({ onNavigate }: QuickActionsDashboardProps
           </CardHeader>
           <CardContent>
             {paymentsLoading ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                <p className="text-sm text-muted-foreground">Loading...</p>
+              <div className="animate-pulse">
+                <div className="h-8 w-20 bg-muted rounded mb-2"></div>
+                <div className="h-4 w-32 bg-muted rounded"></div>
               </div>
             ) : (
               <>
