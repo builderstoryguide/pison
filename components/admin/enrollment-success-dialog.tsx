@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
+import { copyToClipboardWithFeedback } from '@/lib/clipboard-utils'
 
 interface EnrollmentSuccessDialogProps {
   studentId: string
@@ -37,10 +38,17 @@ export function EnrollmentSuccessDialog({
   const [emailSent, setEmailSent] = useState(false)
   const [emailError, setEmailError] = useState<string | null>(null)
 
-  const copyToClipboard = (text: string, field: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedField(field)
-    setTimeout(() => setCopiedField(null), 2000)
+  const copyToClipboard = async (text: string, field: string) => {
+    await copyToClipboardWithFeedback(
+      text,
+      () => {
+        setCopiedField(field)
+        setTimeout(() => setCopiedField(null), 2000)
+      },
+      (error) => {
+        console.error('Copy failed:', error)
+      }
+    )
   }
 
   const generateWelcomeEmail = () => {
@@ -159,7 +167,7 @@ Government Bilingual High School Yaoundé
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => copyToClipboard(studentId, 'studentId')}
+                  onClick={async () => await copyToClipboard(studentId, 'studentId')}
                   className="h-6 px-2"
                 >
                   {copiedField === 'studentId' ? (
@@ -179,7 +187,7 @@ Government Bilingual High School Yaoundé
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => copyToClipboard(parentCode, 'parentCode')}
+                  onClick={async () => await copyToClipboard(parentCode, 'parentCode')}
                   className="h-6 px-2"
                 >
                   {copiedField === 'parentCode' ? (
@@ -204,7 +212,7 @@ Government Bilingual High School Yaoundé
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => copyToClipboard(studentPassword, 'studentPassword')}
+                      onClick={async () => await copyToClipboard(studentPassword, 'studentPassword')}
                       className="h-6 px-2"
                     >
                       {copiedField === 'studentPassword' ? (
@@ -226,7 +234,7 @@ Government Bilingual High School Yaoundé
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => copyToClipboard(parentPassword, 'parentPassword')}
+                      onClick={async () => await copyToClipboard(parentPassword, 'parentPassword')}
                       className="h-6 px-2"
                     >
                       {copiedField === 'parentPassword' ? (

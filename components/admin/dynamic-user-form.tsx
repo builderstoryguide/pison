@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { User, GraduationCap, Users, UserCheck, DollarSign } from 'lucide-react'
 import { useUserManagement, User as UserType } from '@/lib/user-management-context'
-import { useStudentEnrollment } from '@/lib/student-enrollment-context'
 import { useTeacherManagement } from '@/lib/teacher-management-context'
 import { downloadEmailContent, sendWelcomeEmail, type EmailData } from '@/lib/email-utils'
 import { useToast } from '@/hooks/use-toast'
@@ -21,15 +20,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 
-import { StudentEnrollmentForm } from './student-enrollment-form'
 import { TeacherEnrollmentForm } from './teacher-enrollment-form'
 import { UserCreationSuccessDialog } from './user-creation-success-dialog'
 
 const roleIcons = {
   admin: User,
   teacher: GraduationCap,
-  student: Users,
-  parent: UserCheck,
   bursar: DollarSign
 }
 
@@ -39,7 +35,6 @@ interface DynamicUserFormProps {
 
 export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
   const { createUser, isLoading, error } = useUserManagement()
-  const { enrollStudent } = useStudentEnrollment()
   const { addTeacher } = useTeacherManagement()
   const { toast } = useToast()
   
@@ -60,47 +55,6 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
     setShowRoleSelection(true)
   }
 
-  const handleStudentEnrollmentSuccess = async (result: { 
-    studentId: string; 
-    parentCode: string; 
-    studentName: string;
-    studentPassword?: string;
-    parentPassword?: string;
-    studentEmail?: string;
-    parentEmail?: string;
-    parentName?: string;
-    className?: string;
-  }) => {
-    // The student enrollment form already creates everything needed:
-    // - Student record in students table
-    // - Parent record in parents table  
-    // - Student user account in users table
-    // - Parent user account in users table
-    // - User profiles for both
-    // - All relationships established
-    
-    // We just need to show the success dialog with the credentials
-    setUserData({
-      name: result.studentName,
-      email: result.studentEmail || '',
-      role: 'student',
-      password: result.studentPassword || '',
-      userId: result.studentId,
-      className: result.className,
-      parentName: result.parentName,
-      parentEmail: result.parentEmail,
-      parentCode: result.parentCode,
-      parentPassword: result.parentPassword
-    })
-    
-    setShowPasswordDialog(true)
-    
-    toast.success("Student enrolled successfully!", {
-      description: `${result.studentName} has been enrolled with ID ${result.studentId}. Parent account created with code ${result.parentCode}.`
-    })
-    
-    // Don't call onSuccess() here - let the success dialog handle it
-  }
 
   const handleTeacherEnrollmentSuccess = async (result: { teacherId: string; teacherData: any }) => {
     // The teacher enrollment form already creates everything needed:
@@ -160,13 +114,6 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
 
   const renderRoleSpecificForm = () => {
     switch (selectedRole) {
-      case 'student':
-        return (
-          <StudentEnrollmentForm 
-            onSuccess={handleStudentEnrollmentSuccess}
-            onCancel={handleBackToRoleSelection}
-          />
-        )
       case 'teacher':
         return (
           <TeacherEnrollmentForm 
@@ -176,7 +123,6 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
         )
       case 'admin':
       case 'bursar':
-      case 'parent':
         return (
           <AdminBursarParentForm 
             role={selectedRole}
@@ -262,6 +208,12 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
       {/* User Creation Success Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300">
+          <DialogHeader>
+            <DialogTitle>User Created Successfully</DialogTitle>
+            <DialogDescription>
+              User account has been created successfully. Please save the credentials securely.
+            </DialogDescription>
+          </DialogHeader>
           {userData && (
             <UserCreationSuccessDialog
               userData={userData}

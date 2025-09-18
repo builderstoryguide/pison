@@ -92,17 +92,17 @@ export function PaymentRecording() {
       // Load student fees
       const feesResponse = await fetch('/api/bursar/student-fees')
       const feesData = await feesResponse.json()
-      setStudentFees(feesData)
+      setStudentFees(Array.isArray(feesData) ? feesData : feesData.studentFees || [])
 
       // Load payments
       const paymentsResponse = await fetch('/api/bursar/payments')
       const paymentsData = await paymentsResponse.json()
-      setPayments(paymentsData)
+      setPayments(Array.isArray(paymentsData) ? paymentsData : paymentsData.payments || [])
 
       // Load payment methods
       const methodsResponse = await fetch('/api/bursar/payment-methods?isActive=true')
       const methodsData = await methodsResponse.json()
-      setPaymentMethods(methodsData)
+      setPaymentMethods(Array.isArray(methodsData) ? methodsData : methodsData.paymentMethods || [])
     } catch (error) {
       toast.error("Failed to load data")
     } finally {
@@ -202,14 +202,14 @@ export function PaymentRecording() {
     setIsReceiptDialogOpen(true)
   }
 
-  const filteredStudentFees = studentFees.filter(fee => {
+  const filteredStudentFees = (Array.isArray(studentFees) ? studentFees : []).filter(fee => {
     const matchesSearch = fee.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          fee.studentNumber.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStudent = !selectedStudent || fee.studentId === selectedStudent
     return matchesSearch && matchesStudent
   })
 
-  const filteredReceipts = payments.filter(payment => {
+  const filteredReceipts = (Array.isArray(payments) ? payments : []).filter(payment => {
     const matchesSearch = payment.studentName.toLowerCase().includes(receiptSearchTerm.toLowerCase()) ||
                          payment.receiptNumber.toLowerCase().includes(receiptSearchTerm.toLowerCase()) ||
                          payment.studentNumber.toLowerCase().includes(receiptSearchTerm.toLowerCase())

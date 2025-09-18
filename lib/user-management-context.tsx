@@ -8,7 +8,7 @@ export interface User {
   id: string
   name: string
   email: string
-  role: 'admin' | 'teacher' | 'student' | 'parent' | 'bursar'
+  role: 'admin' | 'teacher' | 'bursar'
   status: 'active' | 'inactive' | 'suspended'
   avatar?: string
   studentId?: string
@@ -53,6 +53,8 @@ interface UserManagementContextType {
   resetUserPassword: (userId: string) => Promise<{ success: boolean; password?: string }>
   updateUserAccessRights: (userId: string, permissions: string[]) => Promise<boolean>
   getAvailablePermissions: (role: string) => Promise<string[]>
+  getPasswordInfo: (userId: string) => Promise<{ success: boolean; passwordInfo?: any }>
+  setUserPassword: (userId: string, newPassword: string) => Promise<{ success: boolean; password?: string }>
   getUserById: (userId: string) => User | undefined
   searchUsers: (query: string) => User[]
   filterUsers: (filters: UserFilters) => User[]
@@ -490,9 +492,19 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
 
       if (result.success) {
         const user = users.find(u => u.id === userId)
-        // Refresh users from database
-        await loadUsers()
+        
+        // Immediately update the local state to remove the user from UI
+        setUsers(prevUsers => prevUsers.filter(u => u.id !== userId))
+        
+        // Also update activity logs immediately
         logActivity('DELETE_USER', `Deleted user account for ${user?.name}`)
+        
+        // Optionally refresh from database in background to ensure consistency
+        // but don't await it to keep UI responsive
+        loadUsers().catch(err => {
+          console.error('Background refresh failed after user deletion:', err)
+        })
+        
         return true
       } else {
         throw new Error(result.error || 'Failed to delete user')
@@ -564,6 +576,64 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
     }
   }
 
+  const getPasswordInfo = async (userId: string): Promise<{ success: boolean; passwordInfo?: any }> => {
+    try {
+      const response = await fetch(`/api/users/password-info?userId=${userId}`)
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to get password information')
+      }
+
+      return { success: true, passwordInfo: result.passwordInfo }
+    } catch (err) {
+      console.error('Error getting password info:', err)
+      return { success: false }
+    }
+  }
+
+  const setUserPassword = async (userId: string, newPassword: string): Promise<{ success: boolean; password?: string }> => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/users/set-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          newPassword,
+          // setBy will be optional - in production, get from auth context
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to set password')
+      }
+
+      if (result.success) {
+        // Refresh users from database
+        await loadUsers()
+
+        const user = users.find(u => u.id === userId)
+        logActivity('PASSWORD_SET', `Set custom password for ${user?.name}`, userId)
+        return { success: true, password: result.password }
+      } else {
+        throw new Error(result.error || 'Failed to set password')
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to set password'
+      setError(errorMessage)
+      return { success: false }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const bulkDeleteUsers = async (userIds: string[]): Promise<{ success: boolean; deletedCount: number; errors: string[] }> => {
     setIsLoading(true)
     setError(null)
@@ -585,13 +655,20 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       }
 
       if (result.success) {
-        // Refresh users from database
-        await loadUsers()
-        
-        // Log activity for bulk deletion
+        // Get user names before removing them from state
         const deletedUsers = users.filter(u => userIds.includes(u.id))
         const userNames = deletedUsers.map(u => u.name).join(', ')
+        
+        // Immediately update the local state to remove deleted users from UI
+        setUsers(prevUsers => prevUsers.filter(u => !userIds.includes(u.id)))
+        
+        // Log activity for bulk deletion
         logActivity('BULK_DELETE_USERS', `Bulk deleted ${result.deletedCount} users: ${userNames}`)
+        
+        // Optionally refresh from database in background to ensure consistency
+        loadUsers().catch(err => {
+          console.error('Background refresh failed after bulk user deletion:', err)
+        })
         
         return {
           success: true,
@@ -639,11 +716,22 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       }
 
       if (result.success) {
-        // Refresh users from database
-        await loadUsers()
-        
         const user = users.find(u => u.id === userId)
+        
+        // Immediately update the local state to reflect status change
+        setUsers(prevUsers => 
+          prevUsers.map(u => 
+            u.id === userId ? { ...u, status } : u
+          )
+        )
+        
         logActivity('STATUS_CHANGE', `Changed status to ${status} for ${user?.name}`, userId)
+        
+        // Optionally refresh from database in background to ensure consistency
+        loadUsers().catch(err => {
+          console.error('Background refresh failed after status change:', err)
+        })
+        
         return true
       } else {
         throw new Error(result.error || 'Failed to update user status')
@@ -739,6 +827,8 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       resetUserPassword,
       updateUserAccessRights,
       getAvailablePermissions,
+      getPasswordInfo,
+      setUserPassword,
       getUserById,
       searchUsers,
       filterUsers,

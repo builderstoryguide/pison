@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { downloadEmailContent, sendWelcomeEmail, type EmailData } from '@/lib/email-utils'
 import { useToast } from '@/hooks/use-toast'
+import { copyToClipboardWithFeedback } from '@/lib/clipboard-utils'
 
 interface UserCreationSuccessDialogProps {
   userData: EmailData
@@ -25,10 +26,17 @@ export function UserCreationSuccessDialog({
   const [isSendingEmail, setIsSendingEmail] = useState(false)
   const { toast } = useToast()
 
-  const copyToClipboard = (text: string, field: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedField(field)
-    setTimeout(() => setCopiedField(null), 2000)
+  const copyToClipboard = async (text: string, field: string) => {
+    await copyToClipboardWithFeedback(
+      text,
+      () => {
+        setCopiedField(field)
+        setTimeout(() => setCopiedField(null), 2000)
+      },
+      (error) => {
+        console.error('Copy failed:', error)
+      }
+    )
   }
 
   const handleDownloadEmail = () => {
@@ -124,7 +132,7 @@ export function UserCreationSuccessDialog({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => copyToClipboard(userData.userId || 'N/A', 'userId')}
+                  onClick={async () => await copyToClipboard(userData.userId || 'N/A', 'userId')}
                   className="h-6 px-2"
                 >
                   {copiedField === 'userId' ? (
@@ -145,7 +153,7 @@ export function UserCreationSuccessDialog({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => copyToClipboard(userData.email, 'email')}
+                  onClick={async () => await copyToClipboard(userData.email, 'email')}
                   className="h-6 px-2"
                 >
                   {copiedField === 'email' ? (
@@ -166,7 +174,7 @@ export function UserCreationSuccessDialog({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => copyToClipboard(userData.password, 'password')}
+                  onClick={async () => await copyToClipboard(userData.password, 'password')}
                   className="h-6 px-2"
                 >
                   {copiedField === 'password' ? (
@@ -188,7 +196,7 @@ export function UserCreationSuccessDialog({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => copyToClipboard(userData.className || '', 'className')}
+                    onClick={async () => await copyToClipboard(userData.className || '', 'className')}
                     className="h-6 px-2"
                   >
                     {copiedField === 'className' ? (

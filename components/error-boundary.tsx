@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../components/ui/collapsible'
+import { copyToClipboardWithFeedback } from '@/lib/clipboard-utils'
 
 interface ErrorBoundaryState {
   hasError: boolean
@@ -192,8 +193,17 @@ class ErrorBoundaryClass extends React.Component<ErrorBoundaryProps, ErrorBounda
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      navigator.clipboard.writeText(`Error ID: ${this.state.errorId}\nError: ${this.state.error?.message}\nStack: ${this.state.error?.stack}`)
+                    onClick={async () => {
+                      const errorText = `Error ID: ${this.state.errorId}\nError: ${this.state.error?.message}\nStack: ${this.state.error?.stack}`
+                      await copyToClipboardWithFeedback(
+                        errorText,
+                        () => {
+                          console.log('Error details copied to clipboard')
+                        },
+                        (error) => {
+                          console.error('Failed to copy error details:', error)
+                        }
+                      )
                     }}
                   >
                     Copy Error Details

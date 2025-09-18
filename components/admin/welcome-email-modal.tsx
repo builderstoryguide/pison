@@ -21,6 +21,7 @@ import {
   EyeOff
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { copyToClipboardWithFeedback } from '@/lib/clipboard-utils'
 import { generateDefaultPassword } from "@/lib/password-utils"
 import { EmailService } from "@/lib/email-service"
 import { supabase } from "@/lib/supabase"
@@ -147,11 +148,21 @@ export function WelcomeEmailModal({ userData, isOpen, onClose, onSuccess }: Welc
     }
   }
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-    toast.success("Copied to clipboard!", {
-      description: "The text has been copied to your clipboard"
-    })
+  const copyToClipboard = async (text: string) => {
+    await copyToClipboardWithFeedback(
+      text,
+      () => {
+        toast.success("Copied to clipboard!", {
+          description: "The text has been copied to your clipboard"
+        })
+      },
+      (error) => {
+        console.error('Copy failed:', error)
+        toast.error("Failed to copy", {
+          description: "Please copy the text manually"
+        })
+      }
+    )
   }
 
   const getRoleIcon = (role: string) => {

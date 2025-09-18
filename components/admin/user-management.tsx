@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState } from 'react'
-import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, UserX, UserCheck, RotateCcw, Eye, Download, Users, UserPlus, Activity, RefreshCw, AlertCircle, Users2, CheckSquare, Square, Trash2 as TrashIcon, Shield } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, UserX, UserCheck, RotateCcw, Eye, Download, Users, UserPlus, Activity, RefreshCw, AlertCircle, Users2, CheckSquare, Square, Trash2 as TrashIcon, Shield, AlertTriangle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -66,6 +66,7 @@ import { EditUserForm } from './edit-user-form'
 import { UserDetailsDialog } from './user-details-dialog'
 import { ActivityLogsView } from './activity-logs-view'
 import { AccessRightsDialog } from './access-rights-dialog'
+import { PasswordManagementDialog } from './password-management-dialog'
 import { ShimmerDataTable, ShimmerList } from '@/components/ui/shimmer-loading'
 
 const roleColors = {
@@ -110,6 +111,7 @@ export function UserManagement() {
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
   const [showAccessRightsDialog, setShowAccessRightsDialog] = useState(false)
+  const [showPasswordManagementDialog, setShowPasswordManagementDialog] = useState(false)
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -200,14 +202,42 @@ export function UserManagement() {
   }
 
   const handleStatusChange = async (userId: string, status: 'active' | 'inactive' | 'suspended') => {
-    await toggleUserStatus(userId, status)
+    const user = users.find(u => u.id === userId)
+    const success = await toggleUserStatus(userId, status)
+    if (success) {
+      toastSuccess('Status Updated', `${user?.name || 'User'}'s status has been changed to ${status}`)
+    } else {
+      toastError('Status Update Failed', 'Failed to update user status. Please try again.')
+    }
   }
 
   const handleDeleteUser = async (userId: string) => {
-    await deleteUser(userId)
+    const success = await deleteUser(userId)
+    if (success) {
+      toastSuccess('User Deleted', 'User has been successfully deleted')
+    } else {
+      toastError('Delete Failed', 'Failed to delete user. Please try again.')
+    }
   }
 
   const [resetPasswordDialog, setResetPasswordDialog] = useState<{ open: boolean; password?: string; userName?: string }>({ open: false })
+  const [parentCount, setParentCount] = useState(0)
+
+  // Fetch parent count from parents table
+  useEffect(() => {
+    const fetchParentCount = async () => {
+      try {
+        const response = await fetch('/api/parents/count')
+        if (response.ok) {
+          const data = await response.json()
+          setParentCount(data.count || 0)
+        }
+      } catch (error) {
+        console.error('Error fetching parent count:', error)
+      }
+    }
+    fetchParentCount()
+  }, [])
 
   const handleResetPassword = async (userId: string) => {
     const result = await resetUserPassword(userId)
@@ -252,7 +282,8 @@ export function UserManagement() {
     teachers: teacherManagementTeachers.length,
     // Use student management data for consistency with Student Management dashboard
     students: studentManagementStudents.length,
-    parents: users.filter(u => u.role === 'parent').length,
+    // Parents are now managed through Student Management system
+    parents: parentCount,
     admins: users.filter(u => u.role === 'admin').length,
     bursars: users.filter(u => u.role === 'bursar').length
   }
@@ -386,10 +417,9 @@ export function UserManagement() {
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
           <strong>Data Consistency:</strong> 
-          Students: {users.filter(u => u.role === 'student').length} vs {studentManagementStudents.length} | 
+          Students: Managed through Student Management ({studentManagementStudents.length}) | 
           Teachers: {users.filter(u => u.role === 'teacher').length} vs {teacherManagementTeachers.length} | 
-          {users.filter(u => u.role === 'student').length === studentManagementStudents.length && 
-           users.filter(u => u.role === 'teacher').length === teacherManagementTeachers.length ? '✅ All Consistent' : '⚠️ Some Inconsistent'}
+          {users.filter(u => u.role === 'teacher').length === teacherManagementTeachers.length ? '✅ All Consistent' : '⚠️ Some Inconsistent'}
         </AlertDescription>
       </Alert>
 
@@ -507,8 +537,6 @@ export function UserManagement() {
                       <SelectItem value="all">All Roles</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="teacher">Teacher</SelectItem>
-                      <SelectItem value="student">Student</SelectItem>
-                      <SelectItem value="parent">Parent</SelectItem>
                       <SelectItem value="bursar">Bursar</SelectItem>
                     </SelectContent>
                   </Select>
@@ -550,11 +578,9 @@ export function UserManagement() {
               <CardTitle>Users ({displayUsers.length})</CardTitle>
               <CardDescription>
                 Manage user accounts and permissions. 
-                {filters.role === 'student' && (
-                  <span className="text-blue-600 font-medium">
-                    {' '}Note: Student data is synchronized with Student Management dashboard for consistency.
-                  </span>
-                )}
+                <span className="text-blue-600 font-medium">
+                  {' '}Note: Students and parents are managed through Student Management dashboard.
+                </span>
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -638,6 +664,7 @@ export function UserManagement() {
                         <TableHead>User</TableHead>
                         <TableHead>Role</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Password</TableHead>
                         <TableHead>ID/Code</TableHead>
                         <TableHead>Last Login</TableHead>
                         <TableHead>Actions</TableHead>
@@ -676,6 +703,16 @@ export function UserManagement() {
                             <Badge className={statusColors[user.status]}>
                               {user.status}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Badge variant={user.hasDefaultPassword ? "destructive" : "default"} className="text-xs">
+                                {user.hasDefaultPassword ? "Default" : "Custom"}
+                              </Badge>
+                              {user.hasDefaultPassword && (
+                                <AlertTriangle className="h-3 w-3 text-amber-500" />
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <span className="font-mono text-sm">
@@ -726,6 +763,15 @@ export function UserManagement() {
                                 >
                                   <Shield className="h-4 w-4 mr-2" />
                                   Manage Access Rights
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedUser(user)
+                                    setShowPasswordManagementDialog(true)
+                                  }}
+                                >
+                                  <Shield className="h-4 w-4 mr-2" />
+                                  Manage Password
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -841,7 +887,7 @@ export function UserManagement() {
           </DialogHeader>
           {selectedUser && (
             <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2">
-              <UserDetailsDialog user={selectedUser} />
+              <UserDetailsDialog user={selectedUser} onResetPassword={handleResetPassword} />
             </div>
           )}
         </DialogContent>
@@ -871,9 +917,36 @@ export function UserManagement() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => {
+                  onClick={async () => {
                     if (resetPasswordDialog.password) {
-                      navigator.clipboard.writeText(resetPasswordDialog.password)
+                      try {
+                        // Check if clipboard API is available
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                          await navigator.clipboard.writeText(resetPasswordDialog.password)
+                        } else {
+                          // Fallback method for older browsers or non-secure contexts
+                          const textArea = document.createElement('textarea')
+                          textArea.value = resetPasswordDialog.password
+                          textArea.style.position = 'fixed'
+                          textArea.style.left = '-999999px'
+                          textArea.style.top = '-999999px'
+                          document.body.appendChild(textArea)
+                          textArea.focus()
+                          textArea.select()
+                          
+                          try {
+                            document.execCommand('copy')
+                          } catch (fallbackErr) {
+                            console.error('Fallback copy failed:', fallbackErr)
+                            alert(`Password: ${resetPasswordDialog.password}\n\nPlease copy this password manually.`)
+                          } finally {
+                            document.body.removeChild(textArea)
+                          }
+                        }
+                      } catch (err) {
+                        console.error('Failed to copy password:', err)
+                        alert(`Password: ${resetPasswordDialog.password}\n\nPlease copy this password manually.`)
+                      }
                     }
                   }}
                 >
@@ -901,6 +974,20 @@ export function UserManagement() {
           user={selectedUser}
           open={showAccessRightsDialog}
           onOpenChange={setShowAccessRightsDialog}
+        />
+      )}
+
+      {/* Password Management Dialog */}
+      {selectedUser && (
+        <PasswordManagementDialog
+          userId={selectedUser.id}
+          userName={selectedUser.name}
+          isOpen={showPasswordManagementDialog}
+          onClose={() => setShowPasswordManagementDialog(false)}
+          onPasswordSet={(password) => {
+            // Show the password in a toast or dialog
+            console.log('New password set:', password)
+          }}
         />
       )}
     </div>

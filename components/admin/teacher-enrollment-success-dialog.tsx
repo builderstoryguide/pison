@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CheckCircle, User, Mail, Phone, GraduationCap, Copy, Download, Check, Sparkles, Shield, Clock, Key } from "lucide-react"
 import { useState } from "react"
+import { copyToClipboardWithFeedback } from '@/lib/clipboard-utils'
 
 interface TeacherEnrollmentSuccessDialogProps {
   teacherId: string
@@ -42,10 +43,17 @@ export function TeacherEnrollmentSuccessDialog({
   const [emailSent, setEmailSent] = useState(false)
   const [emailError, setEmailError] = useState<string | null>(null)
 
-  const copyToClipboard = (text: string, field: string) => {
-    navigator.clipboard.writeText(text)
-    setCopiedField(field)
-    setTimeout(() => setCopiedField(null), 2000)
+  const copyToClipboard = async (text: string, field: string) => {
+    await copyToClipboardWithFeedback(
+      text,
+      () => {
+        setCopiedField(field)
+        setTimeout(() => setCopiedField(null), 2000)
+      },
+      (error) => {
+        console.error('Copy failed:', error)
+      }
+    )
   }
 
   const generateWelcomeEmail = () => {
@@ -214,7 +222,7 @@ Government Bilingual High School Yaoundé
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => copyToClipboard(email, 'email')}
+                      onClick={async () => await copyToClipboard(email, 'email')}
                       className="h-10 w-10 p-0"
                     >
                       {copiedField === 'email' ? (
@@ -239,7 +247,7 @@ Government Bilingual High School Yaoundé
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => copyToClipboard(password, 'password')}
+                      onClick={async () => await copyToClipboard(password, 'password')}
                       className="h-10 w-10 p-0"
                     >
                       {copiedField === 'password' ? (

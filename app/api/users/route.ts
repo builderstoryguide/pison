@@ -8,6 +8,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+
 // Helper function to generate initials from name
 function generateInitials(name: string): string {
   if (!name || typeof name !== 'string') {
@@ -29,26 +30,6 @@ async function generateRoleSpecificId(role: string): Promise<string> {
   const year = new Date().getFullYear();
   
   switch (role) {
-    case 'student': {
-      let nextNumber = 1;
-      try {
-        const { data } = await supabase
-          .from("students")
-          .select("student_id")
-          .like("student_id", `STU${year}%`)
-          .order("student_id", { ascending: false })
-          .limit(1);
-
-        if (data && data.length > 0) {
-          const lastId = data[0].student_id;
-          const lastNumber = Number.parseInt(lastId.substring(7));
-          nextNumber = lastNumber + 1;
-        }
-      } catch (error) {
-        console.error("Error generating student ID:", error);
-      }
-      return `STU${year}${nextNumber.toString().padStart(3, "0")}`;
-    }
     
     case 'teacher': {
       let counter = 1;
@@ -64,26 +45,6 @@ async function generateRoleSpecificId(role: string): Promise<string> {
       return teacherId!;
     }
     
-    case 'parent': {
-      let nextNumber = 1;
-      try {
-        const { data } = await supabase
-          .from("parents")
-          .select("parent_code")
-          .like("parent_code", `PAR${year}%`)
-          .order("parent_code", { ascending: false })
-          .limit(1);
-
-        if (data && data.length > 0) {
-          const lastCode = data[0].parent_code;
-          const lastNumber = Number.parseInt(lastCode.substring(7));
-          nextNumber = lastNumber + 1;
-        }
-      } catch (error) {
-        console.error("Error generating parent code:", error);
-      }
-      return `PAR${year}${nextNumber.toString().padStart(3, "0")}`;
-    }
     
     case 'bursar': {
       let nextNumber = 1;

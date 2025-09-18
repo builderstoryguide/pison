@@ -21,6 +21,12 @@ import {
   ChevronRight,
   CheckSquare,
   Square,
+  MoreHorizontal,
+  Edit,
+  UserX,
+  UserCheck,
+  RotateCcw,
+  Shield,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -33,7 +39,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserAvatar } from "@/components/ui/user-avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Pagination } from "@/components/ui/pagination"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -48,6 +54,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 import { useStudentManagement, type Student, type StudentFilters } from "@/lib/student-management-context"
 import { useUserManagement } from "@/lib/user-management-context"
@@ -59,6 +73,8 @@ import { StudentFeesDialog } from "./student-fees-dialog"
 import { EditStudentForm } from "./edit-student-form"
 import { ShimmerStatsCards, ShimmerDataTable } from "@/components/ui/shimmer-loading"
 import { StudentBulkUpload } from "./student-bulk-upload"
+import { AccessRightsDialog } from "./access-rights-dialog"
+import { PasswordManagementDialog } from "./password-management-dialog"
 
 const classes = {
   english: {
@@ -114,6 +130,11 @@ export function StudentManagement() {
   const [showEditForm, setShowEditForm] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
   const [studentToDelete, setStudentToDelete] = useState<{ id: string; name: string } | null>(null)
+  
+  // New state for additional actions
+  const [showAccessRightsDialog, setShowAccessRightsDialog] = useState(false)
+  const [showPasswordManagementDialog, setShowPasswordManagementDialog] = useState(false)
+  const [resetPasswordDialog, setResetPasswordDialog] = useState<{ open: boolean; password?: string; userName?: string }>({ open: false })
   
   // Bulk selection state
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
@@ -290,6 +311,64 @@ export function StudentManagement() {
     } finally {
       setIsBulkDeleting(false)
       setShowBulkDeleteDialog(false)
+    }
+  }
+
+  // New handler functions for additional actions
+  const handleResetPassword = async (studentId: string) => {
+    // Find the student to get their user ID
+    const student = students.find(s => s.id === studentId)
+    if (!student) {
+      showError("Student not found", "The selected student could not be found.")
+      return
+    }
+
+    try {
+      // Get the user ID for this student from the users table
+      const response = await fetch(`/api/users?studentId=${student.student_id}`)
+      if (response.ok) {
+        const userData = await response.json()
+        if (userData.users && userData.users.length > 0) {
+          const userId = userData.users[0].id
+          const resetResponse = await fetch('/api/users/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId })
+          })
+          
+          if (resetResponse.ok) {
+            const result = await resetResponse.json()
+            setResetPasswordDialog({
+              open: true,
+              password: result.password,
+              userName: `${student.first_name} ${student.last_name}`
+            })
+            success("Password reset successful", "A new password has been generated for the student.")
+          } else {
+            showError("Password reset failed", "Failed to reset the student's password.")
+          }
+        } else {
+          showError("User account not found", "No user account found for this student.")
+        }
+      } else {
+        showError("Error", "Failed to find the student's user account.")
+      }
+    } catch (error) {
+      showError("Error", "An unexpected error occurred while resetting the password.")
+    }
+  }
+
+  const handleStatusChange = async (studentId: string, newStatus: string) => {
+    try {
+      const success = await updateStudentStatus(studentId, newStatus)
+      if (success) {
+        success("Status updated", `Student status has been updated to ${newStatus}.`)
+        loadStudents() // Refresh the list
+      } else {
+        showError("Status update failed", "Failed to update the student's status.")
+      }
+    } catch (error) {
+      showError("Error", "An unexpected error occurred while updating the status.")
     }
   }
 
@@ -1000,46 +1079,120 @@ export function StudentManagement() {
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedStudent(student)
-                                  setShowStudentDetails(true)
-                                }}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedStudent(student)
-                                  setShowFeesDialog(true)
-                                }}
-                              >
-                                <DollarSign className="h-4 w-4" />
-                              </Button>
-                              {student.enrollment_status === "pending" && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleStatusUpdate(student.id, "enrolled")}
-                                  className="text-green-600 hover:text-green-700"
-                                >
-                                  <CheckCircle className="h-4 w-4" />
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
                                 </Button>
-                              )}
-                                                             <Button
-                                 variant="ghost"
-                                 size="sm"
-                                 onClick={() => handleDeleteStudent(student.id)}
-                                 className="text-red-600 hover:text-red-700"
-                               >
-                                 <Trash2 className="h-4 w-4" />
-                               </Button>
-                            </div>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedStudent(student)
+                                    setShowStudentDetails(true)
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedStudent(student)
+                                    setShowEditForm(true)
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit Student
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedStudent(student)
+                                    setShowFeesDialog(true)
+                                  }}
+                                >
+                                  <DollarSign className="h-4 w-4 mr-2" />
+                                  Manage Fees
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedStudent(student)
+                                    setShowAccessRightsDialog(true)
+                                  }}
+                                >
+                                  <Shield className="h-4 w-4 mr-2" />
+                                  Manage Access Rights
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedStudent(student)
+                                    setShowPasswordManagementDialog(true)
+                                  }}
+                                >
+                                  <Shield className="h-4 w-4 mr-2" />
+                                  Manage Password
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => handleResetPassword(student.id)}
+                                >
+                                  <RotateCcw className="h-4 w-4 mr-2" />
+                                  Reset Password
+                                </DropdownMenuItem>
+                                {student.enrollment_status === "pending" && (
+                                  <DropdownMenuItem
+                                    onClick={() => handleStatusUpdate(student.id, "enrolled")}
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Approve Enrollment
+                                  </DropdownMenuItem>
+                                )}
+                                {student.status === 'active' ? (
+                                  <DropdownMenuItem
+                                    onClick={() => handleStatusChange(student.id, 'inactive')}
+                                  >
+                                    <UserX className="h-4 w-4 mr-2" />
+                                    Deactivate
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    onClick={() => handleStatusChange(student.id, 'active')}
+                                  >
+                                    <UserCheck className="h-4 w-4 mr-2" />
+                                    Activate
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem
+                                      className="text-red-600"
+                                      onSelect={(e) => e.preventDefault()}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete Student
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Student</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete {student.first_name} {student.last_name}? This action cannot be undone and will permanently remove all their data from the system.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeleteStudent(student.id)}
+                                        className="bg-red-600 hover:bg-red-700"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1235,6 +1388,74 @@ export function StudentManagement() {
            </AlertDialogFooter>
          </AlertDialogContent>
        </AlertDialog>
+
+       {/* Access Rights Dialog */}
+       {selectedStudent && (
+         <AccessRightsDialog
+           user={{
+             id: selectedStudent.id,
+             name: `${selectedStudent.first_name} ${selectedStudent.last_name}`,
+             email: selectedStudent.email,
+             role: 'student' as const,
+             status: selectedStudent.status as 'active' | 'inactive' | 'suspended',
+             permissions: [],
+             createdAt: selectedStudent.created_at || '',
+             createdBy: '',
+             hasDefaultPassword: false,
+             passwordLastChanged: '',
+             passwordExpiryDate: ''
+           }}
+           open={showAccessRightsDialog}
+           onOpenChange={setShowAccessRightsDialog}
+         />
+       )}
+
+       {/* Password Management Dialog */}
+       {selectedStudent && (
+         <PasswordManagementDialog
+           user={{
+             id: selectedStudent.id,
+             name: `${selectedStudent.first_name} ${selectedStudent.last_name}`,
+             email: selectedStudent.email,
+             role: 'student' as const,
+             status: selectedStudent.status as 'active' | 'inactive' | 'suspended',
+             permissions: [],
+             createdAt: selectedStudent.created_at || '',
+             createdBy: '',
+             hasDefaultPassword: false,
+             passwordLastChanged: '',
+             passwordExpiryDate: ''
+           }}
+           open={showPasswordManagementDialog}
+           onOpenChange={setShowPasswordManagementDialog}
+         />
+       )}
+
+       {/* Password Reset Success Dialog */}
+       <Dialog open={resetPasswordDialog.open} onOpenChange={(open) => !open && setResetPasswordDialog({ open: false })}>
+         <DialogContent>
+           <DialogHeader>
+             <DialogTitle>Password Reset Successful</DialogTitle>
+             <DialogDescription>
+               A new password has been generated for {resetPasswordDialog.userName}
+             </DialogDescription>
+           </DialogHeader>
+           <div className="space-y-4">
+             <div className="p-4 bg-muted rounded-lg">
+               <p className="text-sm font-medium mb-2">New Password:</p>
+               <p className="font-mono text-lg">{resetPasswordDialog.password}</p>
+             </div>
+             <p className="text-sm text-muted-foreground">
+               Please provide this password to the student securely. They should change it on their first login.
+             </p>
+           </div>
+           <DialogFooter>
+             <Button onClick={() => setResetPasswordDialog({ open: false })}>
+               Close
+             </Button>
+           </DialogFooter>
+         </DialogContent>
+       </Dialog>
      </div>
    )
  }

@@ -36,6 +36,7 @@ import { TeacherEnrollmentForm } from "./teacher-enrollment-form"
 import { TeacherEnrollmentSuccessDialog } from "./teacher-enrollment-success-dialog"
 import { EditTeacherForm } from "./edit-teacher-form"
 import { TeacherExportForm } from "./teacher-export-form"
+import { TeacherDetailsDialog } from "./teacher-details-dialog"
 
 export function TeacherManagement() {
   const { teachers, isLoading, deleteTeacher } = useTeacherManagement()
@@ -598,136 +599,15 @@ export function TeacherManagement() {
       </Dialog>
 
       {/* Teacher Details Dialog */}
-      <Dialog open={showTeacherDetails} onOpenChange={setShowTeacherDetails}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>Teacher Details</DialogTitle>
-          </DialogHeader>
-          {selectedTeacher && (
-            <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2 space-y-4">
-              <div className="flex items-center space-x-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage src={`/placeholder_64px.png?height=64&width=64`} />
-                  <AvatarFallback className="text-lg">
-                    {selectedTeacher.firstName.charAt(0)}
-                    {selectedTeacher.lastName.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="text-lg font-semibold">
-                    {selectedTeacher.title} {selectedTeacher.firstName} {selectedTeacher.lastName}
-                  </h3>
-                  <p className="text-muted-foreground">{selectedTeacher.email}</p>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <Badge variant="outline">{selectedTeacher.subsystem}</Badge>
-                    {getStatusBadge(selectedTeacher.status)}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                              <div>
-                <h4 className="font-medium mb-2">Contact Information</h4>
-                <div className="space-y-1 text-sm">
-                  <p>
-                    <strong>Phone:</strong> {selectedTeacher.phone || "Not provided"}
-                  </p>
-                  <p>
-                    <strong>Email:</strong> {selectedTeacher.email}
-                  </p>
-                  <p>
-                    <strong>Address:</strong> {selectedTeacher.address || "Not provided"}
-                  </p>
-                  <p>
-                    <strong>City:</strong> {selectedTeacher.city || "Not provided"}
-                  </p>
-                  <p>
-                    <strong>Region:</strong> {selectedTeacher.region || "Not provided"}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Teaching Information</h4>
-                <div className="space-y-1 text-sm">
-                  <p>
-                    <strong>Teacher ID:</strong> {selectedTeacher.teacherId}
-                  </p>
-                  <p>
-                    <strong>Subsystem:</strong> {selectedTeacher.subsystem}
-                  </p>
-                  <p>
-                    <strong>Employment Type:</strong> {selectedTeacher.employmentType}
-                  </p>
-                  <p>
-                    <strong>Start Date:</strong> {selectedTeacher.startDate || "Not provided"}
-                  </p>
-                  <p>
-                    <strong>Experience:</strong> {selectedTeacher.experience || "Not provided"}
-                  </p>
-                </div>
-              </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Subjects</h4>
-                <div className="flex flex-wrap gap-2">
-                  {selectedTeacher.subjects.map((subject: string) => (
-                    <Badge key={subject} variant="secondary">
-                      {subject}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Classes</h4>
-                <div className="flex flex-wrap gap-2">
-                  {selectedTeacher.classes.length > 0 ? (
-                    selectedTeacher.classes.map((cls: string) => (
-                      <Badge key={cls} variant="outline">
-                        {cls}
-                      </Badge>
-                    ))
-                  ) : (
-                    <p className="text-muted-foreground text-sm">No classes assigned</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Qualifications</h4>
-                <div className="flex flex-wrap gap-2">
-                  {selectedTeacher.qualifications.length > 0 ? (
-                    selectedTeacher.qualifications.map((qualification: string) => (
-                      <Badge key={qualification} variant="secondary">
-                        {qualification}
-                      </Badge>
-                    ))
-                  ) : (
-                    <p className="text-muted-foreground text-sm">No qualifications listed</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-2">Emergency Contact</h4>
-                <div className="space-y-1 text-sm">
-                  <p>
-                    <strong>Name:</strong> {selectedTeacher.emergencyContact?.name || "Not provided"}
-                  </p>
-                  <p>
-                    <strong>Relationship:</strong> {selectedTeacher.emergencyContact?.relationship || "Not provided"}
-                  </p>
-                  <p>
-                    <strong>Phone:</strong> {selectedTeacher.emergencyContact?.phone || "Not provided"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <TeacherDetailsDialog
+        teacher={selectedTeacher}
+        isOpen={showTeacherDetails}
+        onClose={() => setShowTeacherDetails(false)}
+        onEdit={() => {
+          setShowTeacherDetails(false)
+          setShowEditTeacherForm(true)
+        }}
+      />
 
       {/* Edit Teacher Dialog */}
       <Dialog open={showEditTeacherForm} onOpenChange={setShowEditTeacherForm}>
