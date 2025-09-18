@@ -36,8 +36,18 @@ export function FeeStructureManagement() {
 
   const loadFeeStructures = async () => {
     try {
+      console.log('Loading fee structures...')
       const response = await fetch('/api/bursar/fee-structures')
+      
+      if (!response.ok) {
+        console.error('HTTP Error:', response.status, response.statusText)
+        toast.error(`HTTP Error: ${response.status} - ${response.statusText}`)
+        setFeeStructures([])
+        return
+      }
+      
       const data = await response.json()
+      console.log('API Response:', data)
       
       // Check if the response contains an error
       if (data.error) {
@@ -58,7 +68,7 @@ export function FeeStructureManagement() {
       }
     } catch (error) {
       console.error('Fetch error:', error)
-      toast.error("Failed to load fee structures")
+      toast.error(`Network Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
       setFeeStructures([])
     } finally {
       setIsLoading(false)
