@@ -561,6 +561,7 @@ export async function PUT(request: NextRequest) {
         date_of_birth: updateData.dateOfBirth,
         gender: updateData.gender,
         status: updateData.status,
+        permissions: updateData.permissions, // Allow permissions to be updated
         updated_at: new Date().toISOString()
       })
       .eq('id', userId)

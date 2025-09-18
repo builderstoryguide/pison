@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from 'react'
-import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, UserX, UserCheck, RotateCcw, Eye, Download, Users, UserPlus, Activity, RefreshCw, AlertCircle, Users2, CheckSquare, Square, Trash2 as TrashIcon } from 'lucide-react'
+import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, UserX, UserCheck, RotateCcw, Eye, Download, Users, UserPlus, Activity, RefreshCw, AlertCircle, Users2, CheckSquare, Square, Trash2 as TrashIcon, Shield } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -65,6 +65,7 @@ import { DynamicUserForm } from './dynamic-user-form'
 import { EditUserForm } from './edit-user-form'
 import { UserDetailsDialog } from './user-details-dialog'
 import { ActivityLogsView } from './activity-logs-view'
+import { AccessRightsDialog } from './access-rights-dialog'
 import { ShimmerDataTable, ShimmerList } from '@/components/ui/shimmer-loading'
 
 const roleColors = {
@@ -108,6 +109,7 @@ export function UserManagement() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
+  const [showAccessRightsDialog, setShowAccessRightsDialog] = useState(false)
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -716,6 +718,15 @@ export function UserManagement() {
                                   <Edit className="h-4 w-4 mr-2" />
                                   Edit User
                                 </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedUser(user)
+                                    setShowAccessRightsDialog(true)
+                                  }}
+                                >
+                                  <Shield className="h-4 w-4 mr-2" />
+                                  Manage Access Rights
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   onClick={() => handleResetPassword(user.id)}
@@ -883,6 +894,15 @@ export function UserManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Access Rights Dialog */}
+      {selectedUser && (
+        <AccessRightsDialog
+          user={selectedUser}
+          open={showAccessRightsDialog}
+          onOpenChange={setShowAccessRightsDialog}
+        />
+      )}
     </div>
   )
 }

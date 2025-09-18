@@ -91,7 +91,7 @@ interface TeacherAttendanceContextType {
     },
   ) => Promise<{ success: boolean; error?: string }>
   getClassSchedule: (classId: string) => ClassSchedule[]
-  getTodaySchedule: () => ClassSchedule[]
+  getTodaySchedule: () => Promise<ClassSchedule[]>
 }
 
 const TeacherAttendanceContext = createContext<TeacherAttendanceContextType | undefined>(undefined)
@@ -271,22 +271,40 @@ export function TeacherAttendanceProvider({ children }: { children: React.ReactN
     setError(null)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      if (!user?.id) {
+        throw new Error("User not authenticated")
+      }
 
-      // In real implementation, filter classes by teacher ID
-      const filteredClasses = teacherClasses.filter(
-        (cls) =>
-          // Mock filter - in real app, check if current user is assigned to this class
-          true,
-      )
+      // Fetch teacher's assigned classes from API
+      const response = await fetch(`/api/teachers/assigned-classes?teacherId=${user.id}`)
+      const result = await response.json()
 
+      if (!result.success) {
+        throw new Error(result.error || "Failed to fetch teacher classes")
+      }
+
+      // Transform API data to match our interface
+      const transformedClasses: TeacherClass[] = result.classes.map((cls: any) => ({
+        id: cls.id,
+        name: cls.name,
+        level: cls.level,
+        subsystem: cls.subsystem,
+        branch: cls.branch,
+        students: cls.students || [],
+        schedule: cls.schedule || []
+      }))
+
+      setTeacherClasses(transformedClasses)
       setIsLoading(false)
-      return filteredClasses
+      return transformedClasses
     } catch (err) {
-      setError("Failed to fetch teacher classes")
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch teacher classes"
+      setError(errorMessage)
       setIsLoading(false)
-      return []
+      
+      // Fallback to mock data if API fails
+      console.warn("Using mock data due to API error:", errorMessage)
+      return teacherClasses
     }
   }
 
@@ -446,16 +464,45 @@ export function TeacherAttendanceProvider({ children }: { children: React.ReactN
     return classData?.schedule || []
   }
 
-  const getTodaySchedule = (): ClassSchedule[] => {
-    const today = new Date().toLocaleDateString("en-US", { weekday: "long" })
-    const todaySchedule: ClassSchedule[] = []
+  const getTodaySchedule = async (): Promise<ClassSchedule[]> => {
+    try {
+      if (!user?.id) {
+        return []
+      }
 
-    teacherClasses.forEach((cls) => {
-      const classSchedule = cls.schedule.filter((schedule) => schedule.day === today)
-      todaySchedule.push(...classSchedule)
-    })
+      // Fetch today's schedule from API
+      const response = await fetch(`/api/teachers/todays-schedule?teacherId=${user.id}`)
+      const result = await response.json()
 
-    return todaySchedule.sort((a, b) => a.startTime.localeCompare(b.startTime))
+      if (!result.success) {
+        throw new Error(result.error || "Failed to fetch today's schedule")
+      }
+
+      // Transform API data to match our interface
+      const todaySchedule: ClassSchedule[] = result.schedule.map((item: any) => ({
+        id: item.id,
+        day: item.day,
+        startTime: item.startTime,
+        endTime: item.endTime,
+        subject: item.subject,
+        period: item.period
+      }))
+
+      return todaySchedule
+    } catch (err) {
+      console.warn("Failed to fetch today's schedule from API, using local data:", err)
+      
+      // Fallback to local data
+      const today = new Date().toLocaleDateString("en-US", { weekday: "long" })
+      const todaySchedule: ClassSchedule[] = []
+
+      teacherClasses.forEach((cls) => {
+        const classSchedule = cls.schedule.filter((schedule) => schedule.day === today)
+        todaySchedule.push(...classSchedule)
+      })
+
+      return todaySchedule.sort((a, b) => a.startTime.localeCompare(b.startTime))
+    }
   }
 
   const value: TeacherAttendanceContextType = {

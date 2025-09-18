@@ -51,6 +51,8 @@ interface UserManagementContextType {
   bulkDeleteUsers: (userIds: string[]) => Promise<{ success: boolean; deletedCount: number; errors: string[] }>
   toggleUserStatus: (userId: string, status: 'active' | 'inactive' | 'suspended') => Promise<boolean>
   resetUserPassword: (userId: string) => Promise<{ success: boolean; password?: string }>
+  updateUserAccessRights: (userId: string, permissions: string[]) => Promise<boolean>
+  getAvailablePermissions: (role: string) => Promise<string[]>
   getUserById: (userId: string) => User | undefined
   searchUsers: (query: string) => User[]
   filterUsers: (filters: UserFilters) => User[]
@@ -504,6 +506,64 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
     }
   }
 
+  const updateUserAccessRights = async (userId: string, permissions: string[]): Promise<boolean> => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/users/access-rights', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          permissions,
+          // updatedBy will be optional - in production, get from auth context
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update access rights')
+      }
+
+      if (result.success) {
+        // Refresh users from database
+        await loadUsers()
+        
+        const user = users.find(u => u.id === userId)
+        logActivity('UPDATE_ACCESS_RIGHTS', `Updated access rights for ${user?.name}`, userId)
+        return true
+      } else {
+        throw new Error(result.error || 'Failed to update access rights')
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update access rights'
+      setError(errorMessage)
+      return false
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const getAvailablePermissions = async (role: string): Promise<string[]> => {
+    try {
+      const response = await fetch(`/api/users/access-rights?role=${role}`)
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to get available permissions')
+      }
+
+      return result.permissions || []
+    } catch (err) {
+      console.error('Error getting available permissions:', err)
+      return []
+    }
+  }
+
   const bulkDeleteUsers = async (userIds: string[]): Promise<{ success: boolean; deletedCount: number; errors: string[] }> => {
     setIsLoading(true)
     setError(null)
@@ -674,9 +734,11 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       createUser,
       updateUser,
       deleteUser,
-    bulkDeleteUsers,
+      bulkDeleteUsers,
       toggleUserStatus,
       resetUserPassword,
+      updateUserAccessRights,
+      getAvailablePermissions,
       getUserById,
       searchUsers,
       filterUsers,

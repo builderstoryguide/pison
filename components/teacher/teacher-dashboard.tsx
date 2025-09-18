@@ -17,6 +17,7 @@ import {
   FileText,
   Eye,
   Award,
+  RefreshCw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -37,10 +38,23 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
 
   const [showAttendanceForm, setShowAttendanceForm] = useState(false)
   const [todaySchedule, setTodaySchedule] = useState<any[]>([])
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const loadData = async () => {
+    setIsRefreshing(true)
+    try {
+      await getTeacherClasses()
+      const schedule = await getTodaySchedule()
+      setTodaySchedule(schedule)
+    } catch (error) {
+      console.error('Error loading teacher data:', error)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   useEffect(() => {
-    getTeacherClasses()
-    setTodaySchedule(getTodaySchedule())
+    loadData()
   }, [])
 
   // Calculate statistics
@@ -149,23 +163,42 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
         {/* Today's Schedule */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Today's Schedule
-            </CardTitle>
-            <CardDescription>Your classes for today</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Today's Schedule
+                </CardTitle>
+                <CardDescription>Your classes for today</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadData}
+                disabled={isRefreshing || isLoading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            {todaySchedule.length === 0 ? (
+            {isLoading || isRefreshing ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <RefreshCw className="h-8 w-8 mx-auto mb-4 animate-spin" />
+                <p>Loading today's schedule...</p>
+              </div>
+            ) : todaySchedule.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No classes scheduled for today</p>
+                <p className="text-sm mt-2">Check back later or contact your administrator</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {todaySchedule.map((schedule, index) => (
-                  <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
-                    <div className="text-center">
+                  <div key={schedule.id || index} className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="text-center min-w-[80px]">
                       <div className="text-sm font-medium">{schedule.startTime}</div>
                       <div className="text-xs text-muted-foreground">to</div>
                       <div className="text-sm font-medium">{schedule.endTime}</div>
@@ -174,8 +207,20 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
                     <div className="flex-1">
                       <h4 className="font-medium">{schedule.subject}</h4>
                       <p className="text-sm text-muted-foreground">{schedule.period}</p>
+                      {schedule.className && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Class: {schedule.className}
+                        </p>
+                      )}
                     </div>
-                    <Badge variant="outline">{schedule.day}</Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant="outline">{schedule.day}</Badge>
+                      {schedule.room && (
+                        <span className="text-xs text-muted-foreground">
+                          Room: {schedule.room}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

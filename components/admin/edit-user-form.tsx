@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { CalendarIcon } from 'lucide-react'
+import { CalendarIcon, Shield } from 'lucide-react'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { useForm } from "react-hook-form"
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
@@ -28,6 +29,7 @@ import {
 import { cn } from '@/lib/utils'
 
 import { useUserManagement, User } from '@/lib/user-management-context'
+import { AccessRightsDialog } from './access-rights-dialog'
 
 const rolePermissions = {
   admin: ['all'],
@@ -62,6 +64,7 @@ interface EditUserFormProps {
 
 export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
   const { updateUser, isLoading, error } = useUserManagement()
+  const [showAccessRightsDialog, setShowAccessRightsDialog] = useState(false)
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -100,6 +103,7 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
   }
 
   return (
+    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
       {/* Basic Information */}
@@ -398,28 +402,41 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
         />
       </div>
 
-      {/* Permissions */}
+      {/* Access Rights Management */}
       <div className="space-y-4">
-        <h3 className="text-lg font-medium">Permissions</h3>
-        <div className="space-y-2">
-          {rolePermissions[watchedRole]?.map((permission) => (
-            <div key={permission} className="flex items-center space-x-2">
-              <Checkbox
-                id={permission}
-                checked={watchedPermissions.includes(permission)}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    form.setValue('permissions', [...watchedPermissions, permission])
-                  } else {
-                    form.setValue('permissions', watchedPermissions.filter(p => p !== permission))
-                  }
-                }}
-              />
-              <Label htmlFor={permission} className="text-sm capitalize">
-                {permission.replace(/_/g, ' ')}
-              </Label>
-            </div>
-          ))}
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-medium">Access Rights</h3>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAccessRightsDialog(true)}
+            className="flex items-center gap-2"
+          >
+            <Shield className="h-4 w-4" />
+            Manage Access Rights
+          </Button>
+        </div>
+        
+        <div className="p-4 border rounded-lg bg-muted/50">
+          <div className="flex items-center gap-2 mb-2">
+            <Shield className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Current Permissions</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {watchedPermissions.length > 0 ? (
+              watchedPermissions.map((permission) => (
+                <Badge key={permission} variant="secondary" className="text-xs">
+                  {permission.replace(/_/g, ' ')}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-sm text-muted-foreground">No permissions assigned</span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Click "Manage Access Rights" to add, remove, or modify permissions for this user.
+          </p>
         </div>
       </div>
 
@@ -441,5 +458,13 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
       </div>
     </form>
       </Form>
+
+      {/* Access Rights Dialog */}
+      <AccessRightsDialog
+        user={user}
+        open={showAccessRightsDialog}
+        onOpenChange={setShowAccessRightsDialog}
+      />
+    </>
   )
 }
