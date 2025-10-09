@@ -26,7 +26,9 @@ import { UserCreationSuccessDialog } from './user-creation-success-dialog'
 const roleIcons = {
   admin: User,
   teacher: GraduationCap,
-  bursar: DollarSign
+  bursar: DollarSign,
+  student: Users,
+  parent: UserCheck
 }
 
 interface DynamicUserFormProps {

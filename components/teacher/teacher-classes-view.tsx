@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { useTeacherAttendance } from "@/lib/teacher-attendance-context"
+import { useTeacherClasses } from "@/lib/teacher-classes-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -27,7 +27,7 @@ interface TeacherClassesViewProps {
 
 export function TeacherClassesView({ onNavigate }: TeacherClassesViewProps) {
   const { user } = useAuth()
-  const { teacherClasses, getTeacherClasses, isLoading } = useTeacherAttendance()
+  const { classes: teacherClasses, getTeacherClasses, isLoading } = useTeacherClasses()
   const [selectedClass, setSelectedClass] = useState<any>(null)
   const [showClassDetails, setShowClassDetails] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)

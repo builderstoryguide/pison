@@ -248,7 +248,7 @@ export function AccessRightsDialog({ user, open, onOpenChange }: AccessRightsDia
                             checked={isCategoryFullySelected(permissions)}
                             ref={(el) => {
                               if (el) {
-                                el.indeterminate = isCategoryPartiallySelected(permissions)
+                                (el as HTMLInputElement).indeterminate = isCategoryPartiallySelected(permissions)
                               }
                             }}
                             onCheckedChange={(checked) => handleSelectAll(permissions, checked as boolean)}

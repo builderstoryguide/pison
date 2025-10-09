@@ -95,8 +95,8 @@ export async function GET(request: NextRequest) {
     const classMap = new Map()
     
     assignments?.forEach(assignment => {
-      const classData = assignment.classes
-      const subjectData = assignment.subjects
+      const classData = assignment.classes as any
+      const subjectData = assignment.subjects as any
       
       if (!classData) return
 
@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
         .eq('enrollment_status', 'enrolled')
 
       if (!studentsError && students) {
-        classData.students = students.map(enrollment => ({
+        classData.students = students.map((enrollment: any) => ({
           id: enrollment.students?.id || enrollment.student_id,
           studentId: enrollment.students?.student_id || enrollment.student_id,
           firstName: enrollment.students?.first_name || '',

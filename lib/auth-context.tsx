@@ -15,6 +15,11 @@ interface User {
   parentCode?: string
   subsystem?: "english" | "french"
   branch?: "grammar" | "technical" | "commercial"
+  phone?: string
+  address?: string
+  dateOfBirth?: string
+  gender?: 'male' | 'female'
+  bio?: string
   class?: string
   permissions: string[]
 }

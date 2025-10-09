@@ -544,7 +544,7 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         }
 
         // Get updated teacher name if teacher was changed
-        let updatedTeacherName = undefined
+        let updatedTeacherName: string | undefined = undefined
         if (teacherUuid !== undefined) {
           try {
             const { data: teacherData } = await supabase

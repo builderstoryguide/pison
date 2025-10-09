@@ -264,7 +264,7 @@ export function ActivityLogsView() {
         </CardHeader>
         <CardContent>
           {isLoadingLogs ? (
-            <ShimmerDataTable rows={8} columns={5} />
+            <ShimmerDataTable />
           ) : filteredLogs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Activity className="h-12 w-12 text-muted-foreground mb-4" />
@@ -350,7 +350,7 @@ export function ActivityLogsView() {
                     
                     <div className="flex items-center gap-1">
                       {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        let pageNum
+                        let pageNum: number
                         if (totalPages <= 5) {
                           pageNum = i + 1
                         } else if (currentPage <= 3) {

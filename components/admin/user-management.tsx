@@ -342,7 +342,7 @@ export function UserManagement() {
           <CardDescription>View and manage all users in the system</CardDescription>
         </CardHeader>
         <CardContent>
-          <ShimmerDataTable rows={8} columns={7} />
+          <ShimmerDataTable />
         </CardContent>
       </Card>
     </div>

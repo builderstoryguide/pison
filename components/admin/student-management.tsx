@@ -360,8 +360,8 @@ export function StudentManagement() {
 
   const handleStatusChange = async (studentId: string, newStatus: string) => {
     try {
-      const success = await updateStudentStatus(studentId, newStatus)
-      if (success) {
+      const updateSuccess = await updateStudentStatus(studentId, newStatus)
+      if (updateSuccess) {
         success("Status updated", `Student status has been updated to ${newStatus}.`)
         loadStudents() // Refresh the list
       } else {
@@ -535,7 +535,7 @@ export function StudentManagement() {
             <CardDescription>View and manage all students in the system</CardDescription>
           </CardHeader>
           <CardContent>
-            <ShimmerDataTable rows={10} columns={8} />
+            <ShimmerDataTable />
           </CardContent>
         </Card>
       </div>
@@ -1412,23 +1412,12 @@ export function StudentManagement() {
 
        {/* Password Management Dialog */}
        {selectedStudent && (
-         <PasswordManagementDialog
-           user={{
-             id: selectedStudent.id,
-             name: `${selectedStudent.first_name} ${selectedStudent.last_name}`,
-             email: selectedStudent.email,
-             role: 'student' as const,
-             status: selectedStudent.status as 'active' | 'inactive' | 'suspended',
-             permissions: [],
-             createdAt: selectedStudent.created_at || '',
-             createdBy: '',
-             hasDefaultPassword: false,
-             passwordLastChanged: '',
-             passwordExpiryDate: ''
-           }}
-           open={showPasswordManagementDialog}
-           onOpenChange={setShowPasswordManagementDialog}
-         />
+        <PasswordManagementDialog
+          userId={selectedStudent.id}
+          userName={`${selectedStudent.first_name} ${selectedStudent.last_name}`}
+          isOpen={showPasswordManagementDialog}
+          onClose={() => setShowPasswordManagementDialog(false)}
+        />
        )}
 
        {/* Password Reset Success Dialog */}

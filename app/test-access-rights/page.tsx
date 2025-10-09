@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Shield, User, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { Shield, User as UserIcon, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -193,7 +193,7 @@ export default function TestAccessRightsPage() {
             {Object.entries(availablePermissions).map(([role, permissions]) => (
               <div key={role} className="border rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <User className="h-4 w-4" />
+                  <UserIcon className="h-4 w-4" />
                   <span className="font-medium capitalize">{role}</span>
                   <Badge variant="outline">{permissions.length} permissions</Badge>
                 </div>

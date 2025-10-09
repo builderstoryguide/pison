@@ -227,34 +227,43 @@ export async function PUT(request: NextRequest) {
       }, 400)
     }
 
-    // Try to update/create configuration
+    // Prepare update data
+    const updateData = {
+      school_name: school_name.trim(),
+      school_logo_url: school_logo_url?.trim() || null,
+      school_logo_alt_text: school_logo_alt_text?.trim() || 'School Logo',
+      school_address: school_address?.trim() || null,
+      school_phone: school_phone?.trim() || null,
+      school_email: school_email?.trim() || null,
+      school_website: school_website?.trim() || null,
+      school_motto: school_motto?.trim() || null,
+      primary_color: primary_color?.trim() || '#1f2937',
+      secondary_color: secondary_color?.trim() || '#3b82f6',
+      academic_year: academic_year?.trim() || '2024-2025',
+      currency: currency?.trim() || 'XOF',
+      timezone: timezone?.trim() || 'Africa/Douala',
+      language: language?.trim() || 'en',
+      date_format: date_format?.trim() || 'DD/MM/YYYY',
+      time_format: time_format?.trim() || '24h',
+      updated_by: user.id
+    }
+
+    // Check if configuration exists
+    let existingConfig
     try {
-      // Check if configuration exists
-      const { data: existingConfig } = await supabase
+      const { data } = await supabase
         .from('app_configuration')
         .select('id')
         .limit(1)
         .single()
+      existingConfig = data
+    } catch (configCheckError) {
+      // If we can't check for existing config, assume none exists
+      existingConfig = null
+    }
 
-      const updateData = {
-        school_name: school_name.trim(),
-        school_logo_url: school_logo_url?.trim() || null,
-        school_logo_alt_text: school_logo_alt_text?.trim() || 'School Logo',
-        school_address: school_address?.trim() || null,
-        school_phone: school_phone?.trim() || null,
-        school_email: school_email?.trim() || null,
-        school_website: school_website?.trim() || null,
-        school_motto: school_motto?.trim() || null,
-        primary_color: primary_color?.trim() || '#1f2937',
-        secondary_color: secondary_color?.trim() || '#3b82f6',
-        academic_year: academic_year?.trim() || '2024-2025',
-        currency: currency?.trim() || 'XOF',
-        timezone: timezone?.trim() || 'Africa/Douala',
-        language: language?.trim() || 'en',
-        date_format: date_format?.trim() || 'DD/MM/YYYY',
-        time_format: time_format?.trim() || '24h',
-        updated_by: user.id
-      }
+    // Try to update/create configuration
+    try {
 
       let result
       if (existingConfig) {

@@ -8,7 +8,7 @@ export interface User {
   id: string
   name: string
   email: string
-  role: 'admin' | 'teacher' | 'bursar'
+  role: 'admin' | 'teacher' | 'bursar' | 'student' | 'parent'
   status: 'active' | 'inactive' | 'suspended'
   avatar?: string
   studentId?: string
