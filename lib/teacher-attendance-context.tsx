@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useState, useEffect, useCallback } from "react"
 import { useAuth } from "./auth-context"
 
 export interface TeacherClass {
@@ -260,35 +260,83 @@ const mockAttendanceRecords: AttendanceRecord[] = [
 
 export function TeacherAttendanceProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
-  const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>(mockTeacherClasses)
+  const [teacherClasses, setTeacherClasses] = useState<TeacherClass[]>([])
   const [attendanceSessions, setAttendanceSessions] = useState<AttendanceSession[]>(mockAttendanceSessions)
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(mockAttendanceRecords)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const getTeacherClasses = async (): Promise<TeacherClass[]> => {
+  const getTeacherClasses = useCallback(async (): Promise<TeacherClass[]> => {
+    if (!user?.id || user.role !== 'teacher') {
+      setTeacherClasses([])
+      setIsLoading(false)
+      return []
+    }
+
     setIsLoading(true)
     setError(null)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      // Fetch real teacher classes from API
+      const response = await fetch(`/api/teachers/${user.id}/assignments`)
+      const data = await response.json()
 
-      // In real implementation, filter classes by teacher ID
-      const filteredClasses = teacherClasses.filter(
-        (cls) =>
-          // Mock filter - in real app, check if current user is assigned to this class
-          true,
-      )
+      if (!response.ok || !data.ok) {
+        const errorMessage = data.error || 'Failed to fetch teacher classes'
+        console.error('API returned error:', errorMessage, data)
+        
+        // Check if this is a linkage error
+        // Note: The API should auto-repair this, but if we still get this error,
+        // it means auto-repair failed or there's a different issue
+        if (errorMessage.includes('not linked to user account') || 
+            errorMessage.includes('migration script') ||
+            data.needsMigration) {
+          // Show user-friendly message and log for monitoring
+          const userMessage = 'Your teacher account is being set up. If this persists, please contact support.'
+          setError(userMessage)
+          console.warn('Teacher linkage issue detected. Auto-repair may have failed.', {
+            error: errorMessage,
+            userId: user?.id,
+            data
+          })
+          throw new Error(userMessage)
+        }
+        
+        throw new Error(errorMessage)
+      }
 
+      // Transform classes from API response to TeacherClass format
+      const transformedClasses: TeacherClass[] = (data.classes || []).map((cls: any) => ({
+        id: cls.id,
+        name: cls.name || 'Unknown Class',
+        level: cls.level || '',
+        subsystem: (cls.subsystem || 'english') as 'english' | 'french',
+        branch: (cls.branch || 'grammar') as 'grammar' | 'technical' | 'commercial',
+        students: [], // Students would need to be fetched separately if needed
+        schedule: [], // Schedule would need to come from timetable
+      }))
+
+      setTeacherClasses(transformedClasses)
       setIsLoading(false)
-      return filteredClasses
+      return transformedClasses
     } catch (err) {
-      setError("Failed to fetch teacher classes")
+      console.error('Error fetching teacher classes in attendance context:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch teacher classes')
+      // Fall back to empty array instead of mock data
+      setTeacherClasses([])
       setIsLoading(false)
       return []
     }
-  }
+  }, [user?.id, user?.role])
+
+  // Fetch classes when user is available
+  useEffect(() => {
+    if (user?.id && user.role === 'teacher') {
+      getTeacherClasses()
+    } else {
+      setTeacherClasses([])
+    }
+  }, [user?.id, user?.role, getTeacherClasses])
 
   const createAttendanceSession = async (sessionData: {
     classId: string

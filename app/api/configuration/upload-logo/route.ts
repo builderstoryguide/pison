@@ -1,33 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireRole } from '@/lib/auth/server'
 
 // POST - Upload school logo
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    // Check if user is authenticated
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Check if user is admin
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!userProfile || userProfile.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Insufficient permissions: Admin role required' },
-        { status: 403 }
-      )
-    }
+    // Check authentication and admin role
+    const user = await requireRole(request, 'admin')
 
     const formData = await request.formData()
     const file = formData.get('logo') as File
@@ -101,28 +82,8 @@ export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    // Check if user is authenticated
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Check if user is admin
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!userProfile || userProfile.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Insufficient permissions: Admin role required' },
-        { status: 403 }
-      )
-    }
+    // Check authentication and admin role
+    const user = await requireRole(request, 'admin')
 
     const { searchParams } = new URL(request.url)
     const fileName = searchParams.get('fileName')

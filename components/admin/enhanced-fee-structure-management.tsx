@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
 import { EnhancedFeeStructureForm } from "./enhanced-fee-structure-form"
 import { format } from "date-fns"
 import { formatCurrency } from "@/lib/currency-utils"
@@ -35,6 +36,7 @@ interface FeeStructure {
 
 export function EnhancedFeeStructureManagement() {
   const { toast } = useToast()
+  const globalAcademicYear = useGlobalAcademicYear()
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -43,6 +45,17 @@ export function EnhancedFeeStructureManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingFeeStructure, setEditingFeeStructure] = useState<FeeStructure | null>(null)
+
+  // Generate academic year options dynamically
+  const getAcademicYearOptions = () => {
+    const currentYear = parseInt(globalAcademicYear.split('-')[0])
+    const years = []
+    for (let i = -1; i <= 1; i++) {
+      const year = currentYear + i
+      years.push(`${year}-${year + 1}`)
+    }
+    return years
+  }
 
   useEffect(() => {
     loadFeeStructures()
@@ -232,9 +245,11 @@ export function EnhancedFeeStructureManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Years</SelectItem>
-                  <SelectItem value="2023-2024">2023-2024</SelectItem>
-                  <SelectItem value="2024-2025">2024-2025</SelectItem>
-                  <SelectItem value="2025-2026">2025-2026</SelectItem>
+                  {getAcademicYearOptions().map((year) => (
+                    <SelectItem key={year} value={year}>
+                      {year}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

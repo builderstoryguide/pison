@@ -120,6 +120,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Normalize class assignment: ensure we store class ID (UUID) instead of class name
+    let classValue = classId || null
+    
+    if (classId) {
+      // Check if classId is a UUID (class ID) or a class name
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(classId)
+      
+      if (!isUUID) {
+        // classId is a class name, look up the class ID
+        const { data: classData } = await supabase
+          .from('classes')
+          .select('id')
+          .eq('class_name', classId)
+          .eq('status', 'active')
+          .maybeSingle()
+        
+        if (classData) {
+          classValue = classData.id
+          console.log(`Resolved class name "${classId}" to class ID: ${classData.id}`)
+        } else {
+          console.warn(`Could not find class with name "${classId}", storing as-is for backward compatibility`)
+          // Keep the original value for backward compatibility
+        }
+      }
+    }
+
     // Create student
     const { data: newStudent, error: insertError } = await supabase
       .from('students')
@@ -137,7 +163,7 @@ export async function POST(request: NextRequest) {
         parent_email,
         subsystem,
         academic_year,
-        class: classId,
+        class: classValue, // Store class ID (UUID) if found, otherwise original value
         status
       })
       .select()

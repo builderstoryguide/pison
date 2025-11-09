@@ -29,7 +29,8 @@ import {
   Clock,
   Award,
   Send,
-  FileUp
+  FileUp,
+  RefreshCw
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
@@ -40,6 +41,7 @@ import * as React from "react"
 import { useTeacherGrades } from "@/lib/teacher-grades-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ShimmerList } from "@/components/ui/shimmer-loading"
+import { serializeSupabaseError } from "@/lib/safe-error"
 
 const assignmentSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -128,8 +130,39 @@ export function TeacherAssignmentManagement() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterClass, setFilterClass] = useState("all")
+  const [retryCount, setRetryCount] = useState(0)
+  const [isRetrying, setIsRetrying] = useState(false)
 
   const supabase = createClient()
+
+  /**
+   * Helper function to sleep for a given number of milliseconds
+   */
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+  /**
+   * Retry a function with exponential backoff
+   */
+  const retryWithBackoff = async <T,>(
+    fn: () => Promise<T>,
+    maxRetries: number = 3,
+    initialDelay: number = 1000
+  ): Promise<T> => {
+    let lastError: unknown
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await fn()
+      } catch (error) {
+        lastError = error
+        if (attempt < maxRetries) {
+          const delay = initialDelay * Math.pow(2, attempt)
+          console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms...`)
+          await sleep(delay)
+        }
+      }
+    }
+    throw lastError
+  }
 
   const form = useForm<AssignmentFormData>({
     resolver: zodResolver(assignmentSchema),
@@ -150,8 +183,14 @@ export function TeacherAssignmentManagement() {
 
   useEffect(() => {
     if (user?.id) {
-      loadAssignments()
-      checkTableExists()
+      // First check if table exists, then load assignments
+      checkTableExists().then((tableExists) => {
+        if (tableExists) {
+          loadAssignments()
+        } else {
+          setLoading(false)
+        }
+      })
     }
   }, [user?.id])
 
@@ -163,28 +202,77 @@ export function TeacherAssignmentManagement() {
         .select("id")
         .limit(1)
       
-      if (error && error.message?.includes('relation "assignments" does not exist')) {
-        console.error("Assignments table does not exist:", error)
-        toast.error("Database setup required", { 
-          description: "Please run the database setup script to create the assignments table." 
-        })
+      if (error) {
+        const errorDetails = serializeSupabaseError(error)
+        const errorMessage = errorDetails.message || ""
+        const errorCode = errorDetails.code || ""
+        
+        // Check for table doesn't exist error
+        if (errorMessage.includes('relation "assignments" does not exist') || 
+            errorMessage.includes('does not exist') ||
+            errorCode === '42P01') {
+          console.error("Assignments table does not exist:", errorDetails)
+          toast.error("Database setup required", { 
+            description: "The assignments table doesn't exist. Please run the migration script: scripts/2025-11-04_018_create_assignments_tables.sql",
+            duration: 10000
+          })
+          setError("Database setup required - Please run the migration script to create the assignments table")
+          return false
+        }
+        
+        // Check for RLS policy error
+        if (errorMessage.includes('permission denied') || 
+            errorMessage.includes('row-level security') ||
+            errorCode === '42501') {
+          console.error("RLS policy error:", errorDetails)
+          toast.error("Permission denied", { 
+            description: "You don't have permission to access assignments. Please check RLS policies.",
+            duration: 8000
+          })
+          setError("Permission denied - Please check database RLS policies")
+          return false
+        }
+        
+        console.warn("Error checking table existence:", errorDetails)
+        return false
       }
+      
+      // Table exists
+      return true
     } catch (err) {
-      console.error("Error checking table existence:", err)
+      const errorDetails = serializeSupabaseError(err)
+      console.error("Error checking table existence:", errorDetails)
+      return false
     }
   }
 
-  const loadAssignments = async () => {
+  const loadAssignments = async (isRetry: boolean = false) => {
+    const operationContext = {
+      operation: "loadAssignments",
+      userId: user?.id,
+      userEmail: user?.email,
+      timestamp: new Date().toISOString(),
+      retryCount: retryCount,
+      isRetry: isRetry,
+    }
+
     try {
-      setLoading(true)
+      if (!isRetry) {
+        setLoading(true)
+        setRetryCount(0)
+      }
+      setError(null)
       
       // Check if user is available
       if (!user?.id) {
-        console.warn("User not available, using mock data")
+        const warningMessage = "User not available, cannot load assignments"
+        console.warn(warningMessage, operationContext)
+        setError("Please log in to view assignments")
         setLoading(false)
         return
       }
       
+      // Execute the database query
       const { data: assignmentsData, error: assignmentsError } = await supabase
         .from("assignments")
         .select("*")
@@ -192,39 +280,350 @@ export function TeacherAssignmentManagement() {
         .order("created_at", { ascending: false })
 
       if (assignmentsError) {
-        console.error("Error fetching assignments:", assignmentsError)
-        setError("Failed to load assignments")
+        // Log raw error first for debugging - try multiple methods to extract error info
+        const errorInfo = {
+          error: assignmentsError,
+          errorType: typeof assignmentsError,
+          errorConstructor: assignmentsError?.constructor?.name,
+          errorKeys: assignmentsError ? Object.keys(assignmentsError) : [],
+          // Try to access properties that might not be enumerable
+          errorMessage: (assignmentsError as any)?.message || (assignmentsError as any)?.error_description || (assignmentsError as any)?.error || undefined,
+          errorCode: (assignmentsError as any)?.code || undefined,
+          errorDetails: (assignmentsError as any)?.details || undefined,
+          errorHint: (assignmentsError as any)?.hint || undefined,
+          // Try JSON.stringify to see if we can serialize it
+          errorStringified: (() => {
+            try {
+              return JSON.stringify(assignmentsError)
+            } catch {
+              return "Could not stringify error"
+            }
+          })(),
+          // Try toString
+          errorToString: (() => {
+            try {
+              return String(assignmentsError)
+            } catch {
+              return "Could not convert error to string"
+            }
+          })(),
+          context: operationContext,
+        }
+        console.error("Raw assignment error:", errorInfo)
+
+        // Validate error before serialization
+        let errorDetails
+        try {
+          if (assignmentsError === null || assignmentsError === undefined) {
+            errorDetails = {
+              message: "Null or undefined error received from Supabase",
+              type: "null_error",
+              ...operationContext,
+            }
+          } else {
+            errorDetails = serializeSupabaseError(assignmentsError)
+            // Ensure errorDetails has a message
+            if (!errorDetails.message || errorDetails.message.trim() === "") {
+              errorDetails.message = "Error occurred but no message available"
+            }
+          }
+        } catch (serializationError) {
+          // If serialization itself fails, create a fallback error
+          console.error("Error serialization failed:", {
+            originalError: assignmentsError,
+            serializationError: serializationError instanceof Error ? serializationError.message : String(serializationError),
+            context: operationContext,
+          })
+          errorDetails = {
+            message: "Error occurred but could not be serialized. Check console for details.",
+            type: "serialization_failure",
+            rawError: String(assignmentsError),
+            ...operationContext,
+          }
+        }
+
+        // Log serialized error with context
+        console.error("Error fetching assignments:", {
+          errorDetails,
+          context: operationContext,
+          stackTrace: new Error().stack,
+        })
+        
+        // Provide specific error messages based on error type
+        let userErrorMessage = "Failed to load assignments"
+        let userErrorDescription = "An error occurred while loading assignments."
+        
+        // Check for table doesn't exist error
+        if (errorDetails.message?.includes('relation "assignments" does not exist') || 
+            errorDetails.message?.includes('does not exist') ||
+            errorDetails.code === '42P01' ||
+            errorDetails.type === 'empty_object_with_properties') {
+          userErrorMessage = "Database setup required"
+          userErrorDescription = `The assignments table doesn't exist or is not accessible. Please run the migration script: scripts/2025-11-04_018_create_assignments_tables.sql\n\nError: ${errorDetails.message || errorDetails.raw || 'Unknown error'}`
+          setError("Database setup required - Please run the migration script")
+        } else if (errorDetails.message?.includes('permission denied') || 
+                   errorDetails.message?.includes('row-level security') ||
+                   errorDetails.code === '42501') {
+          userErrorMessage = "Permission denied"
+          userErrorDescription = "You don't have permission to view assignments. Please contact your administrator."
+          setError("Permission denied")
+        } else if (errorDetails.message?.includes('network') || errorDetails.message?.includes('fetch')) {
+          userErrorMessage = "Network error"
+          userErrorDescription = "Unable to connect to the server. Please check your internet connection."
+          setError("Network error")
+        } else if (errorDetails.type === "empty_object") {
+          userErrorMessage = "Unexpected error"
+          userErrorDescription = "An unexpected error occurred. Please try refreshing the page or contact support if the issue persists."
+          setError("Unexpected error occurred")
+        } else {
+          userErrorMessage = "Failed to load assignments"
+          userErrorDescription = errorDetails.message || "An error occurred while loading assignments."
+          setError("Failed to load assignments")
+        }
+
+        // Determine if error is retryable
+        const isRetryable = 
+          errorDetails.message?.includes('network') ||
+          errorDetails.message?.includes('fetch') ||
+          errorDetails.message?.includes('timeout') ||
+          errorDetails.code === 'PGRST116' ||
+          errorDetails.code === 'PGRST301' ||
+          errorDetails.type === "empty_object"
+
+        // Show error toast with retry option if applicable
+        if (isRetryable && retryCount < 2) {
+          toast.error(userErrorMessage, {
+            description: `${userErrorDescription} Retrying... (${retryCount + 1}/2)`,
+            duration: 3000,
+          })
+          // Auto-retry with exponential backoff
+          const delay = 1000 * Math.pow(2, retryCount)
+          setIsRetrying(true)
+          setRetryCount(prev => prev + 1)
+          setTimeout(() => {
+            loadAssignments(true).finally(() => setIsRetrying(false))
+          }, delay)
+        } else {
+          toast.error(userErrorMessage, {
+            description: userErrorDescription,
+            action: isRetryable ? {
+              label: "Retry",
+              onClick: () => {
+                setRetryCount(0)
+                loadAssignments(false)
+              },
+            } : undefined,
+          })
+          setLoading(false)
+        }
         return
       }
 
-      // Get submission counts for each assignment
-      const assignmentsWithCounts = await Promise.all(
-        (assignmentsData || []).map(async (assignment) => {
-          const { count: submissionCount } = await supabase
-            .from("assignment_submissions")
-            .select("*", { count: "exact", head: true })
-            .eq("assignment_id", assignment.id)
+      // Handle case where data is null or undefined
+      if (!assignmentsData) {
+        console.warn("No assignments data returned", operationContext)
+        setAssignments([])
+        setLoading(false)
+        return
+      }
 
-          const { count: gradedCount } = await supabase
-            .from("assignment_submissions")
-            .select("*", { count: "exact", head: true })
-            .eq("assignment_id", assignment.id)
-            .eq("status", "graded")
+      // Get submission counts for each assignment with proper error handling
+      const assignmentsWithCounts = await Promise.all(
+        assignmentsData.map(async (assignment) => {
+          let submissionCount = 0
+          let gradedCount = 0
+
+          try {
+            // Get total submission count
+            const { count, error: countError } = await supabase
+              .from("assignment_submissions")
+              .select("*", { count: "exact", head: true })
+              .eq("assignment_id", assignment.id)
+
+            if (countError) {
+              // Validate error before serialization
+              let errorDetails
+              try {
+                if (countError !== null && countError !== undefined) {
+                  errorDetails = serializeSupabaseError(countError)
+                } else {
+                  errorDetails = { message: "Null error received", type: "null_error" }
+                }
+              } catch (serializationError) {
+                errorDetails = {
+                  message: "Error serialization failed",
+                  type: "serialization_failure",
+                  rawError: String(countError),
+                }
+              }
+              console.warn(`Error fetching submission count for assignment ${assignment.id}:`, {
+                errorDetails,
+                assignmentId: assignment.id,
+                context: operationContext,
+              })
+              // Continue with default count of 0 instead of failing
+            } else {
+              submissionCount = count || 0
+            }
+
+            // Get graded submission count
+            const { count: gradedCountValue, error: gradedError } = await supabase
+              .from("assignment_submissions")
+              .select("*", { count: "exact", head: true })
+              .eq("assignment_id", assignment.id)
+              .eq("status", "graded")
+
+            if (gradedError) {
+              // Validate error before serialization
+              let errorDetails
+              try {
+                if (gradedError !== null && gradedError !== undefined) {
+                  errorDetails = serializeSupabaseError(gradedError)
+                } else {
+                  errorDetails = { message: "Null error received", type: "null_error" }
+                }
+              } catch (serializationError) {
+                errorDetails = {
+                  message: "Error serialization failed",
+                  type: "serialization_failure",
+                  rawError: String(gradedError),
+                }
+              }
+              console.warn(`Error fetching graded count for assignment ${assignment.id}:`, {
+                errorDetails,
+                assignmentId: assignment.id,
+                context: operationContext,
+              })
+              // Continue with default count of 0 instead of failing
+            } else {
+              gradedCount = gradedCountValue || 0
+            }
+          } catch (err) {
+            // Validate error before serialization
+            let errorDetails
+            try {
+              if (err !== null && err !== undefined) {
+                errorDetails = serializeSupabaseError(err)
+              } else {
+                errorDetails = { message: "Null error received", type: "null_error" }
+              }
+            } catch (serializationError) {
+              errorDetails = {
+                message: "Error serialization failed",
+                type: "serialization_failure",
+                rawError: String(err),
+              }
+            }
+            console.warn(`Unexpected error fetching counts for assignment ${assignment.id}:`, {
+              errorDetails,
+              assignmentId: assignment.id,
+              context: operationContext,
+              stackTrace: err instanceof Error ? err.stack : undefined,
+            })
+            // Continue with default counts instead of failing the entire operation
+          }
 
           return {
             ...assignment,
-            submission_count: submissionCount || 0,
-            graded_count: gradedCount || 0,
+            submission_count: submissionCount,
+            graded_count: gradedCount,
           }
         })
       )
 
       setAssignments(assignmentsWithCounts)
+      setError(null)
+      setRetryCount(0) // Reset retry count on success
+      setIsRetrying(false)
     } catch (err) {
-      console.error("Error loading assignments:", err)
-      setError("An unexpected error occurred")
+      // Log raw error first for debugging
+      console.error("Raw unexpected error in loadAssignments:", {
+        error: err,
+        errorType: typeof err,
+        errorConstructor: err instanceof Error ? err.constructor.name : undefined,
+        context: operationContext,
+        stackTrace: err instanceof Error ? err.stack : new Error().stack,
+      })
+
+      // Validate error before serialization
+      let errorDetails
+      try {
+        if (err === null || err === undefined) {
+          errorDetails = {
+            message: "Null or undefined error caught in loadAssignments",
+            type: "null_error",
+            ...operationContext,
+          }
+        } else {
+          errorDetails = serializeSupabaseError(err)
+          // Ensure errorDetails has a message
+          if (!errorDetails.message || errorDetails.message.trim() === "") {
+            errorDetails.message = "An unexpected error occurred but no message available"
+          }
+        }
+      } catch (serializationError) {
+        // If serialization itself fails, create a fallback error
+        console.error("Error serialization failed in catch block:", {
+          originalError: err,
+          serializationError: serializationError instanceof Error ? serializationError.message : String(serializationError),
+          context: operationContext,
+        })
+        errorDetails = {
+          message: "An unexpected error occurred but could not be serialized. Check console for details.",
+          type: "serialization_failure",
+          rawError: String(err),
+          ...operationContext,
+        }
+      }
+
+      // Log serialized error with full context
+      console.error("Error loading assignments:", {
+        errorDetails,
+        context: operationContext,
+        stackTrace: err instanceof Error ? err.stack : new Error().stack,
+      })
+
+      const userErrorMessage = "An unexpected error occurred"
+      const userErrorDescription = errorDetails.message || "An unexpected error occurred while loading assignments. Please try again."
+      
+      setError(userErrorMessage)
+      
+      // Determine if error is retryable
+      const isRetryable = 
+        errorDetails.message?.includes('network') ||
+        errorDetails.message?.includes('fetch') ||
+        errorDetails.message?.includes('timeout') ||
+        errorDetails.type === "empty_object"
+
+      // Show error toast with retry option if applicable
+      if (isRetryable && retryCount < 2 && !isRetry) {
+        toast.error("Error loading assignments", {
+          description: `${userErrorDescription} Retrying... (${retryCount + 1}/2)`,
+          duration: 3000,
+        })
+        // Auto-retry with exponential backoff
+        const delay = 1000 * Math.pow(2, retryCount)
+        setIsRetrying(true)
+        setRetryCount(prev => prev + 1)
+        setTimeout(() => {
+          loadAssignments(true).finally(() => setIsRetrying(false))
+        }, delay)
+      } else {
+        toast.error("Error loading assignments", {
+          description: userErrorDescription,
+          action: isRetryable ? {
+            label: "Retry",
+            onClick: () => {
+              setRetryCount(0)
+              loadAssignments(false)
+            },
+          } : undefined,
+        })
+      }
     } finally {
-      setLoading(false)
+      if (!isRetrying) {
+        setLoading(false)
+      }
     }
   }
 
@@ -237,13 +636,23 @@ export function TeacherAssignmentManagement() {
         .order("submitted_at", { ascending: false })
 
       if (submissionsError) {
-        console.error("Error fetching submissions:", submissionsError)
+        const errorDetails = serializeSupabaseError(submissionsError)
+        console.error("Error fetching submissions:", errorDetails)
+        toast.error("Failed to load submissions", {
+          description: errorDetails.message || "An error occurred while loading submissions.",
+        })
+        setSubmissions([])
         return
       }
 
       setSubmissions(submissionsData || [])
     } catch (err) {
-      console.error("Error loading submissions:", err)
+      const errorDetails = serializeSupabaseError(err)
+      console.error("Error loading submissions:", errorDetails)
+      toast.error("Error loading submissions", {
+        description: errorDetails.message || "An unexpected error occurred while loading submissions.",
+      })
+      setSubmissions([])
     }
   }
 
@@ -711,9 +1120,33 @@ export function TeacherAssignmentManagement() {
         </select>
       </div>
 
+      {/* Error Display */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-lg font-medium text-red-900 mb-1">Error Loading Assignments</h3>
+                <p className="text-sm text-red-700 mb-4">{error}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => loadAssignments()}
+                  disabled={loading}
+                >
+                  <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
+                  Retry
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Assignments List */}
       <div className="space-y-4">
-        {filteredAssignments.length === 0 ? (
+        {filteredAssignments.length === 0 && !error ? (
           <Card>
             <CardContent className="text-center py-8">
               <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -726,7 +1159,7 @@ export function TeacherAssignmentManagement() {
               </p>
             </CardContent>
           </Card>
-        ) : (
+        ) : !error ? (
           filteredAssignments.map((assignment) => (
             <Card key={assignment.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
@@ -802,7 +1235,7 @@ export function TeacherAssignmentManagement() {
               </CardContent>
             </Card>
           ))
-        )}
+        ) : null}
       </div>
 
       {/* Create Assignment Dialog */}

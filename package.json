@@ -7,7 +7,9 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
-    "setup-env": "node scripts/setup-env.js"
+    "setup-env": "node scripts/setup-env.js",
+    "validate-imports": "node scripts/validate-icon-imports.js",
+    "prebuild": "npm run validate-imports"
   },
   "dependencies": {
     "@hookform/resolvers": "latest",
@@ -38,6 +40,7 @@
     "@radix-ui/react-toggle": "1.1.1",
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "latest",
+    "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.56.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/papaparse": "^5.3.16",

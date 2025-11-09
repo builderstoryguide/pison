@@ -2,8 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { supabase, isSupabaseAvailable } from "./supabase"
-import { generateDefaultPassword } from "./password-utils"
-import bcrypt from "bcryptjs"
 
 // Helper function to generate initials from name
 function generateInitials(name: string): string {
@@ -155,28 +153,6 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
     }
   }, [])
 
-  const generateTeacherId = async (): Promise<string> => {
-    if (!supabase) {
-      throw new Error("Supabase client not available")
-    }
-
-    const currentYear = new Date().getFullYear()
-    let teacherId: string
-    let isUnique = false
-    let counter = 1
-
-    while (!isUnique) {
-      teacherId = `TCH${currentYear}${counter.toString().padStart(3, "0")}`
-
-      const { data } = await supabase.from("teachers").select("teacher_id").eq("teacher_id", teacherId).single()
-      isUnique = !data
-
-      if (!isUnique) counter++
-    }
-
-    return teacherId!
-  }
-
   const loadTeachers = async () => {
     if (!supabase) {
       setError("Supabase client not available")
@@ -246,160 +222,125 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
     }
   }
 
-  const addTeacher = async (teacherData: TeacherFormData): Promise<{ teacherId: string; password: string }> => {
-    if (!supabase) {
-      throw new Error("Supabase client not available")
-    }
-
+  const addTeacher = async (teacherData: TeacherFormData): Promise<{ 
+    teacherId: string; 
+    password: string;
+    userAccountCreated?: boolean;
+    userAccountError?: string;
+  }> => {
     setIsLoading(true)
     setError(null)
 
     try {
       console.log("🔄 Starting teacher enrollment process...")
-      
-      const teacherId = await generateTeacherId()
-      const now = new Date().toISOString()
+      console.log("👤 Teacher data:", { ...teacherData, id: "..." })
 
-      const newTeacher: Teacher = {
-        ...teacherData,
-        id: generateUUID(),
-        teacherId,
-        createdAt: now,
-        updatedAt: now,
-      }
-
-      console.log("📝 Generated teacher ID:", teacherId)
-      console.log("👤 Teacher data:", { ...newTeacher, id: newTeacher.id.substring(0, 8) + "..." })
-
-      console.log("💾 Saving teacher to database...")
-      // Save to database
-      const { error: teacherError } = await supabase.from("teachers").insert({
-        teacher_id: teacherId,
-        title: teacherData.title,
-        first_name: teacherData.firstName,
-        last_name: teacherData.lastName,
-        email: teacherData.email,
-        phone: teacherData.phone,
-        date_of_birth: teacherData.dateOfBirth,
-        gender: teacherData.gender,
-        nationality: teacherData.nationality,
-        id_number: teacherData.idNumber,
-        address: teacherData.address,
-        city: teacherData.city,
-        region: teacherData.region,
-        subsystem: teacherData.subsystem,
-        subjects: teacherData.subjects,
-        classes: teacherData.classes,
-        qualifications: teacherData.qualifications,
-        experience: teacherData.experience,
-        employment_type: teacherData.employmentType,
-        salary: teacherData.salary,
-        start_date: teacherData.startDate,
-        emergency_contact_name: teacherData.emergencyContact.name,
-        emergency_contact_relationship: teacherData.emergencyContact.relationship,
-        emergency_contact_phone: teacherData.emergencyContact.phone,
-        status: teacherData.status,
+      // Call API route to create teacher (uses service role client, bypasses RLS)
+      const response = await fetch('/api/teachers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...teacherData,
+          createdBy: null // TODO: Get current user ID from session if available
+        }),
       })
 
-      if (teacherError) {
-        console.error("❌ Database error:", teacherError)
-        console.error("❌ Error details:", {
-          message: teacherError.message,
-          details: teacherError.details,
-          hint: teacherError.hint,
-          code: teacherError.code
-        })
-        
-        // Provide more specific error messages based on the error
-        let errorMessage = "Failed to add teacher"
-        
-        if (teacherError.message) {
-          if (teacherError.message.includes("valid_phone")) {
-            errorMessage = "Invalid phone number format. Please ensure the phone number follows the Cameroon format (+237 6XXXXXXXX)."
-          } else if (teacherError.message.includes("duplicate key")) {
-            errorMessage = "A teacher with this email or ID number already exists."
-          } else if (teacherError.message.includes("not null")) {
-            errorMessage = "Missing required information. Please fill in all required fields."
-          } else {
-            errorMessage = teacherError.message
+      if (!response.ok) {
+        let errorData: any = { error: 'Unknown error' }
+        try {
+          errorData = await response.json()
+        } catch (parseError) {
+          // If response is not JSON, use status text
+          errorData = { 
+            error: `Server error: ${response.statusText || 'Unknown error'}`,
+            details: `HTTP ${response.status}`
           }
         }
+        
+        // Build comprehensive error message
+        let errorMessage = errorData.error || `Failed to create teacher: ${response.statusText}`
+        
+        // Add details if available
+        if (errorData.details) {
+          errorMessage += ` (${errorData.details})`
+        }
+        
+        // Add specific error codes
+        if (errorData.code) {
+          console.error("❌ Error code:", errorData.code)
+        }
+        
+        // Handle specific HTTP status codes
+        if (response.status === 400) {
+          errorMessage = errorData.error || 'Invalid request. Please check all required fields are filled correctly.'
+        } else if (response.status === 409) {
+          errorMessage = errorData.error || 'A teacher with this information already exists.'
+        } else if (response.status === 403) {
+          errorMessage = errorData.error || 'Permission denied. Please contact administrator.'
+        } else if (response.status === 500) {
+          errorMessage = errorData.error || 'Server error occurred while creating teacher. Please try again later.'
+        }
+        
+        console.error("❌ API error:", errorMessage)
+        console.error("❌ Response status:", response.status)
+        console.error("❌ Error details:", errorData)
         
         throw new Error(errorMessage)
       }
 
-      console.log("✅ Teacher saved to database successfully")
-      
-      // Generate password for teacher
-      const teacherPassword = generateDefaultPassword('teacher')
-      console.log("🔑 Generated password for teacher:", teacherPassword)
-      
-      // Create user account for teacher
+      let result: any
       try {
-        const teacherName = `${teacherData.firstName} ${teacherData.lastName}`
-        const teacherInitials = generateInitials(teacherName)
-        
-        const { data: teacherUser, error: userError } = await supabase
-          .from('users')
-          .insert({
-            email: teacherData.email,
-            password_hash: await bcrypt.hash(teacherPassword, 12),
-            name: teacherName,
-            role: 'teacher',
-            status: 'active',
-            avatar_url: `initials:${teacherInitials}`,
-            phone: teacherData.phone,
-            has_default_password: true,
-            password_last_changed: new Date().toISOString(),
-            password_expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            permissions: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents'],
-          })
-          .select()
-          .single()
-
-        if (userError) {
-          console.warn("Failed to create teacher user account:", userError.message)
-        } else {
-          console.log("✅ Teacher user account created successfully")
-          
-          // Create user profile for teacher
-          const { error: profileError } = await supabase
-            .from('user_profiles')
-            .insert({
-              user_id: teacherUser.id,
-              role_specific_id: teacherId,
-              subsystem: teacherData.subsystem,
-              occupation: teacherData.employmentType,
-              emergency_contact_name: teacherData.emergencyContact.name,
-              emergency_contact_phone: teacherData.emergencyContact.phone,
-              emergency_contact_relationship: teacherData.emergencyContact.relationship,
-            })
-          
-          if (profileError) {
-            console.warn("Failed to create teacher user profile:", profileError.message)
-          } else {
-            console.log("✅ Teacher user profile created successfully")
-          }
-        }
-      } catch (userErr) {
-        console.warn("Failed to create teacher user account:", userErr)
-        // Continue with teacher creation even if user account creation fails
+        result = await response.json()
+      } catch (parseError) {
+        console.error("❌ Failed to parse API response:", parseError)
+        throw new Error("Invalid response from server. Please try again.")
       }
       
-      await loadTeachers() // Reload to get the complete data
+      // Validate result structure
+      if (!result || typeof result !== 'object') {
+        console.error("❌ Invalid API response structure:", result)
+        throw new Error("Invalid response from server. Please try again.")
+      }
+      
+      if (!result.success) {
+        const errorMessage = result.error || "Failed to create teacher"
+        console.error("❌ API returned error:", errorMessage)
+        throw new Error(errorMessage)
+      }
+      
+      // Validate required fields in response
+      if (!result.teacherId || !result.password) {
+        console.error("❌ Missing required fields in API response:", result)
+        throw new Error("Incomplete response from server. Please try again.")
+      }
+
+      console.log("✅ Teacher created successfully via API")
+      console.log("📝 Teacher ID:", result.teacherId)
+      console.log("🔑 Generated password:", result.password ? "***" : "not provided")
+      
+      // Reload teachers to get the complete data
+      await loadTeachers()
 
       // Dispatch teacherCreated event to notify User Management context
       window.dispatchEvent(new CustomEvent('teacherCreated', { 
         detail: { 
-          teacherId: teacherId,
+          teacherId: result.teacherId,
           name: `${teacherData.firstName} ${teacherData.lastName}`,
           email: teacherData.email 
         } 
       }))
 
       console.log("🎉 Teacher enrollment completed successfully!")
-      console.log("📤 Returning result:", { teacherId, password: teacherPassword })
-      return { teacherId, password: teacherPassword }
+      console.log("📤 Returning result:", { teacherId: result.teacherId, password: result.password })
+      
+      return { 
+        teacherId: result.teacherId, 
+        password: result.password,
+        userAccountCreated: result.userAccountCreated ?? true, // Default to true for backward compatibility
+        userAccountError: result.userAccountError
+      }
     } catch (err) {
       console.error("Error adding teacher:", err)
       const errorMessage = err instanceof Error ? err.message : 

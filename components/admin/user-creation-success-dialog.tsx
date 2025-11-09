@@ -1,14 +1,27 @@
 "use client"
 
-import { Check, Copy, Download, Mail, User, Users } from 'lucide-react'
+import { Check, Copy, Download, User, Users } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { downloadEmailContent, sendWelcomeEmail, type EmailData } from '@/lib/email-utils'
 import { useToast } from '@/hooks/use-toast'
+
+// Local type for the downloadable credential data
+type EmailData = {
+  name: string
+  email: string
+  role: 'admin' | 'teacher' | 'student' | 'parent' | 'bursar'
+  password: string
+  userId?: string
+  className?: string
+  parentName?: string
+  parentEmail?: string
+  parentCode?: string
+  parentPassword?: string
+}
 
 interface UserCreationSuccessDialogProps {
   userData: EmailData
@@ -22,7 +35,6 @@ export function UserCreationSuccessDialog({
   onSuccess 
 }: UserCreationSuccessDialogProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
-  const [isSendingEmail, setIsSendingEmail] = useState(false)
   const { toast } = useToast()
 
   const copyToClipboard = (text: string, field: string) => {
@@ -32,29 +44,34 @@ export function UserCreationSuccessDialog({
   }
 
   const handleDownloadEmail = () => {
-    downloadEmailContent(userData)
-  }
+    const lines: string[] = []
+    lines.push(`Name: ${userData.name}`)
+    lines.push(`Role: ${userData.role}`)
+    if (userData.userId) lines.push(`User ID/Code: ${userData.userId}`)
+    lines.push(`Email: ${userData.email}`)
+    if (userData.className) lines.push(`Class: ${userData.className}`)
+    lines.push(`Temporary Password: ${userData.password}`)
+    if (userData.parentName) lines.push(`Parent: ${userData.parentName}`)
+    if (userData.parentEmail) lines.push(`Parent Email: ${userData.parentEmail}`)
+    if (userData.parentCode) lines.push(`Parent Code: ${userData.parentCode}`)
+    if (userData.parentPassword) lines.push(`Parent Password: ${userData.parentPassword}`)
+    lines.push('')
+    lines.push('Important: Change the password on first login. Password expires in 30 days.')
 
-  const handleSendEmail = async () => {
-    setIsSendingEmail(true)
-    try {
-      const result = await sendWelcomeEmail(userData)
-      if (result.success) {
-        toast.success("Welcome email sent successfully!", {
-          description: `Email has been sent to ${userData.email}`
-        })
-      } else {
-        toast.error("Failed to send welcome email", {
-          description: result.error || "An error occurred while sending the email"
-        })
-      }
-    } catch (error) {
-      toast.error("Failed to send welcome email", {
-        description: "An unexpected error occurred"
-      })
-    } finally {
-      setIsSendingEmail(false)
-    }
+    const content = lines.join('\n')
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const nameSafeRole = userData.role.toLowerCase()
+    const idPart = userData.userId ? `-${userData.userId}` : ''
+    a.href = url
+    a.download = `credentials-${nameSafeRole}${idPart}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    toast.success('Credentials downloaded')
   }
 
   const getRoleDisplayName = (role: string) => {
@@ -268,16 +285,7 @@ export function UserCreationSuccessDialog({
         <div className="flex flex-col gap-2 w-full">
           <Button variant="outline" onClick={handleDownloadEmail} className="w-full">
             <Download className="h-4 w-4 mr-2" />
-            Download Welcome Email
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={handleSendEmail}
-            disabled={isSendingEmail}
-            className="w-full"
-          >
-            <Mail className="h-4 w-4 mr-2" />
-            {isSendingEmail ? 'Sending...' : 'Send Welcome Email'}
+            Download Credentials
           </Button>
         </div>
         <div className="flex gap-2 w-full">

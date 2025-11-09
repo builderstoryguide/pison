@@ -12,7 +12,12 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Pison School Management System",
   description: "Comprehensive school management system for Pison Academy of Excellence",
-    generator: 'Cyrille Kuete'
+    generator: 'Cyrille Kuete',
+    icons: {
+      icon: '/pison-logo.png',
+      shortcut: '/pison-logo.png',
+      apple: '/pison-logo.png'
+    }
 }
 
 export default function RootLayout({

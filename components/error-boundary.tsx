@@ -49,23 +49,144 @@ class ErrorBoundaryClass extends React.Component<ErrorBoundaryProps, ErrorBounda
       errorInfo,
     })
 
-    // Enhanced error logging with better error handling
-    const errorDetails = {
-      errorId: this.state.errorId,
-      error: {
-        message: error?.message || 'Unknown error',
-        name: error?.name || 'Error',
-        stack: error?.stack || 'No stack trace available',
-      },
-      componentStack: errorInfo?.componentStack || 'No component stack available',
-      timestamp: new Date().toISOString(),
+    // Safe serialization function to handle circular references and non-serializable values
+    const safeSerialize = (obj: any, visited = new WeakSet()): any => {
+      if (obj === null || obj === undefined) {
+        return obj
+      }
+      
+      // Handle primitive types
+      if (typeof obj !== 'object') {
+        return obj
+      }
+      
+      // Handle circular references
+      if (visited.has(obj)) {
+        return '[Circular Reference]'
+      }
+      
+      visited.add(obj)
+      
+      // Handle arrays
+      if (Array.isArray(obj)) {
+        return obj.map(item => safeSerialize(item, visited))
+      }
+      
+      // Handle Error objects specially
+      if (obj instanceof Error) {
+        return {
+          message: obj.message || 'Unknown error',
+          name: obj.name || 'Error',
+          stack: obj.stack || 'No stack trace available',
+          ...Object.getOwnPropertyNames(obj).reduce((acc, key) => {
+            try {
+              const value = (obj as any)[key]
+              if (typeof value !== 'function') {
+                acc[key] = safeSerialize(value, visited)
+              }
+            } catch {
+              // Skip properties that can't be accessed
+            }
+            return acc
+          }, {} as Record<string, any>),
+        }
+      }
+      
+      // Handle regular objects
+      try {
+        const result: Record<string, any> = {}
+        for (const key in obj) {
+          if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            try {
+              const value = obj[key]
+              if (typeof value !== 'function') {
+                result[key] = safeSerialize(value, visited)
+              }
+            } catch {
+              result[key] = '[Error accessing property]'
+            }
+          }
+        }
+        return result
+      } catch {
+        return '[Error serializing object]'
+      }
     }
 
-    // Log error details to console
-    console.error('🚨 Error Boundary Caught Error:', errorDetails)
+    // Enhanced error logging with better error handling
+    let errorDetails: any
+    try {
+      errorDetails = {
+        errorId: this.state.errorId,
+        error: {
+          message: error?.message || String(error) || 'Unknown error',
+          name: error?.name || error?.constructor?.name || 'Error',
+          stack: error?.stack || 'No stack trace available',
+        },
+        componentStack: errorInfo?.componentStack || 'No component stack available',
+        timestamp: new Date().toISOString(),
+      }
+      
+      // Safely serialize error object if it has additional properties
+      if (error && Object.keys(error).length > 0) {
+        try {
+          errorDetails.error = safeSerialize(error)
+        } catch (serializeError) {
+          // If serialization fails, use basic error info
+          errorDetails.error = {
+            message: error?.message || String(error) || 'Unknown error',
+            name: error?.name || error?.constructor?.name || 'Error',
+            stack: error?.stack || 'No stack trace available',
+            serializationError: 'Failed to fully serialize error object',
+          }
+        }
+      }
+    } catch (constructionError) {
+      // Fallback if errorDetails construction fails
+      errorDetails = {
+        errorId: this.state.errorId || 'unknown',
+        error: {
+          message: error?.message || String(error) || 'Unknown error',
+          name: error?.name || error?.constructor?.name || 'Error',
+          stack: error?.stack || 'No stack trace available',
+          constructionError: 'Failed to construct error details object',
+        },
+        componentStack: errorInfo?.componentStack || 'No component stack available',
+        timestamp: new Date().toISOString(),
+      }
+    }
 
-    // Call custom error handler if provided
-    this.props.onError?.(error, errorInfo)
+    // Enhance errorDetails with explicit error properties to ensure serialization
+    const enhancedErrorDetails = {
+      errorId: errorDetails.errorId || this.state.errorId || 'unknown',
+      errorMessage: error?.message || String(error) || 'Unknown error',
+      errorName: error?.name || error?.constructor?.name || 'Error',
+      errorStack: error?.stack || 'No stack trace available',
+      componentStack: errorInfo?.componentStack || 'No component stack available',
+      timestamp: new Date().toISOString(),
+      fullErrorDetails: errorDetails,
+    }
+
+    // Log error details to console with safe error handling
+    try {
+      console.error('🚨 Error Boundary Caught Error:', JSON.stringify(enhancedErrorDetails, null, 2), error)
+    } catch (logError) {
+      // Fallback logging if console.error fails
+      console.error('🚨 Error Boundary Caught Error:', {
+        errorId: this.state.errorId,
+        errorMessage: error?.message || String(error) || 'Unknown error',
+        errorName: error?.name || error?.constructor?.name || 'Error',
+        errorStack: error?.stack || 'No stack trace available',
+        fallback: 'Full error details could not be logged',
+      })
+    }
+
+    // Call custom error handler if provided (with error handling)
+    try {
+      this.props.onError?.(error, errorInfo)
+    } catch (handlerError) {
+      console.error('Error in custom error handler:', handlerError)
+    }
 
     // Check if it's a JSON parse error and provide specific guidance
     if (this.isJsonParseError(error)) {

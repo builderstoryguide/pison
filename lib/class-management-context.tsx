@@ -5,6 +5,12 @@ import { createContext, useContext, useState, useCallback, useEffect } from "rea
 import { supabase, testConnection } from "./supabase"
 import { activityLogger } from "./activity-logger"
 
+export interface ClassSubject {
+  subjectId: string
+  subjectName: string
+  isTradeSubject: boolean
+}
+
 export interface ClassData {
   id: string
   name: string
@@ -14,7 +20,7 @@ export interface ClassData {
   capacity: number
   currentEnrollment: number
   classTeacher: string
-  subjects: string[]
+  subjects: ClassSubject[]
   schedule: {
     day: string
     periods: {
@@ -36,7 +42,7 @@ export interface ClassFormData {
   branch: "grammar" | "technical" | "commercial"
   capacity: number
   classTeacher: string
-  subjects: string[]
+  subjects: ClassSubject[]
   academicYear: string
 }
 
@@ -90,7 +96,15 @@ const mockClasses: ClassData[] = [
     capacity: 40,
     currentEnrollment: 35,
     classTeacher: "Mrs. Sarah Johnson",
-    subjects: ["Mathematics", "English Language", "Biology", "Chemistry", "Physics", "History", "Geography"],
+    subjects: [
+      { subjectId: "SUB001", subjectName: "Mathematics", isTradeSubject: false },
+      { subjectId: "SUB002", subjectName: "English Language", isTradeSubject: false },
+      { subjectId: "SUB003", subjectName: "Biology", isTradeSubject: false },
+      { subjectId: "SUB004", subjectName: "Chemistry", isTradeSubject: false },
+      { subjectId: "SUB005", subjectName: "Physics", isTradeSubject: false },
+      { subjectId: "SUB006", subjectName: "History", isTradeSubject: false },
+      { subjectId: "SUB007", subjectName: "Geography", isTradeSubject: false },
+    ],
     schedule: [
       {
         day: "Monday",
@@ -115,7 +129,13 @@ const mockClasses: ClassData[] = [
     capacity: 35,
     currentEnrollment: 32,
     classTeacher: "Mr. David Wilson",
-    subjects: ["Mathematics", "English Language", "Technical Drawing", "Workshop Practice", "Physics"],
+    subjects: [
+      { subjectId: "SUB001", subjectName: "Mathematics", isTradeSubject: false },
+      { subjectId: "SUB002", subjectName: "English Language", isTradeSubject: false },
+      { subjectId: "SUB008", subjectName: "Technical Drawing", isTradeSubject: true },
+      { subjectId: "SUB009", subjectName: "Workshop Practice", isTradeSubject: true },
+      { subjectId: "SUB005", subjectName: "Physics", isTradeSubject: false },
+    ],
     schedule: [],
     academicYear: "2024/2025",
     status: "active",
@@ -131,7 +151,13 @@ const mockClasses: ClassData[] = [
     capacity: 45,
     currentEnrollment: 42,
     classTeacher: "Dr. Paul Biya",
-    subjects: ["Advanced Mathematics", "Physics", "Chemistry", "Biology", "English Language"],
+    subjects: [
+      { subjectId: "SUB010", subjectName: "Advanced Mathematics", isTradeSubject: false },
+      { subjectId: "SUB005", subjectName: "Physics", isTradeSubject: true },
+      { subjectId: "SUB004", subjectName: "Chemistry", isTradeSubject: true },
+      { subjectId: "SUB003", subjectName: "Biology", isTradeSubject: true },
+      { subjectId: "SUB002", subjectName: "English Language", isTradeSubject: false },
+    ],
     schedule: [],
     academicYear: "2024/2025",
     status: "active",
@@ -147,7 +173,13 @@ const mockClasses: ClassData[] = [
     capacity: 40,
     currentEnrollment: 38,
     classTeacher: "M. Pierre Dubois",
-    subjects: ["Mathématiques", "Physique", "Chimie", "Français", "Philosophie"],
+    subjects: [
+      { subjectId: "SUB011", subjectName: "Mathématiques", isTradeSubject: true },
+      { subjectId: "SUB012", subjectName: "Physique", isTradeSubject: true },
+      { subjectId: "SUB013", subjectName: "Chimie", isTradeSubject: true },
+      { subjectId: "SUB014", subjectName: "Français", isTradeSubject: false },
+      { subjectId: "SUB015", subjectName: "Philosophie", isTradeSubject: false },
+    ],
     schedule: [],
     academicYear: "2024/2025",
     status: "active",
@@ -192,43 +224,27 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
     })
   }, [])
 
-  // Test database connection and load classes on mount
-  useEffect(() => {
-    const initializeData = async () => {
-      const dbConnected = await testDatabaseConnection()
-      setIsUsingDatabase(dbConnected)
-      
-      if (dbConnected) {
-        await loadClasses()
-      } else {
-        // Don't fallback to mock data - require database connection
-        setClasses([])
-        setError("Database connection is required for class management. Please check your database configuration.")
-      }
-    }
-
-    initializeData()
-  }, [])
-
   const testDatabaseConnection = async (): Promise<boolean> => {
     const connected = await testConnection()
     setIsUsingDatabase(connected)
     return connected
   }
 
-  const loadClasses = async () => {
+  const loadClasses = useCallback(async () => {
     if (!supabase) {
-      throw new Error("Supabase client not available")
+      setError("Supabase client not available")
+      setClasses([])
+      setIsLoading(false)
+      return
     }
 
     setIsLoading(true)
     setError(null)
 
     try {
-      // Get classes with minimal teacher information using a more efficient join
-      // Only select the fields we actually need to improve query performance
+      // Try v_classes view first, fallback to classes table if view doesn't exist
       let { data, error: fetchError } = await supabase
-        .from("classes")
+        .from("v_classes")
         .select(`
           id,
           class_name,
@@ -242,20 +258,67 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
           status,
           created_at,
           updated_at,
-          teachers:class_teacher_id(
-            first_name,
-            last_name
-          )
+          teacher_first_name,
+          teacher_last_name
         `)
         .order("created_at", { ascending: false })
 
-      if (fetchError) {
-        console.error("Database error details:", fetchError)
-        throw new Error(`Failed to load classes: ${fetchError.message || 'Unknown error'}`)
+      // If view doesn't exist, fallback to base table without nested select
+      if (fetchError && fetchError.code === '42P01') {
+        const { serializeSupabaseError } = await import('./safe-error')
+        console.warn('v_classes view not found, falling back to classes table:', serializeSupabaseError(fetchError))
+        const fallbackQuery = await supabase
+          .from("classes")
+          .select(`
+            id,
+            name,
+            level,
+            subsystem,
+            section,
+            student_count,
+            class_teacher_id,
+            created_at,
+            updated_at
+          `)
+          .order("created_at", { ascending: false })
+        
+        if (fallbackQuery.error) {
+          const errDetails = await import('./safe-error').then(m => m.serializeSupabaseError(fallbackQuery.error))
+          console.error("Database error details:", errDetails)
+          setError(`Failed to load classes: ${fallbackQuery.error.message || 'Unknown error'}`)
+          setClasses([])
+          setIsLoading(false)
+          return
+        }
+        
+        data = fallbackQuery.data?.map((cls: any) => ({
+          id: cls.id,
+          class_name: cls.name,
+          class_level: cls.level,
+          subsystem: cls.subsystem,
+          stream: cls.section || '',
+          capacity: 0,
+          current_enrollment: cls.student_count || 0,
+          class_teacher_id: cls.class_teacher_id,
+          academic_year: null,
+          status: 'active',
+          created_at: cls.created_at,
+          updated_at: cls.updated_at,
+          teacher_first_name: null,
+          teacher_last_name: null,
+        })) || []
+      } else if (fetchError) {
+        const { serializeSupabaseError } = await import('./safe-error')
+        const errDetails = serializeSupabaseError(fetchError)
+        console.error("Database error details:", errDetails)
+        setError(`Failed to load classes: ${fetchError.message || 'Unknown error'}`)
+        setClasses([])
+        setIsLoading(false)
+        return
       }
 
       // Transform database data to match our interface
-      const transformedClasses: ClassData[] = (data || []).map((dbClass) => ({
+      const transformedClasses: ClassData[] = (data || []).map((dbClass: any) => ({
         id: dbClass.id,
         name: dbClass.class_name,
         level: dbClass.class_level,
@@ -263,8 +326,8 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         branch: dbClass.stream || "grammar", // Default to grammar if stream is not set
         capacity: dbClass.capacity,
         currentEnrollment: dbClass.current_enrollment,
-        classTeacher: dbClass.teachers && typeof dbClass.teachers === 'object' && 'first_name' in dbClass.teachers && 'last_name' in dbClass.teachers
-          ? `${dbClass.teachers.first_name} ${dbClass.teachers.last_name}`
+        classTeacher: (dbClass.teacher_first_name && dbClass.teacher_last_name)
+          ? `${dbClass.teacher_first_name} ${dbClass.teacher_last_name}`
           : (dbClass.class_teacher_id ? "Teacher ID: " + dbClass.class_teacher_id : "Not Assigned"),
         subjects: [], // Will be populated in batch below
         schedule: [], // We'll need to implement schedule management later
@@ -281,36 +344,55 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         return
       }
 
-      // Batch fetch all subjects for all classes in a single query
+      // Batch fetch all subjects for all classes in a single query with subject details
       const classIds = transformedClasses.map(cls => cls.id)
-      const academicYears = [...new Set(transformedClasses.map(cls => cls.academicYear))]
+      const academicYears = [...new Set(transformedClasses.map(cls => cls.academicYear).filter(Boolean))]
       
       try {
-        const { data: allSubjectsData, error: subjectsError } = await supabase
-            .from("class_subjects")
-          .select("class_id, subject_name, academic_year")
+        // Build query to get class subjects with subject details
+        let subjectsQuery = supabase
+          .from("class_subjects")
+          .select(`
+            class_id,
+            subject_id,
+            is_trade_subject,
+            academic_year,
+            subjects!inner(id, name)
+          `)
           .in("class_id", classIds)
-          .in("academic_year", academicYears)
+        
+        // Only filter by academic year if we have academic years
+        if (academicYears.length > 0) {
+          subjectsQuery = subjectsQuery.in("academic_year", academicYears)
+        }
 
-          if (subjectsError) {
+        const { data: allSubjectsData, error: subjectsError } = await subjectsQuery
+
+        if (subjectsError) {
           console.warn("Warning: Failed to load subjects for classes:", subjectsError.message)
         } else if (allSubjectsData) {
-          // Create a map of classId -> subject names for quick lookup
-          const subjectsByClassId: Record<string, string[]> = {}
+          // Create a map of classId -> subject objects for quick lookup
+          const subjectsByClassId: Record<string, ClassSubject[]> = {}
           
-          allSubjectsData.forEach(subject => {
-            if (!subjectsByClassId[subject.class_id]) {
-              subjectsByClassId[subject.class_id] = []
+          allSubjectsData.forEach((item: any) => {
+            if (!subjectsByClassId[item.class_id]) {
+              subjectsByClassId[item.class_id] = []
             }
-            subjectsByClassId[subject.class_id].push(subject.subject_name)
+            // Use subject name from joined subjects table, fallback to subject_name if available
+            const subjectName = item.subjects?.name || item.subject_name || 'Unknown Subject'
+            subjectsByClassId[item.class_id].push({
+              subjectId: item.subject_id,
+              subjectName: subjectName,
+              isTradeSubject: item.is_trade_subject || false
+            })
           })
           
           // Assign subjects to each class
           transformedClasses.forEach(classData => {
             classData.subjects = subjectsByClassId[classData.id] || []
           })
-          }
-        } catch (err) {
+        }
+      } catch (err) {
         console.warn("Warning: Failed to batch load subjects:", err)
         // Continue with empty subjects arrays rather than failing completely
       }
@@ -318,14 +400,39 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
       setClasses(transformedClasses)
       console.log("Loaded classes from database:", transformedClasses.length)
     } catch (err) {
-      console.error("Error loading classes:", err)
-      setError(err instanceof Error ? err.message : "Failed to load classes")
+      try {
+        const { serializeSupabaseError } = await import('./safe-error')
+        const errDetails = serializeSupabaseError(err as any)
+        console.error("Error loading classes:", errDetails)
+        setError(err instanceof Error ? err.message : "Failed to load classes")
+      } catch (_) {
+        console.error("Error loading classes:", err)
+        setError(err instanceof Error ? err.message : "Failed to load classes")
+      }
       // Don't fallback to mock data - require database connection
       setClasses([])
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
+
+  // Test database connection and load classes on mount
+  useEffect(() => {
+    const initializeData = async () => {
+      const dbConnected = await testDatabaseConnection()
+      setIsUsingDatabase(dbConnected)
+      
+      if (dbConnected) {
+        await loadClasses()
+      } else {
+        // Don't fallback to mock data - require database connection
+        setClasses([])
+        setError("Database connection is required for class management. Please check your database configuration.")
+      }
+    }
+
+    initializeData()
+  }, [loadClasses])
 
   const createClass = useCallback(
     async (classData: ClassFormData): Promise<{ success: boolean; classId?: string; error?: string }> => {
@@ -360,16 +467,24 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         }
 
         // Insert class into database
+        // Populate both old and new columns for backward compatibility during migration
         const { data: newClass, error: insertError } = await supabase
           .from("classes")
           .insert({
+            // New columns (preferred)
             class_name: classData.name,
             class_level: classData.level,
             stream: classData.branch,
+            // Old columns (for backward compatibility - name has NOT NULL constraint)
+            name: classData.name,
+            level: classData.level,
+            section: classData.branch,
+            // Common columns
             subsystem: classData.subsystem,
             academic_year: classData.academicYear,
             capacity: classData.capacity,
             current_enrollment: 0,
+            student_count: 0, // Keep old column in sync
             class_teacher_id: teacherUuid,
             status: "active",
           })
@@ -384,8 +499,10 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         if (classData.subjects && classData.subjects.length > 0) {
           const subjectRecords = classData.subjects.map(subject => ({
             class_id: newClass.id,
-            subject_name: subject,
-            academic_year: classData.academicYear
+            subject_id: subject.subjectId,
+            is_trade_subject: subject.isTradeSubject || false,
+            academic_year: classData.academicYear,
+            subject_name: subject.subjectName // Keep for backward compatibility during migration
           }))
 
           const { error: subjectsError } = await supabase
@@ -481,10 +598,20 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
           }
         }
 
+        // Update both old and new columns for backward compatibility during migration
         const updateData: any = {}
-        if (classData.name) updateData.class_name = classData.name
-        if (classData.level) updateData.class_level = classData.level
-        if (classData.branch) updateData.stream = classData.branch
+        if (classData.name) {
+          updateData.class_name = classData.name
+          updateData.name = classData.name // Keep old column in sync
+        }
+        if (classData.level) {
+          updateData.class_level = classData.level
+          updateData.level = classData.level // Keep old column in sync
+        }
+        if (classData.branch) {
+          updateData.stream = classData.branch
+          updateData.section = classData.branch // Keep old column in sync
+        }
         if (classData.subsystem) updateData.subsystem = classData.subsystem
         if (classData.academicYear) updateData.academic_year = classData.academicYear
         if (classData.capacity) updateData.capacity = classData.capacity
@@ -528,8 +655,10 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
             if (academicYear) {
               const subjectRecords = classData.subjects.map(subject => ({
                 class_id: classId,
-                subject_name: subject,
-                academic_year: academicYear
+                subject_id: subject.subjectId,
+                is_trade_subject: subject.isTradeSubject || false,
+                academic_year: academicYear,
+                subject_name: subject.subjectName // Keep for backward compatibility during migration
               }))
 
               const { error: subjectsError } = await supabase
@@ -673,10 +802,12 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
           throw new Error(`Failed to fetch current enrollment: ${fetchError.message}`)
         }
 
+        const newEnrollment = (currentClass.current_enrollment || 0) + 1
         const { error: classUpdateError } = await supabase
           .from("classes")
           .update({ 
-            current_enrollment: (currentClass.current_enrollment || 0) + 1,
+            current_enrollment: newEnrollment,
+            student_count: newEnrollment, // Keep old column in sync
             updated_at: new Date().toISOString()
           })
           .eq("id", classId)
@@ -744,10 +875,12 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
           throw new Error(`Failed to fetch current enrollment: ${fetchError.message}`)
         }
 
+        const newEnrollment = Math.max(0, (currentClass.current_enrollment || 0) - 1)
         const { error: classUpdateError } = await supabase
           .from("classes")
           .update({ 
-            current_enrollment: Math.max(0, (currentClass.current_enrollment || 0) - 1),
+            current_enrollment: newEnrollment,
+            student_count: newEnrollment, // Keep old column in sync
             updated_at: new Date().toISOString()
           })
           .eq("id", classId)
@@ -855,7 +988,7 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
       invalidateCache()
       await loadClasses()
     }
-  }, [isUsingDatabase, invalidateCache])
+  }, [isUsingDatabase, invalidateCache, loadClasses])
   
   const getClassesPaginated = useCallback(async (options: PaginationOptions): Promise<PaginatedClassesResult> => {
     if (!supabase) {
@@ -889,7 +1022,7 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
       
       // Build query with filters
       let query = supabase
-        .from("classes")
+        .from("v_classes")
         .select(`
           id,
           class_name,
@@ -903,10 +1036,8 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
           status,
           created_at,
           updated_at,
-          teachers:class_teacher_id(
-            first_name,
-            last_name
-          )
+          teacher_first_name,
+          teacher_last_name
         `, { count: 'exact' })
         .order("created_at", { ascending: false })
       
@@ -955,8 +1086,8 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         branch: dbClass.stream || "grammar",
         capacity: dbClass.capacity,
         currentEnrollment: dbClass.current_enrollment,
-        classTeacher: dbClass.teachers && typeof dbClass.teachers === 'object' && 'first_name' in dbClass.teachers && 'last_name' in dbClass.teachers
-          ? `${dbClass.teachers.first_name} ${dbClass.teachers.last_name}`
+        classTeacher: (dbClass.teacher_first_name && dbClass.teacher_last_name)
+          ? `${dbClass.teacher_first_name} ${dbClass.teacher_last_name}`
           : (dbClass.class_teacher_id ? "Teacher ID: " + dbClass.class_teacher_id : "Not Assigned"),
         subjects: [], // Will be populated in batch below
         schedule: [],
@@ -977,28 +1108,47 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
         }
       }
 
-      // Batch fetch all subjects for the paginated classes
+      // Batch fetch all subjects for the paginated classes with subject details
       const classIds = transformedClasses.map(cls => cls.id)
-      const academicYears = [...new Set(transformedClasses.map(cls => cls.academicYear))]
+      const academicYears = [...new Set(transformedClasses.map(cls => cls.academicYear).filter(Boolean))]
       
       try {
-        const { data: allSubjectsData, error: subjectsError } = await supabase
+        // Build query to get class subjects with subject details
+        let subjectsQuery = supabase
           .from("class_subjects")
-          .select("class_id, subject_name, academic_year")
+          .select(`
+            class_id,
+            subject_id,
+            is_trade_subject,
+            academic_year,
+            subjects!inner(id, name)
+          `)
           .in("class_id", classIds)
-          .in("academic_year", academicYears)
+        
+        // Only filter by academic year if we have academic years
+        if (academicYears.length > 0) {
+          subjectsQuery = subjectsQuery.in("academic_year", academicYears)
+        }
+
+        const { data: allSubjectsData, error: subjectsError } = await subjectsQuery
 
         if (subjectsError) {
           console.warn("Warning: Failed to load subjects for classes:", subjectsError.message)
         } else if (allSubjectsData) {
-          // Create a map of classId -> subject names for quick lookup
-          const subjectsByClassId: Record<string, string[]> = {}
+          // Create a map of classId -> subject objects for quick lookup
+          const subjectsByClassId: Record<string, ClassSubject[]> = {}
           
-          allSubjectsData.forEach(subject => {
-            if (!subjectsByClassId[subject.class_id]) {
-              subjectsByClassId[subject.class_id] = []
+          allSubjectsData.forEach((item: any) => {
+            if (!subjectsByClassId[item.class_id]) {
+              subjectsByClassId[item.class_id] = []
             }
-            subjectsByClassId[subject.class_id].push(subject.subject_name)
+            // Use subject name from joined subjects table, fallback to subject_name if available
+            const subjectName = item.subjects?.name || item.subject_name || 'Unknown Subject'
+            subjectsByClassId[item.class_id].push({
+              subjectId: item.subject_id,
+              subjectName: subjectName,
+              isTradeSubject: item.is_trade_subject || false
+            })
           })
           
           // Assign subjects to each class

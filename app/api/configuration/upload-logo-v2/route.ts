@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireRole } from '@/lib/auth/server'
 
 // Enhanced error types for better debugging
 interface ApiError {
@@ -27,76 +28,8 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    // Enhanced authentication check
-    let user = null
-    try {
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-      if (authError) {
-        console.error('Auth error:', authError)
-        return createErrorResponse({
-          code: 'AUTH_ERROR',
-          message: 'Authentication failed',
-          details: authError.message,
-          timestamp: new Date().toISOString()
-        }, 401)
-      }
-      user = authUser
-    } catch (error) {
-      console.error('Auth check failed:', error)
-      return createErrorResponse({
-        code: 'AUTH_CHECK_FAILED',
-        message: 'Authentication check failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
-      }, 401)
-    }
-
-    if (!user) {
-      return createErrorResponse({
-        code: 'UNAUTHORIZED',
-        message: 'User not authenticated',
-        timestamp: new Date().toISOString()
-      }, 401)
-    }
-
-    // Enhanced admin check
-    let userProfile = null
-    try {
-      const { data: profile, error: profileError } = await supabase
-        .from('users')
-        .select('role, name, email')
-        .eq('id', user.id)
-        .single()
-
-      if (profileError) {
-        console.error('Profile fetch error:', profileError)
-        return createErrorResponse({
-          code: 'PROFILE_FETCH_ERROR',
-          message: 'Failed to fetch user profile',
-          details: profileError.message,
-          timestamp: new Date().toISOString()
-        }, 500)
-      }
-
-      userProfile = profile
-    } catch (error) {
-      console.error('Profile check failed:', error)
-      return createErrorResponse({
-        code: 'PROFILE_CHECK_FAILED',
-        message: 'Profile check failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
-      }, 500)
-    }
-
-    if (!userProfile || userProfile.role !== 'admin') {
-      return createErrorResponse({
-        code: 'INSUFFICIENT_PERMISSIONS',
-        message: 'Admin role required for logo upload',
-        details: { userRole: userProfile?.role || 'none', userId: user.id },
-        timestamp: new Date().toISOString()
-      }, 403)
-    }
+    // Check authentication and admin role
+    const user = await requireRole(request, 'admin')
 
     // Parse form data
     let formData
@@ -152,6 +85,53 @@ export async function POST(request: NextRequest) {
       }, 400)
     }
 
+    // Validate storage bucket exists
+    try {
+      const { data: buckets, error: bucketListError } = await supabase.storage.listBuckets()
+      
+      if (bucketListError) {
+        console.error('Error listing buckets:', bucketListError)
+        return createErrorResponse({
+          code: 'BUCKET_LIST_ERROR',
+          message: 'Failed to access storage buckets',
+          details: bucketListError.message,
+          timestamp: new Date().toISOString()
+        }, 500)
+      }
+
+      const schoolAssetsBucket = buckets?.find(bucket => bucket.id === 'school-assets' || bucket.name === 'school-assets')
+      
+      if (!schoolAssetsBucket) {
+        return createErrorResponse({
+          code: 'BUCKET_NOT_FOUND',
+          message: 'Storage bucket "school-assets" does not exist',
+          details: {
+            availableBuckets: buckets?.map(b => b.name) || [],
+            setupInstructions: 'Please run the storage setup script: scripts/2025-11-04_025_setup_school_assets_storage.sql'
+          },
+          timestamp: new Date().toISOString()
+        }, 500)
+      }
+
+      // Verify bucket is accessible
+      const { data: testList, error: testError } = await supabase.storage
+        .from('school-assets')
+        .list('logos', { limit: 1 })
+
+      if (testError && !testError.message.includes('not found')) {
+        // If error is not about folder not existing, it might be a permission issue
+        console.warn('Bucket access test warning:', testError)
+      }
+    } catch (bucketCheckError) {
+      console.error('Bucket validation failed:', bucketCheckError)
+      return createErrorResponse({
+        code: 'BUCKET_VALIDATION_FAILED',
+        message: 'Failed to validate storage bucket',
+        details: bucketCheckError instanceof Error ? bucketCheckError.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      }, 500)
+    }
+
     // Generate unique filename
     const timestamp = Date.now()
     const fileExtension = file.name.split('.').pop() || 'jpg'
@@ -169,10 +149,33 @@ export async function POST(request: NextRequest) {
 
       if (uploadError) {
         console.error('Storage upload error:', uploadError)
+        
+        // Provide specific error messages based on error type
+        let errorMessage = 'Failed to upload file to storage'
+        let errorCode = 'STORAGE_UPLOAD_ERROR'
+        
+        if (uploadError.message?.includes('bucket') || uploadError.message?.includes('not found')) {
+          errorMessage = 'Storage bucket not found. Please run the setup script.'
+          errorCode = 'BUCKET_NOT_FOUND'
+        } else if (uploadError.message?.includes('permission') || uploadError.message?.includes('policy')) {
+          errorMessage = 'Permission denied. Please check storage policies are configured correctly.'
+          errorCode = 'STORAGE_PERMISSION_ERROR'
+        } else if (uploadError.message?.includes('size') || uploadError.message?.includes('limit')) {
+          errorMessage = 'File size exceeds storage limit.'
+          errorCode = 'FILE_SIZE_LIMIT_EXCEEDED'
+        } else if (uploadError.message?.includes('duplicate') || uploadError.message?.includes('already exists')) {
+          errorMessage = 'File with this name already exists. Please try again.'
+          errorCode = 'FILE_ALREADY_EXISTS'
+        }
+        
         return createErrorResponse({
-          code: 'STORAGE_UPLOAD_ERROR',
-          message: 'Failed to upload file to storage',
-          details: uploadError.message,
+          code: errorCode,
+          message: errorMessage,
+          details: {
+            originalError: uploadError.message,
+            filePath,
+            fileName
+          },
           timestamp: new Date().toISOString()
         }, 500)
       }
@@ -214,6 +217,11 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
+    // If error is a NextResponse (from auth functions), return it directly
+    if (error instanceof NextResponse) {
+      return error
+    }
+    
     console.error('Unexpected error in POST /api/configuration/upload-logo-v2:', error)
     
     return createErrorResponse({
@@ -230,22 +238,8 @@ export async function DELETE(request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    // Check authentication
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check admin permissions
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!userProfile || userProfile.role !== 'admin') {
-      return NextResponse.json({ error: 'Admin role required' }, { status: 403 })
-    }
+    // Check authentication and admin role
+    const user = await requireRole(request, 'admin')
 
     const { searchParams } = new URL(request.url)
     const fileName = searchParams.get('fileName')
@@ -267,6 +261,11 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true, message: 'Logo deleted successfully' })
 
   } catch (error) {
+    // If error is a NextResponse (from auth functions), return it directly
+    if (error instanceof NextResponse) {
+      return error
+    }
+    
     console.error('Unexpected error in DELETE /api/configuration/upload-logo-v2:', error)
     return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 })
   }

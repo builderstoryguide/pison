@@ -13,6 +13,8 @@ import { ReportsAnalyticsProvider } from "@/lib/reports-analytics-context"
 import { ProfileProvider } from "@/lib/profile-context"
 import { TeacherAttendanceProvider } from "@/lib/teacher-attendance-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
+import { TeacherExaminationProvider } from "@/lib/teacher-examination-context"
+import { TeacherExamMarksProvider } from "@/lib/teacher-exam-marks-context"
 import { NotificationProvider } from "@/lib/notification-context"
 import { Dashboard } from "@/components/dashboard"
 import { Loader2 } from "lucide-react"
@@ -43,11 +45,15 @@ function AppContent() {
                     <AttendanceProvider>
                       <TeacherAttendanceProvider>
                         <TeacherGradesProvider>
-                          <ReportsAnalyticsProvider>
-                            <ProfileProvider>
-                              <Dashboard />
-                            </ProfileProvider>
-                          </ReportsAnalyticsProvider>
+                          <TeacherExaminationProvider>
+                            <TeacherExamMarksProvider>
+                              <ReportsAnalyticsProvider>
+                                <ProfileProvider>
+                                  <Dashboard />
+                                </ProfileProvider>
+                              </ReportsAnalyticsProvider>
+                            </TeacherExamMarksProvider>
+                          </TeacherExaminationProvider>
                         </TeacherGradesProvider>
                       </TeacherAttendanceProvider>
                     </AttendanceProvider>

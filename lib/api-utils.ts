@@ -21,10 +21,44 @@ interface ApiResponse<T = any> {
 }
 
 /**
+ * Gets user ID from localStorage for authentication
+ */
+function getUserIdFromStorage(): string | null {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const storedUser = localStorage.getItem('school_user');
+    if (storedUser && storedUser.trim()) {
+      const user = JSON.parse(storedUser);
+      if (user && typeof user === 'object' && user.id) {
+        return user.id;
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to read user from localStorage:', error);
+  }
+  
+  return null;
+}
+
+/**
  * Enhanced fetch wrapper that provides better error handling and debugging information
+ * Automatically adds X-User-Id header when user is logged in
  */
 export async function safeFetch<T = any>(options: ApiCallOptions): Promise<ApiResponse<T>> {
   const { url, method = 'GET', headers = {}, body, timeout = 30000 } = options;
+  
+  // Get user ID from localStorage and add to headers
+  const userId = getUserIdFromStorage();
+  const requestHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...headers,
+  };
+  
+  // Add X-User-Id header if user is logged in
+  if (userId) {
+    requestHeaders['X-User-Id'] = userId;
+  }
   
   console.log(`🌐 API Call: ${method} ${url}`, body ? { body } : '');
   
@@ -35,10 +69,7 @@ export async function safeFetch<T = any>(options: ApiCallOptions): Promise<ApiRe
     
     const response = await fetch(url, {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
-      },
+      headers: requestHeaders,
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });

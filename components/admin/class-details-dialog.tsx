@@ -494,7 +494,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {classData.subjects.map((subject, index) => (
                       <div 
-                        key={index} 
+                        key={subject.subjectId || index} 
                         className="flex flex-col bg-card border rounded-lg shadow-sm overflow-hidden hover:border-primary/50 transition-colors"
                       >
                         <div className="bg-muted/30 p-4 border-b">
@@ -502,8 +502,8 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                             <div className="p-1.5 rounded-md bg-primary/10">
                               <BookOpen className="h-4 w-4 text-primary flex-shrink-0" />
                             </div>
-                            <h4 className="font-medium text-sm leading-tight truncate" title={subject}>
-                              {subject}
+                            <h4 className="font-medium text-sm leading-tight truncate" title={typeof subject === 'string' ? subject : subject.subjectName}>
+                              {typeof subject === 'string' ? subject : subject.subjectName}
                             </h4>
                           </div>
                         </div>
@@ -512,8 +512,15 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                             <div className="h-2 w-2 rounded-full bg-green-500"></div>
                             <span className="text-xs text-muted-foreground">Active</span>
                           </div>
-                          <Badge variant="secondary" className="text-xs">
-                            Core Subject
+                          <Badge variant={typeof subject === 'object' && subject.isTradeSubject ? "default" : "secondary"} className="text-xs">
+                            {typeof subject === 'object' && subject.isTradeSubject ? (
+                              <>
+                                <span className="mr-1">★</span>
+                                Trade Subject
+                              </>
+                            ) : (
+                              "Core Subject"
+                            )}
                           </Badge>
                         </div>
                       </div>

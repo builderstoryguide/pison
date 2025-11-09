@@ -243,19 +243,31 @@ export function ManageClassSubjectsDialog({
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {classData.subjects.map((subject) => (
-                        <div key={subject} className="flex items-center justify-between p-2 border rounded-md">
-                          <span className="text-sm font-medium">{subject}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveSubject(subject)}
-                            className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
+                      {classData.subjects.map((subject) => {
+                        const subjectName = typeof subject === 'string' ? subject : subject.subjectName
+                        const isTradeSubject = typeof subject === 'object' && subject.isTradeSubject
+                        return (
+                          <div key={typeof subject === 'string' ? subject : subject.subjectId} className="flex items-center justify-between p-2 border rounded-md">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">{subjectName}</span>
+                              {isTradeSubject && (
+                                <Badge variant="default" className="text-xs">
+                                  <span className="mr-1">★</span>
+                                  Trade
+                                </Badge>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveSubject(subjectName)}
+                              className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                 </CardContent>

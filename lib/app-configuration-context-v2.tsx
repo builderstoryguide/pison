@@ -28,6 +28,14 @@ export interface AppConfiguration {
   updated_by: string | null
 }
 
+interface UploadLogoResult {
+  success: boolean
+  logoUrl?: string
+  error?: string
+  errorCode?: string
+  errorDetails?: any
+}
+
 interface AppConfigurationContextType {
   configuration: AppConfiguration
   isLoading: boolean
@@ -36,7 +44,7 @@ interface AppConfigurationContextType {
   lastFetched: Date | null
   updateConfiguration: (config: Partial<AppConfiguration>) => Promise<boolean>
   resetConfiguration: () => Promise<boolean>
-  uploadLogo: (file: File) => Promise<string | null>
+  uploadLogo: (file: File) => Promise<UploadLogoResult>
   deleteLogo: (fileName: string) => Promise<boolean>
   refreshConfiguration: () => Promise<void>
   clearError: () => void
@@ -52,7 +60,7 @@ interface AppConfigurationProviderProps {
 const getDefaultConfiguration = (): AppConfiguration => ({
   id: null,
   school_name: process.env.NEXT_PUBLIC_SCHOOL_NAME || 'Pison Academy',
-  school_logo_url: process.env.NEXT_PUBLIC_SCHOOL_LOGO || '/placeholder-logo.svg',
+  school_logo_url: process.env.NEXT_PUBLIC_SCHOOL_LOGO || '/pison-logo.png',
   school_logo_alt_text: process.env.NEXT_PUBLIC_SCHOOL_LOGO_ALT || 'School Logo',
   school_address: process.env.NEXT_PUBLIC_SCHOOL_ADDRESS || '',
   school_phone: process.env.NEXT_PUBLIC_SCHOOL_PHONE || '',
@@ -107,46 +115,68 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
 
   // Enhanced fetch with multiple fallback strategies
   const fetchConfiguration = useCallback(async (): Promise<AppConfiguration> => {
-    // Strategy 1: Try to fetch from API with retry logic
-    if (isOnline && user) {
+    // Strategy 1: Always try to fetch from database first (prioritize database)
+    if (isOnline) {
       try {
         console.log('🌐 Fetching configuration from API...')
         
-        const response = await fetch('/api/configuration-v2', {
+        // Get user ID from localStorage for authentication
+        const storedUser = typeof window !== 'undefined' ? localStorage.getItem('school_user') : null
+        const currentUser = storedUser ? JSON.parse(storedUser) : null
+        
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        }
+        
+        if (currentUser?.id) {
+          headers['X-User-Id'] = currentUser.id
+        }
+        
+        // Add cache-busting timestamp to ensure fresh data
+        const response = await fetch(`/api/configuration-v2?t=${Date.now()}`, {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
         })
 
         if (response.ok) {
           const data = await response.json()
           const config = data.configuration || getDefaultConfiguration()
           setLastFetched(new Date())
-          console.log('✅ Configuration fetched successfully')
+          console.log('✅ Configuration fetched successfully from database')
+          
+          // Clear localStorage and update with fresh database data to avoid stale data
+          try {
+            localStorage.setItem('app_configuration', JSON.stringify(config))
+            console.log('💾 Updated localStorage with fresh database configuration')
+          } catch (error) {
+            console.warn('⚠️ Failed to update localStorage with fresh config:', error)
+          }
+          
           return config
         } else {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`)
         }
       } catch (error) {
-        console.warn('⚠️ API fetch failed, using fallback:', error)
+        console.warn('⚠️ API fetch failed, checking localStorage:', error)
         // Don't throw here - we'll use fallback
       }
     }
 
-    // Strategy 2: Use localStorage as backup
+    // Strategy 2: Use localStorage as backup only if database is unavailable
     try {
       const storedConfig = localStorage.getItem('app_configuration')
       if (storedConfig) {
         const parsedConfig = JSON.parse(storedConfig)
-        console.log('💾 Using localStorage configuration')
+        console.log('💾 Using localStorage configuration (database unavailable)')
         return { ...getDefaultConfiguration(), ...parsedConfig }
       }
     } catch (error) {
       console.warn('⚠️ localStorage read failed:', error)
     }
 
-    // Strategy 3: Use environment variables
+    // Strategy 3: Use environment variables as last resort
     console.log('🔧 Using environment/default configuration')
     return getDefaultConfiguration()
   }, [isOnline, user])
@@ -165,11 +195,17 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
         const config = await fetchConfiguration()
         if (isMounted) {
           setConfiguration(config)
-          // Store in localStorage as backup
-          try {
-            localStorage.setItem('app_configuration', JSON.stringify(config))
-          } catch (error) {
-            console.warn('Failed to store config in localStorage:', error)
+          // localStorage is already updated by fetchConfiguration when it gets data from database
+          // Only update here if fetchConfiguration didn't (shouldn't happen, but safe fallback)
+          if (config && typeof window !== 'undefined') {
+            try {
+              const stored = localStorage.getItem('app_configuration')
+              if (!stored || JSON.parse(stored).academic_year !== config.academic_year) {
+                localStorage.setItem('app_configuration', JSON.stringify(config))
+              }
+            } catch (error) {
+              console.warn('Failed to store config in localStorage:', error)
+            }
           }
         }
       } catch (error) {
@@ -194,48 +230,175 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
 
   // Update configuration with optimistic updates
   const updateConfiguration = useCallback(async (config: Partial<AppConfiguration>): Promise<boolean> => {
-    // Optimistic update
+    // Optimistic update for UI responsiveness
     const newConfig = { ...configuration, ...config }
     setConfiguration(newConfig)
 
-    // Store in localStorage immediately
-    try {
-      localStorage.setItem('app_configuration', JSON.stringify(newConfig))
-    } catch (error) {
-      console.warn('Failed to update localStorage:', error)
-    }
+    // Don't update localStorage here - wait for database confirmation
+    // This prevents stale data from overriding database values
 
     // Try to update on server
     if (isOnline && user) {
       try {
+        // Get user ID from localStorage for authentication
+        const storedUser = typeof window !== 'undefined' ? localStorage.getItem('school_user') : null
+        const currentUser = storedUser ? JSON.parse(storedUser) : null
+        
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        }
+        
+        if (currentUser?.id) {
+          headers['X-User-Id'] = currentUser.id
+        }
+        
         const response = await fetch('/api/configuration-v2', {
           method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify(config),
         })
 
         if (response.ok) {
-          const data = await response.json()
-          const updatedConfig = data.configuration || newConfig
-          
-          setConfiguration(updatedConfig)
-          setLastFetched(new Date())
-          
-          // Update localStorage with server response
           try {
-            localStorage.setItem('app_configuration', JSON.stringify(updatedConfig))
-          } catch (error) {
-            console.warn('Failed to update localStorage with server response:', error)
+            const data = await response.json()
+            const updatedConfig = data.configuration || newConfig
+            
+            setConfiguration(updatedConfig)
+            setLastFetched(new Date())
+            setError(null) // Clear any previous errors
+            
+            // Update localStorage with server response
+            try {
+              localStorage.setItem('app_configuration', JSON.stringify(updatedConfig))
+            } catch (error) {
+              console.warn('Failed to update localStorage with server response:', error)
+            }
+            
+            // Refresh from database to ensure we have the latest data
+            try {
+              const freshConfig = await fetchConfiguration()
+              setConfiguration(freshConfig)
+              setLastFetched(new Date())
+              // Update localStorage with fresh database data
+              try {
+                localStorage.setItem('app_configuration', JSON.stringify(freshConfig))
+              } catch (error) {
+                console.warn('Failed to update localStorage with fresh config:', error)
+              }
+            } catch (refreshError) {
+              console.warn('Failed to refresh configuration after save:', refreshError)
+              // Continue with the response data we already have
+            }
+            
+            return true
+          } catch (jsonError) {
+            // Response was ok but JSON parsing failed
+            const errorMessage = 'Server returned invalid response format'
+            const jsonErrorMessage = jsonError instanceof Error ? jsonError.message : String(jsonError)
+            console.warn('Failed to parse successful response:', {
+              status: response.status,
+              statusText: response.statusText,
+              jsonError: jsonErrorMessage
+            })
+            setError(errorMessage)
+            return false
+          }
+        } else {
+          // Parse error response to get detailed error information
+          let errorMessage = `Server update failed: ${response.status} ${response.statusText || 'Unknown error'}`
+          let errorCode: string | undefined = undefined
+          let errorDetails: any = null
+          
+          try {
+            // Read response as text first, then try to parse as JSON
+            const responseText = await response.text()
+            
+            if (responseText && responseText.trim()) {
+              try {
+                const errorData = JSON.parse(responseText)
+                
+                // Only use errorData if it has meaningful content
+                if (errorData && typeof errorData === 'object') {
+                  errorMessage = errorData.error || errorData.message || errorMessage
+                  errorCode = errorData.code
+                  errorDetails = errorData.details
+                }
+                
+                // Build a comprehensive error log object - only log if we have meaningful data
+                const errorLog: Record<string, any> = {
+                  status: response.status,
+                  statusText: response.statusText || 'Unknown',
+                  error: errorMessage
+                }
+                
+                if (errorCode) {
+                  errorLog.code = errorCode
+                }
+                if (errorDetails) {
+                  errorLog.details = errorDetails
+                }
+                
+                // Use console.warn instead of console.error to avoid Next.js error boundary
+                console.warn('Configuration update failed:', errorLog)
+              } catch (jsonError) {
+                // Not JSON, use text as error message
+                errorMessage = responseText || errorMessage
+                console.warn('Configuration update failed (non-JSON response):', {
+                  status: response.status,
+                  statusText: response.statusText || 'Unknown',
+                  message: errorMessage,
+                  rawResponse: responseText.substring(0, 200) // First 200 chars
+                })
+              }
+            } else {
+              // Empty response body
+              console.warn('Configuration update failed (empty response):', {
+                status: response.status,
+                statusText: response.statusText || 'Unknown',
+                message: errorMessage
+              })
+            }
+          } catch (readError) {
+            const readErrorMessage = readError instanceof Error ? readError.message : String(readError)
+            console.warn('Failed to read error response:', readErrorMessage)
+            console.warn('Configuration update failed:', {
+              status: response.status,
+              statusText: response.statusText || 'Unknown',
+              message: errorMessage,
+              readError: readErrorMessage
+            })
           }
           
-          return true
-        } else {
-          throw new Error(`Server update failed: ${response.status}`)
+          setError(errorMessage)
+          // Don't throw - just return false to indicate failure
+          // This prevents React error boundaries from catching it
+          return false
         }
       } catch (error) {
-        console.warn('Server update failed, keeping local changes:', error)
+        // Handle network errors, fetch errors, etc.
+        let errorMessage = 'Server update failed'
+        
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          errorMessage = 'Network error: Unable to connect to server. Please check your internet connection.'
+        } else if (error instanceof Error) {
+          errorMessage = error.message
+        } else {
+          errorMessage = String(error) || 'Server update failed'
+        }
+        
+        // Use console.warn instead of console.error to avoid Next.js error boundary
+        const errorInfo: Record<string, any> = {
+          errorType: error instanceof Error ? error.constructor.name : typeof error,
+          errorMessage: error instanceof Error ? error.message : String(error)
+        }
+        
+        if (error instanceof Error && error.stack) {
+          errorInfo.stack = error.stack
+        }
+        
+        console.warn('Server update failed (catch block):', errorInfo)
+        
+        setError(errorMessage)
         // Keep the optimistic update - user can retry later
         return false
       }
@@ -243,7 +406,7 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
 
     // Offline mode - just keep local changes
     return true
-  }, [configuration, isOnline, user])
+  }, [configuration, isOnline, user, fetchConfiguration])
 
   // Reset configuration
   const resetConfiguration = useCallback(async (): Promise<boolean> => {
@@ -259,11 +422,21 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
 
     if (isOnline && user) {
       try {
+        // Get user ID from localStorage for authentication
+        const storedUser = typeof window !== 'undefined' ? localStorage.getItem('school_user') : null
+        const currentUser = storedUser ? JSON.parse(storedUser) : null
+        
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        }
+        
+        if (currentUser?.id) {
+          headers['X-User-Id'] = currentUser.id
+        }
+        
         const response = await fetch('/api/configuration-v2', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({ action: 'reset' }),
         })
 
@@ -283,31 +456,141 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
   }, [isOnline, user])
 
   // Upload logo with progress tracking
-  const uploadLogo = useCallback(async (file: File): Promise<string | null> => {
+  const uploadLogo = useCallback(async (file: File): Promise<{ success: boolean; logoUrl?: string; error?: string; errorCode?: string; errorDetails?: any }> => {
     if (!isOnline) {
-      setError('Cannot upload logo while offline')
-      return null
+      const errorMsg = 'Cannot upload logo while offline'
+      setError(errorMsg)
+      return { success: false, error: errorMsg, errorCode: 'OFFLINE_ERROR' }
     }
 
     try {
       const formData = new FormData()
       formData.append('logo', file)
 
+      // Get user ID from localStorage for authentication
+      const storedUser = typeof window !== 'undefined' ? localStorage.getItem('school_user') : null
+      const currentUser = storedUser ? JSON.parse(storedUser) : null
+      
+      const headers: Record<string, string> = {}
+      
+      // Add X-User-Id header if user is logged in
+      // Note: Don't set Content-Type for FormData - browser sets it automatically with boundary
+      if (currentUser?.id) {
+        headers['X-User-Id'] = currentUser.id
+      }
+
       const response = await fetch('/api/configuration/upload-logo-v2', {
         method: 'POST',
+        headers,
         body: formData,
       })
 
       if (response.ok) {
         const data = await response.json()
-        return data.logoUrl
+        if (data.success && data.logoUrl) {
+          setError(null)
+          return { success: true, logoUrl: data.logoUrl }
+        } else {
+          const errorMsg = data.error || 'Upload failed'
+          setError(errorMsg)
+          return { 
+            success: false, 
+            error: errorMsg, 
+            errorCode: data.code || 'UPLOAD_FAILED',
+            errorDetails: data.details 
+          }
+        }
       } else {
-        throw new Error('Upload failed')
+        // Parse error response - try to get response text first
+        let errorData: any = {}
+        let responseText = ''
+        
+        try {
+          responseText = await response.text()
+          
+          // Try to parse as JSON if there's content
+          if (responseText && responseText.trim()) {
+            try {
+              errorData = JSON.parse(responseText)
+            } catch (jsonError) {
+              // If JSON parsing fails, use the text as the error message
+              console.warn('Failed to parse error response as JSON:', jsonError)
+              errorData = { message: responseText }
+            }
+          } else {
+            // If response is empty, create a meaningful error object
+            errorData = {
+              message: response.statusText || `HTTP ${response.status} error`,
+              code: `HTTP_${response.status}`
+            }
+          }
+        } catch (textError) {
+          const readErrorMessage = textError instanceof Error ? textError.message : String(textError)
+          console.warn('Failed to read response text:', readErrorMessage)
+          // Fall back to status text
+          responseText = response.statusText || 'Unknown error'
+          errorData = {
+            message: responseText,
+            code: `HTTP_${response.status}`
+          }
+        }
+
+        // Extract error information with better fallbacks
+        const errorMsg = errorData.error || errorData.message || responseText || response.statusText || `Upload failed (HTTP ${response.status})`
+        const errorCode = errorData.code || `HTTP_${response.status}`
+        
+        // Build a comprehensive error log object - ensure it always has minimum required fields
+        const errorLog: Record<string, any> = {
+          status: response.status,
+          statusText: response.statusText || 'Unknown',
+          error: errorMsg,
+          code: errorCode
+        }
+        
+        // Only add these if they have meaningful values
+        if (responseText && responseText.trim()) {
+          errorLog.responseText = responseText.substring(0, 200) // Log first 200 chars
+        }
+        if (errorData.details) {
+          errorLog.details = errorData.details
+        }
+        if (Object.keys(errorData).length > 0 && JSON.stringify(errorData) !== '{}') {
+          errorLog.fullErrorData = errorData
+        }
+        
+        // Use console.warn instead of console.error to avoid Next.js error boundary
+        console.warn('Logo upload error:', errorLog)
+        
+        setError(errorMsg)
+        return { 
+          success: false, 
+          error: errorMsg, 
+          errorCode,
+          errorDetails: errorData.details || (Object.keys(errorData).length > 0 ? errorData : undefined)
+        }
       }
     } catch (error) {
-      console.error('Logo upload error:', error)
-      setError('Failed to upload logo')
-      return null
+      // Network or other errors
+      const errorMsg = error instanceof Error ? error.message : 'Network error occurred'
+      
+      // Use console.warn instead of console.error to avoid Next.js error boundary
+      const errorInfo: Record<string, any> = {
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        errorMessage: error instanceof Error ? error.message : String(error)
+      }
+      
+      if (error instanceof Error && error.stack) {
+        errorInfo.stack = error.stack
+      }
+      
+      console.warn('Logo upload network error:', errorInfo)
+      setError(errorMsg)
+      return { 
+        success: false, 
+        error: errorMsg, 
+        errorCode: 'NETWORK_ERROR',
+        errorDetails: error instanceof Error ? { stack: error.stack } : undefined
+      }
     }
   }, [isOnline])
 
@@ -389,7 +672,7 @@ export const useSchoolName = () => {
 export const useSchoolLogo = () => {
   const { configuration } = useAppConfiguration()
   return useMemo(() => ({
-    url: configuration.school_logo_url || '/placeholder-logo.svg',
+    url: configuration.school_logo_url || '/pison-logo.png',
     alt: configuration.school_logo_alt_text || 'School Logo'
   }), [configuration.school_logo_url, configuration.school_logo_alt_text])
 }
@@ -413,4 +696,50 @@ export const useConfigurationStatus = () => {
     isLoading,
     status: error ? 'error' : isLoading ? 'loading' : 'ready'
   }), [isOnline, lastFetched, error, isLoading])
+}
+
+// Global system settings hooks - these values are managed in App Configuration
+export const useGlobalAcademicYear = () => {
+  const { configuration } = useAppConfiguration()
+  return useMemo(() => configuration.academic_year || '2024-2025', [configuration.academic_year])
+}
+
+export const useGlobalCurrency = () => {
+  const { configuration } = useAppConfiguration()
+  return useMemo(() => configuration.currency || 'XOF', [configuration.currency])
+}
+
+export const useGlobalTimezone = () => {
+  const { configuration } = useAppConfiguration()
+  return useMemo(() => configuration.timezone || 'Africa/Douala', [configuration.timezone])
+}
+
+export const useGlobalTimeFormat = () => {
+  const { configuration } = useAppConfiguration()
+  return useMemo(() => configuration.time_format || '24h', [configuration.time_format])
+}
+
+export const useGlobalDateFormat = () => {
+  const { configuration } = useAppConfiguration()
+  return useMemo(() => configuration.date_format || 'DD/MM/YYYY', [configuration.date_format])
+}
+
+// Combined hook for all global system settings
+export const useGlobalSystemSettings = () => {
+  const { configuration } = useAppConfiguration()
+  return useMemo(() => ({
+    academicYear: configuration.academic_year || '2024-2025',
+    currency: configuration.currency || 'XOF',
+    timezone: configuration.timezone || 'Africa/Douala',
+    timeFormat: configuration.time_format || '24h',
+    dateFormat: configuration.date_format || 'DD/MM/YYYY',
+    language: configuration.language || 'en'
+  }), [
+    configuration.academic_year,
+    configuration.currency,
+    configuration.timezone,
+    configuration.time_format,
+    configuration.date_format,
+    configuration.language
+  ])
 }

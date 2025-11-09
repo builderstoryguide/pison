@@ -1,6 +1,6 @@
 # School Management App
 
-A comprehensive school management system built with Next.js, TypeScript, and Tailwind CSS, designed for Government Bilingual High School Yaoundé.
+A comprehensive school management system built with Next.js, TypeScript, and Tailwind CSS, designed for Pison Academy of Excellence.
 
 ## Features
 

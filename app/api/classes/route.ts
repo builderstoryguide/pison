@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { serializeSupabaseError } from '@/lib/safe-error'
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,9 +35,9 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      console.error('Error fetching classes:', error)
+      console.error('Error fetching classes:', serializeSupabaseError(error))
       return NextResponse.json(
-        { error: 'Failed to fetch classes' },
+        { ok: false, error: serializeSupabaseError(error) },
         { status: 500 }
       )
     }
@@ -58,9 +59,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(transformedData)
   } catch (error) {
-    console.error('Error in classes GET:', error)
+    console.error('Error in classes GET:', serializeSupabaseError(error as any))
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { ok: false, error: serializeSupabaseError(error as any) },
       { status: 500 }
     )
   }

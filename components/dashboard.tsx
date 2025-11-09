@@ -8,6 +8,7 @@ import { StudentEnrollmentProvider } from "@/lib/student-enrollment-context"
 import { StudentManagementProvider } from "@/lib/student-management-context"
 import { TeacherManagementProvider } from "@/lib/teacher-management-context"
 import { ClassManagementProvider } from "@/lib/class-management-context"
+import { SubjectManagementProvider } from "@/lib/subject-management-context"
 import { ExaminationProvider } from "@/lib/examination-context"
 import { FinancialProvider } from "@/lib/financial-context"
 import { AttendanceProvider } from "@/lib/attendance-context"
@@ -33,6 +34,7 @@ import { UserManagement } from "./admin/user-management"
 import { StudentManagement } from "./admin/student-management"
 import { TeacherManagement } from "./admin/teacher-management"
 import { ClassManagement } from "./admin/class-management"
+import { SubjectManagement } from "./admin/subject-management"
 import { ExaminationManagement } from "./admin/examination-management"
 import { TimetableManagement } from "./admin/timetable-management"
 import { FinancialManagement } from "./admin/financial-management"
@@ -55,6 +57,8 @@ import { TeacherDashboard } from "./teacher/teacher-dashboard"
 import { TeacherClassesView } from "./teacher/teacher-classes-view"
 import { GradesManagement } from "./teacher/grades-management"
 import { TeacherAssignmentManagement } from "./teacher/teacher-assignment-management"
+import { TeacherExaminationManagement } from "./teacher/examination-management"
+import { TeacherAssignmentsView } from "./teacher/teacher-assignments-view"
 
 // Parent Components
 import { ParentDashboard } from "./parent/parent-dashboard"
@@ -121,7 +125,6 @@ import {
   LogOut,
   Home,
   ChevronUp,
-  ChevronLeft,
   UserPlus,
   School,
   ClipboardList,
@@ -147,6 +150,7 @@ type AdminView =
   | "students"
   | "teachers"
   | "classes"
+  | "subjects"
   | "timetable"
   | "examinations"
   | "financial"
@@ -160,7 +164,7 @@ type AdminView =
   | "reports-generated"
   | "reports-cards"
 
-type TeacherView = "dashboard" | "classes" | "attendance" | "grades" | "assignments" | "profile"
+type TeacherView = "dashboard" | "classes" | "attendance" | "grades" | "assignments" | "my-assignments" | "examinations" | "profile"
 
 type ParentView = "dashboard" | "records" | "communication" | "profile"
 
@@ -349,28 +353,14 @@ function DashboardHeader({
   user,
   onProfileClick,
   onLogout,
-  sidebarCollapsed,
-  onSidebarToggle,
 }: {
   user: any
   onProfileClick: () => void
   onLogout: () => void
-  sidebarCollapsed?: boolean
-  onSidebarToggle?: () => void
 }) {
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 fixed top-0 right-0 left-[var(--sidebar-width)] z-40">
       <div className="flex items-center gap-2 px-4">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="-ml-1 h-9 w-9 p-0"
-          onClick={onSidebarToggle}
-        >
-          <ChevronLeft className={`h-4 w-4 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} />
-          <span className="sr-only">Toggle sidebar</span>
-        </Button>
-        <Separator orientation="vertical" className="mr-2 h-4" />
         <Badge variant="outline" className="capitalize">
           {user.role}
         </Badge>
@@ -639,8 +629,6 @@ export function Dashboard() {
                user={user} 
                onProfileClick={() => setParentCurrentView("profile")} 
                onLogout={handleLogout}
-               sidebarCollapsed={sidebarCollapsed}
-               onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
              />
             <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderParentContent()}</div>
           </div>
@@ -778,8 +766,6 @@ export function Dashboard() {
                user={user} 
                onProfileClick={() => setStudentCurrentView("profile")} 
                onLogout={handleLogout}
-               sidebarCollapsed={sidebarCollapsed}
-               onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
              />
             <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderStudentContent()}</div>
           </div>
@@ -796,6 +782,7 @@ export function Dashboard() {
       { id: "students", label: "Student Management", icon: GraduationCap },
       { id: "teachers", label: "Teacher Management", icon: UserCheck },
       { id: "classes", label: "Class Management", icon: BookOpen },
+      { id: "subjects", label: "Manage Subjects", icon: BookOpen },
       { id: "timetable", label: "Timetable Management", icon: CalendarDays },
       { id: "examinations", label: "Examinations", icon: FileText },
       { id: "financial", label: "Financial Management", icon: DollarSign },
@@ -823,6 +810,12 @@ export function Dashboard() {
           return <TeacherManagement />
         case "classes":
           return <ClassManagement />
+        case "subjects":
+          return (
+            <SubjectManagementProvider>
+              <SubjectManagement />
+            </SubjectManagementProvider>
+          )
         case "timetable":
           return (
             <TimetableProvider>
@@ -865,11 +858,12 @@ export function Dashboard() {
           <StudentManagementProvider>
             <TeacherManagementProvider>
               <ClassManagementProvider>
-                <ExaminationProvider>
-                  <FinancialProvider>
-                    <AttendanceProvider>
-                      <ReportsAnalyticsProvider>
-                        <ProfileProvider>
+                <SubjectManagementProvider>
+                  <ExaminationProvider>
+                    <FinancialProvider>
+                      <AttendanceProvider>
+                        <ReportsAnalyticsProvider>
+                          <ProfileProvider>
                           <div className="flex h-screen">
                             <Sidebar 
                               collapsed={sidebarCollapsed} 
@@ -993,8 +987,6 @@ export function Dashboard() {
                                 user={user}
                                 onProfileClick={() => setAdminCurrentView("profile")}
                                 onLogout={handleLogout}
-                                sidebarCollapsed={sidebarCollapsed}
-                                onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
                               />
                               <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderAdminContent()}</div>
                             </div>
@@ -1004,7 +996,8 @@ export function Dashboard() {
                     </AttendanceProvider>
                   </FinancialProvider>
                 </ExaminationProvider>
-              </ClassManagementProvider>
+              </SubjectManagementProvider>
+            </ClassManagementProvider>
             </TeacherManagementProvider>
           </StudentManagementProvider>
         </StudentEnrollmentProvider>
@@ -1016,7 +1009,8 @@ export function Dashboard() {
   if (user.role === "teacher") {
     const teacherMenuItems = [
       { id: "dashboard", label: "Dashboard", icon: Home },
-      { id: "classes", label: "My Classes", icon: BookOpen },
+      { id: "my-assignments", label: "My Assignments", icon: BookOpen },
+      { id: "classes", label: "My Classes", icon: Users },
       { id: "attendance", label: "Attendance", icon: CalendarCheck },
       { id: "grades", label: "Grades", icon: ClipboardList },
       { id: "assignments", label: "Assignments", icon: Award },
@@ -1024,12 +1018,16 @@ export function Dashboard() {
 
     const renderTeacherContent = () => {
       switch (teacherCurrentView) {
+        case "my-assignments":
+          return <TeacherAssignmentsView />
         case "classes":
           return <TeacherClassesView />
         case "grades":
           return <GradesManagement />
         case "assignments":
           return <TeacherAssignmentManagement />
+        case "examinations":
+          return <TeacherExaminationManagement />
         case "profile":
           return <ProfileSettings />
         default:
@@ -1132,8 +1130,6 @@ export function Dashboard() {
                     user={user}
                     onProfileClick={() => setTeacherCurrentView("profile")}
                     onLogout={handleLogout}
-                    sidebarCollapsed={sidebarCollapsed}
-                    onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
                   />
                   <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderTeacherContent()}</div>
                 </div>
@@ -1267,8 +1263,6 @@ export function Dashboard() {
                 user={user} 
                 onProfileClick={() => setBursarCurrentView("profile")} 
                 onLogout={handleLogout}
-                sidebarCollapsed={sidebarCollapsed}
-                onSidebarToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
               />
               <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderBursarContent()}</div>
             </div>

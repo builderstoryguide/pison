@@ -78,13 +78,34 @@ const configurationSchema = z.object({
 
 type ConfigurationFormData = z.infer<typeof configurationSchema>
 
+// Helper function to generate academic year options
+function getAcademicYearOptions() {
+  const currentYear = new Date().getFullYear()
+  
+  // Academic year format: YYYY-YYYY+1
+  // Example: If current year is 2025, current academic year is 2025-2026
+  const previousYear = `${currentYear - 1}-${currentYear}`
+  const currentYearOption = `${currentYear}-${currentYear + 1}`
+  const nextYear = `${currentYear + 1}-${currentYear + 2}`
+  
+  return {
+    previous: previousYear,
+    current: currentYearOption,
+    next: nextYear
+  }
+}
+
 export function AppConfiguration() {
   const { configuration, isLoading, error, updateConfiguration, resetConfiguration, uploadLogo } = useAppConfiguration()
   const [isSaving, setIsSaving] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [uploadingFileName, setUploadingFileName] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Get academic year options
+  const academicYearOptions = getAcademicYearOptions()
 
   const form = useForm<ConfigurationFormData>({
     resolver: zodResolver(configurationSchema),
@@ -99,7 +120,7 @@ export function AppConfiguration() {
       school_motto: configuration?.school_motto || "",
       primary_color: configuration?.primary_color || "#1f2937",
       secondary_color: configuration?.secondary_color || "#3b82f6",
-      academic_year: configuration?.academic_year || "2024-2025",
+      academic_year: configuration?.academic_year || academicYearOptions.current,
       currency: configuration?.currency || "XOF",
       timezone: configuration?.timezone || "Africa/Douala",
       language: configuration?.language || "en",
@@ -122,7 +143,7 @@ export function AppConfiguration() {
         school_motto: configuration.school_motto || "",
         primary_color: configuration.primary_color,
         secondary_color: configuration.secondary_color,
-        academic_year: configuration.academic_year,
+        academic_year: configuration.academic_year || academicYearOptions.current,
         currency: configuration.currency,
         timezone: configuration.timezone,
         language: configuration.language,
@@ -130,7 +151,7 @@ export function AppConfiguration() {
         time_format: configuration.time_format,
       })
     }
-  }, [configuration, form])
+  }, [configuration, form, academicYearOptions.current])
 
   const onSubmit = async (data: ConfigurationFormData) => {
     setIsSaving(true)
@@ -141,13 +162,16 @@ export function AppConfiguration() {
           description: "App configuration has been updated successfully."
         })
       } else {
+        // Use the error from context if available, otherwise show generic message
+        const errorMessage = error || "Failed to update configuration. Please try again."
         toast.error("Update Failed", {
-          description: "Failed to update configuration. Please try again."
+          description: errorMessage
         })
       }
-    } catch (error) {
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : (error || "An unexpected error occurred. Please try again.")
       toast.error("Update Failed", {
-        description: "An unexpected error occurred. Please try again."
+        description: errorMessage
       })
     } finally {
       setIsSaving(false)
@@ -180,25 +204,74 @@ export function AppConfiguration() {
     const file = event.target.files?.[0]
     if (!file) return
 
+    // Client-side file validation
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Invalid File Type", {
+        description: `Only JPEG, PNG, SVG, and WebP images are allowed. You selected: ${file.type || 'unknown type'}`
+      })
+      // Reset file input
+      event.target.value = ''
+      return
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024 // 5MB
+    if (file.size > maxSize) {
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2)
+      toast.error("File Too Large", {
+        description: `File size (${fileSizeMB}MB) exceeds the maximum limit of 5MB. Please select a smaller file.`
+      })
+      // Reset file input
+      event.target.value = ''
+      return
+    }
+
     setIsUploading(true)
+    setUploadingFileName(file.name)
     try {
-      const logoUrl = await uploadLogo(file)
-      if (logoUrl) {
-        form.setValue("school_logo_url", logoUrl)
+      const result = await uploadLogo(file)
+      if (result.success && result.logoUrl) {
+        form.setValue("school_logo_url", result.logoUrl)
         toast.success("Logo Uploaded", {
           description: "School logo has been uploaded successfully."
         })
+        setUploadingFileName(null)
       } else {
+        // Show specific error message from API
+        const errorMessage = result.error || "Failed to upload logo. Please try again."
+        let errorDescription = errorMessage
+
+        // Provide helpful descriptions based on error code
+        if (result.errorCode === 'BUCKET_NOT_FOUND') {
+          errorDescription = "Storage bucket not configured. Please contact your administrator to run the setup script."
+        } else if (result.errorCode === 'STORAGE_PERMISSION_ERROR') {
+          errorDescription = "Permission denied. Please check that storage policies are configured correctly."
+        } else if (result.errorCode === 'FILE_SIZE_LIMIT_EXCEEDED') {
+          errorDescription = "File size exceeds storage limit. Please select a smaller file."
+        } else if (result.errorCode === 'NETWORK_ERROR') {
+          errorDescription = "Network error occurred. Please check your connection and try again."
+        } else if (result.errorCode === 'OFFLINE_ERROR') {
+          errorDescription = "Cannot upload while offline. Please check your internet connection."
+        } else if (result.errorDetails?.setupInstructions) {
+          errorDescription = result.errorDetails.setupInstructions
+        }
+
         toast.error("Upload Failed", {
-          description: "Failed to upload logo. Please try again."
+          description: errorDescription,
+          duration: 8000 // Show longer for setup instructions
         })
       }
     } catch (error) {
+      console.error("Unexpected upload error:", error)
       toast.error("Upload Failed", {
-        description: "An unexpected error occurred. Please try again."
+        description: error instanceof Error ? error.message : "An unexpected error occurred. Please try again."
       })
     } finally {
       setIsUploading(false)
+      setUploadingFileName(null)
+      // Reset file input to allow re-selecting the same file
+      event.target.value = ''
     }
   }
 
@@ -271,416 +344,462 @@ export function AppConfiguration() {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {/* School Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building className="h-5 w-5" />
-                School Information
-              </CardTitle>
-              <CardDescription>
-                Basic information about your school
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="school_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>School Name *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter school name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* School Information and Logo Configuration - Grouped Horizontally */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* School Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building className="h-5 w-5" />
+                  School Information
+                </CardTitle>
+                <CardDescription>
+                  Basic information about your school
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="school_phone"
+                  name="school_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <Phone className="h-4 w-4" />
-                        Phone Number
-                      </FormLabel>
+                      <FormLabel>School Name *</FormLabel>
                       <FormControl>
-                        <Input placeholder="+237 123 456 789" {...field} />
+                        <Input placeholder="Enter school name" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="school_email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <Mail className="h-4 w-4" />
-                        Email Address
-                      </FormLabel>
-                      <FormControl>
-                        <Input placeholder="info@school.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="school_address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Address</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Enter school address" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="school_website"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2">
-                      <ExternalLink className="h-4 w-4" />
-                      Website
-                    </FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://school.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="school_motto"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>School Motto</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter school motto" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Logo Configuration */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Image className="h-5 w-5" />
-                School Logo
-              </CardTitle>
-              <CardDescription>
-                Upload and configure your school logo
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="flex-shrink-0">
-                  <img
-                    src={form.watch("school_logo_url") || "/placeholder-logo.svg"}
-                    alt={form.watch("school_logo_alt_text") || "School Logo"}
-                    className="h-16 w-16 object-contain border rounded-lg"
-                  />
-                </div>
-                <div className="flex-1 space-y-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="hidden"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                  >
-                    {isUploading ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Upload className="h-4 w-4 mr-2" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="school_phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Phone className="h-4 w-4" />
+                          Phone Number
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="+237 123 456 789" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                    {isUploading ? "Uploading..." : "Upload Logo"}
-                  </Button>
-                  <p className="text-sm text-muted-foreground">
-                    Recommended: 200x200px, PNG or SVG format
-                  </p>
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="school_email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Mail className="h-4 w-4" />
+                          Email Address
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="info@school.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-              </div>
 
-              <FormField
-                control={form.control}
-                name="school_logo_url"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Logo URL</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://example.com/logo.png" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Direct URL to the logo image
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="school_logo_alt_text"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Alt Text</FormLabel>
-                    <FormControl>
-                      <Input placeholder="School Logo" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Alternative text for accessibility
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Theme Configuration */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Palette className="h-5 w-5" />
-                Theme Colors
-              </CardTitle>
-              <CardDescription>
-                Customize the application color scheme
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="primary_color"
+                  name="school_address"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Primary Color</FormLabel>
+                      <FormLabel>Address</FormLabel>
                       <FormControl>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="color"
-                            className="w-12 h-10 p-1 border rounded"
-                            {...field}
-                          />
-                          <Input placeholder="#1f2937" {...field} />
+                        <Textarea placeholder="Enter school address" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="school_website"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2">
+                        <ExternalLink className="h-4 w-4" />
+                        Website
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://school.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="school_motto"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>School Motto</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter school motto" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Logo Configuration */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Image className="h-5 w-5" />
+                  School Logo
+                </CardTitle>
+                <CardDescription>
+                  Upload and configure your school logo
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-shrink-0">
+                    {isUploading ? (
+                      <div className="h-16 w-16 border rounded-lg flex items-center justify-center bg-muted">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <img
+                        src={form.watch("school_logo_url") || "/pison-logo.png"}
+                        alt={form.watch("school_logo_alt_text") || "School Logo"}
+                        className="h-16 w-16 object-contain border rounded-lg"
+                      />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/svg+xml,image/webp"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                      disabled={isUploading}
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                      >
+                        {isUploading ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4 mr-2" />
+                        )}
+                        {isUploading ? "Uploading..." : "Upload Logo"}
+                      </Button>
+                      {isUploading && uploadingFileName && (
+                        <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                          {uploadingFileName}
+                        </span>
+                      )}
+                    </div>
+                    {isUploading ? (
+                      <div className="space-y-1">
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-primary animate-pulse" style={{ width: '60%' }} />
                         </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <p className="text-xs text-muted-foreground">
+                          Uploading logo...
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Recommended: 200x200px, PNG or SVG format. Max size: 5MB
+                      </p>
+                    )}
+                  </div>
+                </div>
 
                 <FormField
                   control={form.control}
-                  name="secondary_color"
+                  name="school_logo_url"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Secondary Color</FormLabel>
+                      <FormLabel>Logo URL</FormLabel>
                       <FormControl>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="color"
-                            className="w-12 h-10 p-1 border rounded"
-                            {...field}
-                          />
-                          <Input placeholder="#3b82f6" {...field} />
-                        </div>
+                        <Input placeholder="https://example.com/logo.png" {...field} />
                       </FormControl>
+                      <FormDescription>
+                        Direct URL to the logo image
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* System Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                System Settings
-              </CardTitle>
-              <CardDescription>
-                Configure system-wide preferences
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="academic_year"
+                  name="school_logo_alt_text"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        Academic Year *
-                      </FormLabel>
+                      <FormLabel>Alt Text</FormLabel>
                       <FormControl>
-                        <Input placeholder="2024-2025" {...field} />
+                        <Input placeholder="School Logo" {...field} />
                       </FormControl>
+                      <FormDescription>
+                        Alternative text for accessibility
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+              </CardContent>
+            </Card>
+          </div>
 
-                <FormField
-                  control={form.control}
-                  name="currency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Currency *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+          {/* Theme Colors and System Settings - Grouped Horizontally */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Theme Configuration */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5" />
+                  Theme Colors
+                </CardTitle>
+                <CardDescription>
+                  Customize the application color scheme
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="primary_color"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Primary Color</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="color"
+                              className="w-12 h-10 p-1 border rounded"
+                              {...field}
+                            />
+                            <Input placeholder="#1f2937" {...field} />
+                          </div>
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="XOF">XOF - West African CFA Franc</SelectItem>
-                          <SelectItem value="USD">USD - US Dollar</SelectItem>
-                          <SelectItem value="EUR">EUR - Euro</SelectItem>
-                          <SelectItem value="GBP">GBP - British Pound</SelectItem>
-                          <SelectItem value="XAF">XAF - Central African CFA Franc</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="timezone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <Globe className="h-4 w-4" />
-                        Timezone *
-                      </FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormField
+                    control={form.control}
+                    name="secondary_color"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Secondary Color</FormLabel>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select timezone" />
-                          </SelectTrigger>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="color"
+                              className="w-12 h-10 p-1 border rounded"
+                              {...field}
+                            />
+                            <Input placeholder="#3b82f6" {...field} />
+                          </div>
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Africa/Douala">Africa/Douala</SelectItem>
-                          <SelectItem value="Africa/Lagos">Africa/Lagos</SelectItem>
-                          <SelectItem value="Africa/Abidjan">Africa/Abidjan</SelectItem>
-                          <SelectItem value="Africa/Accra">Africa/Accra</SelectItem>
-                          <SelectItem value="UTC">UTC</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-                <FormField
-                  control={form.control}
-                  name="language"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Language *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select language" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="fr">Français</SelectItem>
-                          <SelectItem value="es">Español</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+            {/* System Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  System Settings
+                </CardTitle>
+                <CardDescription>
+                  Configure system-wide preferences
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="academic_year"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          Academic Year *
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value || academicYearOptions.current}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select academic year" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value={academicYearOptions.previous}>
+                              {academicYearOptions.previous}
+                            </SelectItem>
+                            <SelectItem value={academicYearOptions.current}>
+                              {academicYearOptions.current}
+                            </SelectItem>
+                            <SelectItem value={academicYearOptions.next}>
+                              {academicYearOptions.next}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="date_format"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date Format *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select date format" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
-                          <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
-                          <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Currency *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="XOF">XOF - West African CFA Franc</SelectItem>
+                            <SelectItem value="USD">USD - US Dollar</SelectItem>
+                            <SelectItem value="EUR">EUR - Euro</SelectItem>
+                            <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                            <SelectItem value="XAF">XAF - Central African CFA Franc</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-                <FormField
-                  control={form.control}
-                  name="time_format"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        Time Format *
-                      </FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select time format" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="24h">24 Hour (14:30)</SelectItem>
-                          <SelectItem value="12h">12 Hour (2:30 PM)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="timezone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Globe className="h-4 w-4" />
+                          Timezone *
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select timezone" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Africa/Douala">Africa/Douala</SelectItem>
+                            <SelectItem value="Africa/Lagos">Africa/Lagos</SelectItem>
+                            <SelectItem value="Africa/Abidjan">Africa/Abidjan</SelectItem>
+                            <SelectItem value="Africa/Accra">Africa/Accra</SelectItem>
+                            <SelectItem value="UTC">UTC</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="language"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Language *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select language" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="en">English</SelectItem>
+                            <SelectItem value="fr">Français</SelectItem>
+                            <SelectItem value="es">Español</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="date_format"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date Format *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select date format" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
+                            <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
+                            <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="time_format"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <Clock className="h-4 w-4" />
+                          Time Format *
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select time format" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="24h">24 Hour (14:30)</SelectItem>
+                            <SelectItem value="12h">12 Hour (2:30 PM)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Preview */}
           {showPreview && (
@@ -695,7 +814,7 @@ export function AppConfiguration() {
                 <div className="border rounded-lg p-4 bg-muted/50">
                   <div className="flex items-center gap-3 mb-4">
                     <img
-                      src={form.watch("school_logo_url") || "/placeholder-logo.svg"}
+                      src={form.watch("school_logo_url") || "/pison-logo.png"}
                       alt={form.watch("school_logo_alt_text") || "School Logo"}
                       className="h-8 w-8 object-contain"
                     />

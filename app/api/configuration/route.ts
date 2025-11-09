@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireRole, getUserFromRequest } from '@/lib/auth/server'
 
 // GET - Retrieve app configuration
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    // Check if user is authenticated
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
+    // Check if user is authenticated (optional for GET)
+    const user = await getUserFromRequest(request)
 
     // Get the configuration (only one record should exist)
     const { data: configuration, error } = await supabase
@@ -32,7 +27,7 @@ export async function GET(request: NextRequest) {
         const defaultConfig = {
           id: null,
           school_name: 'Pison Academy',
-          school_logo_url: '/placeholder-logo.svg',
+          school_logo_url: '/pison-logo.png',
           school_logo_alt_text: 'School Logo',
           school_address: '',
           school_phone: '',
@@ -66,7 +61,7 @@ export async function GET(request: NextRequest) {
       const defaultConfig = {
         id: null,
         school_name: 'Pison Academy',
-        school_logo_url: '/placeholder-logo.svg',
+        school_logo_url: '/pison-logo.png',
         school_logo_alt_text: 'School Logo',
         school_address: '',
         school_phone: '',
@@ -104,28 +99,8 @@ export async function PUT(request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    // Check if user is authenticated
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Check if user is admin
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!userProfile || userProfile.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Insufficient permissions: Admin role required' },
-        { status: 403 }
-      )
-    }
+    // Check authentication and admin role
+    const user = await requireRole(request, 'admin')
 
     const body = await request.json()
     const {
@@ -258,28 +233,8 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
 
-    // Check if user is authenticated
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Check if user is admin
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!userProfile || userProfile.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Insufficient permissions: Admin role required' },
-        { status: 403 }
-      )
-    }
+    // Check authentication and admin role
+    const user = await requireRole(request, 'admin')
 
     const body = await request.json()
     const { action } = body
@@ -304,7 +259,7 @@ export async function POST(request: NextRequest) {
         .from('app_configuration')
         .insert({
           school_name: 'Pison Academy',
-          school_logo_url: '/placeholder-logo.svg',
+          school_logo_url: '/pison-logo.png',
           school_logo_alt_text: 'School Logo',
           school_address: '',
           school_phone: '',

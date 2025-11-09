@@ -62,6 +62,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { useEnhancedTimetable } from '@/lib/enhanced-timetable-context'
 import { useToast } from '@/hooks/use-toast'
+import { useGlobalAcademicYear } from '@/lib/app-configuration-context-v2'
 import { ShimmerTimetableGrid, ShimmerList } from '@/components/ui/shimmer-loading'
 // TimetableOptionsComponent import removed - component doesn't exist
 
@@ -138,6 +139,7 @@ export function TimetableManagementEnhanced() {
   } = useEnhancedTimetable()
   
   const { toast } = useToast()
+  const globalAcademicYear = useGlobalAcademicYear()
   
   const [selectedClass, setSelectedClass] = useState<string>("")
   const [selectedSubsystem, setSelectedSubsystem] = useState<string>("all")
@@ -178,9 +180,9 @@ export function TimetableManagementEnhanced() {
     loadClassesWithFilters({ 
       subsystem: selectedSubsystem === 'all' ? undefined : selectedSubsystem,
       branch: selectedBranch === 'all' ? undefined : selectedBranch,
-      academicYear: '2024-2025'
+      academicYear: globalAcademicYear
     })
-  }, [selectedSubsystem, selectedBranch, loadClassesWithFilters])
+  }, [selectedSubsystem, selectedBranch, loadClassesWithFilters, globalAcademicYear])
 
   // Handle timetable generation
   const handleGenerateTimetable = async (classId: string, options?: TimetableGenerationOptions) => {
@@ -190,7 +192,7 @@ export function TimetableManagementEnhanced() {
     await updateTimetableStatus(classId, 'generating', { generatedBy: 'admin' })
     
     try {
-      const result = await generateTimetable(classId, '2024-2025', 'first', 'admin', options)
+      const result = await generateTimetable(classId, globalAcademicYear, 'first', 'admin', options)
       if (result.success) {
         // Update status to generated
         await updateTimetableStatus(classId, 'generated', { 
@@ -340,7 +342,7 @@ export function TimetableManagementEnhanced() {
     setIsGenerating(true)
     try {
       const promises = Array.from(selectedClassesForGeneration).map(classId => 
-        generateTimetable(classId, '2024-2025', 'first', 'admin')
+        generateTimetable(classId, globalAcademicYear, 'first', 'admin')
       )
       
       const results = await Promise.allSettled(promises)

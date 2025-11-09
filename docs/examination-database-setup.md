@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS examinations (
     status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'ongoing', 'completed', 'cancelled')),
     enrolled_students INTEGER DEFAULT 0,
     completed_students INTEGER DEFAULT 0,
+    grading_system JSONB,
     created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -58,6 +59,37 @@ CREATE TABLE IF NOT EXISTS exam_results (
     UNIQUE(examination_id, student_id, subject)
 );
 ```
+
+### Grading System
+
+The `grading_system` column stores custom grade definitions as a JSONB array. Each grade definition has the following structure:
+
+```json
+[
+  {
+    "label": "A",
+    "minPercentage": 90,
+    "maxPercentage": 100
+  },
+  {
+    "label": "B",
+    "minPercentage": 80,
+    "maxPercentage": 89
+  }
+]
+```
+
+- **label**: The grade label (e.g., "A", "B+", "Excellent")
+- **minPercentage**: The minimum percentage (inclusive) for this grade (0-100)
+- **maxPercentage**: The maximum percentage (inclusive) for this grade (0-100)
+
+The grading system must:
+- Cover the entire 0-100% range without gaps
+- Have no overlapping ranges
+- Have unique labels
+- Have minPercentage < maxPercentage for each grade
+
+If `grading_system` is null or empty, the system will use a default grading scheme.
 
 ## Setup Instructions
 

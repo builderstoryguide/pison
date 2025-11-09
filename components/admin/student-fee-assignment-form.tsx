@@ -20,6 +20,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useFinancial } from "@/lib/financial-context"
 import { useStudentManagement } from "@/lib/student-management-context"
 import { cn } from "@/lib/utils"
+import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
+import { Info } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 const studentFeeAssignmentSchema = z.object({
   studentId: z.string().min(1, "Student is required"),
@@ -46,6 +49,7 @@ export function StudentFeeAssignmentForm({ onSuccess, onCancel, editData }: Stud
   const { students } = useStudentManagement()
   const { feeStructures } = useFinancial()
   const { toast } = useToast()
+  const globalAcademicYear = useGlobalAcademicYear()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [selectedFeeStructure, setSelectedFeeStructure] = useState<any>(null)
@@ -56,7 +60,7 @@ export function StudentFeeAssignmentForm({ onSuccess, onCancel, editData }: Stud
       ? {
           studentId: editData.studentId,
           feeStructureId: editData.feeStructureId,
-          academicYear: editData.academicYear,
+          academicYear: globalAcademicYear, // Use global academic year
           term: editData.term,
           totalAmount: editData.totalAmount,
           dueDate: new Date(editData.dueDate),
@@ -65,13 +69,18 @@ export function StudentFeeAssignmentForm({ onSuccess, onCancel, editData }: Stud
       : {
           studentId: "",
           feeStructureId: "",
-          academicYear: "2024-2025",
+          academicYear: globalAcademicYear, // Use global academic year
           term: "first",
           totalAmount: 0,
           dueDate: new Date(),
           notes: "",
         },
   })
+
+  // Sync form with global academic year
+  useEffect(() => {
+    form.setValue("academicYear", globalAcademicYear)
+  }, [globalAcademicYear, form])
 
   // Filter students based on search term
   const filteredStudents = students.filter((student) =>
@@ -316,21 +325,32 @@ export function StudentFeeAssignmentForm({ onSuccess, onCancel, editData }: Stud
                   name="academicYear"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Academic Year</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
+                      <FormLabel className="flex items-center gap-2">
+                        Academic Year
+                        <span className="text-xs text-muted-foreground font-normal">(Global Setting)</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value || globalAcademicYear}
+                          disabled={true}
+                        >
+                          <SelectTrigger className="bg-muted">
                             <SelectValue placeholder="Select academic year" />
                           </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {academicYears.map((year) => (
-                            <SelectItem key={year} value={year}>
-                              {year}
+                          <SelectContent>
+                            <SelectItem value={field.value || globalAcademicYear}>
+                              {field.value || globalAcademicYear}
                             </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <Alert className="mt-2 py-2">
+                        <Info className="h-4 w-4" />
+                        <AlertDescription className="text-xs">
+                          Academic Year is managed globally in App Configuration. To change it, go to Settings → App Configuration → System Settings.
+                        </AlertDescription>
+                      </Alert>
                       <FormMessage />
                     </FormItem>
                   )}

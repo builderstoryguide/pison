@@ -1,9 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { X, Users, BookOpen, Calendar, MapPin, Phone, Mail, User, GraduationCap } from "lucide-react"
+import { Users, BookOpen, Calendar, MapPin, Phone, Mail, User, GraduationCap } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
@@ -11,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useTeacherClasses, type TeacherClass, type Student } from "@/lib/teacher-classes-context"
+import { type TeacherClass, type Student } from "@/lib/teacher-classes-context"
 
 interface ClassDetailsDialogProps {
   classData: TeacherClass
@@ -20,21 +19,27 @@ interface ClassDetailsDialogProps {
 }
 
 export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetailsDialogProps) {
-  const { searchStudents, filterStudentsByStatus } = useTeacherClasses()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<Student["enrollmentStatus"] | "all">("all")
 
   const getFilteredStudents = () => {
     let students = classData.students
 
-    // Apply status filter
+    // Apply status filter first
     if (statusFilter !== "all") {
-      students = filterStudentsByStatus(classData.id, statusFilter)
+      students = students.filter((student) => student.enrollmentStatus === statusFilter)
     }
 
-    // Apply search filter
+    // Apply search filter on the already filtered students
     if (searchTerm.trim()) {
-      students = searchStudents(classData.id, searchTerm)
+      const term = searchTerm.toLowerCase()
+      students = students.filter(
+        (student) =>
+          student.firstName.toLowerCase().includes(term) ||
+          student.lastName.toLowerCase().includes(term) ||
+          student.studentId.toLowerCase().includes(term) ||
+          student.email.toLowerCase().includes(term)
+      )
     }
 
     return students
@@ -42,28 +47,22 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
 
   const filteredStudents = getFilteredStudents()
   const enrolledCount = classData.students.filter((s) => s.enrollmentStatus === "enrolled").length
-  const capacityPercentage = (enrolledCount / classData.capacity) * 100
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-6">
         <DialogHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-2xl font-bold">{classData.name}</DialogTitle>
-              <div className="flex flex-wrap items-center gap-2 mt-3">
-                <Badge variant="outline" className="px-2 py-1">{classData.code}</Badge>
-                <Badge variant="secondary" className="capitalize px-2 py-1">
-                  {classData.subsystem}
-                </Badge>
-                <Badge variant="outline" className="capitalize px-2 py-1">
-                  {classData.branch}
-                </Badge>
-              </div>
+          <div>
+            <DialogTitle className="text-2xl font-bold">{classData.name}</DialogTitle>
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <Badge variant="outline" className="px-2 py-1">{classData.code}</Badge>
+              <Badge variant="secondary" className="capitalize px-2 py-1">
+                {classData.subsystem}
+              </Badge>
+              <Badge variant="outline" className="capitalize px-2 py-1">
+                {classData.branch}
+              </Badge>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="rounded-full h-8 w-8">
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </DialogHeader>
 
@@ -76,8 +75,8 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6 py-4">
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <Card className="shadow-sm">
+            <div className="flex flex-col gap-6">
+              <Card className="shadow-sm w-full">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Students</CardTitle>
                   <div className="p-1 rounded-md bg-primary/10">
@@ -93,7 +92,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
                 </CardContent>
               </Card>
 
-              <Card className="shadow-sm">
+              <Card className="shadow-sm w-full">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Subjects</CardTitle>
                   <div className="p-1 rounded-md bg-primary/10">
@@ -106,25 +105,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
                 </CardContent>
               </Card>
 
-              <Card className="shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Capacity Utilization</CardTitle>
-                  <div className="p-1 rounded-md bg-primary/10">
-                    <GraduationCap className="h-4 w-4 text-primary" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{capacityPercentage.toFixed(0)}%</div>
-                  <div className="w-full h-2 bg-muted rounded-full mt-2 overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full ${capacityPercentage > 90 ? 'bg-destructive' : capacityPercentage > 75 ? 'bg-warning' : 'bg-primary'}`}
-                      style={{ width: `${Math.min(capacityPercentage, 100)}%` }}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm">
+              <Card className="shadow-sm w-full">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Room</CardTitle>
                   <div className="p-1 rounded-md bg-primary/10">
@@ -342,9 +323,15 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {classData.subjects.map((subject) => (
-                    <Card key={subject.id} className="shadow-sm border-l-4 border-l-primary/50">
+                {classData.subjects.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-sm">No subjects assigned to this class</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-6">
+                    {classData.subjects.map((subject) => (
+                    <Card key={subject.id} className="shadow-sm border-l-4 border-l-primary/50 w-full">
                       <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-base font-medium line-clamp-2" title={subject.name}>
@@ -372,8 +359,9 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

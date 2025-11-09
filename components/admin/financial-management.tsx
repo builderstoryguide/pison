@@ -39,6 +39,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Progress } from "@/components/ui/progress"
 import { useFinancial, type FeeStructure, type Payment, type StudentFeeAssignment } from "@/lib/financial-context"
 import { FeeStructureForm } from "./fee-structure-form"
@@ -59,7 +69,8 @@ export function FinancialManagement() {
     deleteFeeStructure,
     deletePayment,
     deleteStudentFeeAssignment,
-    deletePaymentPlan
+    deletePaymentPlan,
+    loadFinancialData
   } = useFinancial()
   
   const { toast } = useToast()
@@ -86,6 +97,11 @@ export function FinancialManagement() {
   const [editingPayment, setEditingPayment] = useState<Payment | undefined>(undefined)
   const [editingStudentFeeAssignment, setEditingStudentFeeAssignment] = useState<StudentFeeAssignment | undefined>(undefined)
   const [editingPaymentPlan, setEditingPaymentPlan] = useState<any>(undefined)
+  
+  // Delete confirmation dialogs
+  const [deletePaymentDialogOpen, setDeletePaymentDialogOpen] = useState(false)
+  const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null)
+  const [isDeletingPayment, setIsDeletingPayment] = useState(false)
 
   const financialSummary = getFinancialSummary()
   const outstandingPayments = getOutstandingPayments()
@@ -155,12 +171,14 @@ export function FinancialManagement() {
   })
 
   // Success handlers
-  const handleFeeStructureSuccess = (feeStructureId: string) => {
+  const handleFeeStructureSuccess = async (feeStructureId: string) => {
     setShowFeeStructureForm(false)
     setEditingFeeStructure(undefined)
     toast.success(
       editingFeeStructure ? "Fee structure updated successfully" : "Fee structure created successfully"
     )
+    // Reload financial data to show the newly created fee structure
+    await loadFinancialData()
   }
 
   const handlePaymentSuccess = (paymentId: string) => {
@@ -199,14 +217,37 @@ export function FinancialManagement() {
     }
   }
 
-  const handleDeletePayment = async (id: string) => {
-    if (confirm("Are you sure you want to delete this payment? This action cannot be undone.")) {
-      const result = await deletePayment(id)
+  const handleDeletePayment = (payment: Payment) => {
+    setPaymentToDelete(payment)
+    setDeletePaymentDialogOpen(true)
+  }
+
+  const confirmDeletePayment = async () => {
+    if (!paymentToDelete) return
+
+    setIsDeletingPayment(true)
+    try {
+      const result = await deletePayment(paymentToDelete.id)
       if (result.success) {
-        toast.success("Payment deleted successfully")
+        toast.success("Payment deleted successfully", {
+          description: `Payment for ${paymentToDelete.studentName} has been deleted.`
+        })
+        // Reload financial data to ensure UI is in sync with database
+        await loadFinancialData()
       } else {
-        toast.error(result.error || "Failed to delete payment")
+        toast.error("Failed to delete payment", {
+          description: result.error || "An error occurred while deleting the payment."
+        })
       }
+    } catch (error) {
+      console.error("Error deleting payment:", error)
+      toast.error("Failed to delete payment", {
+        description: "An unexpected error occurred."
+      })
+    } finally {
+      setIsDeletingPayment(false)
+      setDeletePaymentDialogOpen(false)
+      setPaymentToDelete(null)
     }
   }
 
@@ -519,7 +560,7 @@ export function FinancialManagement() {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="text-red-600"
-                                  onClick={() => handleDeletePayment(payment.id)}
+                                  onClick={() => handleDeletePayment(payment)}
                                 >
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Delete
@@ -943,6 +984,39 @@ export function FinancialManagement() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Delete Payment Confirmation Dialog */}
+      <AlertDialog open={deletePaymentDialogOpen} onOpenChange={setDeletePaymentDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Payment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this payment? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {paymentToDelete && (
+            <div className="mt-4 p-3 bg-muted rounded-md">
+              <p className="font-medium mb-2">Payment Details:</p>
+              <div className="space-y-1 text-sm">
+                <div>Student: {paymentToDelete.studentName}</div>
+                <div>Amount: {paymentToDelete.amountPaid.toLocaleString()} FCFA</div>
+                <div>Receipt: {paymentToDelete.receiptNumber}</div>
+                <div>Date: {format(new Date(paymentToDelete.paymentDate), "MMM dd, yyyy")}</div>
+              </div>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingPayment}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeletePayment}
+              disabled={isDeletingPayment}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeletingPayment ? "Deleting..." : "Delete Payment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

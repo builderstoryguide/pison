@@ -18,7 +18,9 @@ import {
   Save,
   X,
   AlertCircle,
-  ChevronDownIcon
+  ChevronDownIcon,
+  Loader2,
+  CheckCircle2
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -26,6 +28,8 @@ import { Student } from "@/lib/student-management-context"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
+import { Info } from "lucide-react"
 import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 
@@ -35,20 +39,18 @@ interface EditStudentFormProps {
   onCancel: () => void
 }
 
-const classes = {
-  english: {
-    grammar: ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "Lower Sixth", "Upper Sixth"],
-    technical: ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5"],
-    commercial: ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5"],
-  },
-  french: {
-    grammar: ["6ème", "5ème", "4ème", "3ème", "2nde", "1ère", "Terminale"],
-    technical: ["6ème", "5ème", "4ème", "3ème", "2nde", "1ère", "Terminale"],
-    commercial: ["6ème", "5ème", "4ème", "3ème", "2nde", "1ère", "Terminale"],
-  },
+interface ClassData {
+  id: string
+  name: string
+  level: string
+  subsystem: string
+  branch: string
+  academicYear?: string
+  status: string
 }
 
 export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormProps) {
+  const globalAcademicYear = useGlobalAcademicYear()
   const [formData, setFormData] = useState<Partial<Student>>({
     first_name: "",
     last_name: "",
@@ -72,12 +74,100 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
     paid_fees: 0,
     fees_status: "pending",
     enrollment_status: "pending",
-    academic_year: "2024-25",
+    academic_year: globalAcademicYear, // Use global academic year
   })
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("personal")
+  const [availableClasses, setAvailableClasses] = useState<ClassData[]>([])
+  const [isLoadingClasses, setIsLoadingClasses] = useState(false)
+  const [classesError, setClassesError] = useState<string | null>(null)
+  
+  // Fee structure state management
+  const [isLoadingFeeStructure, setIsLoadingFeeStructure] = useState(false)
+  const [feeStructureError, setFeeStructureError] = useState<string | null>(null)
+  const [hasValidFeeStructure, setHasValidFeeStructure] = useState(false)
+  const [feeStructureName, setFeeStructureName] = useState<string | null>(null)
+  const [term, setTerm] = useState<"first" | "second" | "third">("first")
+
+  // Function to check if a string is a UUID
+  const isUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    return uuidRegex.test(str)
+  }
+
+  // Function to fetch classes from API
+  const fetchClasses = async (subsystem: string, branch: string) => {
+    if (!subsystem || !branch) {
+      setAvailableClasses([])
+      return
+    }
+
+    setIsLoadingClasses(true)
+    setClassesError(null)
+
+    try {
+      const params = new URLSearchParams({
+        subsystem,
+        branch,
+        status: 'active',
+      })
+
+      const response = await fetch(`/api/classes?${params.toString()}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch classes')
+      }
+
+      const data = await response.json()
+      
+      // Transform API response to match our format
+      const transformedClasses: ClassData[] = (data || []).map((cls: any) => ({
+        id: cls.id,
+        name: cls.name,
+        level: cls.level,
+        subsystem: cls.subsystem,
+        branch: cls.branch,
+        academicYear: cls.academicYear,
+        status: cls.status,
+      }))
+
+      setAvailableClasses(transformedClasses)
+
+      // If student has a class assigned, try to match it and update formData
+      if (student.class) {
+        let matchedClass: ClassData | undefined
+
+        // Check if student.class is a UUID (class ID)
+        if (isUUID(student.class)) {
+          // Find by ID
+          matchedClass = transformedClasses.find((cls) => cls.id === student.class)
+        } else {
+          // Find by name
+          matchedClass = transformedClasses.find((cls) => cls.name === student.class)
+        }
+
+        // If we found a match, update formData with the class ID (UUID)
+        if (matchedClass) {
+          setFormData((prev) => {
+            // Only update if the class ID is different to avoid unnecessary re-renders
+            if (prev.class !== matchedClass!.id) {
+              return { ...prev, class: matchedClass!.id }
+            }
+            return prev
+          })
+        }
+        // If no match found, keep the current class value (handles edge cases)
+      }
+    } catch (err) {
+      console.error('Error fetching classes:', err)
+      setClassesError(err instanceof Error ? err.message : 'Failed to load classes')
+      setAvailableClasses([])
+    } finally {
+      setIsLoadingClasses(false)
+    }
+  }
 
   // Initialize form data with student data
   useEffect(() => {
@@ -104,9 +194,108 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
       paid_fees: student.paid_fees || 0,
       fees_status: student.fees_status || "pending",
       enrollment_status: student.enrollment_status || "pending",
-      academic_year: student.academic_year || "2024-25",
+      academic_year: globalAcademicYear, // Use global academic year
     })
-  }, [student])
+    // Initialize term - default to "first" if not available
+    setTerm("first")
+    // Reset fee structure state
+    setHasValidFeeStructure(false)
+    setFeeStructureName(null)
+    setFeeStructureError(null)
+  }, [student, globalAcademicYear])
+
+  // Sync academic year with global setting whenever it changes
+  useEffect(() => {
+    setFormData((prev) => ({ ...prev, academic_year: globalAcademicYear }))
+  }, [globalAcademicYear])
+
+  // Fetch classes when form loads or when subsystem/branch changes
+  useEffect(() => {
+    if (formData.subsystem && formData.branch) {
+      fetchClasses(formData.subsystem, formData.branch)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.subsystem, formData.branch])
+
+  // Function to fetch fee structure for class
+  const fetchFeeStructureForClass = async (classId: string, academicYear: string, termValue: string) => {
+    // Validate all three parameters are present
+    if (!classId || !academicYear || !termValue) {
+      setHasValidFeeStructure(false)
+      setFeeStructureError("Class, academic year, and term are required")
+      setFeeStructureName(null)
+      setFormData(prev => ({ ...prev, total_fees: 0 }))
+      return
+    }
+
+    // Only fetch if class is a valid UUID
+    if (!isUUID(classId)) {
+      setHasValidFeeStructure(false)
+      setFeeStructureError("Invalid class ID")
+      setFeeStructureName(null)
+      setFormData(prev => ({ ...prev, total_fees: 0 }))
+      return
+    }
+
+    setIsLoadingFeeStructure(true)
+    setFeeStructureError(null)
+
+    try {
+      const params = new URLSearchParams({
+        classId,
+        academicYear,
+        term: termValue,
+      })
+
+      const response = await fetch(`/api/bursar/fee-structures/by-class?${params.toString()}`)
+      
+      if (response.status === 404) {
+        // No fee structure found
+        setHasValidFeeStructure(false)
+        setFeeStructureError("No fee structure found for this class, academic year, and term combination")
+        setFeeStructureName(null)
+        setFormData(prev => ({ ...prev, total_fees: 0 }))
+      } else if (!response.ok) {
+        // API error
+        const errorData = await response.json().catch(() => ({}))
+        setHasValidFeeStructure(false)
+        setFeeStructureError(errorData.error || "Failed to fetch fee structure")
+        setFeeStructureName(null)
+        setFormData(prev => ({ ...prev, total_fees: 0 }))
+      } else {
+        // Success
+        const data = await response.json()
+        setHasValidFeeStructure(true)
+        setFeeStructureName(data.name)
+        setFeeStructureError(null)
+        setFormData(prev => ({ ...prev, total_fees: data.totalAmount || 0 }))
+      }
+    } catch (err) {
+      console.error('Error fetching fee structure:', err)
+      setHasValidFeeStructure(false)
+      setFeeStructureError("An error occurred while fetching fee structure")
+      setFeeStructureName(null)
+      setFormData(prev => ({ ...prev, total_fees: 0 }))
+    } finally {
+      setIsLoadingFeeStructure(false)
+    }
+  }
+
+  // Fetch fee structure when class, academic year, or term changes
+  useEffect(() => {
+    if (formData.class && formData.academic_year && term) {
+      // Reset validation state immediately when any field changes
+      setHasValidFeeStructure(false)
+      // Fetch fee structure
+      fetchFeeStructureForClass(formData.class, formData.academic_year, term)
+    } else {
+      // If any required field is missing, reset state
+      setHasValidFeeStructure(false)
+      setFeeStructureError(null)
+      setFeeStructureName(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.class, formData.academic_year, term])
 
   const handleInputChange = (field: keyof Student, value: string | number) => {
     // Special handling for phone numbers
@@ -145,7 +334,8 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
       formData.first_name &&
       formData.last_name &&
       formData.email &&
-      formData.class
+      formData.class &&
+      hasValidFeeStructure // Require valid fee structure
     )
   }
 
@@ -167,6 +357,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
           <Button 
             onClick={handleSubmit} 
             disabled={!isFormValid() || isLoading}
+            title={!hasValidFeeStructure ? "Cannot save: No fee structure assigned to this class" : undefined}
           >
             <Save className="h-4 w-4 mr-2" />
             {isLoading ? 'Saving...' : 'Save Changes'}
@@ -324,7 +515,10 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                   <Label htmlFor="subsystem">Sub-system</Label>
                   <Select 
                     value={formData.subsystem} 
-                    onValueChange={(value) => handleInputChange("subsystem", value)}
+                    onValueChange={(value) => {
+                      handleInputChange("subsystem", value)
+                      handleInputChange("class", "") // Reset class when subsystem changes
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select sub-system" />
@@ -339,7 +533,10 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                   <Label htmlFor="branch">Branch</Label>
                   <Select 
                     value={formData.branch} 
-                    onValueChange={(value) => handleInputChange("branch", value)}
+                    onValueChange={(value) => {
+                      handleInputChange("branch", value)
+                      handleInputChange("class", "") // Reset class when branch changes
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select branch" />
@@ -353,24 +550,102 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="class">Class *</Label>
-                  <Select 
-                    value={formData.class} 
-                    onValueChange={(value) => handleInputChange("class", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {formData.subsystem && formData.branch && 
-                        classes[formData.subsystem as keyof typeof classes]?.[
-                          formData.branch as keyof typeof classes.english
-                        ]?.map((cls) => (
-                          <SelectItem key={cls} value={cls}>
-                            {cls}
+                  {isLoadingClasses ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                      Loading classes...
+                    </div>
+                  ) : classesError ? (
+                    <div className="space-y-2">
+                      <Select disabled>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Error loading classes" />
+                        </SelectTrigger>
+                      </Select>
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-sm">
+                          {classesError}. Please try again or ensure classes are created in Class Management.
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  ) : availableClasses.length === 0 ? (
+                    <div className="space-y-2">
+                      <Select disabled>
+                        <SelectTrigger>
+                          <SelectValue placeholder="No classes available" />
+                        </SelectTrigger>
+                      </Select>
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-sm">
+                          {formData.subsystem && formData.branch
+                            ? `No active classes found for ${formData.subsystem === 'english' ? 'English' : 'French'} Sub-system, ${formData.branch.charAt(0).toUpperCase() + formData.branch.slice(1)} branch. Please create classes in Class Management first.`
+                            : 'Please select subsystem and branch first.'}
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  ) : (
+                    <Select 
+                      value={formData.class} 
+                      onValueChange={(value) => {
+                        handleInputChange("class", value)
+                        setHasValidFeeStructure(false) // Reset validation when class changes
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableClasses.map((cls) => (
+                          <SelectItem key={cls.id} value={cls.id}>
+                            {cls.name}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="term">Term *</Label>
+                  <Select 
+                    value={term} 
+                    onValueChange={(value: "first" | "second" | "third") => {
+                      setTerm(value)
+                      setHasValidFeeStructure(false) // Reset validation when term changes
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select term" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="first">First Term</SelectItem>
+                      <SelectItem value="second">Second Term</SelectItem>
+                      <SelectItem value="third">Third Term</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="academic_year" className="flex items-center gap-2">
+                    Academic Year *
+                    <span className="text-xs text-muted-foreground font-normal">(Global Setting)</span>
+                  </Label>
+                  <Input
+                    id="academic_year"
+                    value={globalAcademicYear}
+                    disabled={true}
+                    className="bg-muted"
+                    placeholder="Academic year"
+                  />
+                  <Alert className="mt-2 py-2">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      Academic Year is managed globally in App Configuration. To change it, go to Settings → App Configuration → System Settings.
+                    </AlertDescription>
+                  </Alert>
                 </div>
               </div>
 
@@ -480,14 +755,43 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
-                  <Label htmlFor="total_fees">Total Fees (XOF)</Label>
-                  <Input
-                    id="total_fees"
-                    type="number"
-                    value={formData.total_fees}
-                    onChange={(e) => handleInputChange("total_fees", parseFloat(e.target.value) || 0)}
-                    placeholder="Total fees"
-                  />
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="total_fees">Total Fees (XOF)</Label>
+                    {hasValidFeeStructure && (
+                      <Badge variant="outline" className="text-xs">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Auto-filled
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="total_fees"
+                      type="text"
+                      value={isLoadingFeeStructure ? "Loading..." : (formData.total_fees?.toLocaleString() || "0")}
+                      disabled
+                      className="pr-10"
+                      placeholder="Total fees"
+                    />
+                    {isLoadingFeeStructure && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  {feeStructureName && hasValidFeeStructure && (
+                    <p className="text-xs text-muted-foreground">
+                      From: {feeStructureName}
+                    </p>
+                  )}
+                  {!hasValidFeeStructure && formData.class && formData.academic_year && term && !isLoadingFeeStructure && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="text-sm">
+                        No fee structure found for this class, academic year, and term combination. Please create and assign a fee structure in Fee Management before saving.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="paid_fees">Paid Fees (XOF)</Label>
@@ -535,15 +839,6 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                       <SelectItem value="graduated">Graduated</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="academic_year">Academic Year</Label>
-                  <Input
-                    id="academic_year"
-                    value={formData.academic_year}
-                    onChange={(e) => handleInputChange("academic_year", e.target.value)}
-                    placeholder="Academic year"
-                  />
                 </div>
               </div>
 

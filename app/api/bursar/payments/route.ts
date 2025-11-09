@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { authenticateUser, requireAnyRole } from '@/lib/auth/server'
 
 export async function GET(request: NextRequest) {
   try {
@@ -125,14 +126,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not authenticated' },
-        { status: 401 }
-      )
-    }
+    // Check authentication and require bursar or admin role
+    const user = await requireAnyRole(request, ['bursar', 'admin'])
 
     // Generate receipt number
     const receiptNumber = `RCP${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`

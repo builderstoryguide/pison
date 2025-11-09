@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Copy, Download, Mail, User, Users } from 'lucide-react'
+import { Check, Copy, Download, User, Users } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -33,9 +33,6 @@ export function EnrollmentSuccessDialog({
   onClose 
 }: EnrollmentSuccessDialogProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
-  const [isSendingEmail, setIsSendingEmail] = useState(false)
-  const [emailSent, setEmailSent] = useState(false)
-  const [emailError, setEmailError] = useState<string | null>(null)
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text)
@@ -45,11 +42,11 @@ export function EnrollmentSuccessDialog({
 
   const generateWelcomeEmail = () => {
     const emailContent = `
-Subject: Welcome to Government Bilingual High School Yaoundé
+Subject: Welcome to Pison Academy of Excellence
 
 Dear ${studentName} and Parent/Guardian,
 
-Congratulations! Your enrollment at Government Bilingual High School Yaoundé has been successfully completed.
+Congratulations! Your enrollment at Pison Academy of Excellence has been successfully completed.
 
 Student Details:
 - Student ID: ${studentId}
@@ -69,7 +66,7 @@ Welcome to our school community!
 
 Best regards,
 Administration Team
-Government Bilingual High School Yaoundé
+Pison Academy of Excellence
     `.trim()
 
     const blob = new Blob([emailContent], { type: 'text/plain' })
@@ -81,47 +78,6 @@ Government Bilingual High School Yaoundé
     window.URL.revokeObjectURL(url)
   }
 
-  const sendWelcomeEmail = async () => {
-    if (!studentEmail && !parentEmail) {
-      setEmailError('No email addresses available to send welcome email')
-      return
-    }
-
-    setIsSendingEmail(true)
-    setEmailError(null)
-
-    try {
-      const response = await fetch('/api/email/welcome', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          studentName,
-          studentEmail,
-          parentName: 'Parent/Guardian', // You might want to pass this as a prop
-          parentEmail,
-          studentId,
-          parentCode,
-          studentPassword,
-          parentPassword,
-          className: className || 'Not specified'
-        }),
-      })
-
-      const result = await response.json()
-
-      if (response.ok && result.success) {
-        setEmailSent(true)
-      } else {
-        setEmailError(result.error || 'Failed to send welcome email')
-      }
-    } catch (error) {
-      setEmailError('Failed to send welcome email. Please try again.')
-    } finally {
-      setIsSendingEmail(false)
-    }
-  }
 
   return (
     <div className="w-full max-w-lg mx-auto space-y-4 p-2">
@@ -135,7 +91,7 @@ Government Bilingual High School Yaoundé
           <div>
             <h2 className="text-xl md:text-2xl font-bold text-green-600">Enrollment Successful!</h2>
                          <p className="text-xs md:text-sm text-muted-foreground px-1 leading-relaxed">
-               {studentName} has been successfully enrolled at Government Bilingual High School Yaoundé
+               {studentName} has been successfully enrolled at Pison Academy of Excellence
              </p>
           </div>
         </div>
@@ -302,36 +258,12 @@ Government Bilingual High School Yaoundé
         </CardContent>
       </Card>
 
-      {/* Email Status */}
-      {emailError && (
-        <Alert variant="destructive">
-          <AlertDescription>{emailError}</AlertDescription>
-        </Alert>
-      )}
-
-      {emailSent && (
-        <Alert>
-          <AlertDescription>
-            <strong>Success!</strong> Welcome emails have been sent to the student and parent.
-          </AlertDescription>
-        </Alert>
-      )}
-
              {/* Actions */}
        <div className="flex flex-col gap-2 justify-center">
          <div className="flex flex-col gap-2 w-full">
                  <Button variant="outline" onClick={generateWelcomeEmail} className="w-full">
            <Download className="h-4 w-4 mr-2" />
            Download Letter
-         </Button>
-                 <Button 
-           variant="outline" 
-           onClick={sendWelcomeEmail}
-           disabled={isSendingEmail || !studentEmail && !parentEmail}
-           className="w-full"
-         >
-           <Mail className="h-4 w-4 mr-2" />
-           {isSendingEmail ? 'Sending...' : 'Send Email'}
          </Button>
         </div>
                  <Button onClick={onClose} className="w-full">

@@ -208,43 +208,11 @@ const mockFeeStructures: FeeStructure[] = [
   },
 ]
 
-const mockPayments: Payment[] = [
-  {
-    id: "1",
-    studentId: "1",
-    feeStructureId: "1",
-    amount: 75000,
-    paymentMethod: "bank_transfer",
-    receiptNumber: "RCP2024001",
-    paymentDate: "2024-09-15",
-    academicYear: "2024-2025",
-    term: "first",
-    description: "Partial payment - Tuition fees",
-    collectedBy: "Grace Tabi",
-    status: "completed",
-    createdAt: "2024-09-15T10:30:00Z",
-  },
-  {
-    id: "2",
-    studentId: "2",
-    feeStructureId: "2",
-    amount: 135000,
-    paymentMethod: "cash",
-    receiptNumber: "RCP2024002",
-    paymentDate: "2024-09-10",
-    academicYear: "2024-2025",
-    term: "first",
-    description: "Full payment - All fees",
-    collectedBy: "Grace Tabi",
-    status: "completed",
-    createdAt: "2024-09-10T14:20:00Z",
-  },
-]
 
 export function BursarProvider({ children }: { children: React.ReactNode }) {
   const [students] = useState<Student[]>(mockStudents)
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>(mockFeeStructures)
-  const [payments, setPayments] = useState<Payment[]>(mockPayments)
+  const [payments, setPayments] = useState<Payment[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

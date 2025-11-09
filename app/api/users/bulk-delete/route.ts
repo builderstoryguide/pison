@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireRole } from '@/lib/auth/server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,28 +17,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user is authenticated and has admin role
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Verify user has admin role
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!userProfile || userProfile.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Insufficient permissions: Admin role required' },
-        { status: 403 }
-      )
-    }
+    // Check authentication and require admin role
+    const user = await requireRole(request, 'admin')
 
     // Prevent deletion of the current user
     if (userIds.includes(user.id)) {

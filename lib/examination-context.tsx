@@ -4,6 +4,13 @@ import type React from "react"
 import { createContext, useContext, useState, useCallback, useEffect } from "react"
 import { supabase } from "./supabase"
 import { activityLogger } from "./activity-logger"
+import { validateDatabaseSetup, createDatabaseSetupErrorResponse } from "./database-validation"
+
+export interface GradeDefinition {
+  label: string
+  minPercentage: number
+  maxPercentage: number
+}
 
 export interface ExamFormData {
   title: string
@@ -21,6 +28,7 @@ export interface ExamFormData {
   venue: string
   instructions?: string
   status: "draft" | "scheduled" | "ongoing" | "completed" | "cancelled"
+  gradingSystem?: GradeDefinition[]
 }
 
 export interface ExamResult {
@@ -58,13 +66,14 @@ export interface Examination {
   createdBy: string
   enrolledStudents: number
   completedStudents: number
+  gradingSystem?: GradeDefinition[]
   results: ExamResult[]
 }
 
 interface ExaminationContextType {
   examinations: Examination[]
   isLoading: boolean
-  createExamination: (data: ExamFormData) => Promise<{ success: boolean; examinationId?: string; error?: string }>
+  createExamination: (data: ExamFormData, userId?: string, userRole?: string) => Promise<{ success: boolean; examinationId?: string; error?: string }>
   updateExamination: (id: string, data: Partial<ExamFormData>) => Promise<{ success: boolean; error?: string }>
   deleteExamination: (id: string) => Promise<{ success: boolean; error?: string }>
   getExaminationById: (id: string) => Examination | undefined
@@ -119,6 +128,23 @@ export function ExaminationProvider({ children }: { children: React.ReactNode })
 
     setIsLoading(true)
     try {
+      // Validate database setup - check if examinations table exists
+      try {
+        const validationResult = await validateDatabaseSetup(supabase, ['examinations'], [])
+        if (!validationResult.isValid) {
+          console.error("Database setup validation failed for examinations:", validationResult.errors)
+          const errorResponse = createDatabaseSetupErrorResponse(validationResult, 'examinations table')
+          console.error("Setup instructions:", errorResponse.setupInstructions)
+          console.error("Missing scripts:", errorResponse.missingScripts)
+          // Set empty array instead of throwing to prevent app crash
+          setExaminations([])
+          return
+        }
+      } catch (validationError) {
+        console.error("Error validating database setup:", validationError)
+        // Continue with query attempt - might be a network issue
+      }
+
       const { data, error } = await supabase
         .from("examinations")
         .select(`
@@ -128,7 +154,32 @@ export function ExaminationProvider({ children }: { children: React.ReactNode })
         .order("created_at", { ascending: false })
 
       if (error) {
-        console.error("Error loading examinations:", error)
+        // Check if it's a schema-related error
+        if (
+          error.code === 'PGRST116' ||
+          error.message?.includes('relation') ||
+          error.message?.includes('does not exist') ||
+          error.message?.includes('no such table') ||
+          error.message?.includes('schema cache')
+        ) {
+          console.error("Schema error detected. Validating database setup...")
+          const validationResult = await validateDatabaseSetup(supabase, ['examinations'], [])
+          if (!validationResult.isValid) {
+            const errorResponse = createDatabaseSetupErrorResponse(validationResult, 'examinations table')
+            console.error("Error loading examinations:", errorResponse.message)
+            console.error("Setup instructions:", errorResponse.setupInstructions)
+            setExaminations([])
+            return
+          }
+        }
+        
+        try {
+          const { serializeSupabaseError } = await import('./safe-error')
+          console.error("Error loading examinations:", serializeSupabaseError(error))
+        } catch (_) {
+          console.error("Error loading examinations:", error)
+        }
+        setExaminations([])
         return
       }
 
@@ -154,20 +205,45 @@ export function ExaminationProvider({ children }: { children: React.ReactNode })
         createdBy: exam.created_by || "unknown",
         enrolledStudents: exam.enrolled_students || 0,
         completedStudents: exam.completed_students || 0,
+        gradingSystem: exam.grading_system || undefined,
         results: exam.exam_results || [],
       }))
 
-      setExaminations(transformedExaminations)
+      setExaminations(transformedExaminations || [])
     } catch (error) {
-      console.error("Error loading examinations:", error)
+      try {
+        const { serializeSupabaseError } = await import('./safe-error')
+        console.error("Error loading examinations:", serializeSupabaseError(error))
+      } catch (_) {
+        console.error("Error loading examinations:", error)
+      }
+      // Set empty array on error to prevent app crash
+      setExaminations([])
     } finally {
       setIsLoading(false)
     }
   }, [])
 
   const createExamination = useCallback(
-    async (data: ExamFormData): Promise<{ success: boolean; examinationId?: string; error?: string }> => {
+    async (data: ExamFormData, userId?: string, userRole?: string): Promise<{ success: boolean; examinationId?: string; error?: string }> => {
       console.log("createExamination called with data:", data)
+      
+      // Check if user is admin
+      if (userRole !== 'admin') {
+        console.error("Unauthorized: Only admins can create examinations")
+        return { 
+          success: false, 
+          error: "Unauthorized: Only administrators can create examinations." 
+        }
+      }
+
+      if (!userId) {
+        console.error("User ID is required")
+        return { 
+          success: false, 
+          error: "User authentication required to create examination." 
+        }
+      }
       
       if (!supabase) {
         console.warn("Supabase client not available, using mock implementation")
@@ -177,6 +253,17 @@ export function ExaminationProvider({ children }: { children: React.ReactNode })
 
       setIsLoading(true)
       try {
+        // Validate database setup before attempting insert
+        const validationResult = await validateDatabaseSetup(supabase, ['examinations'], [])
+        if (!validationResult.isValid) {
+          const errorResponse = createDatabaseSetupErrorResponse(validationResult, 'examinations table')
+          console.error("Database setup validation failed:", errorResponse.message)
+          return { 
+            success: false, 
+            error: `Database not set up: ${errorResponse.message}. Please run migration script: ${errorResponse.missingScripts.join(', ')}` 
+          }
+        }
+
         // Transform form data to database format
         const examinationData = {
           title: data.title,
@@ -194,8 +281,10 @@ export function ExaminationProvider({ children }: { children: React.ReactNode })
           venue: data.venue,
           instructions: data.instructions || "",
           status: data.status,
+          grading_system: data.gradingSystem || null,
           enrolled_students: 0,
           completed_students: 0,
+          created_by: userId,
         }
 
         console.log("Attempting to insert examination data:", examinationData)
@@ -208,7 +297,20 @@ export function ExaminationProvider({ children }: { children: React.ReactNode })
 
         if (error) {
           console.error("Error creating examination:", error)
-          return { success: false, error: error.message }
+          
+          // Check if it's a schema-related error
+          if (
+            error.code === 'PGRST116' ||
+            error.message?.includes('relation') ||
+            error.message?.includes('does not exist')
+          ) {
+            return { 
+              success: false, 
+              error: `Examinations table not found. Please run migration script: 2025-11-04_010_examinations.sql` 
+            }
+          }
+          
+          return { success: false, error: error.message || 'Failed to create examination' }
         }
 
         // Transform the created examination to match our interface

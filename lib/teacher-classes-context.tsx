@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useState, useEffect, useCallback } from "react"
 import { useAuth } from "./auth-context"
 
 export interface Subject {
@@ -68,250 +68,137 @@ interface TeacherClassesContextType {
 
 const TeacherClassesContext = createContext<TeacherClassesContextType | undefined>(undefined)
 
-// Mock data for teacher classes
-const mockClasses: TeacherClass[] = [
-  {
-    id: "cls_001",
-    name: "Form 5A Science",
-    code: "F5A-SCI",
-    level: "Form 5",
-    subsystem: "english",
-    branch: "grammar",
-    academicYear: "2024-2025",
-    capacity: 40,
-    room: "Room 101",
-    students: [
-      {
-        id: "std_001",
-        studentId: "STU2024001",
-        firstName: "Marie",
-        lastName: "Ngozi",
-        email: "marie.ngozi@student.pisonacademy.cm",
-        phone: "+237 678 901 234",
-        photo: "/placeholder_64px.png",
-        enrollmentStatus: "enrolled",
-        parentName: "Paul Ngozi",
-        parentPhone: "+237 678 901 235",
-        parentEmail: "paul.ngozi@gmail.com",
-        dateOfBirth: "2007-03-15",
-        address: "Yaoundé, Cameroon",
-      },
-      {
-        id: "std_002",
-        studentId: "STU2024002",
-        firstName: "Jean",
-        lastName: "Baptiste",
-        email: "jean.baptiste@student.pisonacademy.cm",
-        phone: "+237 678 901 236",
-        photo: "/placeholder_64px.png",
-        enrollmentStatus: "enrolled",
-        parentName: "Marie Baptiste",
-        parentPhone: "+237 678 901 237",
-        parentEmail: "marie.baptiste@gmail.com",
-        dateOfBirth: "2007-05-22",
-        address: "Yaoundé, Cameroon",
-      },
-      {
-        id: "std_003",
-        studentId: "STU2024003",
-        firstName: "Fatima",
-        lastName: "Alim",
-        email: "fatima.alim@student.pisonacademy.cm",
-        phone: "+237 678 901 238",
-        photo: "/placeholder_64px.png",
-        enrollmentStatus: "enrolled",
-        parentName: "Hassan Alim",
-        parentPhone: "+237 678 901 239",
-        parentEmail: "hassan.alim@gmail.com",
-        dateOfBirth: "2007-01-10",
-        address: "Yaoundé, Cameroon",
-      },
-      {
-        id: "std_004",
-        studentId: "STU2024004",
-        firstName: "Paul",
-        lastName: "Biya Jr",
-        email: "paul.biya@student.pisonacademy.cm",
-        phone: "+237 678 901 240",
-        photo: "/placeholder_64px.png",
-        enrollmentStatus: "enrolled",
-        parentName: "Chantal Biya",
-        parentPhone: "+237 678 901 241",
-        parentEmail: "chantal.biya@gmail.com",
-        dateOfBirth: "2007-07-18",
-        address: "Yaoundé, Cameroon",
-      },
-    ],
-    subjects: [
-      {
-        id: "sub_001",
-        name: "Mathematics",
-        code: "MATH",
-        coefficient: 4,
-        description: "Advanced mathematics including calculus and algebra",
-      },
-      {
-        id: "sub_002",
-        name: "Physics",
-        code: "PHY",
-        coefficient: 3,
-        description: "Classical and modern physics concepts",
-      },
-      {
-        id: "sub_003",
-        name: "Chemistry",
-        code: "CHEM",
-        coefficient: 3,
-        description: "Organic and inorganic chemistry",
-      },
-      {
-        id: "sub_004",
-        name: "Biology",
-        code: "BIO",
-        coefficient: 3,
-        description: "Human biology and life sciences",
-      },
-    ],
-    schedule: [
-      {
-        day: "Monday",
-        periods: [
-          { time: "08:00-09:00", subject: "Mathematics", room: "Room 101" },
-          { time: "09:00-10:00", subject: "Physics", room: "Lab 1" },
-          { time: "10:30-11:30", subject: "Chemistry", room: "Lab 2" },
-          { time: "11:30-12:30", subject: "Biology", room: "Room 101" },
-        ],
-      },
-      {
-        day: "Tuesday",
-        periods: [
-          { time: "08:00-09:00", subject: "Physics", room: "Lab 1" },
-          { time: "09:00-10:00", subject: "Mathematics", room: "Room 101" },
-          { time: "10:30-11:30", subject: "Biology", room: "Room 101" },
-          { time: "11:30-12:30", subject: "Chemistry", room: "Lab 2" },
-        ],
-      },
-    ],
-    createdAt: "2024-01-15T08:00:00Z",
-    updatedAt: "2024-01-15T08:00:00Z",
-  },
-  {
-    id: "cls_002",
-    name: "Form 4B Arts",
-    code: "F4B-ART",
-    level: "Form 4",
-    subsystem: "english",
-    branch: "grammar",
-    academicYear: "2024-2025",
-    capacity: 35,
-    room: "Room 205",
-    students: [
-      {
-        id: "std_005",
-        studentId: "STU2024005",
-        firstName: "Aminata",
-        lastName: "Touré",
-        email: "aminata.toure@student.pisonacademy.cm",
-        phone: "+237 678 901 242",
-        photo: "/placeholder_64px.png",
-        enrollmentStatus: "enrolled",
-        parentName: "Ibrahim Touré",
-        parentPhone: "+237 678 901 243",
-        parentEmail: "ibrahim.toure@gmail.com",
-        dateOfBirth: "2008-04-12",
-        address: "Yaoundé, Cameroon",
-      },
-      {
-        id: "std_006",
-        studentId: "STU2024006",
-        firstName: "Emmanuel",
-        lastName: "Mbeki",
-        email: "emmanuel.mbeki@student.pisonacademy.cm",
-        phone: "+237 678 901 244",
-        photo: "/placeholder_64px.png",
-        enrollmentStatus: "enrolled",
-        parentName: "Grace Mbeki",
-        parentPhone: "+237 678 901 245",
-        parentEmail: "grace.mbeki@gmail.com",
-        dateOfBirth: "2008-09-05",
-        address: "Yaoundé, Cameroon",
-      },
-    ],
-    subjects: [
-      {
-        id: "sub_005",
-        name: "English Language",
-        code: "ENG",
-        coefficient: 4,
-        description: "Advanced English language and literature",
-      },
-      {
-        id: "sub_006",
-        name: "French",
-        code: "FR",
-        coefficient: 3,
-        description: "French language and literature",
-      },
-      {
-        id: "sub_007",
-        name: "History",
-        code: "HIST",
-        coefficient: 2,
-        description: "World and African history",
-      },
-      {
-        id: "sub_008",
-        name: "Geography",
-        code: "GEO",
-        coefficient: 2,
-        description: "Physical and human geography",
-      },
-    ],
-    schedule: [
-      {
-        day: "Monday",
-        periods: [
-          { time: "08:00-09:00", subject: "English Language", room: "Room 205" },
-          { time: "09:00-10:00", subject: "French", room: "Room 205" },
-          { time: "10:30-11:30", subject: "History", room: "Room 205" },
-          { time: "11:30-12:30", subject: "Geography", room: "Room 205" },
-        ],
-      },
-    ],
-    createdAt: "2024-01-15T08:00:00Z",
-    updatedAt: "2024-01-15T08:00:00Z",
-  },
-]
-
 export function TeacherClassesProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
-  const [classes, setClasses] = useState<TeacherClass[]>(mockClasses)
+  const [classes, setClasses] = useState<TeacherClass[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const getTeacherClasses = async (): Promise<TeacherClass[]> => {
+  const getTeacherClasses = useCallback(async (): Promise<TeacherClass[]> => {
+    if (!user?.id || user.role !== 'teacher') {
+      setClasses([])
+      return []
+    }
+
     setIsLoading(true)
     setError(null)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      // Fetch teacher assignments which includes classes
+      const response = await fetch(`/api/teachers/${user.id}/assignments`)
+      const data = await response.json()
 
-      // In real implementation, filter classes by teacher ID
-      const teacherClasses = classes.filter(
-        (cls) =>
-          // Mock filter - in real app, check if current user is assigned to this class
-          true,
-      )
+      console.log('Teacher classes API response:', {
+        ok: data.ok,
+        classesCount: data.classes?.length || 0,
+        subjectsCount: data.subjects?.length || 0,
+        error: data.error,
+        fullResponse: data
+      })
 
+      if (!response.ok || !data.ok) {
+        const errorMessage = data.error || 'Failed to fetch teacher classes'
+        console.error('API returned error:', errorMessage, data)
+        
+        // Check if this is a linkage error
+        // Note: The API should auto-repair this, but if we still get this error,
+        // it means auto-repair failed or there's a different issue
+        if (errorMessage.includes('not linked to user account') || 
+            errorMessage.includes('migration script') ||
+            data.needsMigration) {
+          // Show user-friendly message and log for monitoring
+          const userMessage = 'Your teacher account is being set up. If this persists, please contact support.'
+          setError(userMessage)
+          console.warn('Teacher linkage issue detected. Auto-repair may have failed.', {
+            error: errorMessage,
+            userId: user?.id,
+            data
+          })
+          throw new Error(userMessage)
+        }
+        
+        throw new Error(errorMessage)
+      }
+
+      if (!data.classes || data.classes.length === 0) {
+        console.warn('API returned no classes. Response:', data)
+        setClasses([])
+        setIsLoading(false)
+        return []
+      }
+
+      // Transform classes from API response to TeacherClass format
+      const transformedClasses: TeacherClass[] = (data.classes || []).map((cls: any) => {
+        // Generate a code from the class name if not provided
+        const classCode = cls.name
+          .split(' ')
+          .map((word: string) => word.substring(0, 3).toUpperCase())
+          .join('-')
+
+        // Transform students data (already in correct format from API)
+        const students: Student[] = (cls.students || []).map((student: any) => ({
+          id: student.id,
+          studentId: student.studentId || '',
+          firstName: student.firstName || '',
+          lastName: student.lastName || '',
+          email: student.email || '',
+          phone: student.phone,
+          photo: student.photo,
+          enrollmentStatus: student.enrollmentStatus || 'enrolled',
+          parentName: student.parentName,
+          parentPhone: student.parentPhone,
+          parentEmail: student.parentEmail,
+          dateOfBirth: student.dateOfBirth,
+          address: student.address,
+        }))
+
+        // Transform subjects data (already in correct format from API)
+        const subjects: Subject[] = (cls.subjects || []).map((subject: any) => ({
+          id: subject.id || `sub_${subject.name}`,
+          name: subject.name || 'Unknown Subject',
+          code: subject.code || subject.name?.substring(0, 4).toUpperCase() || 'N/A',
+          coefficient: subject.coefficient || 1,
+          description: subject.description,
+        }))
+
+        return {
+          id: cls.id,
+          name: cls.name || 'Unknown Class',
+          code: classCode,
+          level: cls.level || '',
+          subsystem: (cls.subsystem || 'english') as 'english' | 'french',
+          branch: (cls.branch || 'grammar') as 'grammar' | 'technical' | 'commercial',
+          academicYear: cls.academicYear || '',
+          capacity: cls.capacity || 40,
+          room: 'Room TBD', // Room info would need to come from timetable or class data
+          students,
+          subjects,
+          schedule: [], // Schedule would need to come from timetable
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+      })
+
+      setClasses(transformedClasses)
       setIsLoading(false)
-      return teacherClasses
+      return transformedClasses
     } catch (err) {
-      setError("Failed to fetch teacher classes")
+      console.error('Error fetching teacher classes:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch teacher classes')
+      setClasses([])
       setIsLoading(false)
       return []
     }
-  }
+  }, [user?.id, user?.role])
+
+  // Fetch classes when user is available
+  useEffect(() => {
+    if (user?.id && user.role === 'teacher') {
+      getTeacherClasses()
+    } else {
+      setClasses([])
+    }
+  }, [user?.id, user?.role, getTeacherClasses])
 
   const getClassById = (classId: string): TeacherClass | undefined => {
     return classes.find((cls) => cls.id === classId)

@@ -188,8 +188,17 @@ export function TeacherManagement() {
     return matchesSearch && matchesSubsystem && matchesStatus
   })
 
-  const handleTeacherEnrollmentSuccess = async (result: { teacherId: string; teacherData: any; password: string }) => {
+  const handleTeacherEnrollmentSuccess = async (result: { 
+    teacherId: string; 
+    teacherData: any; 
+    password: string;
+    userAccountCreated?: boolean;
+    userAccountError?: string;
+  }) => {
     console.log("🎉 Teacher enrollment success handler called with:", result)
+    
+    // The API route now handles user account creation, so we don't need to create it again
+    // The API returns userAccountCreated and userAccountError to indicate the status
     
     // Always show success dialog first, regardless of user account creation
     setTeacherEnrollmentSuccess({
@@ -206,37 +215,22 @@ export function TeacherManagement() {
     
     setShowAddTeacherForm(false)
     
-    try {
-      // Create user account for the teacher (this happens in background)
-      const userData = {
-        name: `${result.teacherData.firstName} ${result.teacherData.lastName}`,
-        email: result.teacherData.email,
-        role: 'teacher' as const,
-        status: 'active' as const,
-        teacherRegNo: result.teacherId,
-        subsystem: result.teacherData.subsystem,
-        phone: result.teacherData.phone,
-        address: result.teacherData.address,
-        dateOfBirth: result.teacherData.dateOfBirth,
-        gender: result.teacherData.gender as 'male' | 'female',
-        permissions: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents']
-      }
-
-      const userResult = await createUser(userData)
-      
-      if (userResult.success) {
-        toast.success("Teacher enrolled successfully!", {
-          description: `${result.teacherData.firstName} ${result.teacherData.lastName} has been added to the system with login credentials.`
+    // Show appropriate toast based on user account creation status
+    if (result.userAccountCreated === false) {
+      // User account creation failed - API should have rolled back, but check anyway
+      if (result.userAccountError) {
+        toast.error("Teacher enrollment failed", {
+          description: `Could not create login credentials: ${result.userAccountError}. Please try again or contact support.`
         })
       } else {
-        toast.warning("Teacher enrolled but user account creation failed", {
-          description: "The teacher was added to the system but login credentials could not be created. Please contact support."
+        toast.warning("Teacher enrolled but user account already exists", {
+          description: "The teacher was added to the system, but a user account with this email already exists. Please contact support to link the accounts."
         })
       }
-    } catch (error) {
-      console.error("Error creating user account for teacher:", error)
-      toast.warning("Teacher enrolled but user account creation failed", {
-        description: "The teacher was added to the system but login credentials could not be created. Please contact support."
+    } else {
+      // Success - user account was created successfully
+      toast.success("Teacher enrolled successfully!", {
+        description: `${result.teacherData.firstName} ${result.teacherData.lastName} has been added to the system with login credentials.`
       })
     }
   }

@@ -88,6 +88,8 @@ export async function PUT(
     } = body
 
     // Update fee structure
+    // Note: class_id, academic_year, and term are not updated here to prevent duplicates
+    // If these need to be updated in the future, add duplicate checking logic
     const { error: structureError } = await supabase
       .from('fee_structures')
       .update({
@@ -100,8 +102,20 @@ export async function PUT(
 
     if (structureError) {
       console.error('Error updating fee structure:', structureError)
+      
+      // Handle unique constraint violation (in case class_id, academic_year, or term are updated in the future)
+      if (structureError.code === '23505') {
+        return NextResponse.json(
+          { 
+            error: 'Cannot update fee structure. The new class, academic year, and term combination already exists for another fee structure.',
+            details: 'This error indicates a duplicate constraint violation.'
+          },
+          { status: 409 }
+        )
+      }
+      
       return NextResponse.json(
-        { error: 'Failed to update fee structure' },
+        { error: 'Failed to update fee structure', details: structureError.message },
         { status: 500 }
       )
     }

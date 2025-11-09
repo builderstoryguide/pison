@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { CheckCircle, User, Mail, Phone, GraduationCap, Copy, Download, Check, Sparkles, Shield, Clock, Key } from "lucide-react"
+import { CheckCircle, User, Phone, GraduationCap, Copy, Download, Check, Sparkles, Shield, Clock, Key, Mail } from "lucide-react"
 import { useState } from "react"
 
 interface TeacherEnrollmentSuccessDialogProps {
@@ -38,9 +38,6 @@ export function TeacherEnrollmentSuccessDialog({
   open,
 }: TeacherEnrollmentSuccessDialogProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
-  const [isSendingEmail, setIsSendingEmail] = useState(false)
-  const [emailSent, setEmailSent] = useState(false)
-  const [emailError, setEmailError] = useState<string | null>(null)
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text)
@@ -50,11 +47,11 @@ export function TeacherEnrollmentSuccessDialog({
 
   const generateWelcomeEmail = () => {
     const emailContent = `
-Subject: Welcome to Government Bilingual High School Yaoundé
+Subject: Welcome to Pison Academy of Excellence
 
 Dear ${teacherName},
 
-Congratulations! Your enrollment as a teacher at Government Bilingual High School Yaoundé has been successfully completed.
+Congratulations! Your enrollment as a teacher at Pison Academy of Excellence has been successfully completed.
 
 Teacher Details:
 - Teacher ID: ${teacherId}
@@ -76,7 +73,7 @@ Welcome to our teaching staff!
 
 Best regards,
 Administration Team
-Government Bilingual High School Yaoundé
+Pison Academy of Excellence
     `.trim()
 
     const blob = new Blob([emailContent], { type: 'text/plain' })
@@ -88,46 +85,6 @@ Government Bilingual High School Yaoundé
     window.URL.revokeObjectURL(url)
   }
 
-  const sendWelcomeEmail = async () => {
-    if (!email) {
-      setEmailError('No email address available to send welcome email')
-      return
-    }
-
-    setIsSendingEmail(true)
-    setEmailError(null)
-
-    try {
-      const response = await fetch('/api/email/welcome', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          teacherName,
-          teacherId,
-          email,
-          password,
-          subsystem,
-          subjects,
-          classes,
-        }),
-      })
-
-      const result = await response.json()
-
-      if (response.ok && result.success) {
-        setEmailSent(true)
-        setEmailError(null)
-      } else {
-        setEmailError(result.error || 'Failed to send welcome email')
-      }
-    } catch (error) {
-      setEmailError('Failed to send welcome email. Please try again.')
-    } finally {
-      setIsSendingEmail(false)
-    }
-  }
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -379,22 +336,6 @@ Government Bilingual High School Yaoundé
             </CardContent>
           </Card>
 
-          {/* Email Status */}
-          {emailError && (
-            <Alert variant="destructive">
-              <AlertDescription>{emailError}</AlertDescription>
-            </Alert>
-          )}
-
-          {emailSent && (
-            <Alert>
-              <CheckCircle className="h-4 w-4" />
-              <AlertDescription>
-                <strong>Success!</strong> Welcome email has been sent to {email}.
-              </AlertDescription>
-            </Alert>
-          )}
-
           {/* Action Buttons */}
           <div className="space-y-4">
             {/* Primary Actions */}
@@ -402,19 +343,10 @@ Government Bilingual High School Yaoundé
               <Button 
                 variant="outline" 
                 onClick={generateWelcomeEmail} 
-                className="h-12"
+                className="h-12 w-full"
               >
                 <Download className="h-5 w-5 mr-3" />
                 Download Welcome Email
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={sendWelcomeEmail}
-                disabled={isSendingEmail}
-                className="h-12"
-              >
-                <Mail className="h-5 w-5 mr-3" />
-                {isSendingEmail ? 'Sending...' : 'Send Welcome Email'}
               </Button>
             </div>
 

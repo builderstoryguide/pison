@@ -32,6 +32,7 @@ import {
 
 
 import { useStudentEnrollment, StudentEnrollmentData } from '@/lib/student-enrollment-context'
+import { useClassManagement } from '@/lib/class-management-context'
 import { formatPhoneNumber, isValidPhoneFormat } from '@/lib/phone-utils'
 
 const cameroonRegions = [
@@ -47,19 +48,6 @@ const relationships = [
   { value: 'guardian', label: 'Guardian' },
   { value: 'other', label: 'Other' }
 ]
-
-const classes = {
-  english: {
-    grammar: ['Form 1', 'Form 2', 'Form 3', 'Form 4', 'Form 5', 'Lower Sixth', 'Upper Sixth'],
-    technical: ['Form 1', 'Form 2', 'Form 3', 'Form 4', 'Form 5'],
-    commercial: ['Form 1', 'Form 2', 'Form 3', 'Form 4', 'Form 5']
-  },
-  french: {
-    grammar: ['6ème', '5ème', '4ème', '3ème', '2nde', '1ère', 'Terminale'],
-    technical: ['6ème', '5ème', '4ème', '3ème', '2nde', '1ère', 'Terminale'],
-    commercial: ['6ème', '5ème', '4ème', '3ème', '2nde', '1ère', 'Terminale']
-  }
-}
 
 interface StudentEnrollmentFormProps {
   onSuccess: (result: { 
@@ -77,6 +65,7 @@ interface StudentEnrollmentFormProps {
 
 export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollmentFormProps) {
   const { enrollStudent, generateStudentId, isLoading, error } = useStudentEnrollment()
+  const { classes: allClasses, isLoading: classesLoading, error: classesError } = useClassManagement()
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState<StudentEnrollmentData>({
     firstName: '',
@@ -223,7 +212,19 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
     return null
   }
 
-  const availableClasses = classes[formData.subsystem]?.[formData.branch] || []
+  // Filter classes from class management system based on subsystem and branch
+  const availableClasses = allClasses
+    .filter(cls => 
+      cls.subsystem === formData.subsystem &&
+      cls.branch === formData.branch &&
+      cls.status === 'active'
+    )
+    .map(cls => ({
+      id: cls.id,
+      name: cls.name,
+      displayName: cls.name
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   const steps = [
     { id: 1, title: 'Personal Information', icon: User, description: 'Basic personal details' },
@@ -578,16 +579,42 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                   <Label htmlFor="class">
                     Class <span className="text-destructive">*</span>
                   </Label>
-                  <Select value={formData.class} onValueChange={(value) => updateFormData('class', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableClasses.map(classOption => (
-                        <SelectItem key={classOption} value={classOption}>{classOption}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {classesLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                      Loading classes...
+                    </div>
+                  ) : availableClasses.length === 0 ? (
+                    <div className="space-y-2">
+                      <Select disabled>
+                        <SelectTrigger>
+                          <SelectValue placeholder="No classes available" />
+                        </SelectTrigger>
+                      </Select>
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-sm">
+                          {classesError 
+                            ? `Error loading classes: ${classesError}. Please ensure classes are created in Class Management.`
+                            : `No active classes found for ${formData.subsystem === 'english' ? 'English' : 'French'} Sub-system, ${formData.branch.charAt(0).toUpperCase() + formData.branch.slice(1)} branch. Please create classes in Class Management first.`
+                          }
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  ) : (
+                    <Select value={formData.class} onValueChange={(value) => updateFormData('class', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableClasses.map(classOption => (
+                          <SelectItem key={classOption.id} value={classOption.id}>
+                            {classOption.displayName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
 
                 <Separator />

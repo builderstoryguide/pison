@@ -2,100 +2,25 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { X, Plus } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { X, Plus, Loader2, AlertCircle, Info } from "lucide-react"
 import { useClassManagement, type ClassFormData } from "@/lib/class-management-context"
+import { useSubjectManagement } from "@/lib/subject-management-context"
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useLevels } from "@/hooks/use-levels"
+import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
 
 interface ClassCreationFormProps {
   onSuccess: (result: { classId: string; classData: ClassFormData }) => void
   onCancel: () => void
-}
-
-const availableSubjects = {
-  english: {
-    grammar: [
-      "Mathematics",
-      "English Language",
-      "Biology",
-      "Chemistry",
-      "Physics",
-      "History",
-      "Geography",
-      "Literature",
-      "Economics",
-      "Government",
-      "Religious Studies",
-      "French",
-      "Computer Science",
-    ],
-    technical: [
-      "Mathematics",
-      "English Language",
-      "Physics",
-      "Chemistry",
-      "Technical Drawing",
-      "Workshop Practice",
-      "Building Construction",
-      "Electrical Installation",
-      "Metal Work",
-      "Wood Work",
-    ],
-    commercial: [
-      "Mathematics",
-      "English Language",
-      "Economics",
-      "Commerce",
-      "Accounting",
-      "Business Studies",
-      "Marketing",
-      "Office Practice",
-      "Computer Studies",
-      "Statistics",
-    ],
-  },
-  french: {
-    grammar: [
-      "Mathématiques",
-      "Français",
-      "Physique",
-      "Chimie",
-      "Sciences Naturelles",
-      "Histoire",
-      "Géographie",
-      "Philosophie",
-      "Anglais",
-      "Allemand",
-      "Espagnol",
-    ],
-    technical: [
-      "Mathématiques",
-      "Français",
-      "Physique",
-      "Chimie",
-      "Dessin Technique",
-      "Travaux Pratiques",
-      "Construction",
-      "Électricité",
-      "Mécanique",
-    ],
-    commercial: [
-      "Mathématiques",
-      "Français",
-      "Économie",
-      "Commerce",
-      "Comptabilité",
-      "Gestion",
-      "Marketing",
-      "Informatique",
-    ],
-  },
 }
 
 const mockTeachers = [
@@ -111,6 +36,8 @@ const mockTeachers = [
 
 export function ClassCreationForm({ onSuccess, onCancel }: ClassCreationFormProps) {
   const { createClass, isLoading } = useClassManagement()
+  const { subjects, isLoading: subjectsLoading, error: subjectsError, loadSubjects } = useSubjectManagement()
+  const globalAcademicYear = useGlobalAcademicYear()
   const [formData, setFormData] = useState<ClassFormData>({
     name: "",
     level: "",
@@ -119,9 +46,26 @@ export function ClassCreationForm({ onSuccess, onCancel }: ClassCreationFormProp
     capacity: 40,
     classTeacher: "",
     subjects: [],
-    academicYear: "2024/2025",
+    academicYear: globalAcademicYear, // Use global academic year
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Load subjects on mount
+  useEffect(() => {
+    loadSubjects({ is_active: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Sync academic year with global setting
+  useEffect(() => {
+    setFormData((prev) => ({ ...prev, academicYear: globalAcademicYear }))
+  }, [globalAcademicYear])
+
+  // Fetch levels based on selected subsystem and branch
+  const { levels, isLoading: levelsLoading } = useLevels({
+    subsystem: formData.subsystem || null,
+    branch: formData.branch || null,
+  })
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
@@ -134,13 +78,7 @@ export function ClassCreationForm({ onSuccess, onCancel }: ClassCreationFormProp
       newErrors.level = "Level is required"
     }
 
-    if (formData.capacity < 1 || formData.capacity > 100) {
-      newErrors.capacity = "Capacity must be between 1 and 100"
-    }
-
-    if (!formData.classTeacher.trim()) {
-      newErrors.classTeacher = "Class teacher is required"
-    }
+    // Class teacher is optional - no validation needed
 
     if (formData.subjects.length === 0) {
       newErrors.subjects = "At least one subject is required"
@@ -166,24 +104,52 @@ export function ClassCreationForm({ onSuccess, onCancel }: ClassCreationFormProp
     }
   }
 
-  const addSubject = (subject: string) => {
-    if (!formData.subjects.includes(subject)) {
-      setFormData((prev) => ({
+
+  const getAvailableSubjects = () => {
+    // Return active subjects from database, sorted by name
+    return subjects
+      .filter((subject) => subject.is_active)
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  const isSubjectSelected = (subjectId: string) => {
+    return formData.subjects.some(s => s.subjectId === subjectId)
+  }
+
+  const toggleSubject = (subject: typeof subjects[0]) => {
+    const isSelected = isSubjectSelected(subject.id)
+    if (isSelected) {
+      // Remove subject
+      setFormData(prev => ({
         ...prev,
-        subjects: [...prev.subjects, subject],
+        subjects: prev.subjects.filter(s => s.subjectId !== subject.id)
+      }))
+    } else {
+      // Add subject
+      setFormData(prev => ({
+        ...prev,
+        subjects: [...prev.subjects, {
+          subjectId: subject.id,
+          subjectName: subject.name,
+          isTradeSubject: false
+        }]
       }))
     }
   }
 
-  const removeSubject = (subject: string) => {
-    setFormData((prev) => ({
+  const toggleTradeSubject = (subjectId: string) => {
+    setFormData(prev => ({
       ...prev,
-      subjects: prev.subjects.filter((s) => s !== subject),
+      subjects: prev.subjects.map(s =>
+        s.subjectId === subjectId
+          ? { ...s, isTradeSubject: !s.isTradeSubject }
+          : s
+      )
     }))
   }
 
-  const getAvailableSubjects = () => {
-    return availableSubjects[formData.subsystem][formData.branch] || []
+  const getSelectedSubject = (subjectId: string) => {
+    return formData.subjects.find(s => s.subjectId === subjectId)
   }
 
   return (
@@ -213,51 +179,47 @@ export function ClassCreationForm({ onSuccess, onCancel }: ClassCreationFormProp
                 <Select
                   value={formData.level}
                   onValueChange={(value) => setFormData((prev) => ({ ...prev, level: value }))}
+                  disabled={levelsLoading || !formData.subsystem || !formData.branch}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select level" />
+                    <SelectValue placeholder={levelsLoading ? "Loading levels..." : "Select level"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Form 1">Form 1</SelectItem>
-                    <SelectItem value="Form 2">Form 2</SelectItem>
-                    <SelectItem value="Form 3">Form 3</SelectItem>
-                    <SelectItem value="Form 4">Form 4</SelectItem>
-                    <SelectItem value="Form 5">Form 5</SelectItem>
-                    <SelectItem value="Lower Sixth">Lower Sixth</SelectItem>
-                    <SelectItem value="Upper Sixth">Upper Sixth</SelectItem>
-                    <SelectItem value="Sixième">Sixième</SelectItem>
-                    <SelectItem value="Cinquième">Cinquième</SelectItem>
-                    <SelectItem value="Quatrième">Quatrième</SelectItem>
-                    <SelectItem value="Troisième">Troisième</SelectItem>
-                    <SelectItem value="Seconde">Seconde</SelectItem>
-                    <SelectItem value="Première">Première</SelectItem>
-                    <SelectItem value="Terminale">Terminale</SelectItem>
+                    {levels.length === 0 && !levelsLoading ? (
+                      <SelectItem value="no-levels" disabled>
+                        No levels available. Create levels in Class Management first.
+                      </SelectItem>
+                    ) : (
+                      levels.map((level) => (
+                        <SelectItem key={level.id} value={level.name}>
+                          {level.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 {errors.level && <p className="text-sm text-red-600">{errors.level}</p>}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="capacity">Class Capacity *</Label>
-                <Input
-                  id="capacity"
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={formData.capacity}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, capacity: Number.parseInt(e.target.value) || 0 }))}
-                />
-                {errors.capacity && <p className="text-sm text-red-600">{errors.capacity}</p>}
-              </div>
 
               <div className="space-y-2">
-                <Label htmlFor="academicYear">Academic Year</Label>
+                <Label htmlFor="academicYear" className="flex items-center gap-2">
+                  Academic Year
+                  <span className="text-xs text-muted-foreground font-normal">(Global Setting)</span>
+                </Label>
                 <Input
                   id="academicYear"
-                  value={formData.academicYear}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, academicYear: e.target.value }))}
-                  placeholder="2024/2025"
+                  value={globalAcademicYear}
+                  disabled={true}
+                  className="bg-muted"
+                  placeholder="Academic year"
                 />
+                <Alert className="mt-2 py-2">
+                  <Info className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    Academic Year is managed globally in App Configuration. To change it, go to Settings → App Configuration → System Settings.
+                  </AlertDescription>
+                </Alert>
               </div>
             </CardContent>
           </Card>
@@ -307,13 +269,13 @@ export function ClassCreationForm({ onSuccess, onCancel }: ClassCreationFormProp
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="classTeacher">Class Teacher *</Label>
+                <Label htmlFor="classTeacher">Class Teacher (optional)</Label>
                 <Select
                   value={formData.classTeacher}
                   onValueChange={(value) => setFormData((prev) => ({ ...prev, classTeacher: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select class teacher" />
+                    <SelectValue placeholder="Select class teacher (optional)" />
                   </SelectTrigger>
                   <SelectContent>
                     {mockTeachers.map((teacher) => (
@@ -333,48 +295,97 @@ export function ClassCreationForm({ onSuccess, onCancel }: ClassCreationFormProp
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Subjects</CardTitle>
-            <CardDescription>Select subjects for this class</CardDescription>
+            <CardDescription>Select subjects for this class. Mark subjects as "Trade Subjects" if they require special attention.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Available Subjects</Label>
-              <div className="flex flex-wrap gap-2">
-                {getAvailableSubjects().map((subject) => (
-                  <Button
-                    key={subject}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addSubject(subject)}
-                    disabled={formData.subjects.includes(subject)}
-                    className="text-xs"
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    {subject}
-                  </Button>
-                ))}
-              </div>
-            </div>
+            {subjectsError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Failed to load subjects: {subjectsError}
+                </AlertDescription>
+              </Alert>
+            )}
 
-            {formData.subjects.length > 0 && (
-              <div className="space-y-2">
-                <Label>Selected Subjects</Label>
-                <div className="flex flex-wrap gap-2">
-                  {formData.subjects.map((subject) => (
-                    <Badge key={subject} variant="default" className="text-xs">
-                      {subject}
+            {subjectsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-sm text-muted-foreground">Loading subjects...</span>
+              </div>
+            ) : getAvailableSubjects().length === 0 ? (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  No active subjects available. Please create subjects in the Subject Management section first.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="bg-muted/50 border rounded-lg p-4">
+                <div className="space-y-2 mb-4">
+                  <Label>Available Subjects</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {getAvailableSubjects().map((subject) => (
                       <Button
+                        key={subject.id}
                         type="button"
-                        variant="ghost"
+                        variant={isSubjectSelected(subject.id) ? "default" : "outline"}
                         size="sm"
-                        className="h-4 w-4 p-0 ml-2 hover:bg-transparent"
-                        onClick={() => removeSubject(subject)}
+                        onClick={() => toggleSubject(subject)}
+                        className="text-xs"
                       >
-                        <X className="h-3 w-3" />
+                        {isSubjectSelected(subject.id) ? (
+                          <X className="h-3 w-3 mr-1" />
+                        ) : (
+                          <Plus className="h-3 w-3 mr-1" />
+                        )}
+                        {subject.name}
                       </Button>
-                    </Badge>
-                  ))}
+                    ))}
+                  </div>
                 </div>
+
+                {formData.subjects.length > 0 && (
+                  <div className="space-y-2 mt-4 pt-4 border-t">
+                    <Label>Selected Subjects</Label>
+                    <div className="space-y-2">
+                      {formData.subjects.map((subject) => {
+                        const selectedSubject = getSelectedSubject(subject.subjectId)
+                        return (
+                          <div key={subject.subjectId} className="flex items-center justify-between p-2 bg-background rounded-md border">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={subject.isTradeSubject ? "default" : "secondary"} className="text-xs">
+                                {subject.subjectName}
+                                {subject.isTradeSubject && (
+                                  <span className="ml-1 text-[10px]">★</span>
+                                )}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Label htmlFor={`trade-${subject.subjectId}`} className="text-xs text-muted-foreground cursor-pointer">
+                                Trade
+                              </Label>
+                              <Checkbox
+                                id={`trade-${subject.subjectId}`}
+                                checked={selectedSubject?.isTradeSubject || false}
+                                onCheckedChange={() => toggleTradeSubject(subject.subjectId)}
+                                className="h-3 w-3"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-4 w-4 p-0 ml-2 hover:bg-transparent"
+                                onClick={() => toggleSubject(subjects.find(s => s.id === subject.subjectId)!)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {errors.subjects && <p className="text-sm text-red-600">{errors.subjects}</p>}

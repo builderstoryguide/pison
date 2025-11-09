@@ -1,6 +1,8 @@
 "use client"
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import { serializeSupabaseError } from '@/lib/safe-error'
+import { apiGet, ApiResponse } from '@/lib/api-utils'
 
 export interface TimetablePeriod {
   id: string
@@ -163,8 +165,8 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true)
     setError(null)
     
-    try {
-      // Build query parameters
+    // Build query parameters helper function
+    const buildParams = () => {
       const params = new URLSearchParams()
       if (filters.subsystem && filters.subsystem !== 'all') {
         params.append('subsystem', filters.subsystem)
@@ -175,21 +177,183 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
       if (filters.academicYear) {
         params.append('academicYear', filters.academicYear)
       }
+      return params
+    }
 
-      // Use the new admin-classes endpoint to fetch classes from the main classes table
-      const url = `/api/timetable/admin-classes${params.toString() ? `?${params.toString()}` : ''}`
-      const response = await fetch(url)
+    // Helper function to serialize API response errors
+    const serializeApiError = (error: unknown, endpointName: string, status?: number) => {
+      try {
+        if (error === null || error === undefined) {
+          return {
+            message: `Unknown error from ${endpointName} endpoint`,
+            type: 'null_error',
+            endpoint: endpointName,
+            status: status || 0,
+            timestamp: new Date().toISOString()
+          }
+        }
+
+        const serialized = serializeSupabaseError(error)
+        return {
+          ...serialized,
+          endpoint: endpointName,
+          status: status || serialized.status || 0
+        }
+      } catch (serializationError) {
+        return {
+          message: `Error occurred but could not be serialized: ${error instanceof Error ? error.message : String(error)}`,
+          type: 'serialization_failure',
+          endpoint: endpointName,
+          status: status || 0,
+          rawError: String(error),
+          timestamp: new Date().toISOString()
+        }
+      }
+    }
+
+    let primaryError: ReturnType<typeof serializeApiError> | null = null
+
+    try {
+      // Try the primary endpoint: admin-classes
+      const params = buildParams()
+      const primaryUrl = `/api/timetable/admin-classes${params.toString() ? `?${params.toString()}` : ''}`
       
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`)
+      console.log('[Timetable] Attempting to load classes from primary endpoint:', primaryUrl)
+      const primaryResponse: ApiResponse<any> = await apiGet(primaryUrl)
+      
+      if (!primaryResponse.success) {
+        // Create error object from apiGet response
+        const errorObj = primaryResponse.error 
+          ? new Error(primaryResponse.error)
+          : new Error(`HTTP ${primaryResponse.status || 500}: Request failed`)
+        
+        primaryError = serializeApiError(errorObj, 'admin-classes', primaryResponse.status)
+        
+        // Log raw error first for debugging
+        console.error('[Timetable] Raw primary endpoint error:', {
+          error: errorObj,
+          response: primaryResponse,
+          errorType: typeof errorObj,
+          context: 'primary_endpoint'
+        })
+        
+        // Log serialized error with full context
+        console.error('[Timetable] Primary endpoint failed:', {
+          errorDetails: primaryError,
+          url: primaryUrl,
+          status: primaryResponse.status,
+          stack: new Error().stack
+        })
+        
+        throw errorObj
       }
 
-      const result = await response.json()
+      const result = primaryResponse.data
 
-      if (result.success && result.classes) {
+      if (!result || !result.success || !result.classes) {
+        const errorMsg = 'Invalid response format from primary endpoint: missing success flag or classes array'
+        const errorObj = new Error(errorMsg)
+        primaryError = serializeApiError(errorObj, 'admin-classes', primaryResponse.status)
+        
+        // Log error
+        console.error('[Timetable] Primary endpoint invalid response:', {
+          errorDetails: primaryError,
+          receivedData: result,
+          url: primaryUrl
+        })
+        
+        throw errorObj
+      }
+
+      // Transform API response to match our interface
+      const transformedClasses: TimetableClass[] = result.classes.map((apiClass: any) => ({
+        id: apiClass.id,
+        name: apiClass.name,
+        level: apiClass.level,
+        subsystem: apiClass.subsystem,
+        branch: apiClass.branch,
+        periods: [] // Will be loaded separately when needed
+      }))
+      
+      setClasses(transformedClasses)
+      console.log('[Timetable] Successfully loaded classes from primary endpoint:', transformedClasses.length, 'classes')
+      
+    } catch (primaryErrorObj) {
+      // Preserve primary error details if not already set
+      if (!primaryError) {
+        primaryError = serializeApiError(primaryErrorObj, 'admin-classes')
+      }
+
+      // Log raw error first
+      console.error('[Timetable] Raw primary endpoint catch block error:', {
+        error: primaryErrorObj,
+        errorType: typeof primaryErrorObj,
+        errorConstructor: primaryErrorObj instanceof Error ? primaryErrorObj.constructor.name : undefined,
+        context: 'primary_endpoint_catch'
+      })
+
+      // Log serialized error with full context
+      console.error('[Timetable] Primary endpoint error:', {
+        errorDetails: primaryError,
+        stack: primaryErrorObj instanceof Error ? primaryErrorObj.stack : new Error().stack
+      })
+
+      // Try fallback endpoint: timetable classes
+      let fallbackError: ReturnType<typeof serializeApiError> | null = null
+
+      try {
+        const params = buildParams()
+        const fallbackUrl = `/api/timetable/classes${params.toString() ? `?${params.toString()}` : ''}`
+        
+        console.log('[Timetable] Attempting fallback to secondary endpoint:', fallbackUrl)
+        const fallbackResponse: ApiResponse<any> = await apiGet(fallbackUrl)
+        
+        if (!fallbackResponse.success) {
+          // Create error object from apiGet response
+          const errorObj = fallbackResponse.error 
+            ? new Error(fallbackResponse.error)
+            : new Error(`HTTP ${fallbackResponse.status || 500}: Request failed`)
+          
+          fallbackError = serializeApiError(errorObj, 'classes', fallbackResponse.status)
+          
+          // Log raw error first for debugging
+          console.error('[Timetable] Raw fallback endpoint error:', {
+            error: errorObj,
+            response: fallbackResponse,
+            errorType: typeof errorObj,
+            context: 'fallback_endpoint'
+          })
+          
+          // Log serialized error with full context
+          console.error('[Timetable] Fallback endpoint failed:', {
+            errorDetails: fallbackError,
+            url: fallbackUrl,
+            status: fallbackResponse.status,
+            stack: new Error().stack
+          })
+          
+          throw errorObj
+        }
+
+        const fallbackResult = fallbackResponse.data
+
+        if (!fallbackResult || !fallbackResult.success || !fallbackResult.classes) {
+          const errorMsg = 'Invalid response format from fallback endpoint: missing success flag or classes array'
+          const errorObj = new Error(errorMsg)
+          fallbackError = serializeApiError(errorObj, 'classes', fallbackResponse.status)
+          
+          // Log error
+          console.error('[Timetable] Fallback endpoint invalid response:', {
+            errorDetails: fallbackError,
+            receivedData: fallbackResult,
+            url: fallbackUrl
+          })
+          
+          throw errorObj
+        }
+
         // Transform API response to match our interface
-        const transformedClasses: TimetableClass[] = result.classes.map((apiClass: any) => ({
+        const transformedClasses: TimetableClass[] = fallbackResult.classes.map((apiClass: any) => ({
           id: apiClass.id,
           name: apiClass.name,
           level: apiClass.level,
@@ -197,62 +361,61 @@ export function TimetableProvider({ children }: { children: React.ReactNode }) {
           branch: apiClass.branch,
           periods: [] // Will be loaded separately when needed
         }))
-        setClasses(transformedClasses)
-      } else {
-        throw new Error('Invalid response format from API')
-      }
-    } catch (error) {
-      console.error('Failed to load classes:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load classes'
-      setError(errorMessage)
-      
-      // If it's a database setup error, show a helpful message
-      if (errorMessage.includes('Classes table not found')) {
-        setError('Classes not found. Please ensure classes have been created in the Class Management section.')
-      }
-      
-      // Try to fall back to the original timetable classes endpoint if admin classes fails
-      try {
-        // Build query parameters
-        const params = new URLSearchParams()
-        if (filters.subsystem && filters.subsystem !== 'all') {
-          params.append('subsystem', filters.subsystem)
-        }
-        if (filters.branch && filters.branch !== 'all') {
-          params.append('branch', filters.branch)
-        }
-        if (filters.academicYear) {
-          params.append('academicYear', filters.academicYear)
-        }
-
-        const url = `/api/timetable/classes${params.toString() ? `?${params.toString()}` : ''}`
-        const response = await fetch(url)
         
-        if (!response.ok) {
-          throw new Error('Fallback to timetable classes failed')
+        setClasses(transformedClasses)
+        setError('Using timetable classes instead of admin classes. For full functionality, please create classes in the Class Management section.')
+        console.log('[Timetable] Successfully loaded classes from fallback endpoint:', transformedClasses.length, 'classes')
+        
+      } catch (fallbackErrorObj) {
+        // Preserve fallback error details if not already set
+        if (!fallbackError) {
+          fallbackError = serializeApiError(fallbackErrorObj, 'classes')
         }
 
-        const result = await response.json()
+        // Log raw error first
+        console.error('[Timetable] Raw fallback endpoint catch block error:', {
+          error: fallbackErrorObj,
+          errorType: typeof fallbackErrorObj,
+          errorConstructor: fallbackErrorObj instanceof Error ? fallbackErrorObj.constructor.name : undefined,
+          context: 'fallback_endpoint_catch'
+        })
 
-        if (result.success && result.classes) {
-          // Transform API response to match our interface
-          const transformedClasses: TimetableClass[] = result.classes.map((apiClass: any) => ({
-            id: apiClass.id,
-            name: apiClass.name,
-            level: apiClass.level,
-            subsystem: apiClass.subsystem,
-            branch: apiClass.branch,
-            periods: [] // Will be loaded separately when needed
-          }))
-          setClasses(transformedClasses)
-          setError('Using timetable classes instead of admin classes. For full functionality, please create classes in the Class Management section.')
-        } else {
-          // Keep empty array if both APIs fail
-          setClasses([])
+        // Log serialized error with full context
+        console.error('[Timetable] Both endpoints failed:', {
+          primaryErrorDetails: primaryError,
+          fallbackErrorDetails: fallbackError,
+          rawFallbackError: fallbackErrorObj,
+          stack: fallbackErrorObj instanceof Error ? fallbackErrorObj.stack : new Error().stack
+        })
+
+        // Both endpoints failed - combine error messages
+        const primaryMessage = primaryError?.message || 'Unknown error'
+        const fallbackMessage = fallbackError?.message || 'Unknown error'
+        const combinedErrorMessages = [
+          `Primary endpoint (${primaryError?.endpoint || 'admin-classes'}) failed: ${primaryMessage}`,
+          `Fallback endpoint (${fallbackError?.endpoint || 'classes'}) failed: ${fallbackMessage}`
+        ]
+
+        // Provide actionable error message based on error types
+        let userFriendlyMessage = 'Failed to load classes from both endpoints:\n'
+        userFriendlyMessage += `• ${combinedErrorMessages[0]}\n`
+        userFriendlyMessage += `• ${combinedErrorMessages[1]}`
+
+        // Add specific guidance based on error content
+        if (primaryMessage.includes('Classes table not found') || 
+            fallbackMessage.includes('Database not set up') ||
+            fallbackMessage.includes('timetable_classes')) {
+          userFriendlyMessage += '\n\nPlease ensure the database tables are properly set up. Run the timetable database setup script if needed.'
+        } else if (primaryMessage.includes('Missing environment variables') ||
+                   fallbackMessage.includes('Missing environment variables')) {
+          userFriendlyMessage += '\n\nPlease check your environment variables configuration (NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY).'
+        } else if (primaryError?.status === 404 || fallbackError?.status === 404) {
+          userFriendlyMessage += '\n\nOne or more API endpoints may not be available. Please check your API routes configuration.'
+        } else if ((primaryError?.status && primaryError.status >= 500) || (fallbackError?.status && fallbackError.status >= 500)) {
+          userFriendlyMessage += '\n\nServer error detected. Please check the server logs and database connection.'
         }
-      } catch (fallbackError) {
-        console.error('Failed to load fallback classes:', fallbackError)
-        // Keep empty array if both APIs fail
+
+        setError(userFriendlyMessage)
         setClasses([])
       }
     } finally {

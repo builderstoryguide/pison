@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServiceClient } from '@/lib/supabase/service';
 import bcrypt from 'bcryptjs';
-import { EmailService } from '@/lib/email-service';
+import { validateDatabaseSetup, createDatabaseSetupErrorResponse } from '@/lib/database-validation';
+
+export const runtime = 'nodejs'
 
 // Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = createServiceClient();
 
 // Helper function to generate initials from name
 function generateInitials(name: string): string {
@@ -124,8 +124,8 @@ function generateDefaultPassword(role: string): string {
 // GET - Retrieve users with optional filtering
 export async function GET(request: NextRequest) {
   try {
-    // Check if environment variables are set
-    if (!supabaseUrl || !supabaseServiceKey) {
+    // Check if environment variables are set (createServiceClient will throw if missing)
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
       console.error('Missing environment variables');
       return NextResponse.json(
         { 
@@ -144,35 +144,22 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50'); // Increased default limit
     const offset = (page - 1) * limit;
 
-    // First, check if the user_details view exists with better error handling
-    let viewCheck, viewError;
+    // Validate database setup - check if user_details view exists
     try {
-      const result = await supabase
-        .from('user_details')
-        .select('id')
-        .limit(1);
+      const validationResult = await validateDatabaseSetup(supabase, [], ['user_details']);
       
-      viewCheck = result.data;
-      viewError = result.error;
+      if (!validationResult.isValid) {
+        console.error('Database setup validation failed:', validationResult.errors);
+        const errorResponse = createDatabaseSetupErrorResponse(validationResult, 'user_details view');
+        return NextResponse.json(errorResponse, { status: 500 });
+      }
     } catch (networkError) {
-      console.error('Network error when checking database view:', networkError);
+      console.error('Network error when validating database setup:', networkError);
       return NextResponse.json(
         { 
           error: 'Database connection error',
           message: 'Unable to connect to the database. Please check your network connection.',
           details: networkError instanceof Error ? networkError.message : 'Network connection failed'
-        },
-        { status: 500 }
-      );
-    }
-
-    if (viewError) {
-      console.error('Database view error:', viewError);
-      return NextResponse.json(
-        { 
-          error: 'Database not set up',
-          message: 'Please run the database setup script first',
-          details: viewError.message
         },
         { status: 500 }
       );
@@ -214,12 +201,32 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching users:', error);
+      
+      // Check if it's a schema-related error
+      if (
+        error.code === 'PGRST116' ||
+        error.message?.includes('relation') ||
+        error.message?.includes('does not exist') ||
+        error.message?.includes('no such table') ||
+        error.message?.includes('schema cache')
+      ) {
+        // This suggests the view might not exist despite validation
+        const validationResult = await validateDatabaseSetup(supabase, [], ['user_details']);
+        if (!validationResult.isValid) {
+          const errorResponse = createDatabaseSetupErrorResponse(validationResult, 'user_details view');
+          return NextResponse.json(errorResponse, { status: 500 });
+        }
+      }
+      
       return NextResponse.json(
         { 
           error: 'Failed to fetch users',
-          message: error.message,
+          message: error.message || 'An error occurred while fetching users',
           code: error.code,
-          details: error.details || null
+          details: error.details || null,
+          hint: error.message?.includes('schema cache') 
+            ? 'The database schema may need to be refreshed. Try running the migration scripts again.'
+            : undefined
         },
         { status: 500 }
       );
@@ -386,6 +393,30 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (!existingStudent) {
+          // Normalize class assignment: ensure we store class ID (UUID) instead of class name
+          let classValue = className || null
+          
+          // Check if className is a UUID (class ID) or a class name
+          const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(className || '')
+          
+          if (className && !isUUID) {
+            // className is a class name, look up the class ID
+            const { data: classData } = await supabase
+              .from('classes')
+              .select('id')
+              .eq('class_name', className)
+              .eq('status', 'active')
+              .maybeSingle()
+            
+            if (classData) {
+              classValue = classData.id
+              console.log(`Resolved class name "${className}" to class ID: ${classData.id}`)
+            } else {
+              console.warn(`Could not find class with name "${className}", storing as-is for backward compatibility`)
+              // Keep the original value for backward compatibility
+            }
+          }
+          
           // Only create if it doesn't exist
           const studentData = {
             student_id: roleSpecificId,
@@ -400,7 +431,7 @@ export async function POST(request: NextRequest) {
             region: null, // Set to null instead of empty string
             subsystem: subsystem || 'english', // Default to english if not provided
             branch: branch || 'grammar', // Default to grammar if not provided
-            class: className,
+            class: classValue, // Store class ID (UUID) if found, otherwise original value
             status: 'active',
             enrollment_status: 'enrolled',
             academic_year: new Date().getFullYear() + '/' + (new Date().getFullYear() + 1),
@@ -474,18 +505,54 @@ export async function POST(request: NextRequest) {
             status: 'active'
           };
 
-          const { error: teacherError } = await supabase
+          const { data: insertedTeacher, error: teacherError } = await supabase
             .from('teachers')
-            .insert(teacherData);
+            .insert(teacherData)
+            .select('id')
+            .single();
 
           if (teacherError) {
             console.error('Error creating teacher record:', teacherError);
             // Note: We don't fail here as the user was created successfully
           } else {
             console.log('Teacher record created successfully:', roleSpecificId);
+            // Link teacher to user account by setting user_id
+            if (insertedTeacher && user) {
+              const { error: linkError } = await supabase
+                .from('teachers')
+                .update({ user_id: user.id })
+                .eq('id', insertedTeacher.id);
+              
+              if (linkError) {
+                console.warn('⚠️ Failed to link teacher to user account:', linkError.message);
+              } else {
+                console.log(`✅ Successfully linked teacher ${roleSpecificId} to user account`);
+              }
+            }
           }
         } else {
           console.log('Teacher record already exists, skipping creation:', roleSpecificId);
+          // Link existing teacher to user account if not already linked
+          if (existingTeacher && user) {
+            const { data: currentTeacher } = await supabase
+              .from('teachers')
+              .select('user_id')
+              .eq('id', existingTeacher.id)
+              .single();
+            
+            if (currentTeacher && !currentTeacher.user_id) {
+              const { error: linkError } = await supabase
+                .from('teachers')
+                .update({ user_id: user.id })
+                .eq('id', existingTeacher.id);
+              
+              if (linkError) {
+                console.warn('⚠️ Failed to link existing teacher to user account:', linkError.message);
+              } else {
+                console.log(`✅ Successfully linked existing teacher ${roleSpecificId} to user account`);
+              }
+            }
+          }
         }
       } catch (teacherErr) {
         console.error('Error in teacher creation:', teacherErr);
@@ -681,6 +748,25 @@ export async function PUT(request: NextRequest) {
             // Note: We don't fail here as the user was updated successfully
           } else {
             console.log('Teacher record updated successfully:', profile.role_specific_id);
+            // Ensure teacher is linked to user account
+            const { data: teacherRecord } = await supabase
+              .from('teachers')
+              .select('user_id')
+              .eq('teacher_id', profile.role_specific_id)
+              .single();
+            
+            if (teacherRecord && !teacherRecord.user_id) {
+              const { error: linkError } = await supabase
+                .from('teachers')
+                .update({ user_id: userId })
+                .eq('teacher_id', profile.role_specific_id);
+              
+              if (linkError) {
+                console.warn('⚠️ Failed to link teacher to user during update:', linkError.message);
+              } else {
+                console.log(`✅ Successfully linked teacher ${profile.role_specific_id} to user during update`);
+              }
+            }
           }
         }
       } catch (teacherErr) {

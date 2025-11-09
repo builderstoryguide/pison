@@ -1,9 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { validateDatabaseSetup, createDatabaseSetupErrorResponse } from '@/lib/database-validation'
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
+    
+    // Validate database setup - check if user_activity_logs table exists and has required columns/functions
+    try {
+      const validationResult = await validateDatabaseSetup(
+        supabase, 
+        ['user_activity_logs'], 
+        [],
+        [{ table: 'user_activity_logs', columns: ['details', 'action', 'created_at', 'user_id'] }],
+        ['get_recent_activity_logs']
+      );
+      
+      if (!validationResult.isValid) {
+        console.error('Database setup validation failed:', validationResult.errors);
+        const errorResponse = createDatabaseSetupErrorResponse(validationResult, 'user_activity_logs table');
+        return NextResponse.json(errorResponse, { status: 500 });
+      }
+    } catch (networkError) {
+      console.error('Network error when validating database setup:', networkError);
+      return NextResponse.json(
+        { 
+          error: 'Database connection error',
+          message: 'Unable to connect to the database. Please check your network connection.',
+          details: networkError instanceof Error ? networkError.message : 'Network connection failed'
+        },
+        { status: 500 }
+      );
+    }
     
     // Get query parameters for filtering
     const { searchParams } = new URL(request.url)
@@ -26,6 +54,10 @@ export async function GET(request: NextRequest) {
 
         if (error) {
           console.error('Error calling get_recent_activity_logs:', error)
+          // Check if it's a function not found error
+          if (error.code === 'PGRST202' || error.message?.includes('Could not find the function')) {
+            console.warn('get_recent_activity_logs function not found, falling back to regular query')
+          }
           // Fall back to regular query if function fails
           throw error
         }
@@ -58,11 +90,26 @@ export async function GET(request: NextRequest) {
         
         if (fallbackError) {
           console.error('Fallback query also failed:', fallbackError)
+          
+          // Provide actionable error messages for schema mismatches
+          let errorMessage = fallbackError.message || 'Failed to fetch activity logs'
+          let suggestion = 'Please run the database setup script to fix table structure issues.'
+          
+          if (fallbackError.code === '42703' || fallbackError.message?.includes('does not exist')) {
+            errorMessage = `Schema mismatch detected: ${fallbackError.message}`
+            suggestion = 'Run the migration script 2025-11-04_019_fix_activity_logs_schema.sql to fix the schema. The "details" column may be missing or named incorrectly.'
+          }
+          
           return NextResponse.json(
             { 
               error: 'Failed to fetch activity logs',
+              message: errorMessage,
               details: fallbackError.message,
-              suggestion: 'Please run the database setup script to fix table structure issues.'
+              code: fallbackError.code,
+              hint: fallbackError.hint,
+              suggestion,
+              setupRequired: fallbackError.code === '42703',
+              setupScript: fallbackError.code === '42703' ? '2025-11-04_019_fix_activity_logs_schema.sql' : undefined
             },
             { status: 500 }
           )
@@ -110,8 +157,27 @@ export async function GET(request: NextRequest) {
 
       if (error) {
         console.error('Error fetching activity logs:', error)
+        
+        // Provide actionable error messages for schema mismatches
+        let errorMessage = error.message || 'Failed to fetch activity logs'
+        let suggestion = 'Please check your database schema and ensure all required columns exist.'
+        
+        if (error.code === '42703' || error.message?.includes('does not exist')) {
+          errorMessage = `Schema mismatch detected: ${error.message}`
+          suggestion = 'Run the migration script 2025-11-04_019_fix_activity_logs_schema.sql to fix the schema. The "details" column may be missing or named incorrectly.'
+        }
+        
         return NextResponse.json(
-          { error: 'Failed to fetch activity logs' },
+          { 
+            error: 'Failed to fetch activity logs',
+            message: errorMessage,
+            details: error.message,
+            code: error.code,
+            hint: error.hint,
+            suggestion,
+            setupRequired: error.code === '42703',
+            setupScript: error.code === '42703' ? '2025-11-04_019_fix_activity_logs_schema.sql' : undefined
+          },
           { status: 500 }
         )
       }

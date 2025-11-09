@@ -21,12 +21,18 @@ import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
+import { apiPost } from "@/lib/api-utils"
+import { Info } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 // Schema for the enhanced fee structure form
 const enhancedFeeStructureSchema = z.object({
-  name: z.string().min(1, "Fee structure name is required"),
+  name: z.enum(["First installment", "Second installment", "Third installment"], {
+    required_error: "Fee structure name is required",
+  }),
   academicYear: z.string().min(1, "Academic year is required"),
-  term: z.enum(["first", "second", "third"]),
+  term: z.enum(["all", "first", "second", "third"]),
   dueDate: z.date(),
   totalAmount: z.number().min(1, "Total amount must be greater than 0"),
   numberOfInstallments: z.number().min(1, "Number of installments must be at least 1").max(12, "Maximum 12 installments"),
@@ -63,6 +69,7 @@ const academicYears = ["2023-2024", "2024-2025", "2025-2026"]
 
 export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: EnhancedFeeStructureFormProps) {
   const { toast } = useToast()
+  const globalAcademicYear = useGlobalAcademicYear()
   const [classes, setClasses] = useState<Class[]>([])
   const [isLoadingClasses, setIsLoadingClasses] = useState(true)
   const [installments, setInstallments] = useState<Installment[]>([])
@@ -71,9 +78,9 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
   const form = useForm<EnhancedFeeStructureFormData>({
     resolver: zodResolver(enhancedFeeStructureSchema),
     defaultValues: editData
-      ? {
+        ? {
           name: editData.name,
-          academicYear: editData.academicYear,
+          academicYear: globalAcademicYear, // Use global academic year
           term: editData.term,
           dueDate: new Date(editData.dueDate),
           totalAmount: editData.totalAmount,
@@ -83,8 +90,8 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
           isActive: editData.isActive,
         }
       : {
-          name: "",
-          academicYear: "2024-2025",
+          name: "First installment" as const,
+          academicYear: globalAcademicYear, // Use global academic year
           term: "first",
           dueDate: new Date(),
           totalAmount: 0,
@@ -102,10 +109,12 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
 
   const loadClasses = async () => {
     try {
-      const response = await fetch('/api/classes')
+      const response = await fetch('/api/classes?status=active')
       if (response.ok) {
         const data = await response.json()
-        setClasses(data)
+        // Ensure we only use active classes
+        const activeClasses = Array.isArray(data) ? data.filter((cls: Class) => cls.status === "active") : []
+        setClasses(activeClasses)
       } else {
         // Fallback to mock data if API fails
         setClasses([
@@ -115,7 +124,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
             level: "Form 1",
             subsystem: "english",
             branch: "grammar",
-            academicYear: "2024-2025",
+            academicYear: globalAcademicYear,
             status: "active"
           },
           {
@@ -124,7 +133,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
             level: "Form 2",
             subsystem: "english",
             branch: "technical",
-            academicYear: "2024-2025",
+            academicYear: globalAcademicYear,
             status: "active"
           },
           {
@@ -133,7 +142,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
             level: "Terminale",
             subsystem: "french",
             branch: "grammar",
-            academicYear: "2024-2025",
+            academicYear: globalAcademicYear,
             status: "active"
           }
         ])
@@ -186,11 +195,18 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
         const classData = classes.find(c => c.id === classId)
         if (!classData) return null
 
+        // Ensure level is provided - use class's level if not specified
+        const levelToUse = classData.level
+        if (!levelToUse) {
+          throw new Error(`Class "${classData.name}" does not have a level assigned. Please assign a level to this class first.`)
+        }
+
         const feeStructureData = {
           name: `${data.name} - ${classData.name}`,
           classId,
           subsystem: classData.subsystem,
           branch: classData.branch,
+          level: levelToUse, // Include level field - required by database
           academicYear: data.academicYear,
           term: data.term,
           dueDate: format(data.dueDate, "yyyy-MM-dd"),
@@ -205,19 +221,21 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
           isActive: data.isActive
         }
 
-        const response = await fetch('/api/bursar/fee-structures', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(feeStructureData),
-        })
+        const result = await apiPost('/api/bursar/fee-structures', feeStructureData)
 
-        if (!response.ok) {
-          throw new Error(`Failed to create fee structure for ${classData.name}`)
+        if (!result.success) {
+          // Handle specific authentication/authorization errors
+          if (result.status === 401) {
+            throw new Error("You are not authorized. Please log in again.")
+          } else if (result.status === 403) {
+            throw new Error("You don't have permission to create fee structures. Admin or Bursar role required.")
+          } else {
+            const errorMessage = result.error || result.data?.error || `Failed to create fee structure for ${classData.name}`
+            throw new Error(errorMessage)
+          }
         }
 
-        return await response.json()
+        return result.data
       })
 
       const results = await Promise.all(promises)
@@ -253,7 +271,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="space-y-6">
             {/* Basic Information */}
             <Card>
               <CardHeader>
@@ -267,9 +285,18 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Fee Structure Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., First Term Fees 2024-2025" {...field} />
-                      </FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select installment" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="First installment">First installment</SelectItem>
+                          <SelectItem value="Second installment">Second installment</SelectItem>
+                          <SelectItem value="Third installment">Third installment</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -280,21 +307,32 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                   name="academicYear"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Academic Year</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
+                      <FormLabel className="flex items-center gap-2">
+                        Academic Year
+                        <span className="text-xs text-muted-foreground font-normal">(Global Setting)</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value || globalAcademicYear}
+                          disabled={true}
+                        >
+                          <SelectTrigger className="bg-muted">
                             <SelectValue placeholder="Select academic year" />
                           </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {academicYears.map((year) => (
-                            <SelectItem key={year} value={year}>
-                              {year}
+                          <SelectContent>
+                            <SelectItem value={field.value || globalAcademicYear}>
+                              {field.value || globalAcademicYear}
                             </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <Alert className="mt-2 py-2">
+                        <Info className="h-4 w-4" />
+                        <AlertDescription className="text-xs">
+                          Academic Year is managed globally in App Configuration. To change it, go to Settings → App Configuration → System Settings.
+                        </AlertDescription>
+                      </Alert>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -313,9 +351,10 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="first">First Term</SelectItem>
-                          <SelectItem value="second">Second Term</SelectItem>
-                          <SelectItem value="third">Third Term</SelectItem>
+                          <SelectItem value="all">All terms</SelectItem>
+                          <SelectItem value="first">First term</SelectItem>
+                          <SelectItem value="second">Second term</SelectItem>
+                          <SelectItem value="third">Third term</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -472,43 +511,59 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
             </CardHeader>
             <CardContent className="space-y-4">
               {isLoadingClasses ? (
-                <div className="text-center py-4">Loading classes...</div>
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-4">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                  Loading classes...
+                </div>
+              ) : filteredClasses.length === 0 ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground p-4 border rounded-md">
+                    {classes.length === 0 
+                      ? "No classes found. Please create classes in Class Management first."
+                      : `No active classes found. Found ${classes.length} total class(es), but none are active. Please activate classes in Class Management.`}
+                  </p>
+                </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredClasses.map((cls) => (
-                    <div key={cls.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={cls.id}
-                        checked={selectedClasses.includes(cls.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            form.setValue("selectedClasses", [...selectedClasses, cls.id])
-                          } else {
-                            form.setValue("selectedClasses", selectedClasses.filter(id => id !== cls.id))
-                          }
-                        }}
-                      />
-                      <label
-                        htmlFor={cls.id}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span>{cls.name}</span>
-                          <div className="flex gap-1">
-                            <Badge variant="outline" className="text-xs">
-                              {cls.subsystem}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {cls.branch}
-                            </Badge>
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground mb-2">
+                    Showing {filteredClasses.length} active class(es)
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredClasses.map((cls) => (
+                      <div key={cls.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={cls.id}
+                          checked={selectedClasses.includes(cls.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              form.setValue("selectedClasses", [...selectedClasses, cls.id])
+                            } else {
+                              form.setValue("selectedClasses", selectedClasses.filter(id => id !== cls.id))
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={cls.id}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{cls.name}</span>
+                            <div className="flex gap-1">
+                              <Badge variant="outline" className="text-xs">
+                                {cls.subsystem}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {cls.branch}
+                              </Badge>
+                            </div>
                           </div>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {cls.level} • {cls.academicYear}
-                        </div>
-                      </label>
-                    </div>
-                  ))}
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {cls.level} • {cls.academicYear}
+                          </div>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               <FormMessage />

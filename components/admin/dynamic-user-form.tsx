@@ -5,8 +5,21 @@ import { User, GraduationCap, Users, UserCheck, DollarSign } from 'lucide-react'
 import { useUserManagement, User as UserType } from '@/lib/user-management-context'
 import { useStudentEnrollment } from '@/lib/student-enrollment-context'
 import { useTeacherManagement } from '@/lib/teacher-management-context'
-import { downloadEmailContent, sendWelcomeEmail, type EmailData } from '@/lib/email-utils'
 import { useToast } from '@/hooks/use-toast'
+
+// Local type to carry created-user credentials for the success dialog
+type EmailData = {
+  name: string
+  email: string
+  role: 'admin' | 'teacher' | 'student' | 'parent' | 'bursar'
+  password: string
+  userId?: string
+  className?: string
+  parentName?: string
+  parentEmail?: string
+  parentCode?: string
+  parentPassword?: string
+}
 
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -48,7 +61,6 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
   const [showRoleSelection, setShowRoleSelection] = useState(true)
   const [userData, setUserData] = useState<EmailData | null>(null)
-  const [isSendingEmail, setIsSendingEmail] = useState(false)
 
   const handleRoleChange = (role: UserType['role']) => {
     setSelectedRole(role)

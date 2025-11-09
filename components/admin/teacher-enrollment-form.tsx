@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { User, Mail, MapPin, GraduationCap, Briefcase, X, Plus, AlertCircle } from "lucide-react"
 import { useTeacherManagement, type TeacherFormData } from "@/lib/teacher-management-context"
+import { useClassManagement } from "@/lib/class-management-context"
+import { useSubjectManagement } from "@/lib/subject-management-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 
@@ -22,32 +24,9 @@ interface TeacherEnrollmentFormProps {
 const steps = [
   { id: 1, title: "Personal Information", icon: User },
   { id: 2, title: "Contact Details", icon: Mail },
-  { id: 3, title: "Address Information", icon: MapPin },
-  { id: 4, title: "Academic Qualifications", icon: GraduationCap },
-  { id: 5, title: "Teaching Assignment", icon: Briefcase },
-  { id: 6, title: "Employment Details", icon: User },
+  { id: 3, title: "Address & Qualifications", icon: MapPin },
+  { id: 4, title: "Teaching & Employment", icon: Briefcase },
 ]
-
-const subjects = [
-  "Mathematics",
-  "Physics",
-  "Chemistry",
-  "Biology",
-  "English Language",
-  "French",
-  "History",
-  "Geography",
-  "Economics",
-  "Accounting",
-  "Computer Science",
-  "Physical Education",
-  "Arts",
-  "Music",
-  "Religious Studies",
-  "Civic Education",
-]
-
-const classes = ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "Form 6", "Form 7"]
 
 const regions = [
   "Adamawa",
@@ -64,6 +43,8 @@ const regions = [
 
 export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollmentFormProps) {
   const { addTeacher } = useTeacherManagement()
+  const { classes: allClasses, isLoading: classesLoading, error: classesError } = useClassManagement()
+  const { subjects: allSubjects, isLoading: subjectsLoading, loadSubjects } = useSubjectManagement()
   const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -96,6 +77,27 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
     },
     status: "active",
   })
+
+  // Load subjects from subject management on mount
+  useEffect(() => {
+    console.log('Teacher form: Loading subjects with is_active filter')
+    loadSubjects({ is_active: true })
+  }, [loadSubjects])
+
+  // Get available subjects (only active ones, sorted by name)
+  const availableSubjects = allSubjects
+    .filter(subject => subject.is_active)
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Teacher form: Subjects state:', {
+      allSubjectsCount: allSubjects.length,
+      availableSubjectsCount: availableSubjects.length,
+      subjectsLoading,
+      subjectsError: allSubjects.find(s => !s.is_active) ? 'Found inactive subjects' : null
+    })
+  }, [allSubjects, availableSubjects, subjectsLoading])
 
   const updateFormData = (field: string, value: any) => {
     // Special handling for phone numbers
@@ -202,13 +204,11 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
       case 2:
         return !!(formData.email && formData.phone && isValidPhoneFormat(formData.phone))
       case 3:
-        return !!(formData.address && formData.city && formData.region)
+        return !!(formData.address && formData.city && formData.region && formData.qualifications.length > 0)
       case 4:
-        return formData.qualifications.length > 0
-      case 5:
-        return formData.subjects.length > 0 && formData.classes.length > 0
-      case 6:
         return !!(
+          formData.subjects.length > 0 && 
+          formData.classes.length > 0 &&
           formData.employmentType &&
           formData.salary &&
           formData.startDate &&
@@ -315,7 +315,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
               <div>
                 <Label htmlFor="title">Title *</Label>
                 <Select value={formData.title} onValueChange={(value) => updateFormData("title", value)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select title" />
                   </SelectTrigger>
                   <SelectContent>
@@ -331,6 +331,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
                 <Label htmlFor="firstName">First Name *</Label>
                 <Input
                   id="firstName"
+                  className="w-full"
                   value={formData.firstName}
                   onChange={(e) => updateFormData("firstName", e.target.value)}
                   placeholder="Enter first name"
@@ -340,6 +341,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
                 <Label htmlFor="lastName">Last Name *</Label>
                 <Input
                   id="lastName"
+                  className="w-full"
                   value={formData.lastName}
                   onChange={(e) => updateFormData("lastName", e.target.value)}
                   placeholder="Enter last name"
@@ -352,6 +354,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
                 <Input
                   id="dateOfBirth"
                   type="date"
+                  className="w-full"
                   value={formData.dateOfBirth}
                   onChange={(e) => updateFormData("dateOfBirth", e.target.value)}
                 />
@@ -359,7 +362,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
               <div>
                 <Label htmlFor="gender">Gender *</Label>
                 <Select value={formData.gender} onValueChange={(value) => updateFormData("gender", value)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
@@ -374,6 +377,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
                 <Label htmlFor="nationality">Nationality</Label>
                 <Input
                   id="nationality"
+                  className="w-full"
                   value={formData.nationality}
                   onChange={(e) => updateFormData("nationality", e.target.value)}
                   placeholder="Enter nationality"
@@ -383,6 +387,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
                 <Label htmlFor="idNumber">ID Number</Label>
                 <Input
                   id="idNumber"
+                  className="w-full"
                   value={formData.idNumber}
                   onChange={(e) => updateFormData("idNumber", e.target.value)}
                   placeholder="Enter ID number"
@@ -401,6 +406,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
                 <Input
                   id="email"
                   type="email"
+                  className="w-full"
                   value={formData.email}
                   onChange={(e) => updateFormData("email", e.target.value)}
                   placeholder="Enter email address"
@@ -410,6 +416,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
                 <Label htmlFor="phone">Phone Number *</Label>
                 <Input
                   id="phone"
+                  className="w-full"
                   value={formData.phone}
                   onChange={(e) => updateFormData("phone", e.target.value)}
                   placeholder="+237 6XX XXX XXX"
@@ -425,223 +432,342 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
 
       case 3:
         return (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="address">Address *</Label>
-              <Textarea
-                id="address"
-                value={formData.address}
-                onChange={(e) => updateFormData("address", e.target.value)}
-                placeholder="Enter full address"
-                rows={3}
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="city">City *</Label>
-                <Input
-                  id="city"
-                  value={formData.city}
-                  onChange={(e) => updateFormData("city", e.target.value)}
-                  placeholder="Enter city"
-                />
-              </div>
-              <div>
-                <Label htmlFor="region">Region *</Label>
-                <Select value={formData.region} onValueChange={(value) => updateFormData("region", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select region" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {regions.map((region) => (
-                      <SelectItem key={region} value={region}>
-                        {region}
-                      </SelectItem>
+          <div className="space-y-6">
+            {/* Address Information */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Address Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="address">Address *</Label>
+                  <Textarea
+                    id="address"
+                    className="w-full"
+                    value={formData.address}
+                    onChange={(e) => updateFormData("address", e.target.value)}
+                    placeholder="Enter full address"
+                    rows={3}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <Label htmlFor="city">City *</Label>
+                    <Input
+                      id="city"
+                      className="w-full"
+                      value={formData.city}
+                      onChange={(e) => updateFormData("city", e.target.value)}
+                      placeholder="Enter city"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="region">Region *</Label>
+                    <Select value={formData.region} onValueChange={(value) => updateFormData("region", value)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select region" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {regions.map((region) => (
+                          <SelectItem key={region} value={region}>
+                            {region}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Academic Qualifications */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <GraduationCap className="h-4 w-4" />
+                  Academic Qualifications
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Qualifications *</Label>
+                  <div className="flex gap-2 mt-2">
+                    <Input
+                      className="w-full"
+                      placeholder="Add qualification"
+                      onKeyPress={(e) => {
+                        if (e.key === "Enter") {
+                          addToArray("qualifications", e.currentTarget.value)
+                          e.currentTarget.value = ""
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={(e) => {
+                        const input = e.currentTarget.previousElementSibling as HTMLInputElement
+                        addToArray("qualifications", input.value)
+                        input.value = ""
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {formData.qualifications.map((qual, index) => (
+                      <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                        {qual}
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => removeFromArray("qualifications", qual)} />
+                      </Badge>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="experience">Teaching Experience</Label>
+                  <Textarea
+                    id="experience"
+                    className="w-full"
+                    value={formData.experience}
+                    onChange={(e) => updateFormData("experience", e.target.value)}
+                    placeholder="Describe teaching experience"
+                    rows={4}
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )
 
       case 4:
-        return (
-          <div className="space-y-4">
-            <div>
-              <Label>Qualifications *</Label>
-              <div className="flex gap-2 mt-2">
-                <Input
-                  placeholder="Add qualification"
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter") {
-                      addToArray("qualifications", e.currentTarget.value)
-                      e.currentTarget.value = ""
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={(e) => {
-                    const input = e.currentTarget.previousElementSibling as HTMLInputElement
-                    addToArray("qualifications", input.value)
-                    input.value = ""
-                  }}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {formData.qualifications.map((qual, index) => (
-                  <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                    {qual}
-                    <X className="h-3 w-3 cursor-pointer" onClick={() => removeFromArray("qualifications", qual)} />
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="experience">Teaching Experience</Label>
-              <Textarea
-                id="experience"
-                value={formData.experience}
-                onChange={(e) => updateFormData("experience", e.target.value)}
-                placeholder="Describe teaching experience"
-                rows={4}
-              />
-            </div>
-          </div>
-        )
+        // Filter classes from class management system based on subsystem (if selected)
+        const availableClasses = allClasses
+          .filter(cls => 
+            !formData.subsystem || cls.subsystem === formData.subsystem
+          )
+          .filter(cls => cls.status === 'active')
+          .map(cls => ({
+            id: cls.id,
+            name: cls.name
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name))
 
-      case 5:
         return (
-          <div className="space-y-4">
-            <div>
-              <Label>Sub-system</Label>
-              <Select value={formData.subsystem} onValueChange={(value) => updateFormData("subsystem", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="english">English Sub-system</SelectItem>
-                  <SelectItem value="french">French Sub-system</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Subjects to Teach *</Label>
-              <Select onValueChange={(value) => addToArray("subjects", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select subjects" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects.map((subject) => (
-                    <SelectItem key={subject} value={subject}>
-                      {subject}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {formData.subjects.map((subject, index) => (
-                  <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                    {subject}
-                    <X className="h-3 w-3 cursor-pointer" onClick={() => removeFromArray("subjects", subject)} />
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            <div>
-              <Label>Classes to Teach *</Label>
-              <Select onValueChange={(value) => addToArray("classes", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select classes" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classes.map((cls) => (
-                    <SelectItem key={cls} value={cls}>
-                      {cls}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {formData.classes.map((cls, index) => (
-                  <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                    {cls}
-                    <X className="h-3 w-3 cursor-pointer" onClick={() => removeFromArray("classes", cls)} />
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </div>
-        )
+          <div className="space-y-6">
+            {/* Teaching Assignment */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  Teaching Assignment
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Sub-system</Label>
+                  <Select value={formData.subsystem} onValueChange={(value) => updateFormData("subsystem", value)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="english">English Sub-system</SelectItem>
+                      <SelectItem value="french">French Sub-system</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Subjects to Teach *</Label>
+                  {subjectsLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                      Loading subjects...
+                    </div>
+                  ) : availableSubjects.length === 0 ? (
+                    <div className="space-y-2">
+                      <Select disabled>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="No subjects available" />
+                        </SelectTrigger>
+                      </Select>
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-sm">
+                          No active subjects found. Please create subjects in Manage Subjects first.
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  ) : (
+                    <>
+                      <Select onValueChange={(value) => addToArray("subjects", value)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select subjects" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableSubjects.map((subject) => (
+                            <SelectItem key={subject.id} value={subject.name}>
+                              {subject.name}
+                              {subject.has_sub_branches && subject.sub_branches && subject.sub_branches.length > 0 && (
+                                <span className="text-xs text-muted-foreground ml-2">
+                                  ({subject.sub_branches.length} sub-branch{subject.sub_branches.length !== 1 ? 'es' : ''})
+                                </span>
+                              )}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Subjects are loaded from Manage Subjects. Select the main subject name.
+                        {availableSubjects.some(s => s.has_sub_branches) && (
+                          <span className="block mt-1">
+                            Note: Subjects with sub-branches will be assigned to the main subject. You can assign specific sub-branches later in Manage Subjects.
+                          </span>
+                        )}
+                      </p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {formData.subjects.map((subject, index) => (
+                          <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                            {subject}
+                            <X className="h-3 w-3 cursor-pointer" onClick={() => removeFromArray("subjects", subject)} />
+                          </Badge>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div>
+                  <Label>Classes to Teach *</Label>
+                  {classesLoading ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                      Loading classes...
+                    </div>
+                  ) : availableClasses.length === 0 ? (
+                    <div className="space-y-2">
+                      <Select disabled>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="No classes available" />
+                        </SelectTrigger>
+                      </Select>
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-sm">
+                          {classesError 
+                            ? `Error loading classes: ${classesError}. Please ensure classes are created in Class Management.`
+                            : formData.subsystem
+                              ? `No active classes found for ${formData.subsystem === 'english' ? 'English' : 'French'} Sub-system. Please create classes in Class Management first.`
+                              : "No active classes found. Please create classes in Class Management first."
+                          }
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  ) : (
+                    <>
+                      <Select onValueChange={(value) => addToArray("classes", value)}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select classes" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableClasses.map((cls) => (
+                            <SelectItem key={cls.id} value={cls.name}>
+                              {cls.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {formData.classes.map((cls, index) => (
+                          <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                            {cls}
+                            <X className="h-3 w-3 cursor-pointer" onClick={() => removeFromArray("classes", cls)} />
+                          </Badge>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
-      case 6:
-        return (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="employmentType">Employment Type *</Label>
-                <Select
-                  value={formData.employmentType}
-                  onValueChange={(value) => updateFormData("employmentType", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="full-time">Full-time</SelectItem>
-                    <SelectItem value="part-time">Part-time</SelectItem>
-                    <SelectItem value="contract">Contract</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="salary">Monthly Salary (FCFA) *</Label>
-                <Input
-                  id="salary"
-                  type="number"
-                  value={formData.salary}
-                  onChange={(e) => updateFormData("salary", Number.parseInt(e.target.value) || 0)}
-                  placeholder="Enter monthly salary"
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="startDate">Start Date *</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={formData.startDate}
-                onChange={(e) => updateFormData("startDate", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Emergency Contact *</Label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Input
-                  placeholder="Contact name"
-                  value={formData.emergencyContact.name}
-                  onChange={(e) => updateFormData("emergencyContact.name", e.target.value)}
-                />
-                <Input
-                  placeholder="Relationship"
-                  value={formData.emergencyContact.relationship}
-                  onChange={(e) => updateFormData("emergencyContact.relationship", e.target.value)}
-                />
-                <Input
-                  placeholder="+237 6XX XXX XXX"
-                  value={formData.emergencyContact.phone}
-                  onChange={(e) => updateFormData("emergencyContact.phone", e.target.value)}
-                  maxLength={15}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Format: +237 6XXXXXXXX (Cameroon mobile number)
-                </p>
-              </div>
-            </div>
+            {/* Employment Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Employment Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <Label htmlFor="employmentType">Employment Type *</Label>
+                    <Select
+                      value={formData.employmentType}
+                      onValueChange={(value) => updateFormData("employmentType", value)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full-time">Full-time</SelectItem>
+                        <SelectItem value="part-time">Part-time</SelectItem>
+                        <SelectItem value="contract">Contract</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="salary">Monthly Salary (FCFA) *</Label>
+                    <Input
+                      id="salary"
+                      type="number"
+                      className="w-full"
+                      value={formData.salary}
+                      onChange={(e) => updateFormData("salary", Number.parseInt(e.target.value) || 0)}
+                      placeholder="Enter monthly salary"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="startDate">Start Date *</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    className="w-full"
+                    value={formData.startDate}
+                    onChange={(e) => updateFormData("startDate", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Emergency Contact *</Label>
+                  <div className="grid grid-cols-1 gap-4">
+                    <Input
+                      className="w-full"
+                      placeholder="Contact name"
+                      value={formData.emergencyContact.name}
+                      onChange={(e) => updateFormData("emergencyContact.name", e.target.value)}
+                    />
+                    <Input
+                      className="w-full"
+                      placeholder="Relationship"
+                      value={formData.emergencyContact.relationship}
+                      onChange={(e) => updateFormData("emergencyContact.relationship", e.target.value)}
+                    />
+                    <Input
+                      className="w-full"
+                      placeholder="+237 6XX XXX XXX"
+                      value={formData.emergencyContact.phone}
+                      onChange={(e) => updateFormData("emergencyContact.phone", e.target.value)}
+                      maxLength={15}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Format: +237 6XXXXXXXX (Cameroon mobile number)
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )
 
@@ -670,7 +796,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
           <Progress value={(currentStep / steps.length) * 100} className="h-2" />
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4">
         {/* Step Navigation */}
         <div className="flex flex-wrap gap-2">
           {steps.map((step) => {
@@ -702,10 +828,10 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
         )}
 
         {/* Step Content */}
-        <div className="min-h-[400px]">{renderStep()}</div>
+        <div>{renderStep()}</div>
 
         {/* Navigation Buttons */}
-        <div className="flex justify-between pt-4 border-t">
+        <div className="flex justify-between pt-2 border-t">
           <div>
             {currentStep > 1 && (
               <Button variant="outline" onClick={prevStep} disabled={isSubmitting}>

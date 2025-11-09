@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Mail, Phone, MapPin, User, GraduationCap, Heart, FileText, Calendar, DollarSign } from 'lucide-react'
 
 import { Student } from '@/lib/student-management-context'
+import { useClassManagement } from '@/lib/class-management-context'
 
 const enrollmentStatusColors = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -31,6 +33,15 @@ interface StudentDetailsDialogProps {
 }
 
 export function StudentDetailsDialog({ student, onClose, onEdit }: StudentDetailsDialogProps) {
+  const { getClassById } = useClassManagement()
+  
+  // Get class name from class ID
+  const className = useMemo(() => {
+    if (!student.class) return 'Not assigned'
+    const classData = getClassById(student.class)
+    return classData?.name || student.class
+  }, [student.class, getClassById])
+
   return (
     <div className="space-y-6">
       {/* Student Header */}
@@ -82,7 +93,7 @@ export function StudentDetailsDialog({ student, onClose, onEdit }: StudentDetail
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Class</p>
-              <p>{student.class}</p>
+              <p>{className}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Branch</p>

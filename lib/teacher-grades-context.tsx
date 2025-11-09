@@ -4,6 +4,7 @@ import type React from "react"
 import { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react"
 import { supabase, isSupabaseAvailable } from "./supabase"
 import { useAuth } from "@/lib/auth-context"
+import { validateDatabaseSetup, createDatabaseSetupErrorResponse } from "./database-validation"
 
 // Types
 export interface Assessment {
@@ -218,39 +219,167 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
   const [useDatabase, setUseDatabase] = useState(false)
 
   const loadTeacherSubjects = useCallback(async () => {
-    if (useDatabase && supabase) {
-      try {
-        const { data, error } = await supabase
-          .from("teacher_subjects")
-          .select("subject_name")
-          .eq("teacher_id", user?.id)
-          .eq("is_active", true)
+    // Early return if database is not enabled
+    if (!useDatabase || !supabase) {
+      return
+    }
 
-        if (error) {
-          // Check if it's a "relation does not exist" error
-          if (error.message?.includes('relation "teacher_subjects" does not exist')) {
-            console.warn("Teacher subjects table does not exist. Using default subjects.")
-            // Set some default subjects for now
-            setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
-            return
+    try {
+      // Validate user exists and has an ID
+      if (!user || !user.id) {
+        console.warn("Cannot load teacher subjects: User not authenticated. User state:", {
+          userExists: !!user,
+          userId: user?.id,
+          userEmail: user?.email,
+        })
+        // Set default subjects for unauthenticated users
+        setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
+        return
+      }
+
+      // Validate database setup - check if teacher_subjects table exists
+      try {
+        const validationResult = await validateDatabaseSetup(supabase, ['teacher_subjects'], [])
+        if (!validationResult.isValid) {
+          console.warn("Teacher subjects table does not exist. Using default subjects.")
+          const errorResponse = createDatabaseSetupErrorResponse(validationResult, 'teacher_subjects table')
+          console.warn("Setup instructions:", errorResponse.setupInstructions)
+          console.warn("Missing scripts:", errorResponse.missingScripts)
+          // Set default subjects instead of throwing
+          setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
+          return
+        }
+      } catch (validationError) {
+        console.warn("Error validating database setup for teacher_subjects:", validationError)
+        // Continue with query attempt - might be a network issue
+      }
+
+      // Execute query with validated user ID
+      const { data, error } = await supabase
+        .from("teacher_subjects")
+        .select("subject_name")
+        .eq("teacher_id", user.id)
+        .eq("is_active", true)
+
+      if (error) {
+        // Import error serialization
+        const { serializeSupabaseError } = await import('./safe-error')
+        const serializedError = serializeSupabaseError(error)
+        
+        // Check if it's a schema-related error
+        if (
+          error.code === 'PGRST116' ||
+          error.message?.includes('relation') ||
+          error.message?.includes('does not exist') ||
+          error.message?.includes('no such table') ||
+          error.message?.includes('schema cache')
+        ) {
+          console.warn("Schema error detected for teacher_subjects. Using default subjects.")
+          console.warn("Error details:", JSON.stringify(serializedError, null, 2))
+          const validationResult = await validateDatabaseSetup(supabase, ['teacher_subjects'], [])
+          if (!validationResult.isValid) {
+            const errorResponse = createDatabaseSetupErrorResponse(validationResult, 'teacher_subjects table')
+            console.warn("Setup instructions:", errorResponse.setupInstructions)
           }
-          console.error("Supabase error fetching teacher subjects:", error)
-          throw error
+          // Set default subjects instead of throwing
+          setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
+          return
         }
 
-        if (data) {
-          setTeacherSubjects(data.map((item: any) => item.subject_name))
+        // Check for RLS (Row Level Security) policy errors
+        if (
+          error.code === '42501' ||
+          error.message?.includes('permission denied') ||
+          error.message?.includes('row-level security') ||
+          error.message?.includes('policy violation')
+        ) {
+          console.error("RLS policy error fetching teacher subjects:", JSON.stringify(serializedError, null, 2))
+          console.error("Context:", {
+            userId: user.id,
+            userEmail: user.email,
+            table: "teacher_subjects",
+            action: "SELECT",
+            hint: "Check RLS policies for teacher_subjects table. Ensure policies allow users to read their own subjects.",
+          })
+          // Set default subjects instead of throwing
+          setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
+          return
+        }
+
+        // Check for authentication errors
+        if (
+          error.code === 'PGRST301' ||
+          error.message?.includes('JWT') ||
+          error.message?.includes('authentication') ||
+          error.message?.includes('unauthorized')
+        ) {
+          console.error("Authentication error fetching teacher subjects:", JSON.stringify(serializedError, null, 2))
+          console.error("Context:", {
+            userId: user.id,
+            userEmail: user.email,
+            hint: "User session may have expired. Please refresh the page.",
+          })
+          // Set default subjects instead of throwing
+          setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
+          return
+        }
+
+        // Log other errors with full context
+        console.error("Supabase error fetching teacher subjects:", JSON.stringify(serializedError, null, 2))
+        console.error("Error context:", {
+          userId: user.id,
+          userEmail: user.email,
+          table: "teacher_subjects",
+          query: "SELECT subject_name WHERE teacher_id = ? AND is_active = true",
+          errorCode: error.code,
+          errorMessage: error.message,
+          errorDetails: error.details,
+          errorHint: error.hint,
+        })
+        
+        // Set default subjects on error instead of throwing
+        setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
+        return
+      }
+
+      // Process successful response
+      if (data && Array.isArray(data) && data.length > 0) {
+        const subjects = data.map((item: any) => item.subject_name).filter(Boolean)
+        if (subjects.length > 0) {
+          setTeacherSubjects(subjects)
+          console.log(`Loaded ${subjects.length} teacher subjects for user ${user.id}`)
         } else {
-          // If no data, set some default subjects
+          console.warn("No valid subjects found in response. Using default subjects.")
           setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
         }
-      } catch (err) {
-        console.error("Error fetching teacher subjects:", err)
-        // Set default subjects on error
+      } else {
+        // If no data, set some default subjects
+        console.warn("No teacher subjects found in database for user. Using default subjects.", {
+          userId: user.id,
+          userEmail: user.email,
+        })
         setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
       }
+    } catch (err) {
+      // Handle unexpected errors
+      const { serializeSupabaseError } = await import('./safe-error')
+      const serializedError = serializeSupabaseError(err)
+      
+      console.error("Unexpected error fetching teacher subjects:", JSON.stringify(serializedError, null, 2))
+      console.error("Error context:", {
+        userId: user?.id,
+        userEmail: user?.email,
+        userExists: !!user,
+        useDatabase,
+        supabaseAvailable: !!supabase,
+        errorType: err instanceof Error ? err.constructor.name : typeof err,
+        errorStack: err instanceof Error ? err.stack : undefined,
+      })
+      
+      // Set default subjects on error instead of throwing
+      setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
     }
-  }, [useDatabase, user?.id])
+  }, [useDatabase, user, user?.id])
 
   const loadDataFromDatabase = useCallback(async () => {
     if (!useDatabase || !supabase) return
@@ -277,6 +406,13 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           createdAt: assessment.created_at,
         }))
         setAssessments(formattedAssessments)
+      } else if (assessmentsError) {
+        try {
+          const { serializeSupabaseError } = await import('./safe-error')
+          console.error('Supabase error fetching assessments:', serializeSupabaseError(assessmentsError))
+        } catch (_) {
+          console.error('Supabase error fetching assessments:', assessmentsError)
+        }
       }
 
       // Load grades
@@ -298,6 +434,13 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           submittedAt: grade.submitted_at,
         }))
         setGrades(formattedGrades)
+      } else if (gradesError) {
+        try {
+          const { serializeSupabaseError } = await import('./safe-error')
+          console.error('Supabase error fetching grades:', serializeSupabaseError(gradesError))
+        } catch (_) {
+          console.error('Supabase error fetching grades:', gradesError)
+        }
       }
 
       // Load students (from students table)
@@ -316,6 +459,13 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           className: student.class_name || "",
         }))
         setStudents(formattedStudents)
+      } else if (studentsError) {
+        try {
+          const { serializeSupabaseError } = await import('./safe-error')
+          console.error('Supabase error fetching students:', serializeSupabaseError(studentsError))
+        } catch (_) {
+          console.error('Supabase error fetching students:', studentsError)
+        }
       }
 
       // Load classes (from classes table)
@@ -335,12 +485,24 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           schedule: cls.schedule || "",
         }))
         setClasses(formattedClasses)
+      } else if (classesError) {
+        try {
+          const { serializeSupabaseError } = await import('./safe-error')
+          console.error('Supabase error fetching classes:', serializeSupabaseError(classesError))
+        } catch (_) {
+          console.error('Supabase error fetching classes:', classesError)
+        }
       }
 
       // Load teacher subjects
       await loadTeacherSubjects()
     } catch (err) {
-      console.error("Error loading data from database:", err)
+      try {
+        const { serializeSupabaseError } = await import('./safe-error')
+        console.error("Error loading data from database:", serializeSupabaseError(err as any))
+      } catch (_) {
+        console.error("Error loading data from database:", err)
+      }
       setError("Failed to load data from database")
     } finally {
       setLoading(false)

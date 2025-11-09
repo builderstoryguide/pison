@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { AuthPage } from "./auth/auth-page"
+import { SubjectManagementProvider } from "@/lib/subject-management-context"
 import { QuickActionsDashboard } from "./admin/quick-actions-dashboard"
 import { UserManagement } from "./admin/user-management"
 import { StudentManagement } from "./admin/student-management"
 import { TeacherManagement } from "./admin/teacher-management"
 import { ClassManagement } from "./admin/class-management"
+import { SubjectManagement } from "./admin/subject-management"
 import { ExaminationManagement } from "./admin/examination-management"
 import { TimetableManagement } from "./admin/timetable-management"
 import { FinancialManagement } from "./admin/financial-management"
@@ -104,6 +106,7 @@ type AdminView =
   | "students"
   | "teachers"
   | "classes"
+  | "subjects"
   | "timetable"
   | "examinations"
   | "financial"
@@ -225,6 +228,7 @@ function AppSidebar({
           { id: "students", label: "Student Management", icon: GraduationCap },
           { id: "teachers", label: "Teacher Management", icon: UserCheck },
           { id: "classes", label: "Class Management", icon: BookOpen },
+          { id: "subjects", label: "Manage Subjects", icon: BookOpen },
           { id: "timetable", label: "Timetable Management", icon: CalendarDays },
           { id: "examinations", label: "Examinations", icon: FileText },
           { id: "financial", label: "Financial Management", icon: DollarSign },
@@ -537,6 +541,12 @@ export function SchoolDashboard() {
             return <TeacherManagement />
           case "classes":
             return <ClassManagement />
+          case "subjects":
+            return (
+              <SubjectManagementProvider>
+                <SubjectManagement />
+              </SubjectManagementProvider>
+            )
           case "timetable":
             return <TimetableManagement />
           case "examinations":

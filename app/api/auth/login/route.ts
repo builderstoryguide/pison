@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServiceClient } from '@/lib/supabase/service';
 import bcrypt from 'bcryptjs';
 
+export const runtime = 'nodejs'
+
 // Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = createServiceClient();
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,17 +20,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if environment variables are set
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Missing environment variables');
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      );
-    }
-
     let userQuery;
-    let userData;
 
     // Query based on role and identifier type
     switch (role) {

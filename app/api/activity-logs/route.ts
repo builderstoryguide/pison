@@ -1,9 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { serializeSupabaseError } from '@/lib/safe-error'
+import { validateDatabaseSetup, createDatabaseSetupErrorResponse } from '@/lib/database-validation'
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
+    
+    // Validate database setup - check if user_activity_logs table exists and has required columns
+    try {
+      const validationResult = await validateDatabaseSetup(
+        supabase, 
+        ['user_activity_logs'], 
+        [],
+        [{ table: 'user_activity_logs', columns: ['details', 'action', 'created_at', 'user_id'] }],
+        []
+      );
+      
+      if (!validationResult.isValid) {
+        console.error('Database setup validation failed:', validationResult.errors);
+        const errorResponse = createDatabaseSetupErrorResponse(validationResult, 'user_activity_logs table');
+        return NextResponse.json(errorResponse, { status: 500 });
+      }
+    } catch (networkError) {
+      console.error('Network error when validating database setup:', networkError);
+      // Continue with query even if validation fails (non-blocking)
+    }
     
     // Get query parameters for filtering
     const { searchParams } = new URL(request.url)
@@ -53,9 +75,24 @@ export async function GET(request: NextRequest) {
     const { data: logs, error } = await query
 
     if (error) {
-      console.error('Error fetching activity logs:', error)
+      console.error('Error fetching activity logs:', serializeSupabaseError(error))
+      
+      // Provide actionable error messages for schema mismatches
+      const serializedError = serializeSupabaseError(error)
+      let suggestion = 'Please check your database schema and ensure all required columns exist.'
+      
+      if (error.code === '42703' || error.message?.includes('does not exist')) {
+        suggestion = 'Run the migration script 2025-11-04_019_fix_activity_logs_schema.sql to fix the schema. The "details" column may be missing or named incorrectly.'
+      }
+      
       return NextResponse.json(
-        { error: 'Failed to fetch activity logs' },
+        { 
+          ok: false, 
+          error: serializedError,
+          suggestion,
+          setupRequired: error.code === '42703',
+          setupScript: error.code === '42703' ? '2025-11-04_019_fix_activity_logs_schema.sql' : undefined
+        },
         { status: 500 }
       )
     }
@@ -79,9 +116,9 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error in activity logs API:', error)
+    console.error('Error in activity logs API:', serializeSupabaseError(error as any))
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { ok: false, error: serializeSupabaseError(error as any) },
       { status: 500 }
     )
   }

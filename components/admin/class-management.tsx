@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,17 +37,21 @@ import {
 } from "lucide-react"
 import { useClassManagement, type ClassData, type ClassFormData } from "@/lib/class-management-context"
 import { ClassForm } from "./class-form"
+import { LevelForm } from "./level-form"
 import { ClassDetailsDialog } from "./class-details-dialog"
 import { ClassStudentManagement } from "./class-student-management"
 import { ShimmerStatsCards, ShimmerDataTable } from "@/components/ui/shimmer-loading"
+import { useToast } from "@/hooks/use-toast"
 
 export function ClassManagement() {
   const { isLoading, deleteClass, getClassesPaginated, totalClassesCount } = useClassManagement()
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [subsystemFilter, setSubsystemFilter] = useState<string>("all")
   const [branchFilter, setBranchFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [showCreateLevelForm, setShowCreateLevelForm] = useState(false)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
   const [showStudentManagement, setShowStudentManagement] = useState(false)
   const [selectedClass, setSelectedClass] = useState<ClassData | null>(null)
@@ -63,6 +68,9 @@ export function ClassManagement() {
   const [paginatedClasses, setPaginatedClasses] = useState<ClassData[]>([])
   const [totalItems, setTotalItems] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
+  const [activeTab, setActiveTab] = useState("classes")
+  const [levels, setLevels] = useState<Array<{ id: string; name: string; subsystem: string; branch: string; created_at: string }>>([])
+  const [isLoadingLevels, setIsLoadingLevels] = useState(false)
 
   // Load classes with pagination and filters
   const loadPaginatedClasses = React.useCallback(async () => {
@@ -93,6 +101,32 @@ export function ClassManagement() {
   React.useEffect(() => {
     loadPaginatedClasses()
   }, [loadPaginatedClasses])
+
+  // Load levels when component mounts or when levels tab is active
+  const loadLevels = React.useCallback(async () => {
+    setIsLoadingLevels(true)
+    try {
+      const response = await fetch('/api/levels')
+      if (response.ok) {
+        const data = await response.json()
+        setLevels(data || [])
+      } else {
+        console.error("Error loading levels:", response.statusText)
+        setLevels([])
+      }
+    } catch (error) {
+      console.error("Error loading levels:", error)
+      setLevels([])
+    } finally {
+      setIsLoadingLevels(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    if (activeTab === "levels") {
+      loadLevels()
+    }
+  }, [activeTab, loadLevels])
   
   // Reset to first page when filters change
   React.useEffect(() => {
@@ -165,6 +199,10 @@ export function ClassManagement() {
             <Plus className="h-4 w-4 mr-2" />
             Create Class
           </Button>
+          <Button variant="outline" onClick={() => setShowCreateLevelForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Level
+          </Button>
           <Button onClick={() => setShowCreateForm(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Quick Add
@@ -229,10 +267,17 @@ export function ClassManagement() {
       {/* Filters and Search */}
       <Card>
         <CardHeader>
-          <CardTitle>Classes</CardTitle>
-          <CardDescription>View and manage all classes in the system</CardDescription>
+          <CardTitle>Classes & Levels</CardTitle>
+          <CardDescription>View and manage all classes and levels in the system</CardDescription>
         </CardHeader>
         <CardContent>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
+            <TabsList className="w-auto">
+              <TabsTrigger value="classes">Classes</TabsTrigger>
+              <TabsTrigger value="levels">Levels</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="classes" className="mt-6">
           <div className="flex items-center gap-4 mb-6">
             <div className="flex-1">
               <div className="relative">
@@ -578,6 +623,92 @@ export function ClassManagement() {
               </div>
             </div>
           )}
+            </TabsContent>
+
+            <TabsContent value="levels" className="mt-6">
+              <div className="space-y-4">
+                {isLoadingLevels ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">Loading levels...</p>
+                  </div>
+                ) : levels.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No levels found. Create a level to get started.</p>
+                  </div>
+                ) : (
+                  <div className="rounded-md border overflow-hidden">
+                    <Table className="w-full">
+                      <TableHeader>
+                        <TableRow className="bg-muted/30 border-b-2">
+                          <TableHead className="px-4 py-3 font-semibold text-sm uppercase tracking-wide text-muted-foreground">Level Name</TableHead>
+                          <TableHead className="px-4 py-3 font-semibold text-sm uppercase tracking-wide text-muted-foreground">Subsystem</TableHead>
+                          <TableHead className="px-4 py-3 font-semibold text-sm uppercase tracking-wide text-muted-foreground">Branch</TableHead>
+                          <TableHead className="px-4 py-3 font-semibold text-sm uppercase tracking-wide text-muted-foreground">Created At</TableHead>
+                          <TableHead className="w-[80px] px-4 py-3 font-semibold text-sm uppercase tracking-wide text-muted-foreground">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {levels.map((level) => (
+                          <TableRow key={level.id} className="hover:bg-muted/50 transition-colors border-b border-border/50">
+                            <TableCell className="px-4 py-3 font-medium">{level.name}</TableCell>
+                            <TableCell className="px-4 py-3 capitalize">{level.subsystem}</TableCell>
+                            <TableCell className="px-4 py-3 capitalize">{level.branch}</TableCell>
+                            <TableCell className="px-4 py-3 text-muted-foreground">
+                              {new Date(level.created_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="px-4 py-3">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      if (confirm(`Are you sure you want to delete level "${level.name}"?`)) {
+                                        fetch(`/api/levels/${level.id}`, {
+                                          method: 'DELETE',
+                                        })
+                                          .then((response) => {
+                                            if (response.ok) {
+                                              toast.success("Level deleted successfully", {
+                                                description: `Level "${level.name}" has been deleted.`
+                                              })
+                                              loadLevels()
+                                            } else {
+                                              toast.error("Failed to delete level", {
+                                                description: "An error occurred while deleting the level."
+                                              })
+                                            }
+                                          })
+                                          .catch((error) => {
+                                            console.error('Error deleting level:', error)
+                                            toast.error("Error deleting level", {
+                                              description: error instanceof Error ? error.message : "An unexpected error occurred."
+                                            })
+                                          })
+                                      }
+                                    }}
+                                    className="text-red-600"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
@@ -596,6 +727,21 @@ export function ClassManagement() {
               setSelectedClass(null)
             }}
             editClass={selectedClass}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCreateLevelForm} onOpenChange={setShowCreateLevelForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Level</DialogTitle>
+          </DialogHeader>
+          <LevelForm 
+            onSuccess={() => {
+              setShowCreateLevelForm(false)
+              loadLevels()
+            }} 
+            onCancel={() => setShowCreateLevelForm(false)}
           />
         </DialogContent>
       </Dialog>

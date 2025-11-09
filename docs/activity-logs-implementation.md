@@ -34,15 +34,31 @@ The activity logs are stored in the `user_activity_logs` table:
 
 ```sql
 CREATE TABLE user_activity_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     action VARCHAR(100) NOT NULL,
     details TEXT,
     ip_address INET,
     user_agent TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
+
+**Important**: The column is named `details` (not `description`). If you encounter schema mismatch errors, run the migration script `2025-11-04_019_fix_activity_logs_schema.sql` to ensure the schema is correct.
+
+### Database Functions
+
+Two database functions are available for activity logs:
+
+1. **`get_recent_activity_logs(p_limit, p_offset)`**: Optimized function to fetch recent activity logs with user information
+   - Returns logs with joined user data
+   - More efficient than regular queries for unfiltered requests
+   - Falls back to regular query if function is not available
+
+2. **`log_user_activity(p_user_id, p_action, p_details, p_ip_address, p_user_agent)`**: Function to insert new activity logs
+   - Returns the UUID of the created log entry
+   - Used by API routes to log user activities
+   - Handles all required fields automatically
 
 ## API Endpoint
 
@@ -90,10 +106,13 @@ CREATE TABLE user_activity_logs (
 - Added `isLoadingLogs` state
 - Updated context interface and provider
 
-### 3. **API Route** (`app/api/activity-logs/route.ts`)
-- New endpoint for fetching activity logs
-- Supports filtering and search
-- Proper error handling
+### 3. **API Routes**
+- **`app/api/activity-logs/route.ts`**: Main endpoint for fetching activity logs
+- **`app/api/activity-logs/simple/route.ts`**: Simplified endpoint without function dependencies
+- **`app/api/activity-logs/optimized/route.ts`**: Optimized endpoint using database functions
+- All routes support filtering and search
+- Proper error handling with actionable error messages
+- Schema validation before querying
 - Data transformation for frontend compatibility
 
 ## Usage Instructions
@@ -187,19 +206,31 @@ Visit `/test-activity-logs` to test the functionality in isolation.
 
 ### Common Issues
 
-1. **No Logs Appearing**:
+1. **Schema Mismatch Errors** (Column "details" does not exist):
+   - **Cause**: The database column may be named `description` instead of `details`
+   - **Solution**: Run the migration script `2025-11-04_019_fix_activity_logs_schema.sql` in your Supabase SQL Editor
+   - This script will rename the column and create missing functions
+
+2. **Function Not Found Errors** (Could not find the function):
+   - **Cause**: Database functions `get_recent_activity_logs` or `log_user_activity` are missing
+   - **Solution**: Run the migration script `2025-11-04_019_fix_activity_logs_schema.sql`
+   - The API will automatically fall back to regular queries if functions are unavailable
+
+3. **No Logs Appearing**:
    - Check if `user_activity_logs` table exists
    - Verify API endpoint is accessible
    - Check browser console for errors
+   - Verify the `details` column exists (not `description`)
 
-2. **Empty State Not Showing**:
+4. **Empty State Not Showing**:
    - Verify `activityLogs` array is empty
    - Check if loading state is working correctly
 
-3. **API Errors**:
+5. **API Errors**:
    - Check Supabase connection
    - Verify table permissions
    - Check API route logs
+   - Look for schema validation errors in the response
 
 ### Debug Commands
 
@@ -211,11 +242,45 @@ SELECT EXISTS (
 );
 
 -- Check table structure
-\d user_activity_logs
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_name = 'user_activity_logs'
+ORDER BY ordinal_position;
+
+-- Verify details column exists (not description)
+SELECT column_name 
+FROM information_schema.columns 
+WHERE table_name = 'user_activity_logs' 
+AND column_name IN ('details', 'description');
+
+-- Check if functions exist
+SELECT routine_name 
+FROM information_schema.routines 
+WHERE routine_schema = 'public' 
+AND routine_name IN ('get_recent_activity_logs', 'log_user_activity');
 
 -- Check for data
 SELECT COUNT(*) FROM user_activity_logs;
 
 -- Check recent logs
 SELECT * FROM user_activity_logs ORDER BY created_at DESC LIMIT 10;
+
+-- Test the get_recent_activity_logs function
+SELECT * FROM get_recent_activity_logs(10, 0);
 ```
+
+### Migration Script
+
+If you encounter schema issues, run the migration script:
+
+```sql
+-- Run in Supabase SQL Editor
+-- File: scripts/2025-11-04_019_fix_activity_logs_schema.sql
+```
+
+This script will:
+- Rename `description` column to `details` (if needed)
+- Create `get_recent_activity_logs` function
+- Create `log_user_activity` function
+- Add helpful indexes
+- Grant necessary permissions

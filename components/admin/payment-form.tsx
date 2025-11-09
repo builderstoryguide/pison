@@ -18,6 +18,7 @@ import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useFinancial, type Payment } from "@/lib/financial-context"
 import { useStudentManagement } from "@/lib/student-management-context"
+import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
 import { cn } from "@/lib/utils"
 
 const paymentSchema = z.object({
@@ -44,6 +45,7 @@ interface PaymentFormProps {
 export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps) {
   const { recordPayment, updatePayment, feeStructures, isLoading } = useFinancial()
   const { students, loadStudents } = useStudentManagement()
+  const globalAcademicYear = useGlobalAcademicYear()
   const [selectedStudent, setSelectedStudent] = useState<string>(editData?.studentId || "")
   const [selectedFeeStructure, setSelectedFeeStructure] = useState<string>(editData?.feeStructureId || "")
 
@@ -92,7 +94,7 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
         status: status as "pending" | "partial" | "completed" | "overdue",
         paymentDate: format(data.paymentDate, "yyyy-MM-dd"),
         term: "first" as const, // This should be determined from fee structure
-        academicYear: "2024-2025", // This should be determined from fee structure
+        academicYear: globalAcademicYear, // Use global academic year
         receiptNumber: `REC-${Date.now().toString().slice(-6)}`, // Generate a receipt number
       }
 

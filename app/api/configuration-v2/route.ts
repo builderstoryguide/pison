@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireRole, getUserFromRequest } from '@/lib/auth/server'
 
 // Enhanced error types for better debugging
 interface ApiError {
@@ -25,7 +26,7 @@ const createErrorResponse = (error: ApiError, status: number) => {
 const getDefaultConfiguration = () => ({
   id: null,
   school_name: process.env.NEXT_PUBLIC_SCHOOL_NAME || 'Pison Academy',
-  school_logo_url: process.env.NEXT_PUBLIC_SCHOOL_LOGO || '/placeholder-logo.svg',
+  school_logo_url: process.env.NEXT_PUBLIC_SCHOOL_LOGO || '/pison-logo.png',
   school_logo_alt_text: process.env.NEXT_PUBLIC_SCHOOL_LOGO_ALT || 'School Logo',
   school_address: process.env.NEXT_PUBLIC_SCHOOL_ADDRESS || '',
   school_phone: process.env.NEXT_PUBLIC_SCHOOL_PHONE || '',
@@ -51,15 +52,8 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now()
   
   try {
-    // Strategy 1: Try to get authenticated user
-    let user = null
-    try {
-      const supabase = await createClient()
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      user = authUser
-    } catch (authError) {
-      console.warn('Auth check failed, proceeding without authentication:', authError)
-    }
+    // Strategy 1: Try to get authenticated user (optional for GET)
+    const user = await getUserFromRequest(request)
 
     // Strategy 2: Try to fetch from database
     try {
@@ -138,32 +132,8 @@ export async function PUT(request: NextRequest) {
   const startTime = Date.now()
   
   try {
-    // Check authentication
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) {
-      return createErrorResponse({
-        code: 'UNAUTHORIZED',
-        message: 'Authentication required',
-        timestamp: new Date().toISOString()
-      }, 401)
-    }
-
-    // Check admin permissions
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!userProfile || userProfile.role !== 'admin') {
-      return createErrorResponse({
-        code: 'FORBIDDEN',
-        message: 'Admin role required',
-        timestamp: new Date().toISOString()
-      }, 403)
-    }
+    // Check authentication and admin role
+    const user = await requireRole(request, 'admin')
 
     // Parse and validate request body
     let body
@@ -227,34 +197,59 @@ export async function PUT(request: NextRequest) {
       }, 400)
     }
 
+    // Prepare update data
+    const updateData = {
+      school_name: school_name.trim(),
+      school_logo_url: school_logo_url?.trim() || null,
+      school_logo_alt_text: school_logo_alt_text?.trim() || 'School Logo',
+      school_address: school_address?.trim() || null,
+      school_phone: school_phone?.trim() || null,
+      school_email: school_email?.trim() || null,
+      school_website: school_website?.trim() || null,
+      school_motto: school_motto?.trim() || null,
+      primary_color: primary_color?.trim() || '#1f2937',
+      secondary_color: secondary_color?.trim() || '#3b82f6',
+      academic_year: academic_year?.trim() || '2024-2025',
+      currency: currency?.trim() || 'XOF',
+      timezone: timezone?.trim() || 'Africa/Douala',
+      language: language?.trim() || 'en',
+      date_format: date_format?.trim() || 'DD/MM/YYYY',
+      time_format: time_format?.trim() || '24h',
+      updated_by: user.id
+    }
+
+    // Create Supabase client
+    const supabase = await createClient()
+
     // Try to update/create configuration
+    let existingConfig: { id: string } | null = null
     try {
       // Check if configuration exists
-      const { data: existingConfig } = await supabase
+      const { data: configData, error: checkError } = await supabase
         .from('app_configuration')
         .select('id')
         .limit(1)
-        .single()
+        .maybeSingle()
 
-      const updateData = {
-        school_name: school_name.trim(),
-        school_logo_url: school_logo_url?.trim() || null,
-        school_logo_alt_text: school_logo_alt_text?.trim() || 'School Logo',
-        school_address: school_address?.trim() || null,
-        school_phone: school_phone?.trim() || null,
-        school_email: school_email?.trim() || null,
-        school_website: school_website?.trim() || null,
-        school_motto: school_motto?.trim() || null,
-        primary_color: primary_color?.trim() || '#1f2937',
-        secondary_color: secondary_color?.trim() || '#3b82f6',
-        academic_year: academic_year?.trim() || '2024-2025',
-        currency: currency?.trim() || 'XOF',
-        timezone: timezone?.trim() || 'Africa/Douala',
-        language: language?.trim() || 'en',
-        date_format: date_format?.trim() || 'DD/MM/YYYY',
-        time_format: time_format?.trim() || '24h',
-        updated_by: user.id
+      // Handle table not existing error
+      if (checkError && (checkError.code === 'PGRST116' || checkError.message?.includes('relation "app_configuration" does not exist'))) {
+        return createErrorResponse({
+          code: 'TABLE_NOT_FOUND',
+          message: 'Configuration table does not exist. Please create the app_configuration table in your Supabase database first.',
+          details: { 
+            instructions: 'Run the SQL script from scripts/create-app-configuration-table.sql in your Supabase SQL editor.' 
+          },
+          timestamp: new Date().toISOString()
+        }, 500)
       }
+
+      // PGRST301 (no rows found) is expected when creating first config, so we ignore it
+      // Other errors should be thrown
+      if (checkError && checkError.code !== 'PGRST301') {
+        throw checkError
+      }
+
+      existingConfig = configData
 
       let result
       if (existingConfig) {
@@ -266,8 +261,14 @@ export async function PUT(request: NextRequest) {
           .select()
           .single()
 
-        if (error) throw error
-        result = { data, error }
+        if (error) {
+          console.error('Error updating configuration:', error)
+          throw error
+        }
+        if (!data) {
+          throw new Error('Update operation returned no data')
+        }
+        result = { data, error: null }
       } else {
         // Create new
         const { data, error } = await supabase
@@ -279,8 +280,18 @@ export async function PUT(request: NextRequest) {
           .select()
           .single()
 
-        if (error) throw error
-        result = { data, error }
+        if (error) {
+          console.error('Error creating configuration:', error)
+          throw error
+        }
+        if (!data) {
+          throw new Error('Insert operation returned no data')
+        }
+        result = { data, error: null }
+      }
+
+      if (!result.data) {
+        throw new Error('Configuration operation completed but no data was returned')
       }
 
       return NextResponse.json({
@@ -312,6 +323,11 @@ export async function PUT(request: NextRequest) {
     }
 
   } catch (error) {
+    // If error is a NextResponse (from auth functions), return it directly
+    if (error instanceof NextResponse) {
+      return error
+    }
+    
     console.error('Unexpected error in PUT /api/configuration-v2:', error)
     
     return createErrorResponse({
@@ -328,30 +344,8 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now()
   
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) {
-      return createErrorResponse({
-        code: 'UNAUTHORIZED',
-        message: 'Authentication required',
-        timestamp: new Date().toISOString()
-      }, 401)
-    }
-
-    const { data: userProfile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!userProfile || userProfile.role !== 'admin') {
-      return createErrorResponse({
-        code: 'FORBIDDEN',
-        message: 'Admin role required',
-        timestamp: new Date().toISOString()
-      }, 403)
-    }
+    // Check authentication and admin role
+    const user = await requireRole(request, 'admin')
 
     let body
     try {
@@ -418,6 +412,11 @@ export async function POST(request: NextRequest) {
     }, 400)
 
   } catch (error) {
+    // If error is a NextResponse (from auth functions), return it directly
+    if (error instanceof NextResponse) {
+      return error
+    }
+    
     console.error('Unexpected error in POST /api/configuration-v2:', error)
     
     return createErrorResponse({

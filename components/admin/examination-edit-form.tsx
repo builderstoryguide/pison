@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useExamination, type Examination, type ExamFormData } from "@/lib/examination-context"
 import { cn } from "@/lib/utils"
+import { useLevels } from "@/hooks/use-levels"
 
 const examinationSchema = z.object({
   title: z.string().min(1, "Examination title is required"),
@@ -43,18 +44,6 @@ const examBoards = {
   french: ["Ministère de l'Éducation", "DIPES", "School Board"],
 }
 
-const levels = {
-  english: {
-    grammar: ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5", "Lower Sixth", "Upper Sixth"],
-    technical: ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5"],
-    commercial: ["Form 1", "Form 2", "Form 3", "Form 4", "Form 5"],
-  },
-  french: {
-    grammar: ["Sixième", "Cinquième", "Quatrième", "Troisième", "Seconde", "Première", "Terminale"],
-    technical: ["Sixième", "Cinquième", "Quatrième", "Troisième", "Seconde", "Première", "Terminale"],
-    commercial: ["Sixième", "Cinquième", "Quatrième", "Troisième", "Seconde", "Première", "Terminale"],
-  },
-}
 
 const subjects = {
   english: {
@@ -191,15 +180,23 @@ export function ExaminationEditForm({ examination, onSuccess, onCancel }: Examin
   const watchedSubsystem = watch("subsystem")
   const watchedBranch = watch("branch")
 
+  // Fetch levels based on selected subsystem and branch
+  const { levels: fetchedLevels, isLoading: levelsLoading } = useLevels({
+    subsystem: watchedSubsystem || null,
+    branch: watchedBranch || null,
+    enabled: !!watchedSubsystem && !!watchedBranch,
+  })
+
+  const availableLevels = fetchedLevels.map((level) => level.name)
+
   // Update available levels and subjects when subsystem or branch changes
   useEffect(() => {
-    const availableLevels = levels[watchedSubsystem]?.[watchedBranch] || []
     const currentLevel = watch("level")
     
     if (!availableLevels.includes(currentLevel) && availableLevels.length > 0) {
       setValue("level", availableLevels[0])
     }
-  }, [watchedSubsystem, watchedBranch, watch, setValue])
+  }, [watchedSubsystem, watchedBranch, availableLevels, watch, setValue])
 
   const handleSubjectToggle = (subject: string) => {
     const updatedSubjects = selectedSubjects.includes(subject)
@@ -329,16 +326,28 @@ export function ExaminationEditForm({ examination, onSuccess, onCancel }: Examin
 
               <div className="space-y-2">
                 <Label htmlFor="level">Level</Label>
-                <Select value={watch("level")} onValueChange={(value) => setValue("level", value)}>
+                <Select 
+                  value={watch("level")} 
+                  onValueChange={(value) => setValue("level", value)}
+                  disabled={levelsLoading || !watchedSubsystem || !watchedBranch}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select level" />
+                    <SelectValue placeholder={levelsLoading ? "Loading levels..." : "Select level"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {levels[watchedSubsystem]?.[watchedBranch]?.map((level) => (
-                      <SelectItem key={level} value={level}>
-                        {level}
+                    {availableLevels.length === 0 && !levelsLoading ? (
+                      <SelectItem value="no-levels" disabled>
+                        {!watchedSubsystem || !watchedBranch 
+                          ? "Please select subsystem and branch first"
+                          : "No levels available. Create levels in Class Management first."}
                       </SelectItem>
-                    ))}
+                    ) : (
+                      availableLevels.map((level) => (
+                        <SelectItem key={level} value={level}>
+                          {level}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
                 {errors.level && <p className="text-sm text-red-600">{errors.level.message}</p>}

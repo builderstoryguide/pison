@@ -187,8 +187,31 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       }
       
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`)
+        let errorData: any
+        try {
+          errorData = await response.json()
+        } catch (e) {
+          errorData = { message: `HTTP ${response.status}: ${response.statusText}` }
+        }
+        
+        // Handle database setup errors with actionable messages
+        if (errorData.setupRequired || errorData.error === 'Database not set up') {
+          const missingScripts = errorData.missingScripts?.length > 0 
+            ? `\n\nMissing migration scripts: ${errorData.missingScripts.join(', ')}`
+            : ''
+          const setupMessage = errorData.setupInstructions 
+            ? `${errorData.message}${missingScripts}\n\n${errorData.setupInstructions}`
+            : errorData.message || 'Database not configured. Please run the setup scripts in Supabase SQL Editor.'
+          console.warn('Activity logs database setup error:', setupMessage)
+          // Don't throw - just log and continue with empty logs
+          setActivityLogs([])
+          return
+        }
+        
+        console.warn('Failed to load activity logs:', errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`)
+        // Don't throw - just log and continue with empty logs
+        setActivityLogs([])
+        return
       }
 
       const result = await response.json()
@@ -196,8 +219,14 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       setLastFetchTime(prev => ({ ...prev, logs: now }))
     } catch (error) {
       console.error('Failed to load activity logs:', error)
-      // Keep empty array if API fails
+      // Keep empty array if API fails, but don't set error state for activity logs
+      // as it's not critical for the main functionality
       setActivityLogs([])
+      
+      // Log schema errors for debugging
+      if (error instanceof Error && (error.message.includes('schema cache') || error.message.includes('does not exist'))) {
+        console.warn('Activity logs database schema error. Ensure user_activity_logs table exists.')
+      }
     } finally {
       setIsLoadingLogs(false)
     }
@@ -232,12 +261,26 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       const response = await fetch('/api/users?limit=50')
       
       if (!response.ok) {
+        let errorData: any
         let parsedMessage: string | undefined
         try {
           const contentType = response.headers.get('content-type') || ''
           if (contentType.includes('application/json')) {
-            const errorData = await response.json()
-            parsedMessage = errorData?.error || errorData?.message
+            errorData = await response.json()
+            // Handle structured database setup errors
+            if (errorData.setupRequired || errorData.error === 'Database not set up') {
+              const missingScripts = errorData.missingScripts?.length > 0 
+                ? `\n\nMissing migration scripts: ${errorData.missingScripts.join(', ')}`
+                : ''
+              parsedMessage = errorData.setupInstructions 
+                ? `${errorData.message}${missingScripts}\n\n${errorData.setupInstructions}`
+                : errorData.message || 'Database not configured. Please run the setup scripts in Supabase SQL Editor.'
+            } else if (errorData.hint) {
+              // Include hints from API (e.g., schema cache issues)
+              parsedMessage = `${errorData.message || errorData.error}\n\nHint: ${errorData.hint}`
+            } else {
+              parsedMessage = errorData?.message || errorData?.error
+            }
           } else {
             const text = await response.text()
             parsedMessage = text?.slice(0, 300)
@@ -291,15 +334,20 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
     } catch (error) {
       console.error('Failed to load users:', error)
       let errorMessage = error instanceof Error ? error.message : 'Failed to load users'
+      
       // Network/Fetch failure (server down, CORS, DNS, etc.)
       if (error instanceof TypeError && /fetch failed/i.test(error.message)) {
         errorMessage = 'Unable to reach the server. Ensure the development server is running and environment variables are set.'
       }
+      
+      // Database setup errors already have detailed messages from the API
+      // The error message will already include setup instructions if it's a setup error
       setError(errorMessage)
       
-      // If it's a database setup error, show a helpful message
-      if (errorMessage.includes('Database not set up') || errorMessage.includes('Please run the database setup script')) {
-        setError('Database not configured. Please run the setup script in Supabase SQL Editor.')
+      // Log detailed error information for debugging
+      if (errorMessage.includes('schema cache') || errorMessage.includes('does not exist')) {
+        console.error('Database schema error detected. Please ensure all migration scripts have been run.')
+        console.error('Error details:', error)
       }
       
       // Keep empty array if API fails

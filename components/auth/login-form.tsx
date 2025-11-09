@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { Eye, EyeOff, School, Languages, User, GraduationCap, Users, DollarSign, UserCheck } from 'lucide-react'
+import { useSchoolLogo, useSchoolName } from '@/lib/app-configuration-context-v2'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -40,6 +41,8 @@ const placeholderTexts = {
 
 export function LoginForm() {
   const { login, isLoading, error } = useAuth()
+  const schoolLogo = useSchoolLogo()
+  const schoolName = useSchoolName()
   const [formData, setFormData] = useState({
     identifier: '',
     password: '',
@@ -67,10 +70,14 @@ export function LoginForm() {
         <div className="text-center space-y-2">
           <div className="flex justify-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <School className="h-6 w-6" />
+              {schoolLogo.url ? (
+                <img src={schoolLogo.url} alt={schoolLogo.alt} className="h-8 w-8 object-contain" />
+              ) : (
+                <School className="h-6 w-6" />
+              )}
             </div>
           </div>
-          <h1 className="text-2xl font-bold">Pison Academy of Excellence</h1>
+          <h1 className="text-2xl font-bold">{schoolName}</h1>
           <p className="text-muted-foreground">School Management System</p>
           <div className="flex justify-center">
             <Badge variant="outline" className="flex items-center gap-1">

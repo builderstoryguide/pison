@@ -184,46 +184,6 @@ const mockFeeStructures: FeeStructure[] = [
   },
 ]
 
-const mockPayments: Payment[] = [
-  {
-    id: "pay-1",
-    studentId: "std-001",
-    studentName: "Marie Ngozi Atanga",
-    feeStructureId: "fee-1",
-    feeName: "First Term Fees - Form 5 Science",
-    amount: 75000,
-    amountPaid: 75000,
-    balance: 0,
-    paymentDate: "2024-09-15",
-    paymentMethod: "bank_transfer",
-    receiptNumber: "RCP-2024-001",
-    status: "completed",
-    term: "first",
-    academicYear: "2024-2025",
-    paidBy: "Marie Ngozi Atanga",
-    createdAt: "2024-09-15T00:00:00Z",
-    updatedAt: "2024-09-15T00:00:00Z",
-  },
-  {
-    id: "pay-2",
-    studentId: "std-002",
-    studentName: "Paul Biya Fru",
-    feeStructureId: "fee-1",
-    feeName: "First Term Fees - Form 5 Science",
-    amount: 75000,
-    amountPaid: 50000,
-    balance: 25000,
-    paymentDate: "2024-09-10",
-    paymentMethod: "mobile_money",
-    receiptNumber: "RCP-2024-002",
-    status: "partial",
-    term: "first",
-    academicYear: "2024-2025",
-    paidBy: "Paul Biya Fru",
-    createdAt: "2024-09-10T00:00:00Z",
-    updatedAt: "2024-09-10T00:00:00Z",
-  },
-]
 
 const mockPaymentPlans: PaymentPlan[] = [
   {
@@ -275,9 +235,9 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
 
   const loadFinancialData = useCallback(async () => {
     if (!supabase) {
-      console.log("⚠️ Supabase client not available - using mock data")
-      // Use mock data instead of empty arrays
-      setPayments(mockPayments)
+      console.log("⚠️ Supabase client not available - using empty data")
+      // Use empty arrays when Supabase is not available
+      setPayments([])
       setStudentFeeAssignments([])
       setFeeStructures(mockFeeStructures)
       setPaymentPlans(mockPaymentPlans)
@@ -294,9 +254,9 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
         .select("count", { count: "exact", head: true })
 
       if (testError) {
-        console.log("⚠️ Database connection test failed, using mock data:", testError.message)
-        // Use mock data instead of throwing error
-        setPayments(mockPayments)
+        console.log("⚠️ Database connection test failed, using empty data:", testError.message)
+        // Use empty arrays when database connection fails
+        setPayments([])
         setStudentFeeAssignments([])
         setFeeStructures(mockFeeStructures)
         return
@@ -326,9 +286,9 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
         .order("created_at", { ascending: false })
 
       if (paymentsError) {
-        console.log("⚠️ Error loading payments, using mock data:", paymentsError.message)
-        // Use mock data instead of logging error
-        setPayments(mockPayments)
+        console.log("⚠️ Error loading payments, using empty data:", paymentsError.message)
+        // Use empty array when payment loading fails
+        setPayments([])
       } else {
         console.log("Payments loaded successfully:", paymentsData?.length || 0, "records")
         const transformedPayments: Payment[] = (paymentsData || []).map((payment: any) => ({
@@ -404,35 +364,63 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
 
       console.log("Loading fee structures...")
 
-      // Load fee structures with class information
-      const { data: feeStructuresData, error: feeStructuresError } = await supabase
-        .from("fee_structures_with_classes")
-        .select("*")
-        .order("fee_structure_created_at", { ascending: false })
+      // Load fee structures directly from the table
+      // Try to query with class information first, fallback to simple query
+      let feeStructuresData: any[] | null = null
+      let feeStructuresError: any = null
+
+      // First try querying with class join
+      const { data: feeStructuresWithClasses, error: joinError } = await supabase
+        .from("fee_structures")
+        .select(`
+          *,
+          classes (id, name, subsystem, branch)
+        `)
+        .order("created_at", { ascending: false })
+
+      if (joinError) {
+        console.warn("Failed to load fee structures with classes, trying simple query:", joinError.message)
+        // Fallback to simple query without join
+        const { data: simpleData, error: simpleError } = await supabase
+          .from("fee_structures")
+          .select("*")
+          .order("created_at", { ascending: false })
+        
+        feeStructuresData = simpleData
+        feeStructuresError = simpleError
+      } else {
+        feeStructuresData = feeStructuresWithClasses
+      }
 
       if (feeStructuresError) {
-        console.log("⚠️ Error loading fee structures, using mock data:", feeStructuresError.message)
-        // Use mock data instead of logging error
-        setFeeStructures(mockFeeStructures)
+        console.error("⚠️ Error loading fee structures:", feeStructuresError.message)
+        // Don't use mock data - return empty array instead
+        setFeeStructures([])
       } else {
         console.log("Fee structures loaded successfully:", feeStructuresData?.length || 0, "records")
-        const transformedFeeStructures: FeeStructure[] = (feeStructuresData || []).map((fee: any) => ({
-          id: fee.fee_structure_id,
-          name: fee.fee_structure_name,
-          subsystem: fee.subsystem,
-          level: fee.level,
-          branch: fee.branch,
-          amount: fee.amount,
-          dueDate: fee.due_date,
-          term: fee.term,
-          academicYear: fee.academic_year,
-          description: fee.description,
-          isActive: fee.is_active,
-          classIds: fee.class_ids || [],
-          classNames: fee.class_names || [],
-          createdAt: fee.fee_structure_created_at,
-          updatedAt: fee.fee_structure_updated_at,
-        }))
+        const transformedFeeStructures: FeeStructure[] = (feeStructuresData || []).map((fee: any) => {
+          // Handle both joined and non-joined data formats
+          const className = fee.classes?.name || null
+          const classId = fee.class_id || null
+          
+          return {
+            id: fee.id,
+            name: fee.name,
+            subsystem: fee.subsystem,
+            level: fee.level || '',
+            branch: fee.branch,
+            amount: parseFloat(fee.amount || 0),
+            dueDate: fee.due_date,
+            term: fee.term,
+            academicYear: fee.academic_year,
+            description: fee.description || '',
+            isActive: fee.is_active !== undefined ? fee.is_active : true,
+            classIds: classId ? [classId] : [],
+            classNames: className ? [className] : [],
+            createdAt: fee.created_at,
+            updatedAt: fee.updated_at,
+          }
+        })
         setFeeStructures(transformedFeeStructures)
       }
 
@@ -467,9 +455,9 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
       console.log("Financial data loading completed successfully")
 
     } catch (error) {
-      console.log("⚠️ Error loading financial data, using mock data:", error)
-      // Use mock data on any error
-      setPayments(mockPayments)
+      console.log("⚠️ Error loading financial data, using empty data:", error)
+      // Use empty arrays on any error
+      setPayments([])
       setStudentFeeAssignments([])
       setFeeStructures(mockFeeStructures)
       setPaymentPlans(mockPaymentPlans)
@@ -834,23 +822,94 @@ export function FinancialProvider({ children }: { children: React.ReactNode }) {
         return { success: true }
       }
 
+      // Helper function to check if a string is a valid UUID
+      const isValidUUID = (str: string): boolean => {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        return uuidRegex.test(str)
+      }
+
+      // Check if this is a mock payment ID (not a valid UUID)
+      // Mock payments have IDs like "pay-1", "pay-2", etc.
+      if (!isValidUUID(id)) {
+        // This is a mock payment, just remove it from local state
+        console.log("Deleting mock payment (not a database record):", id)
+        setPayments((prev) => prev.filter((payment) => payment.id !== id))
+        return { success: true }
+      }
+
       setIsLoading(true)
       try {
-        const { error } = await supabase
+        // First, verify the table exists by trying to read from it
+        // This helps refresh Supabase's schema cache if needed
+        const { error: checkError } = await supabase
+          .from("payments")
+          .select("id", { count: "exact", head: true })
+          .eq("id", id)
+          .limit(1)
+
+        if (checkError) {
+          // If the error is about schema cache, provide helpful message
+          if (checkError.message?.includes("schema cache") || checkError.message?.includes("Could not find the table")) {
+            console.error("Schema cache error - table may not exist or cache needs refresh:", checkError)
+            return { 
+              success: false, 
+              error: "The payments table is not available. Please ensure the table exists in your database and refresh the Supabase schema cache in your dashboard." 
+            }
+          }
+        }
+
+        // Now try to delete
+        const { data: deletedData, error } = await supabase
           .from("payments")
           .delete()
           .eq("id", id)
+          .select()
 
         if (error) {
           console.error("Error deleting payment:", error)
-          return { success: false, error: error.message }
+          
+          // Handle UUID format errors
+          if (error.message?.includes("invalid input syntax for type uuid") || error.message?.includes("invalid input syntax")) {
+            // This shouldn't happen now since we check UUID format, but handle it gracefully
+            console.log("Invalid UUID format detected, treating as mock payment:", id)
+            setPayments((prev) => prev.filter((payment) => payment.id !== id))
+            return { success: true }
+          }
+          
+          // Handle schema cache errors specifically
+          if (error.message?.includes("schema cache") || error.message?.includes("Could not find the table")) {
+            return { 
+              success: false, 
+              error: "The payments table is not available in the schema cache. Please refresh the schema cache in your Supabase dashboard (Settings > API > Refresh Schema Cache) or ensure the table exists." 
+            }
+          }
+          
+          const errorMessage = error instanceof Error 
+            ? error.message 
+            : (error as any)?.message || String(error) || "An unknown error occurred"
+          return { success: false, error: errorMessage }
         }
 
+        // Check if any rows were actually deleted
+        if (!deletedData || deletedData.length === 0) {
+          console.warn("No payment was deleted. Payment may not exist in database:", id)
+          // Still remove from local state in case it's a sync issue
+          setPayments((prev) => prev.filter((payment) => payment.id !== id))
+          return { 
+            success: false, 
+            error: "Payment not found in database. It may have already been deleted." 
+          }
+        }
+
+        console.log("Payment deleted successfully from database:", deletedData)
         setPayments((prev) => prev.filter((payment) => payment.id !== id))
         return { success: true }
       } catch (error) {
         console.error("Error deleting payment:", error)
-        return { success: false, error: "Failed to delete payment" }
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : (error as any)?.message || String(error) || "Failed to delete payment"
+        return { success: false, error: errorMessage }
       } finally {
         setIsLoading(false)
       }

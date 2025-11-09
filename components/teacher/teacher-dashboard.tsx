@@ -214,6 +214,14 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
               <FileText className="h-4 w-4 mr-2" />
               Enter Grades
             </Button>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start bg-transparent"
+              onClick={() => onNavigate?.("examinations")}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Enter Exam Marks
+            </Button>
                          <Button 
                variant="outline" 
                className="w-full justify-start bg-transparent"
@@ -221,6 +229,14 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
              >
                <Plus className="h-4 w-4 mr-2" />
                Create Assessment
+             </Button>
+             <Button 
+               variant="outline" 
+               className="w-full justify-start bg-transparent"
+               onClick={() => onNavigate?.("my-assignments")}
+             >
+               <BookOpen className="h-4 w-4 mr-2" />
+               My Subjects & Classes
              </Button>
              <Button 
                variant="outline" 
