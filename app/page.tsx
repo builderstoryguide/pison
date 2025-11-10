@@ -14,6 +14,7 @@ import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 import { TeacherExaminationProvider } from "@/lib/teacher-examination-context"
 import { TeacherExamMarksProvider } from "@/lib/teacher-exam-marks-context"
 import { NotificationProvider } from "@/lib/notification-context"
+import { ReactQueryProvider } from "@/lib/react-query-setup"
 import { Dashboard } from "@/components/dashboard"
 import { Loader2 } from "lucide-react"
 function AppContent() {
@@ -31,35 +32,37 @@ function AppContent() {
   }
 
   return (
-    <AppConfigurationProvider>
-      <NotificationProvider>
-        <UserManagementProvider>
-        <StudentEnrollmentProvider>
-          <StudentManagementProvider>
-            <TeacherManagementProvider>
-              <ClassManagementProvider>
-                <ExaminationProvider>
-                  <FinancialProvider>
-                    <TeacherGradesProvider>
-                      <TeacherExaminationProvider>
-                        <TeacherExamMarksProvider>
-                          <ReportsAnalyticsProvider>
-                            <ProfileProvider>
-                              <Dashboard />
-                            </ProfileProvider>
-                          </ReportsAnalyticsProvider>
-                        </TeacherExamMarksProvider>
-                      </TeacherExaminationProvider>
-                    </TeacherGradesProvider>
-                  </FinancialProvider>
-                </ExaminationProvider>
-              </ClassManagementProvider>
-            </TeacherManagementProvider>
-          </StudentManagementProvider>
-        </StudentEnrollmentProvider>
-      </UserManagementProvider>
-    </NotificationProvider>
-    </AppConfigurationProvider>
+    <ReactQueryProvider>
+      <AppConfigurationProvider>
+        <NotificationProvider>
+          <UserManagementProvider>
+          <StudentEnrollmentProvider>
+            <StudentManagementProvider>
+              <TeacherManagementProvider>
+                <ClassManagementProvider>
+                  <ExaminationProvider>
+                    <FinancialProvider>
+                      <TeacherGradesProvider>
+                        <TeacherExaminationProvider>
+                          <TeacherExamMarksProvider>
+                            <ReportsAnalyticsProvider>
+                              <ProfileProvider>
+                                <Dashboard />
+                              </ProfileProvider>
+                            </ReportsAnalyticsProvider>
+                          </TeacherExamMarksProvider>
+                        </TeacherExaminationProvider>
+                      </TeacherGradesProvider>
+                    </FinancialProvider>
+                  </ExaminationProvider>
+                </ClassManagementProvider>
+              </TeacherManagementProvider>
+            </StudentManagementProvider>
+          </StudentEnrollmentProvider>
+        </UserManagementProvider>
+      </NotificationProvider>
+      </AppConfigurationProvider>
+    </ReactQueryProvider>
   )
 }
 

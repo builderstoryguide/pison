@@ -59,6 +59,7 @@ interface TeacherClassesContextType {
   isLoading: boolean
   error: string | null
   getTeacherClasses: () => Promise<TeacherClass[]>
+  loadTeacherClasses: () => Promise<void> // Explicit load function for lazy loading
   getClassById: (classId: string) => TeacherClass | undefined
   getClassStudents: (classId: string) => Student[]
   getClassSubjects: (classId: string) => Subject[]
@@ -74,10 +75,11 @@ export function TeacherClassesProvider({ children }: { children: React.ReactNode
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const getTeacherClasses = useCallback(async (): Promise<TeacherClass[]> => {
+  // Explicit load function for lazy loading
+  const loadTeacherClasses = useCallback(async (): Promise<void> => {
     if (!user?.id || user.role !== 'teacher') {
       setClasses([])
-      return []
+      return
     }
 
     setIsLoading(true)
@@ -181,24 +183,22 @@ export function TeacherClassesProvider({ children }: { children: React.ReactNode
 
       setClasses(transformedClasses)
       setIsLoading(false)
-      return transformedClasses
     } catch (err) {
       console.error('Error fetching teacher classes:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch teacher classes')
       setClasses([])
       setIsLoading(false)
-      return []
     }
   }, [user?.id, user?.role])
 
-  // Fetch classes when user is available
-  useEffect(() => {
-    if (user?.id && user.role === 'teacher') {
-      getTeacherClasses()
-    } else {
-      setClasses([])
-    }
-  }, [user?.id, user?.role, getTeacherClasses])
+  // Keep getTeacherClasses for backward compatibility, but it now calls loadTeacherClasses
+  const getTeacherClasses = useCallback(async (): Promise<TeacherClass[]> => {
+    await loadTeacherClasses()
+    return classes
+  }, [loadTeacherClasses, classes])
+
+  // Don't auto-fetch classes on mount - components will call loadTeacherClasses explicitly
+  // This enables lazy loading
 
   const getClassById = (classId: string): TeacherClass | undefined => {
     return classes.find((cls) => cls.id === classId)
@@ -238,6 +238,7 @@ export function TeacherClassesProvider({ children }: { children: React.ReactNode
     isLoading,
     error,
     getTeacherClasses,
+    loadTeacherClasses,
     getClassById,
     getClassStudents,
     getClassSubjects,

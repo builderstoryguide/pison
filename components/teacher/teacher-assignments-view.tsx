@@ -1,11 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { BookOpen, Users, GraduationCap, Search, AlertCircle, CheckCircle } from "lucide-react"
+import { useState, useMemo } from "react"
+import { BookOpen, Users, GraduationCap, Search, AlertCircle, CheckCircle, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
+import { useTeacherAssignments } from "@/lib/hooks/use-teacher-assignments"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
@@ -21,6 +23,14 @@ interface Subject {
   createdAt: string
 }
 
+interface ClassSubject {
+  id: string
+  name: string
+  code: string
+  coefficient: number
+  description?: string
+}
+
 interface Class {
   id: string
   name: string
@@ -30,7 +40,7 @@ interface Class {
   academicYear?: string
   capacity?: number
   currentEnrollment?: number
-  subjects?: string[]
+  subjects?: ClassSubject[] | string[]
   assignmentType: string
   status?: string
 }
@@ -46,54 +56,70 @@ interface TeacherAssignments {
 
 export function TeacherAssignmentsView() {
   const { user } = useAuth()
-  const [assignments, setAssignments] = useState<TeacherAssignments | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
+  const [allClasses, setAllClasses] = useState<Class[]>([])
+  const [allSubjects, setAllSubjects] = useState<Subject[]>([])
+  const limit = 20
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchAssignments()
-    }
-  }, [user])
+  // Fetch initial summary data (fast)
+  const { data: summaryData, isLoading: isLoadingSummary } = useTeacherAssignments({
+    page: 1,
+    limit: 1,
+    summaryOnly: true,
+  })
 
-  const fetchAssignments = async () => {
-    if (!user?.id) return
+  // Fetch paginated classes with details
+  const { data: assignmentsData, isLoading: isLoadingDetails, error: queryError, refetch } = useTeacherAssignments({
+    page,
+    limit,
+    includeDetails: true,
+  })
 
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const response = await fetch(`/api/teachers/${user.id}/assignments`)
-      const data = await response.json()
-
-      if (!response.ok || !data.ok) {
-        throw new Error(data.error || 'Failed to fetch assignments')
+  // Accumulate classes and subjects across pages
+  useMemo(() => {
+    if (assignmentsData) {
+      if (page === 1) {
+        setAllClasses(assignmentsData.classes || [])
+        setAllSubjects(assignmentsData.subjects || [])
+      } else {
+        setAllClasses(prev => [...prev, ...(assignmentsData.classes || [])])
       }
+    }
+  }, [assignmentsData, page])
 
-      setAssignments(data)
-    } catch (err) {
-      console.error('Error fetching assignments:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load assignments')
-    } finally {
-      setIsLoading(false)
+  // Use summary data for subjects (they don't need pagination)
+  useMemo(() => {
+    if (summaryData && page === 1) {
+      setAllSubjects(summaryData.subjects || [])
+    }
+  }, [summaryData, page])
+
+  const isLoading = isLoadingSummary || isLoadingDetails
+  const hasMore = assignmentsData?.pagination?.hasMore || false
+  const totalClasses = summaryData?.pagination?.total || assignmentsData?.pagination?.total || 0
+  const totalSubjects = summaryData?.subjects?.length || allSubjects.length
+
+  const loadMore = () => {
+    if (hasMore && !isLoadingDetails) {
+      setPage(prev => prev + 1)
     }
   }
 
-  const filteredSubjects = assignments?.subjects.filter((subject) =>
+  const filteredSubjects = allSubjects.filter((subject) =>
     subject.subjectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     subject.subjectCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     subject.subBranchName?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || []
+  )
 
-  const filteredClasses = assignments?.classes.filter((cls) =>
+  const filteredClasses = allClasses.filter((cls) =>
     cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cls.level.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cls.subsystem.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cls.branch.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || []
+  )
 
-  if (isLoading) {
+  if (isLoading && page === 1 && allClasses.length === 0) {
     return (
       <div className="space-y-6">
         <div>
@@ -120,7 +146,9 @@ export function TeacherAssignmentsView() {
     )
   }
 
-  if (error) {
+  const error = queryError instanceof Error ? queryError.message : queryError ? String(queryError) : null
+
+  if (error && page === 1 && allClasses.length === 0) {
     return (
       <div className="space-y-6">
         <div>
@@ -151,11 +179,11 @@ export function TeacherAssignmentsView() {
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
-            {assignments?.subjects.length || 0} Subjects
+            {totalSubjects} Subjects
           </div>
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            {assignments?.classes.length || 0} Classes
+            {totalClasses} Classes {allClasses.length < totalClasses && `(${allClasses.length} loaded)`}
           </div>
         </div>
       </div>
@@ -168,7 +196,7 @@ export function TeacherAssignmentsView() {
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{assignments?.subjects.length || 0}</div>
+            <div className="text-2xl font-bold">{totalSubjects}</div>
             <p className="text-xs text-muted-foreground">Subjects assigned to you</p>
           </CardContent>
         </Card>
@@ -179,7 +207,7 @@ export function TeacherAssignmentsView() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{assignments?.classes.length || 0}</div>
+            <div className="text-2xl font-bold">{totalClasses}</div>
             <p className="text-xs text-muted-foreground">Classes assigned to you</p>
           </CardContent>
         </Card>
@@ -191,7 +219,7 @@ export function TeacherAssignmentsView() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {assignments?.classes.filter((cls) => cls.assignmentType === 'class_teacher').length || 0}
+              {allClasses.filter((cls) => cls.assignmentType === 'class_teacher').length}
             </div>
             <p className="text-xs text-muted-foreground">Classes where you are class teacher</p>
           </CardContent>
@@ -350,11 +378,15 @@ export function TeacherAssignmentsView() {
                           <TableCell>
                             {cls.subjects && cls.subjects.length > 0 ? (
                               <div className="flex flex-wrap gap-1">
-                                {cls.subjects.slice(0, 2).map((subject, idx) => (
-                                  <Badge key={idx} variant="outline" className="text-xs">
-                                    {subject}
-                                  </Badge>
-                                ))}
+                                {cls.subjects.slice(0, 2).map((subject, idx) => {
+                                  const subjectName = typeof subject === 'string' ? subject : subject.name
+                                  const subjectKey = typeof subject === 'string' ? `subject-${idx}` : subject.id
+                                  return (
+                                    <Badge key={subjectKey} variant="outline" className="text-xs">
+                                      {subjectName}
+                                    </Badge>
+                                  )
+                                })}
                                 {cls.subjects.length > 2 && (
                                   <Badge variant="outline" className="text-xs">
                                     +{cls.subjects.length - 2}
@@ -370,6 +402,24 @@ export function TeacherAssignmentsView() {
                     ))}
                   </TableBody>
                 </Table>
+                {hasMore && (
+                  <div className="mt-4 flex justify-center">
+                    <Button
+                      onClick={loadMore}
+                      disabled={isLoadingDetails}
+                      variant="outline"
+                    >
+                      {isLoadingDetails ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        `Load More (${totalClasses - allClasses.length} remaining)`
+                      )}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

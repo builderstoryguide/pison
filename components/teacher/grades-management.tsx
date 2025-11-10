@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useTeacherGrades } from "@/lib/teacher-grades-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Progress } from "@/components/ui/progress"
-import { Plus, BookOpen, Users, TrendingUp, Award, Edit, Trash2, Eye, BarChart3 } from "lucide-react"
+import { Plus, BookOpen, Users, TrendingUp, Award, Edit, Trash2, Eye, BarChart3, Loader2 } from "lucide-react"
 
 export function GradesManagement() {
   const {
@@ -32,10 +32,22 @@ export function GradesManagement() {
     getStudentsByClass,
     deleteAssessment,
     loading,
+    loadingAssessments,
+    loadingGrades,
+    loadAssessments,
+    loadGrades,
+    loadAllData,
   } = useTeacherGrades()
 
   const [selectedTab, setSelectedTab] = useState("overview")
   const [selectedAssessment, setSelectedAssessment] = useState<string | null>(null)
+  const [assessmentPage, setAssessmentPage] = useState(1)
+  const assessmentsPerPage = 20
+
+  // Lazy load data when component mounts
+  useEffect(() => {
+    loadAllData()
+  }, [loadAllData])
 
   // Memoized statistics
   const getAssessmentStats = useMemo(() => {
@@ -88,6 +100,16 @@ export function GradesManagement() {
       totalClasses: classes.length,
     }
   }, [assessments.length, grades.length, students.length, classes.length])
+
+  // Paginated assessments
+  const paginatedAssessments = useMemo(() => {
+    const sorted = [...assessments].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+    return sorted.slice(0, assessmentPage * assessmentsPerPage)
+  }, [assessments, assessmentPage, assessmentsPerPage])
+
+  const hasMoreAssessments = assessments.length > paginatedAssessments.length
 
   const handleDeleteAssessment = async (assessmentId: string) => {
     if (
@@ -314,57 +336,90 @@ export function GradesManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {assessments.map((assessment) => {
-                    const stats = getAssessmentStats(assessment.id)
-                    return (
-                      <TableRow key={assessment.id}>
-                        <TableCell className="font-medium">{assessment.title}</TableCell>
-                        <TableCell>{assessment.className}</TableCell>
-                        <TableCell>{assessment.subject}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize">
-                            {assessment.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{new Date(assessment.date).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          {stats.submittedCount}/{stats.totalStudents}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <AssessmentDetailsDialog assessment={assessment} />
-                            </Dialog>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedAssessment(assessment.id)
-                                setSelectedTab("enter-grades")
-                              }}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteAssessment(assessment.id)}
-                              disabled={loading}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
+                  {loadingAssessments && paginatedAssessments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                        <p className="text-muted-foreground">Loading assessments...</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : paginatedAssessments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <p className="text-muted-foreground">No assessments found. Create your first assessment!</p>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedAssessments.map((assessment) => {
+                      const stats = getAssessmentStats(assessment.id)
+                      return (
+                        <TableRow key={assessment.id}>
+                          <TableCell className="font-medium">{assessment.title}</TableCell>
+                          <TableCell>{assessment.className}</TableCell>
+                          <TableCell>{assessment.subject}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize">
+                              {assessment.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{new Date(assessment.date).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            {stats.submittedCount}/{stats.totalStudents}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <AssessmentDetailsDialog assessment={assessment} />
+                              </Dialog>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedAssessment(assessment.id)
+                                  setSelectedTab("enter-grades")
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteAssessment(assessment.id)}
+                                disabled={loading}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
                 </TableBody>
               </Table>
+              {hasMoreAssessments && (
+                <div className="mt-4 flex justify-center">
+                  <Button
+                    onClick={() => setAssessmentPage(prev => prev + 1)}
+                    variant="outline"
+                    disabled={loadingAssessments}
+                  >
+                    {loadingAssessments ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      `Load More (${assessments.length - paginatedAssessments.length} remaining)`
+                    )}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

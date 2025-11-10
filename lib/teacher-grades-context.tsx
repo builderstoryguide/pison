@@ -60,7 +60,20 @@ interface TeacherGradesContextType {
   classes: TeacherClass[]
   teacherSubjects: string[] // Add teacher subjects
   loading: boolean
+  loadingAssessments: boolean
+  loadingGrades: boolean
+  loadingStudents: boolean
+  loadingClasses: boolean
+  loadingSubjects: boolean
   error: string | null
+
+  // Data loading functions (lazy loading)
+  loadAssessments: () => Promise<void>
+  loadGrades: () => Promise<void>
+  loadStudents: () => Promise<void>
+  loadClasses: () => Promise<void>
+  loadTeacherSubjects: () => Promise<void>
+  loadAllData: () => Promise<void>
 
   // Assessment functions
   createAssessment: (assessment: Omit<Assessment, "id" | "createdAt">) => Promise<void>
@@ -215,14 +228,37 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
   const [classes, setClasses] = useState<TeacherClass[]>(mockClasses)
   const [teacherSubjects, setTeacherSubjects] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingAssessments, setLoadingAssessments] = useState(false)
+  const [loadingGrades, setLoadingGrades] = useState(false)
+  const [loadingStudents, setLoadingStudents] = useState(false)
+  const [loadingClasses, setLoadingClasses] = useState(false)
+  const [loadingSubjects, setLoadingSubjects] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [useDatabase, setUseDatabase] = useState(false)
+  const [dataLoaded, setDataLoaded] = useState({
+    assessments: false,
+    grades: false,
+    students: false,
+    classes: false,
+    subjects: false,
+  })
 
   const loadTeacherSubjects = useCallback(async () => {
     // Early return if database is not enabled
     if (!useDatabase || !supabase) {
+      // Set default subjects if not using database
+      if (teacherSubjects.length === 0) {
+        setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
+      }
       return
     }
+
+    // Skip if already loaded
+    if (dataLoaded.subjects) {
+      return
+    }
+
+    setLoadingSubjects(true)
 
     try {
       // Validate user exists and has an ID
@@ -378,15 +414,18 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       
       // Set default subjects on error instead of throwing
       setTeacherSubjects(['Mathematics', 'Physics', 'Chemistry', 'Biology'])
+    } finally {
+      setLoadingSubjects(false)
+      setDataLoaded(prev => ({ ...prev, subjects: true }))
     }
-  }, [useDatabase, user, user?.id])
+  }, [useDatabase, user, user?.id, dataLoaded.subjects, teacherSubjects.length])
 
-  const loadDataFromDatabase = useCallback(async () => {
-    if (!useDatabase || !supabase) return
+  // Individual load functions for lazy loading
+  const loadAssessments = useCallback(async () => {
+    if (!useDatabase || !supabase || dataLoaded.assessments) return
 
-    setLoading(true)
+    setLoadingAssessments(true)
     try {
-      // Load assessments
       const { data: assessmentsData, error: assessmentsError } = await supabase
         .from("assessments")
         .select("*")
@@ -406,6 +445,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           createdAt: assessment.created_at,
         }))
         setAssessments(formattedAssessments)
+        setDataLoaded(prev => ({ ...prev, assessments: true }))
       } else if (assessmentsError) {
         try {
           const { serializeSupabaseError } = await import('./safe-error')
@@ -414,8 +454,18 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           console.error('Supabase error fetching assessments:', assessmentsError)
         }
       }
+    } catch (err) {
+      console.error("Error loading assessments:", err)
+    } finally {
+      setLoadingAssessments(false)
+    }
+  }, [useDatabase, dataLoaded.assessments])
 
-      // Load grades
+  const loadGrades = useCallback(async () => {
+    if (!useDatabase || !supabase || dataLoaded.grades) return
+
+    setLoadingGrades(true)
+    try {
       const { data: gradesData, error: gradesError } = await supabase
         .from("grades")
         .select("*")
@@ -434,6 +484,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           submittedAt: grade.submitted_at,
         }))
         setGrades(formattedGrades)
+        setDataLoaded(prev => ({ ...prev, grades: true }))
       } else if (gradesError) {
         try {
           const { serializeSupabaseError } = await import('./safe-error')
@@ -442,8 +493,18 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           console.error('Supabase error fetching grades:', gradesError)
         }
       }
+    } catch (err) {
+      console.error("Error loading grades:", err)
+    } finally {
+      setLoadingGrades(false)
+    }
+  }, [useDatabase, dataLoaded.grades])
 
-      // Load students (from students table)
+  const loadStudents = useCallback(async () => {
+    if (!useDatabase || !supabase || dataLoaded.students) return
+
+    setLoadingStudents(true)
+    try {
       const { data: studentsData, error: studentsError } = await supabase
         .from("students")
         .select("id, first_name, last_name, email, student_id, class_id, class_name")
@@ -459,6 +520,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           className: student.class_name || "",
         }))
         setStudents(formattedStudents)
+        setDataLoaded(prev => ({ ...prev, students: true }))
       } else if (studentsError) {
         try {
           const { serializeSupabaseError } = await import('./safe-error')
@@ -467,8 +529,18 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           console.error('Supabase error fetching students:', studentsError)
         }
       }
+    } catch (err) {
+      console.error("Error loading students:", err)
+    } finally {
+      setLoadingStudents(false)
+    }
+  }, [useDatabase, dataLoaded.students])
 
-      // Load classes (from classes table)
+  const loadClasses = useCallback(async () => {
+    if (!useDatabase || !supabase || dataLoaded.classes) return
+
+    setLoadingClasses(true)
+    try {
       const { data: classesData, error: classesError } = await supabase
         .from("classes")
         .select("*")
@@ -485,6 +557,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           schedule: cls.schedule || "",
         }))
         setClasses(formattedClasses)
+        setDataLoaded(prev => ({ ...prev, classes: true }))
       } else if (classesError) {
         try {
           const { serializeSupabaseError } = await import('./safe-error')
@@ -493,9 +566,26 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           console.error('Supabase error fetching classes:', classesError)
         }
       }
+    } catch (err) {
+      console.error("Error loading classes:", err)
+    } finally {
+      setLoadingClasses(false)
+    }
+  }, [useDatabase, dataLoaded.classes])
 
-      // Load teacher subjects
-      await loadTeacherSubjects()
+  // Load all data at once (for backward compatibility)
+  const loadAllData = useCallback(async () => {
+    if (!useDatabase || !supabase) return
+
+    setLoading(true)
+    try {
+      await Promise.all([
+        loadAssessments(),
+        loadGrades(),
+        loadStudents(),
+        loadClasses(),
+        loadTeacherSubjects(),
+      ])
     } catch (err) {
       try {
         const { serializeSupabaseError } = await import('./safe-error')
@@ -507,9 +597,9 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     } finally {
       setLoading(false)
     }
-  }, [useDatabase, loadTeacherSubjects, user?.id])
+  }, [useDatabase, loadAssessments, loadGrades, loadStudents, loadClasses, loadTeacherSubjects])
 
-  // Check database availability on mount
+  // Check database availability on mount (but don't load data)
   useEffect(() => {
     const checkDatabase = async () => {
       if (isSupabaseAvailable() && supabase) {
@@ -518,7 +608,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           if (!error) {
             console.log("✅ Database connection established for teacher grades - using Supabase")
             setUseDatabase(true)
-            await loadDataFromDatabase()
+            // Don't auto-load data - components will call load functions explicitly
           } else {
             console.log("⚠️ Database connection failed, using mock data for teacher grades")
             setUseDatabase(false)
@@ -534,7 +624,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     }
 
     checkDatabase()
-  }, [loadDataFromDatabase])
+  }, [])
 
   // Assessment functions
   const createAssessment = useCallback(async (assessmentData: Omit<Assessment, "id" | "createdAt">) => {
@@ -934,7 +1024,20 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       classes,
       teacherSubjects,
       loading,
+      loadingAssessments,
+      loadingGrades,
+      loadingStudents,
+      loadingClasses,
+      loadingSubjects,
       error,
+
+      // Data loading functions (lazy loading)
+      loadAssessments,
+      loadGrades,
+      loadStudents,
+      loadClasses,
+      loadTeacherSubjects,
+      loadAllData,
 
       // Assessment functions
       createAssessment,
@@ -972,7 +1075,18 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       classes,
       teacherSubjects,
       loading,
+      loadingAssessments,
+      loadingGrades,
+      loadingStudents,
+      loadingClasses,
+      loadingSubjects,
       error,
+      loadAssessments,
+      loadGrades,
+      loadStudents,
+      loadClasses,
+      loadTeacherSubjects,
+      loadAllData,
       createAssessment,
       updateAssessment,
       deleteAssessment,

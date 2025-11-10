@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -132,6 +132,8 @@ export function TeacherAssignmentManagement() {
   const [filterClass, setFilterClass] = useState("all")
   const [retryCount, setRetryCount] = useState(0)
   const [isRetrying, setIsRetrying] = useState(false)
+  const [assignmentPage, setAssignmentPage] = useState(1)
+  const assignmentsPerPage = 20
 
   const supabase = createClient()
 
@@ -1028,6 +1030,15 @@ export function TeacherAssignmentManagement() {
     return matchesSearch && matchesStatus && matchesClass
   })
 
+  // Paginated assignments
+  const paginatedAssignments = filteredAssignments.slice(0, assignmentPage * assignmentsPerPage)
+  const hasMoreAssignments = filteredAssignments.length > paginatedAssignments.length
+
+  // Reset page when filters change
+  useEffect(() => {
+    setAssignmentPage(1)
+  }, [searchTerm, filterStatus, filterClass])
+
   const handleEditClick = (assignment: Assignment) => {
     setSelectedAssignment(assignment)
     form.reset({
@@ -1160,7 +1171,8 @@ export function TeacherAssignmentManagement() {
             </CardContent>
           </Card>
         ) : !error ? (
-          filteredAssignments.map((assignment) => (
+          <>
+          {paginatedAssignments.map((assignment) => (
             <Card key={assignment.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -1234,7 +1246,26 @@ export function TeacherAssignmentManagement() {
                 </div>
               </CardContent>
             </Card>
-          ))
+          ))}
+          {hasMoreAssignments && (
+            <div className="mt-4 flex justify-center">
+              <Button
+                onClick={() => setAssignmentPage(prev => prev + 1)}
+                variant="outline"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  `Load More (${filteredAssignments.length - paginatedAssignments.length} remaining)`
+                )}
+              </Button>
+            </div>
+          )}
+          </>
         ) : null}
       </div>
 

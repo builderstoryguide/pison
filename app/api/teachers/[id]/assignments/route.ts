@@ -11,6 +11,13 @@ export async function GET(
   try {
     const supabase = await createClient()
     const { id: teacherId } = await params
+    
+    // Parse query parameters for pagination and options
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1', 10)
+    const limit = parseInt(searchParams.get('limit') || '50', 10)
+    const includeDetails = searchParams.get('includeDetails') === 'true'
+    const summaryOnly = searchParams.get('summaryOnly') === 'true'
 
     if (!teacherId) {
       return NextResponse.json(
@@ -364,124 +371,121 @@ export async function GET(
       new Map(allClasses.map((cls) => [cls.id, cls])).values()
     )
 
-    // Fetch students and subjects for each class
-    const classesWithDetails = await Promise.all(
-      uniqueClasses.map(async (cls) => {
-        // Fetch students for this class (all statuses)
-        // Query by both class ID (UUID) and class name to handle data format inconsistencies
-        // Some students may have class stored as UUID, others as class name
-        // Use two queries and merge results to handle both formats
-        const [studentsByIdResult, studentsByNameResult] = await Promise.all([
-          // Query by class ID (UUID format)
-          supabase
-            .from('students')
-            .select(`
-              id,
-              student_id,
-              first_name,
-              last_name,
-              email,
-              phone,
-              photo,
-              status,
-              date_of_birth,
-              address,
-              parent_name,
-              parent_phone,
-              parent_email,
-              class
-            `)
-            .eq('class', cls.id),
-          // Query by class name (for backward compatibility)
-          supabase
-            .from('students')
-            .select(`
-              id,
-              student_id,
-              first_name,
-              last_name,
-              email,
-              phone,
-              photo,
-              status,
-              date_of_birth,
-              address,
-              parent_name,
-              parent_phone,
-              parent_email,
-              class
-            `)
-            .eq('class', cls.name)
-        ])
+    // Apply pagination to classes
+    const startIndex = (page - 1) * limit
+    const endIndex = startIndex + limit
+    const paginatedClasses = uniqueClasses.slice(startIndex, endIndex)
+    const totalClasses = uniqueClasses.length
+    const hasMore = endIndex < totalClasses
 
-        // Merge results and remove duplicates (by student id)
-        const studentsById = studentsByIdResult.data || []
-        const studentsByName = studentsByNameResult.data || []
-        const studentsMap = new Map()
-        
-        // Add students found by ID
-        studentsById.forEach((student: any) => {
-          studentsMap.set(student.id, student)
-        })
-        
-        // Add students found by name (won't overwrite if already added)
-        studentsByName.forEach((student: any) => {
-          if (!studentsMap.has(student.id)) {
-            studentsMap.set(student.id, student)
-          }
-        })
-        
-        const studentsData = Array.from(studentsMap.values())
+    // If summaryOnly, return lightweight response without details
+    if (summaryOnly) {
+      return NextResponse.json({
+        ok: true,
+        teacher: {
+          id: user.id,
+          name: user.name,
+        },
+        subjects: subjects.map(s => ({ id: s.id, name: s.subjectName, code: s.subjectCode })),
+        classes: paginatedClasses.map(cls => ({
+          id: cls.id,
+          name: cls.name,
+          level: cls.level,
+          subsystem: cls.subsystem,
+          branch: cls.branch,
+          academicYear: cls.academicYear,
+          capacity: cls.capacity,
+          currentEnrollment: cls.currentEnrollment,
+          assignmentType: cls.assignmentType,
+          status: cls.status,
+        })),
+        pagination: {
+          page,
+          limit,
+          total: totalClasses,
+          hasMore,
+        },
+      })
+    }
 
-        // Log errors
-        if (studentsByIdResult.error) {
-          console.error(`Error loading students by ID for class ${cls.id}:`, serializeSupabaseError(studentsByIdResult.error))
-        }
-        if (studentsByNameResult.error) {
-          console.error(`Error loading students by name for class ${cls.name}:`, serializeSupabaseError(studentsByNameResult.error))
-        }
+    // If not including details, return classes without students/subjects
+    if (!includeDetails) {
+      return NextResponse.json({
+        ok: true,
+        teacher: {
+          id: user.id,
+          name: user.name,
+        },
+        subjects,
+        classes: paginatedClasses.map(cls => ({
+          ...cls,
+          students: [],
+          subjects: [],
+        })),
+        pagination: {
+          page,
+          limit,
+          total: totalClasses,
+          hasMore,
+        },
+      })
+    }
 
-        // Log for debugging and monitoring
-        if (studentsData.length > 0) {
-          const studentsByClassId = studentsById.length
-          const studentsByClassName = studentsByName.length
-          console.log(`Class ${cls.name} (${cls.id}): Found ${studentsData.length} total students (${studentsByClassId} by ID, ${studentsByClassName} by name)`)
-        }
+    // Optimized batch queries for students and subjects
+    const classIds = paginatedClasses.map(cls => cls.id)
+    const classNames = paginatedClasses.map(cls => cls.name)
 
-        // Transform students data and map status to enrollmentStatus
-        const students = (studentsData || []).map((student: any) => {
-          // Map database status to enrollmentStatus
-          let enrollmentStatus: 'enrolled' | 'pending' | 'transferred' = 'enrolled'
-          if (student.status === 'active' || student.status === 'enrolled') {
-            enrollmentStatus = 'enrolled'
-          } else if (student.status === 'pending') {
-            enrollmentStatus = 'pending'
-          } else if (student.status === 'transferred' || student.status === 'inactive') {
-            enrollmentStatus = 'transferred'
-          }
+    // Batch fetch all students for all classes at once
+    const [allStudentsByIdResult, allStudentsByNameResult] = await Promise.all([
+      // Query by class IDs (UUID format) - use IN clause for batch query
+      classIds.length > 0 ? supabase
+        .from('students')
+        .select(`
+          id,
+          student_id,
+          first_name,
+          last_name,
+          email,
+          phone,
+          photo,
+          status,
+          date_of_birth,
+          address,
+          parent_name,
+          parent_phone,
+          parent_email,
+          class
+        `)
+        .in('class', classIds) : { data: [], error: null },
+      // Query by class names (for backward compatibility) - use IN clause
+      classNames.length > 0 ? supabase
+        .from('students')
+        .select(`
+          id,
+          student_id,
+          first_name,
+          last_name,
+          email,
+          phone,
+          photo,
+          status,
+          date_of_birth,
+          address,
+          parent_name,
+          parent_phone,
+          parent_email,
+          class
+        `)
+        .in('class', classNames) : { data: [], error: null },
+    ])
 
-          return {
-            id: student.id,
-            studentId: student.student_id || '',
-            firstName: student.first_name || '',
-            lastName: student.last_name || '',
-            email: student.email || '',
-            phone: student.phone || undefined,
-            photo: student.photo || undefined,
-            enrollmentStatus,
-            parentName: student.parent_name || undefined,
-            parentPhone: student.parent_phone || undefined,
-            parentEmail: student.parent_email || undefined,
-            dateOfBirth: student.date_of_birth || undefined,
-            address: student.address || undefined,
-          }
-        })
-
-        // Fetch subjects for this class from class_subjects table
-        const { data: classSubjectsData, error: classSubjectsError } = await supabase
+    // Batch fetch all subjects for all classes at once
+    const { data: allClassSubjectsData, error: allClassSubjectsError } = classIds.length > 0
+      ? await supabase
           .from('class_subjects')
           .select(`
             id,
+            class_id,
             subject_id,
             is_trade_subject,
             subjects (
@@ -493,47 +497,130 @@ export async function GET(
               is_active
             )
           `)
-          .eq('class_id', cls.id)
+          .in('class_id', classIds)
+      : { data: [], error: null }
 
-        if (classSubjectsError) {
-          console.error(`Error loading subjects for class ${cls.id}:`, serializeSupabaseError(classSubjectsError))
+    if (allClassSubjectsError) {
+      console.error('Error batch loading subjects:', serializeSupabaseError(allClassSubjectsError))
+    }
+
+    // Group students by class
+    const studentsById = allStudentsByIdResult.data || []
+    const studentsByName = allStudentsByNameResult.data || []
+    const allStudentsMap = new Map<string, any[]>()
+    
+    // Initialize map for each class
+    paginatedClasses.forEach(cls => {
+      allStudentsMap.set(cls.id, [])
+      allStudentsMap.set(cls.name, [])
+    })
+
+    // Group students by class ID
+    studentsById.forEach((student: any) => {
+      const classKey = student.class
+      if (allStudentsMap.has(classKey)) {
+        allStudentsMap.get(classKey)!.push(student)
+      }
+    })
+
+    // Group students by class name
+    studentsByName.forEach((student: any) => {
+      const classKey = student.class
+      // Find matching class by name
+      const matchingClass = paginatedClasses.find(cls => cls.name === classKey)
+      if (matchingClass && allStudentsMap.has(matchingClass.id)) {
+        const existing = allStudentsMap.get(matchingClass.id)!
+        // Check if student already exists (by id)
+        if (!existing.find(s => s.id === student.id)) {
+          existing.push(student)
         }
+      }
+    })
 
-        // Transform subjects data
-        const classSubjects = (classSubjectsData || []).map((cs: any) => {
+    // Group subjects by class
+    const subjectsByClass = new Map<string, any[]>()
+    paginatedClasses.forEach(cls => {
+      subjectsByClass.set(cls.id, [])
+    })
+
+    if (allClassSubjectsData) {
+      allClassSubjectsData.forEach((cs: any) => {
+        const classId = cs.class_id
+        if (subjectsByClass.has(classId)) {
           const subject = cs.subjects
-          if (!subject) {
-            return null
+          if (subject) {
+            subjectsByClass.get(classId)!.push({
+              id: subject.id || cs.subject_id || `sub_${subject.name}`,
+              name: subject.name || 'Unknown Subject',
+              code: subject.code || subject.name?.substring(0, 4).toUpperCase() || 'N/A',
+              coefficient: subject.coefficient || 1,
+              description: subject.description || undefined,
+            })
           }
-          return {
-            id: subject.id || cs.subject_id || `sub_${subject.name}`,
-            name: subject.name || 'Unknown Subject',
-            code: subject.code || subject.name?.substring(0, 4).toUpperCase() || 'N/A',
-            coefficient: subject.coefficient || 1,
-            description: subject.description || undefined,
-          }
-        }).filter(Boolean)
+        }
+      })
+    }
 
-        // If no subjects from class_subjects, use subjects from timetable or class data
-        let finalSubjects = classSubjects
-        if (classSubjects.length === 0 && cls.subjects && Array.isArray(cls.subjects)) {
-          // Convert subject names to subject objects
-          finalSubjects = cls.subjects.map((subjectName: string) => ({
-            id: `sub_${subjectName}`,
-            name: subjectName,
-            code: subjectName.substring(0, 4).toUpperCase(),
-            coefficient: 1,
-            description: undefined,
-          }))
+    // Transform classes with batched data
+    const classesWithDetails = paginatedClasses.map((cls) => {
+      // Get students for this class
+      const studentsData = allStudentsMap.get(cls.id) || []
+      
+      // Remove duplicates by student id
+      const uniqueStudentsMap = new Map()
+      studentsData.forEach((student: any) => {
+        uniqueStudentsMap.set(student.id, student)
+      })
+      const uniqueStudents = Array.from(uniqueStudentsMap.values())
+
+      // Transform students data
+      const students = uniqueStudents.map((student: any) => {
+        let enrollmentStatus: 'enrolled' | 'pending' | 'transferred' = 'enrolled'
+        if (student.status === 'active' || student.status === 'enrolled') {
+          enrollmentStatus = 'enrolled'
+        } else if (student.status === 'pending') {
+          enrollmentStatus = 'pending'
+        } else if (student.status === 'transferred' || student.status === 'inactive') {
+          enrollmentStatus = 'transferred'
         }
 
         return {
-          ...cls,
-          students,
-          subjects: finalSubjects,
+          id: student.id,
+          studentId: student.student_id || '',
+          firstName: student.first_name || '',
+          lastName: student.last_name || '',
+          email: student.email || '',
+          phone: student.phone || undefined,
+          photo: student.photo || undefined,
+          enrollmentStatus,
+          parentName: student.parent_name || undefined,
+          parentPhone: student.parent_phone || undefined,
+          parentEmail: student.parent_email || undefined,
+          dateOfBirth: student.date_of_birth || undefined,
+          address: student.address || undefined,
         }
       })
-    )
+
+      // Get subjects for this class
+      let finalSubjects = subjectsByClass.get(cls.id) || []
+      
+      // If no subjects from class_subjects, use subjects from timetable or class data
+      if (finalSubjects.length === 0 && cls.subjects && Array.isArray(cls.subjects)) {
+        finalSubjects = cls.subjects.map((subjectName: string) => ({
+          id: `sub_${subjectName}`,
+          name: subjectName,
+          code: subjectName.substring(0, 4).toUpperCase(),
+          coefficient: 1,
+          description: undefined,
+        }))
+      }
+
+      return {
+        ...cls,
+        students,
+        subjects: finalSubjects,
+      }
+    })
 
     // Log summary for debugging
     console.log('Teacher assignments summary:', {
@@ -558,6 +645,12 @@ export async function GET(
       },
       subjects,
       classes: classesWithDetails,
+      pagination: {
+        page,
+        limit,
+        total: totalClasses,
+        hasMore,
+      },
     })
   } catch (error) {
     console.error('Error in GET /api/teachers/[id]/assignments:', serializeSupabaseError(error as any))

@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { authenticateUser, requireAnyRole } from "@/lib/auth/server"
 
 export async function GET(request: NextRequest) {
   try {
+    // Authenticate user
+    const authResult = await authenticateUser(request)
+    if (authResult.error) return authResult.error
+    const user = authResult.user!
+
+    // Only allow teachers and students
+    if (user.role !== 'teacher' && user.role !== 'student') {
+      return NextResponse.json(
+        { error: "Unauthorized. Only teachers and students can view assignments." },
+        { status: 403 }
+      )
+    }
+
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     
@@ -10,7 +24,6 @@ export async function GET(request: NextRequest) {
     const subject = searchParams.get("subject")
     const status = searchParams.get("status")
     const teacherId = searchParams.get("teacherId")
-    const studentId = searchParams.get("studentId")
 
     let query = supabase
       .from("assignments")
@@ -29,17 +42,52 @@ export async function GET(request: NextRequest) {
       `)
       .order("created_at", { ascending: false })
 
-    // Apply filters
+    // Authorization: Teachers see their own assignments, students see published assignments for their class
+    if (user.role === 'teacher') {
+      // Teachers can only see their own assignments (unless admin)
+      if (user.role !== 'admin') {
+        query = query.eq("teacher_id", user.id)
+      }
+    } else if (user.role === 'student') {
+      // Students can only see published assignments for their class
+      query = query.eq("status", "published")
+      
+      // Get student's class
+      const { data: studentProfile } = await supabase
+        .from("user_profiles")
+        .select("class_name")
+        .eq("user_id", user.id)
+        .single()
+
+      const { data: studentRecord } = await supabase
+        .from("students")
+        .select("class_id")
+        .eq("user_id", user.id)
+        .single()
+
+      const studentClass = studentRecord?.class_id || studentProfile?.class_name
+
+      if (studentClass) {
+        query = query.eq("class_id", studentClass)
+      } else {
+        // If student has no class, return empty array
+        return NextResponse.json({ assignments: [] })
+      }
+    }
+
+    // Apply additional filters
     if (classId) {
       query = query.eq("class_id", classId)
     }
     if (subject) {
       query = query.eq("subject", subject)
     }
-    if (status) {
+    if (status && user.role === 'teacher') {
+      // Only teachers can filter by status (students only see published)
       query = query.eq("status", status)
     }
-    if (teacherId) {
+    if (teacherId && user.role === 'admin') {
+      // Only admins can filter by teacher_id
       query = query.eq("teacher_id", teacherId)
     }
 
@@ -50,14 +98,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch assignments" }, { status: 500 })
     }
 
-    // If studentId is provided, filter assignments to show only those relevant to the student
-    if (studentId) {
-      // This would typically involve checking if the student is in the class
-      // For now, we'll return all assignments
-      return NextResponse.json({ assignments: data })
-    }
-
-    return NextResponse.json({ assignments: data })
+    return NextResponse.json({ assignments: data || [] })
   } catch (error) {
     console.error("Error in assignments GET:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

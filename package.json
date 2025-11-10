@@ -58,6 +58,7 @@
     "next-themes": "latest",
     "papaparse": "^5.5.3",
     "puppeteer": "^24.16.2",
+    "@tanstack/react-query": "^5.62.0",
     "react": "^19",
     "react-day-picker": "latest",
     "react-dom": "^19",
