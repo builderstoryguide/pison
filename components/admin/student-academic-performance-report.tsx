@@ -47,7 +47,6 @@ interface StudentPerformance {
   overallAverage: number
   rank: number
   totalStudents: number
-  attendanceRate: number
   improvement: number
   status: "excellent" | "good" | "average" | "below_average" | "needs_improvement"
 }
@@ -170,7 +169,6 @@ export function StudentAcademicPerformanceReport() {
       overallAverage: 92.5,
       rank: 1,
       totalStudents: 45,
-      attendanceRate: 98.5,
       improvement: 5.2,
       status: "excellent",
       subjects: [
@@ -191,7 +189,6 @@ export function StudentAcademicPerformanceReport() {
       overallAverage: 88.7,
       rank: 2,
       totalStudents: 45,
-      attendanceRate: 96.2,
       improvement: 3.8,
       status: "excellent",
       subjects: [
@@ -614,7 +611,6 @@ export function StudentAcademicPerformanceReport() {
                     <TableHead>Student</TableHead>
                     <TableHead>Class</TableHead>
                     <TableHead>Overall Average</TableHead>
-                    <TableHead>Attendance</TableHead>
                     <TableHead>Improvement</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
@@ -642,12 +638,6 @@ export function StudentAcademicPerformanceReport() {
                         <div className="flex items-center gap-2">
                           <span className="font-bold">{student.overallAverage.toFixed(1)}%</span>
                           <Progress value={student.overallAverage} className="w-16" />
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">{student.attendanceRate.toFixed(1)}%</span>
-                          <UserCheck className="h-4 w-4 text-green-600" />
                         </div>
                       </TableCell>
                       <TableCell>
@@ -765,13 +755,6 @@ export function StudentAcademicPerformanceReport() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm">Attendance Rate</span>
-                    <div className="flex items-center gap-1 text-blue-600">
-                      <UserCheck className="h-4 w-4" />
-                      <span className="font-medium">96.8%</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
                     <span className="text-sm">Subject Mastery</span>
                     <div className="flex items-center gap-1 text-green-600">
                       <Award className="h-4 w-4" />
@@ -794,13 +777,6 @@ export function StudentAcademicPerformanceReport() {
                     <div>
                       <p className="font-medium text-green-800">Strong Performance in Sciences</p>
                       <p className="text-sm text-green-700">Students show excellent performance in Mathematics and Physics</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-                    <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-blue-800">Attendance Improvement</p>
-                      <p className="text-sm text-blue-700">Class attendance has improved by 3.2% this term</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg">
@@ -843,10 +819,6 @@ export function StudentAcademicPerformanceReport() {
                     <div>
                       <p className="text-sm text-muted-foreground">Rank</p>
                       <p className="text-2xl font-bold">#{selectedStudent.rank}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Attendance</p>
-                      <p className="text-2xl font-bold">{selectedStudent.attendanceRate.toFixed(1)}%</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Improvement</p>

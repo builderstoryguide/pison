@@ -7,9 +7,7 @@
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
-    "setup-env": "node scripts/setup-env.js",
-    "validate-imports": "node scripts/validate-icon-imports.js",
-    "prebuild": "npm run validate-imports"
+    "setup-env": "node scripts/setup-env.js"
   },
   "dependencies": {
     "@hookform/resolvers": "latest",

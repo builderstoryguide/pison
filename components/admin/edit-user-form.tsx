@@ -31,7 +31,7 @@ import { useUserManagement, User } from '@/lib/user-management-context'
 
 const rolePermissions = {
   admin: ['all'],
-  teacher: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents'],
+  teacher: ['manage_classes', 'grade_students', 'communicate_parents'],
   student: ['view_grades', 'view_schedule', 'submit_assignments', 'communicate_teachers'],
   parent: ['view_child_progress', 'communicate_teachers', 'view_financial_records'],
   bursar: ['manage_finances', 'track_payments', 'generate_reports', 'send_fee_notices']

@@ -1,30 +1,20 @@
 "use client"
 
-import { Separator } from "@/components/ui/separator"
-
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import {
-  Calendar,
   Users,
   Clock,
   BookOpen,
-  Plus,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  UserCheck,
   TrendingUp,
   FileText,
   Eye,
   Award,
+  Plus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useTeacherAttendance } from "@/lib/teacher-attendance-context"
-import { TeacherAttendanceForm } from "./teacher-attendance-form"
+import { useTeacherClasses } from "@/lib/teacher-classes-context"
 import { useAuth } from "@/lib/auth-context"
 
 interface TeacherDashboardProps {
@@ -33,31 +23,33 @@ interface TeacherDashboardProps {
 
 export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
   const { user } = useAuth()
-  const { teacherClasses, attendanceSessions, getTeacherClasses, getTodaySchedule, isLoading } = useTeacherAttendance()
-
-  const [showAttendanceForm, setShowAttendanceForm] = useState(false)
-  const [todaySchedule, setTodaySchedule] = useState<any[]>([])
+  const { classes: teacherClasses, getTeacherClasses } = useTeacherClasses()
 
   useEffect(() => {
     getTeacherClasses()
-    setTodaySchedule(getTodaySchedule())
-  }, [])
+  }, [getTeacherClasses])
 
   // Calculate statistics
   const totalClasses = teacherClasses.length
   const totalStudents = teacherClasses.reduce((sum, cls) => sum + cls.students.length, 0)
-  const todaySessions = attendanceSessions.filter((session) => session.date === new Date().toISOString().split("T")[0])
-  const completedToday = todaySessions.filter((session) => session.status === "completed").length
-  const pendingToday = todaySessions.filter((session) => session.status === "pending").length
 
-  // Add grades statistics
-  const totalGrades = 45 // Mock data - in real app, get from grades context
-  const pendingGrades = 12 // Mock data
-
-  // Recent attendance sessions
-  const recentSessions = attendanceSessions
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5)
+  // Get today's schedule from classes
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+  const todaySchedule = teacherClasses.flatMap(cls => 
+    cls.schedule
+      .filter(sched => sched.day.toLowerCase() === today)
+      .flatMap(sched => 
+        sched.periods.map(period => ({
+          subject: period.subject,
+          startTime: period.time.split('-')[0]?.trim() || '',
+          endTime: period.time.split('-')[1]?.trim() || '',
+          period: period.time,
+          day: sched.day,
+          room: period.room,
+          className: cls.name
+        }))
+      )
+  )
 
   return (
     <div className="space-y-6">
@@ -66,26 +58,9 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
         <div>
           <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
           <p className="text-muted-foreground">
-            Welcome back, {user?.name?.split(" ")[0]}! Manage your classes and attendance.
+            Welcome back, {user?.name?.split(" ")[0]}! Manage your classes and students.
           </p>
         </div>
-        <Dialog open={showAttendanceForm} onOpenChange={setShowAttendanceForm}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Mark Attendance
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Mark Class Attendance</DialogTitle>
-            </DialogHeader>
-            <TeacherAttendanceForm
-              onSuccess={() => setShowAttendanceForm(false)}
-              onCancel={() => setShowAttendanceForm(false)}
-            />
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Statistics Cards */}
@@ -114,14 +89,12 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Sessions</CardTitle>
+            <CardTitle className="text-sm font-medium">Today's Classes</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {completedToday}/{todaySessions.length}
-            </div>
-            <p className="text-xs text-muted-foreground">Attendance marked today</p>
+            <div className="text-2xl font-bold">{todaySchedule.length}</div>
+            <p className="text-xs text-muted-foreground">Classes scheduled for today</p>
           </CardContent>
         </Card>
 
@@ -145,70 +118,25 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Today's Schedule */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Today's Schedule
-            </CardTitle>
-            <CardDescription>Your classes for today</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {todaySchedule.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No classes scheduled for today</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {todaySchedule.map((schedule, index) => (
-                  <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
-                    <div className="text-center">
-                      <div className="text-sm font-medium">{schedule.startTime}</div>
-                      <div className="text-xs text-muted-foreground">to</div>
-                      <div className="text-sm font-medium">{schedule.endTime}</div>
-                    </div>
-                    <Separator orientation="vertical" className="h-12" />
-                    <div className="flex-1">
-                      <h4 className="font-medium">{schedule.subject}</h4>
-                      <p className="text-sm text-muted-foreground">{schedule.period}</p>
-                    </div>
-                    <Badge variant="outline">{schedule.day}</Badge>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common tasks</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Common tasks</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              className="w-full justify-start bg-transparent"
+              className="flex-1 min-w-[200px] justify-start bg-transparent"
               onClick={() => onNavigate?.("classes")}
             >
               <Eye className="h-4 w-4 mr-2" />
               View My Classes
             </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-start bg-transparent"
-              onClick={() => setShowAttendanceForm(true)}
-            >
-              <UserCheck className="h-4 w-4 mr-2" />
-              Mark Attendance
-            </Button>
             <Button 
               variant="outline" 
-              className="w-full justify-start bg-transparent"
+              className="flex-1 min-w-[200px] justify-start bg-transparent"
               onClick={() => onNavigate?.("grades")}
             >
               <FileText className="h-4 w-4 mr-2" />
@@ -216,43 +144,46 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
             </Button>
             <Button 
               variant="outline" 
-              className="w-full justify-start bg-transparent"
+              className="flex-1 min-w-[200px] justify-start bg-transparent"
               onClick={() => onNavigate?.("examinations")}
             >
               <FileText className="h-4 w-4 mr-2" />
               Enter Exam Marks
             </Button>
-                         <Button 
-               variant="outline" 
-               className="w-full justify-start bg-transparent"
-               onClick={() => onNavigate?.("grades")}
-             >
-               <Plus className="h-4 w-4 mr-2" />
-               Create Assessment
-             </Button>
-             <Button 
-               variant="outline" 
-               className="w-full justify-start bg-transparent"
-               onClick={() => onNavigate?.("my-assignments")}
-             >
-               <BookOpen className="h-4 w-4 mr-2" />
-               My Subjects & Classes
-             </Button>
-             <Button 
-               variant="outline" 
-               className="w-full justify-start bg-transparent"
-               onClick={() => onNavigate?.("assignments")}
-             >
-               <Award className="h-4 w-4 mr-2" />
-               Manage Assignments
-             </Button>
-            <Button variant="outline" className="w-full justify-start bg-transparent">
+            <Button 
+              variant="outline" 
+              className="flex-1 min-w-[200px] justify-start bg-transparent"
+              onClick={() => onNavigate?.("grades")}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Assessment
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex-1 min-w-[200px] justify-start bg-transparent"
+              onClick={() => onNavigate?.("my-assignments")}
+            >
+              <BookOpen className="h-4 w-4 mr-2" />
+              My Subjects & Classes
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex-1 min-w-[200px] justify-start bg-transparent"
+              onClick={() => onNavigate?.("assignments")}
+            >
+              <Award className="h-4 w-4 mr-2" />
+              Manage Assignments
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex-1 min-w-[200px] justify-start bg-transparent"
+            >
               <TrendingUp className="h-4 w-4 mr-2" />
               View Reports
             </Button>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* My Classes */}
       <Card>
@@ -293,17 +224,17 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Subjects:</span>
-                      <span className="font-medium">{cls.schedule.length}</span>
+                      <span className="font-medium">{cls.subjects.length}</span>
                     </div>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
                     className="w-full mt-4 bg-transparent"
-                    onClick={() => setShowAttendanceForm(true)}
+                    onClick={() => onNavigate?.("classes")}
                   >
-                    <UserCheck className="h-4 w-4 mr-2" />
-                    Mark Attendance
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Class Details
                   </Button>
                 </CardContent>
               </Card>
@@ -318,79 +249,7 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
           )}
         </CardContent>
       </Card>
-
-      {/* Recent Attendance Sessions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Attendance Sessions</CardTitle>
-          <CardDescription>Your latest attendance records</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Class</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead>Attendance</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentSessions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    No attendance sessions recorded yet
-                  </TableCell>
-                </TableRow>
-              ) : (
-                recentSessions.map((session) => (
-                  <TableRow key={session.id}>
-                    <TableCell className="font-medium">{session.date}</TableCell>
-                    <TableCell>{session.className}</TableCell>
-                    <TableCell>{session.subject}</TableCell>
-                    <TableCell>{session.period}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-1 text-green-600">
-                          <CheckCircle className="h-3 w-3" />
-                          {session.presentCount}
-                        </div>
-                        <div className="flex items-center gap-1 text-red-600">
-                          <XCircle className="h-3 w-3" />
-                          {session.absentCount}
-                        </div>
-                        <div className="flex items-center gap-1 text-yellow-600">
-                          <AlertCircle className="h-3 w-3" />
-                          {session.lateCount}
-                        </div>
-                        <div className="flex items-center gap-1 text-blue-600">
-                          <UserCheck className="h-3 w-3" />
-                          {session.excusedCount}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          session.status === "completed"
-                            ? "default"
-                            : session.status === "pending"
-                              ? "secondary"
-                              : "outline"
-                        }
-                      >
-                        {session.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-                 </CardContent>
-       </Card>
     </div>
   )
 }
+

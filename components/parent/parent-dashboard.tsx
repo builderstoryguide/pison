@@ -34,7 +34,6 @@ export function ParentDashboard({ onNavigate }: ParentDashboardProps) {
     subsystem: "English",
     avatar: "/placeholder-user.jpg",
     overallGrade: "B+",
-    attendance: 92,
     recentGrades: [
       { subject: "Mathematics", grade: "A-", date: "2024-01-15", teacher: "Mr. Paul Mbeki" },
       { subject: "English", grade: "B+", date: "2024-01-12", teacher: "Mrs. Grace Tabi" },
@@ -71,13 +70,6 @@ export function ParentDashboard({ onNavigate }: ParentDashboardProps) {
         phone: "+237 677 123 456",
         avatar: "/placeholder-user.jpg",
       },
-    ],
-    attendanceRecord: [
-      { date: "2024-01-20", status: "present", subject: "Mathematics" },
-      { date: "2024-01-20", status: "present", subject: "English" },
-      { date: "2024-01-19", status: "present", subject: "Physics" },
-      { date: "2024-01-19", status: "absent", subject: "Chemistry", reason: "Sick" },
-      { date: "2024-01-18", status: "present", subject: "Mathematics" },
     ],
   }
 
@@ -142,17 +134,6 @@ export function ParentDashboard({ onNavigate }: ParentDashboardProps) {
 
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{childData.attendance}%</div>
-            <Progress value={childData.attendance} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-1">This semester</p>
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -190,9 +171,8 @@ export function ParentDashboard({ onNavigate }: ParentDashboardProps) {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="grades" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="grades">Grades</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="assignments">Assignments</TabsTrigger>
           <TabsTrigger value="teachers">Teachers</TabsTrigger>
         </TabsList>
@@ -220,46 +200,6 @@ export function ParentDashboard({ onNavigate }: ParentDashboardProps) {
                     <div className="text-right">
                       <div className={`text-lg font-bold ${getGradeColor(grade.grade)}`}>{grade.grade}</div>
                       <p className="text-sm text-muted-foreground">{grade.date}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Attendance Tab */}
-        <TabsContent value="attendance" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Attendance Record</CardTitle>
-              <CardDescription>Recent attendance history</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {childData.attendanceRecord.map((record, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                        {record.status === "present" ? (
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <AlertCircle className="h-5 w-5 text-red-600" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">{record.subject}</p>
-                        <p className="text-sm text-muted-foreground">{record.date}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge
-                        variant={record.status === "present" ? "default" : "destructive"}
-                        className={getStatusColor(record.status)}
-                      >
-                        {record.status}
-                      </Badge>
-                      {record.reason && <p className="text-sm text-muted-foreground mt-1">{record.reason}</p>}
                     </div>
                   </div>
                 ))}

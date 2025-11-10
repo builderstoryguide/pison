@@ -170,7 +170,6 @@ export async function POST(request: NextRequest) {
       term,
       dueDate,
       totalAmount,
-      numberOfInstallments,
       installments,
       items,
       description,

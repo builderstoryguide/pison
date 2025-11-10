@@ -13,7 +13,6 @@ import { SubjectManagement } from "./admin/subject-management"
 import { ExaminationManagement } from "./admin/examination-management"
 import { TimetableManagement } from "./admin/timetable-management"
 import { FinancialManagement } from "./admin/financial-management"
-import { AttendanceManagement } from "./admin/attendance-management"
 import { ProfileSettings } from "./profile/profile-settings"
 import { AnalyticsDashboard } from "@/components/admin/analytics-dashboard"
 import { AcademicPerformance } from "@/components/admin/academic-performance"
@@ -110,7 +109,6 @@ type AdminView =
   | "timetable"
   | "examinations"
   | "financial"
-  | "attendance"
   | "reports"
   | "profile"
   | "reports-analytics"
@@ -119,7 +117,7 @@ type AdminView =
   | "reports-generated"
   | "reports-cards"
 
-type TeacherView = "dashboard" | "classes" | "attendance" | "grades" | "assignments" | "profile"
+type TeacherView = "dashboard" | "classes" | "grades" | "assignments" | "profile"
 type ParentView = "dashboard" | "records" | "communication" | "profile"
 type StudentView = "dashboard" | "grades" | "schedule" | "assignments" | "fees" | "profile"
 type BursarView = "dashboard" | "financial" | "reports" | "profile"
@@ -232,13 +230,11 @@ function AppSidebar({
           { id: "timetable", label: "Timetable Management", icon: CalendarDays },
           { id: "examinations", label: "Examinations", icon: FileText },
           { id: "financial", label: "Financial Management", icon: DollarSign },
-          { id: "attendance", label: "Attendance", icon: Calendar },
         ]
       case "teacher":
         return [
           { id: "dashboard", label: "Dashboard", icon: Home },
           { id: "classes", label: "My Classes", icon: BookOpen },
-          { id: "attendance", label: "Attendance", icon: CalendarCheck },
           { id: "grades", label: "Grades", icon: ClipboardList },
           { id: "assignments", label: "Assignments", icon: Award },
         ]
@@ -553,8 +549,6 @@ export function SchoolDashboard() {
             return <ExaminationManagement />
           case "financial":
             return <FinancialManagement />
-          case "attendance":
-            return <AttendanceManagement />
           case "reports":
           case "reports-analytics":
             return <AnalyticsDashboard />

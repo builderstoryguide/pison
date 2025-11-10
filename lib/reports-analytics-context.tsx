@@ -18,7 +18,7 @@ export interface ReportTemplate {
   id: string
   name: string
   description: string
-  category: "academic" | "financial" | "attendance" | "administrative" | "examination"
+  category: "academic" | "financial" | "administrative" | "examination"
   parameters: ReportParameter[]
   outputFormats: ("pdf" | "excel" | "csv")[]
   estimatedTime: string
@@ -48,7 +48,7 @@ export interface AnalyticsMetric {
   previousValue?: string | number
   change?: string
   changeType?: "increase" | "decrease" | "neutral"
-  category: "enrollment" | "academic" | "financial" | "attendance" | "staffing"
+  category: "enrollment" | "academic" | "financial" | "staffing"
   icon: string
   description?: string
 }
@@ -215,51 +215,6 @@ const mockReportTemplates: ReportTemplate[] = [
     lastUsed: "2024-01-14T14:20:00Z",
   },
   {
-    id: "attendance-analysis",
-    name: "Attendance Analysis Report",
-    description: "Comprehensive attendance tracking and analysis by class, student, and time period",
-    category: "attendance",
-    parameters: [
-      {
-        id: "analysisType",
-        name: "analysisType",
-        label: "Analysis Type",
-        type: "select",
-        required: true,
-        options: [
-          { value: "class-summary", label: "Class Summary" },
-          { value: "student-detail", label: "Individual Student Details" },
-          { value: "trend-analysis", label: "Attendance Trends" },
-        ],
-      },
-      {
-        id: "period",
-        name: "period",
-        label: "Time Period",
-        type: "select",
-        required: true,
-        options: [
-          { value: "last-week", label: "Last Week" },
-          { value: "last-month", label: "Last Month" },
-          { value: "current-term", label: "Current Term" },
-          { value: "academic-year", label: "Academic Year" },
-        ],
-      },
-      {
-        id: "minimumAttendance",
-        name: "minimumAttendance",
-        label: "Minimum Attendance Threshold (%)",
-        type: "number",
-        required: false,
-        defaultValue: 75,
-      },
-    ],
-    outputFormats: ["pdf", "excel"],
-    estimatedTime: "2-4 minutes",
-    usageCount: 28,
-    lastUsed: "2024-01-13T09:15:00Z",
-  },
-  {
     id: "teacher-performance",
     name: "Teacher Performance Dashboard",
     description: "Teacher workload, performance metrics, and professional development tracking",
@@ -373,17 +328,6 @@ const mockAnalyticsMetrics: AnalyticsMetric[] = [
     category: "academic",
     icon: "TrendingUp",
     description: "Overall academic performance across all subjects",
-  },
-  {
-    id: "attendance-rate",
-    name: "Overall Attendance Rate",
-    value: "94.2%",
-    previousValue: "92.1%",
-    change: "+2.1%",
-    changeType: "increase",
-    category: "attendance",
-    icon: "UserCheck",
-    description: "Average attendance rate across all classes",
   },
   {
     id: "fee-collection",

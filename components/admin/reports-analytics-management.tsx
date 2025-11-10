@@ -290,7 +290,6 @@ export function ReportsAnalyticsManagement() {
                 <SelectItem value="all">All Categories</SelectItem>
                 <SelectItem value="academic">Academic</SelectItem>
                 <SelectItem value="financial">Financial</SelectItem>
-                <SelectItem value="attendance">Attendance</SelectItem>
                 <SelectItem value="administrative">Administrative</SelectItem>
                 <SelectItem value="examination">Examination</SelectItem>
               </SelectContent>

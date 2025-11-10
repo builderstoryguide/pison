@@ -4,11 +4,11 @@ import { serializeSupabaseError } from '@/lib/safe-error'
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
-    const { id } = params
+    const { id } = await params
 
     if (!id) {
       return NextResponse.json(

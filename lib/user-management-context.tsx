@@ -145,16 +145,6 @@ const mockActivityLogs: ActivityLog[] = [
     ipAddress: '192.168.1.102',
     userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'
   },
-  {
-    id: '8',
-    userId: '2',
-    userName: 'Paul Biya Mbeki',
-    action: 'ATTENDANCE_MARKED',
-    details: 'Marked attendance for Form 5A - 22 present, 3 absent',
-    timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(), // 8 hours ago
-    ipAddress: '192.168.1.100',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-  }
 ]
 
 export function UserManagementProvider({ children }: { children: React.ReactNode }) {

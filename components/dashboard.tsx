@@ -11,10 +11,8 @@ import { ClassManagementProvider } from "@/lib/class-management-context"
 import { SubjectManagementProvider } from "@/lib/subject-management-context"
 import { ExaminationProvider } from "@/lib/examination-context"
 import { FinancialProvider } from "@/lib/financial-context"
-import { AttendanceProvider } from "@/lib/attendance-context"
 import { ReportsAnalyticsProvider } from "@/lib/reports-analytics-context"
 import { ProfileProvider } from "@/lib/profile-context"
-import { TeacherAttendanceProvider } from "@/lib/teacher-attendance-context"
 import { TeacherClassesProvider } from "@/lib/teacher-classes-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 import { BursarProvider } from "@/lib/bursar-context"
@@ -38,7 +36,6 @@ import { SubjectManagement } from "./admin/subject-management"
 import { ExaminationManagement } from "./admin/examination-management"
 import { TimetableManagement } from "./admin/timetable-management"
 import { FinancialManagement } from "./admin/financial-management"
-import { AttendanceManagement } from "./admin/attendance-management"
 import { ReportsAnalyticsManagement } from "./admin/reports-analytics-management"
 import { AppConfiguration } from "./admin/app-configuration"
 import { ProfileSettings } from "./profile/profile-settings"
@@ -154,7 +151,6 @@ type AdminView =
   | "timetable"
   | "examinations"
   | "financial"
-  | "attendance"
   | "reports"
   | "configuration"
   | "profile"
@@ -164,7 +160,7 @@ type AdminView =
   | "reports-generated"
   | "reports-cards"
 
-type TeacherView = "dashboard" | "classes" | "attendance" | "grades" | "assignments" | "my-assignments" | "examinations" | "profile"
+type TeacherView = "dashboard" | "classes" | "grades" | "assignments" | "my-assignments" | "examinations" | "profile"
 
 type ParentView = "dashboard" | "records" | "communication" | "profile"
 
@@ -189,14 +185,6 @@ const mockNotifications = [
     type: "success" as const,
     time: "1 hour ago",
     read: false,
-  },
-  {
-    id: 3,
-    title: "Attendance Alert",
-    message: "Low attendance rate detected in Form 3B (78%)",
-    type: "warning" as const,
-    time: "3 hours ago",
-    read: true,
   },
   {
     id: 4,
@@ -786,7 +774,6 @@ export function Dashboard() {
       { id: "timetable", label: "Timetable Management", icon: CalendarDays },
       { id: "examinations", label: "Examinations", icon: FileText },
       { id: "financial", label: "Financial Management", icon: DollarSign },
-      { id: "attendance", label: "Attendance", icon: Calendar },
       { id: "configuration", label: "App Configuration", icon: Settings },
     ]
 
@@ -830,8 +817,6 @@ export function Dashboard() {
           )
         case "financial":
           return <FinancialManagement />
-        case "attendance":
-          return <AttendanceManagement />
         case "configuration":
           return <AppConfiguration />
         case "reports":
@@ -861,8 +846,7 @@ export function Dashboard() {
                 <SubjectManagementProvider>
                   <ExaminationProvider>
                     <FinancialProvider>
-                      <AttendanceProvider>
-                        <ReportsAnalyticsProvider>
+                      <ReportsAnalyticsProvider>
                           <ProfileProvider>
                           <div className="flex h-screen">
                             <Sidebar 
@@ -993,7 +977,6 @@ export function Dashboard() {
                           </div>
                         </ProfileProvider>
                       </ReportsAnalyticsProvider>
-                    </AttendanceProvider>
                   </FinancialProvider>
                 </ExaminationProvider>
               </SubjectManagementProvider>
@@ -1011,7 +994,6 @@ export function Dashboard() {
       { id: "dashboard", label: "Dashboard", icon: Home },
       { id: "my-assignments", label: "My Assignments", icon: BookOpen },
       { id: "classes", label: "My Classes", icon: Users },
-      { id: "attendance", label: "Attendance", icon: CalendarCheck },
       { id: "grades", label: "Grades", icon: ClipboardList },
       { id: "assignments", label: "Assignments", icon: Award },
     ]
@@ -1036,8 +1018,7 @@ export function Dashboard() {
     }
 
     return (
-      <TeacherAttendanceProvider>
-        <TeacherClassesProvider>
+      <TeacherClassesProvider>
           <TeacherGradesProvider>
             <ProfileProvider>
               <div className="flex h-screen">
@@ -1137,7 +1118,6 @@ export function Dashboard() {
             </ProfileProvider>
           </TeacherGradesProvider>
         </TeacherClassesProvider>
-      </TeacherAttendanceProvider>
     )
   }
 

@@ -139,7 +139,7 @@ export function TeacherManagement() {
             address: teacher.address,
             dateOfBirth: teacher.dateOfBirth,
             gender: teacher.gender as 'male' | 'female',
-            permissions: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents']
+            permissions: ['manage_classes', 'grade_students', 'communicate_parents']
           }
           
           const userResult = await createUser(userData)

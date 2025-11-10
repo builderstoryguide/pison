@@ -29,7 +29,6 @@ const actionConfig = {
   STUDENT_ENROLLED: { icon: UserPlus, color: 'text-blue-500', bgColor: 'bg-blue-100' },
   TEACHER_ADDED: { icon: UserCheck, color: 'text-purple-500', bgColor: 'bg-purple-100' },
   EXAM_CREATED: { icon: BookOpen, color: 'text-indigo-500', bgColor: 'bg-indigo-100' },
-  ATTENDANCE_MARKED: { icon: Activity, color: 'text-cyan-500', bgColor: 'bg-cyan-100' }
 }
 
 // Helper function to format relative time
@@ -83,8 +82,6 @@ function getActionDisplayText(action: string, details: string): { title: string;
       return { title: 'Teacher added', description: details }
     case 'EXAM_CREATED':
       return { title: 'Exam created', description: details }
-    case 'ATTENDANCE_MARKED':
-      return { title: 'Attendance marked', description: details }
     default:
       return { title: action.replace(/_/g, ' ').toLowerCase(), description: details }
   }

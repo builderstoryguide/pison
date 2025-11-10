@@ -134,7 +134,7 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
       address: result.teacherData.address,
       dateOfBirth: result.teacherData.dateOfBirth,
       gender: result.teacherData.gender as 'male' | 'female',
-      permissions: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents']
+      permissions: ['manage_classes', 'grade_students', 'communicate_parents']
     }
 
     const userResult = await createUser(userData)

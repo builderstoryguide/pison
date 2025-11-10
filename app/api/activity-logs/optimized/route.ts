@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { validateDatabaseSetup, createDatabaseSetupErrorResponse } from '@/lib/database-validation'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const supabase = createServiceClient()
     
     // Validate database setup - check if user_activity_logs table exists and has required columns/functions
     try {
       const validationResult = await validateDatabaseSetup(
-        supabase, 
+        supabase as any, 
         ['user_activity_logs'], 
         [],
         [{ table: 'user_activity_logs', columns: ['details', 'action', 'created_at', 'user_id'] }],

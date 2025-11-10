@@ -92,44 +92,6 @@ export function ReportTemplates() {
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FileText className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Attendance Report</CardTitle>
-                  <CardDescription className="mt-1">Student attendance tracking report</CardDescription>
-                </div>
-              </div>
-              <Badge variant="outline" className="capitalize">Attendance</Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  2 minutes
-                </span>
-                <span>Used 67 times</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary" className="text-xs">PDF</Badge>
-                <Badge variant="secondary" className="text-xs">EXCEL</Badge>
-              </div>
-              <div className="flex justify-between items-center pt-2">
-                <span className="text-xs text-muted-foreground">Last used: Today</span>
-                <Button size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Generate
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       <Card>

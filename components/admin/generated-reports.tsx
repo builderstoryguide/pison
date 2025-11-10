@@ -74,33 +74,6 @@ export function GeneratedReports() {
               <FileText className="h-5 w-5 text-gray-600" />
             </div>
             <div>
-              <h4 className="font-medium">Attendance Report March</h4>
-              <p className="text-sm text-muted-foreground">Attendance Report Template</p>
-              <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-                <span>Generated: 3 days ago</span>
-                <span>By: Teacher</span>
-                <span>Size: 1.2 MB</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Badge className="bg-green-100 text-green-800">
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Completed
-            </Badge>
-            <Button size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between p-4 border rounded-lg">
-          <div className="flex items-center gap-4">
-            <div className="p-2 bg-gray-100 rounded-lg">
-              <FileText className="h-5 w-5 text-gray-600" />
-            </div>
-            <div>
               <h4 className="font-medium">Student Progress Report</h4>
               <p className="text-sm text-muted-foreground">Academic Report Template</p>
               <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">

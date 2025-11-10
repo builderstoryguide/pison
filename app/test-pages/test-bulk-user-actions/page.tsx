@@ -1,0 +1,35 @@
+"use client"
+
+export const dynamic = 'force-dynamic'
+
+import { UserManagement } from '@/components/admin/user-management'
+import { UserManagementProvider } from '@/lib/user-management-context'
+import { StudentManagementProvider } from '@/lib/student-management-context'
+import { TeacherManagementProvider } from '@/lib/teacher-management-context'
+
+function TestBulkUserActionsContent() {
+  return (
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-bold">Bulk User Actions Test</h1>
+        <p className="text-muted-foreground">
+          Test the enhanced user management component with bulk selection and deletion capabilities
+        </p>
+      </div>
+      
+      <UserManagement />
+    </div>
+  )
+}
+
+export default function TestBulkUserActionsPage() {
+  return (
+    <UserManagementProvider>
+      <StudentManagementProvider>
+        <TeacherManagementProvider>
+          <TestBulkUserActionsContent />
+        </TeacherManagementProvider>
+      </StudentManagementProvider>
+    </UserManagementProvider>
+  )
+}

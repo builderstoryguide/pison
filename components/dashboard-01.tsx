@@ -293,19 +293,6 @@ export function Dashboard01() {
                     <div className="flex items-center">
                       <div className="ml-4 space-y-1">
                         <p className="text-sm font-medium leading-none">
-                          Attendance Alert
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Low attendance in Form 3B
-                        </p>
-                      </div>
-                      <div className="ml-auto font-medium">
-                        <TrendingDown className="h-4 w-4 text-red-500" />
-                      </div>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="ml-4 space-y-1">
-                        <p className="text-sm font-medium leading-none">
                           Exam Schedule
                         </p>
                         <p className="text-sm text-muted-foreground">

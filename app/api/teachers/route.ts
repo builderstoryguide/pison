@@ -392,7 +392,7 @@ export async function POST(
             has_default_password: true,
             password_last_changed: new Date().toISOString(),
             password_expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            permissions: ['manage_classes', 'grade_students', 'mark_attendance', 'communicate_parents'],
+            permissions: ['manage_classes', 'grade_students', 'communicate_parents'],
             created_by: createdBy || null
           })
           .select()

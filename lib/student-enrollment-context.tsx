@@ -354,7 +354,7 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
             has_default_password: true,
             password_last_changed: new Date().toISOString(),
             password_expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-            permissions: ['view_own_progress', 'view_own_schedule', 'view_own_fees', 'view_own_attendance', 'communicate_teachers'],
+            permissions: ['view_own_progress', 'view_own_schedule', 'view_own_fees', 'communicate_teachers'],
           })
           .select()
           .single()
@@ -407,7 +407,7 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
             has_default_password: true,
             password_last_changed: new Date().toISOString(),
             password_expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-            permissions: ['view_child_progress', 'view_child_schedule', 'view_child_fees', 'communicate_teachers', 'view_child_attendance'],
+            permissions: ['view_child_progress', 'view_child_schedule', 'view_child_fees', 'communicate_teachers'],
           })
           .select()
           .single()

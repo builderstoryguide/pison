@@ -8,10 +8,8 @@ import { TeacherManagementProvider } from "@/lib/teacher-management-context"
 import { ClassManagementProvider } from "@/lib/class-management-context"
 import { ExaminationProvider } from "@/lib/examination-context"
 import { FinancialProvider } from "@/lib/financial-context"
-import { AttendanceProvider } from "@/lib/attendance-context"
 import { ReportsAnalyticsProvider } from "@/lib/reports-analytics-context"
 import { ProfileProvider } from "@/lib/profile-context"
-import { TeacherAttendanceProvider } from "@/lib/teacher-attendance-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 import { TeacherExaminationProvider } from "@/lib/teacher-examination-context"
 import { TeacherExamMarksProvider } from "@/lib/teacher-exam-marks-context"
@@ -42,21 +40,17 @@ function AppContent() {
               <ClassManagementProvider>
                 <ExaminationProvider>
                   <FinancialProvider>
-                    <AttendanceProvider>
-                      <TeacherAttendanceProvider>
-                        <TeacherGradesProvider>
-                          <TeacherExaminationProvider>
-                            <TeacherExamMarksProvider>
-                              <ReportsAnalyticsProvider>
-                                <ProfileProvider>
-                                  <Dashboard />
-                                </ProfileProvider>
-                              </ReportsAnalyticsProvider>
-                            </TeacherExamMarksProvider>
-                          </TeacherExaminationProvider>
-                        </TeacherGradesProvider>
-                      </TeacherAttendanceProvider>
-                    </AttendanceProvider>
+                    <TeacherGradesProvider>
+                      <TeacherExaminationProvider>
+                        <TeacherExamMarksProvider>
+                          <ReportsAnalyticsProvider>
+                            <ProfileProvider>
+                              <Dashboard />
+                            </ProfileProvider>
+                          </ReportsAnalyticsProvider>
+                        </TeacherExamMarksProvider>
+                      </TeacherExaminationProvider>
+                    </TeacherGradesProvider>
                   </FinancialProvider>
                 </ExaminationProvider>
               </ClassManagementProvider>
