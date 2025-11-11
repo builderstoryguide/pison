@@ -25,7 +25,6 @@ import { useSubjectManagement } from "@/lib/subject-management-context"
 import { useToast } from "@/hooks/use-toast"
 import { useLevels } from "@/hooks/use-levels"
 import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
-import { Info } from "lucide-react"
 
 interface ClassFormProps {
   onSuccess: (result: { classId: string; classData: ClassFormData } | { classIds: string[]; classData: ClassFormData[] }) => void
@@ -240,7 +239,7 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-sm font-medium">
                     Class Name <span className="text-destructive">*</span>
@@ -250,7 +249,7 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g., Form 1A, Terminale C"
-                    className="h-10"
+                    className="h-10 w-full"
                     required
                   />
                 </div>
@@ -264,7 +263,7 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                     onValueChange={(value) => setFormData({ ...formData, level: value })}
                     disabled={levelsLoading || !formData.subsystem || !formData.branch}
                   >
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 w-full">
                       <SelectValue placeholder={levelsLoading ? "Loading levels..." : "Select level"} />
                     </SelectTrigger>
                     <SelectContent>
@@ -288,7 +287,7 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                     Subsystem <span className="text-destructive">*</span>
                   </Label>
                   <Select value={formData.subsystem} onValueChange={(value: "english" | "french") => setFormData({ ...formData, subsystem: value, subjects: [] })}>
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 w-full">
                       <SelectValue placeholder="Select subsystem" />
                     </SelectTrigger>
                     <SelectContent>
@@ -303,7 +302,7 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                     Branch <span className="text-destructive">*</span>
                   </Label>
                   <Select value={formData.branch} onValueChange={(value: "grammar" | "technical" | "commercial") => setFormData({ ...formData, branch: value, subjects: [] })}>
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 w-full">
                       <SelectValue placeholder="Select branch" />
                     </SelectTrigger>
                     <SelectContent>
@@ -315,15 +314,14 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="academicYear" className="text-sm font-medium flex items-center gap-2">
+                  <Label htmlFor="academicYear" className="text-sm font-medium">
                     Academic Year <span className="text-destructive">*</span>
-                    <span className="text-xs text-muted-foreground font-normal">(Global Setting)</span>
                   </Label>
                   <Select 
                     value={globalAcademicYear} 
                     disabled={true}
                   >
-                    <SelectTrigger className="h-10 bg-muted">
+                    <SelectTrigger className="h-10 bg-muted w-full">
                       <SelectValue placeholder="Select academic year" />
                     </SelectTrigger>
                     <SelectContent>
@@ -332,27 +330,30 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  <Alert className="mt-2 py-2">
-                    <Info className="h-4 w-4" />
-                    <AlertDescription className="text-xs">
-                      Academic Year is managed globally in App Configuration. To change it, go to Settings → App Configuration → System Settings.
-                    </AlertDescription>
-                  </Alert>
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="classTeacher" className="text-sm font-medium">
                     Class Teacher
                   </Label>
                   <Select value={formData.classTeacher} onValueChange={(value) => setFormData({ ...formData, classTeacher: value })}>
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 w-full">
                       <SelectValue placeholder="Select class teacher (optional)" />
                     </SelectTrigger>
                     <SelectContent>
                       {teachers
-                        .filter(teacher => teacher.subsystem === formData.subsystem)
+                        .filter(teacher => {
+                          // Show all active teachers (removed subsystem filter to show all teachers)
+                          return teacher.status === 'active' || teacher.status === undefined || teacher.status === null
+                        })
+                        .sort((a, b) => {
+                          // Sort by last name, then first name
+                          const nameA = `${a.lastName} ${a.firstName}`.toLowerCase()
+                          const nameB = `${b.lastName} ${b.firstName}`.toLowerCase()
+                          return nameA.localeCompare(nameB)
+                        })
                         .map((teacher) => (
                           <SelectItem key={teacher.teacherId} value={teacher.teacherId}>
                             {teacher.title} {teacher.firstName} {teacher.lastName}
@@ -591,7 +592,7 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-sm font-medium">
                     Class Name <span className="text-destructive">*</span>
@@ -601,7 +602,7 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g., Form 1A, Terminale C"
-                    className="h-10"
+                    className="h-10 w-full"
                     required
                   />
                 </div>
@@ -615,7 +616,7 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                     onValueChange={(value) => setFormData({ ...formData, level: value })}
                     disabled={levelsLoading || !formData.subsystem || !formData.branch}
                   >
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 w-full">
                       <SelectValue placeholder={levelsLoading ? "Loading levels..." : "Select level"} />
                     </SelectTrigger>
                     <SelectContent>
@@ -639,7 +640,7 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                     Subsystem <span className="text-destructive">*</span>
                   </Label>
                   <Select value={formData.subsystem} onValueChange={(value: "english" | "french") => setFormData({ ...formData, subsystem: value, subjects: [] })}>
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 w-full">
                       <SelectValue placeholder="Select subsystem" />
                     </SelectTrigger>
                     <SelectContent>
@@ -654,7 +655,7 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                     Branch <span className="text-destructive">*</span>
                   </Label>
                   <Select value={formData.branch} onValueChange={(value: "grammar" | "technical" | "commercial") => setFormData({ ...formData, branch: value, subjects: [] })}>
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 w-full">
                       <SelectValue placeholder="Select branch" />
                     </SelectTrigger>
                     <SelectContent>
@@ -666,15 +667,14 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="academicYear" className="text-sm font-medium flex items-center gap-2">
+                  <Label htmlFor="academicYear" className="text-sm font-medium">
                     Academic Year <span className="text-destructive">*</span>
-                    <span className="text-xs text-muted-foreground font-normal">(Global Setting)</span>
                   </Label>
                   <Select 
                     value={globalAcademicYear} 
                     disabled={true}
                   >
-                    <SelectTrigger className="h-10 bg-muted">
+                    <SelectTrigger className="h-10 bg-muted w-full">
                       <SelectValue placeholder="Select academic year" />
                     </SelectTrigger>
                     <SelectContent>
@@ -683,27 +683,30 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  <Alert className="mt-2 py-2">
-                    <Info className="h-4 w-4" />
-                    <AlertDescription className="text-xs">
-                      Academic Year is managed globally in App Configuration. To change it, go to Settings → App Configuration → System Settings.
-                    </AlertDescription>
-                  </Alert>
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="classTeacher" className="text-sm font-medium">
                     Class Teacher
                   </Label>
                   <Select value={formData.classTeacher} onValueChange={(value) => setFormData({ ...formData, classTeacher: value })}>
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 w-full">
                       <SelectValue placeholder="Select class teacher (optional)" />
                     </SelectTrigger>
                     <SelectContent>
                       {teachers
-                        .filter(teacher => teacher.subsystem === formData.subsystem)
+                        .filter(teacher => {
+                          // Show all active teachers (removed subsystem filter to show all teachers)
+                          return teacher.status === 'active' || teacher.status === undefined || teacher.status === null
+                        })
+                        .sort((a, b) => {
+                          // Sort by last name, then first name
+                          const nameA = `${a.lastName} ${a.firstName}`.toLowerCase()
+                          const nameB = `${b.lastName} ${b.firstName}`.toLowerCase()
+                          return nameA.localeCompare(nameB)
+                        })
                         .map((teacher) => (
                           <SelectItem key={teacher.teacherId} value={teacher.teacherId}>
                             {teacher.title} {teacher.firstName} {teacher.lastName}

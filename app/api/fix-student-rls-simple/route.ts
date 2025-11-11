@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const supabase = await createClient()
     if (!supabase) {
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
         class: 'Test Class'
       }
 
-      const { data: minimalResult, error: minimalError } = await supabase
+      const { error: minimalError } = await supabase
         .from('students')
         .insert(minimalStudent)
         .select()
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         
         // Check if the table structure is correct
         console.log('🔍 Checking table structure...')
-        const { data: tableInfo, error: tableError } = await supabase
+        const { error: tableError } = await supabase
           .from('students')
           .select('*')
           .limit(1)

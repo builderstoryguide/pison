@@ -59,8 +59,14 @@ import { useAppConfiguration, type AppConfiguration } from "@/lib/app-configurat
 // Form validation schema
 const configurationSchema = z.object({
   school_name: z.string().min(1, "School name is required").max(255, "School name is too long"),
-  school_logo_url: z.string().url("Invalid URL").optional().or(z.literal("")),
-  school_logo_alt_text: z.string().max(255, "Alt text is too long").optional(),
+  school_logo_url: z.union([
+    z.literal(""),
+    z.string().url("Invalid URL")
+  ]).optional(),
+  school_logo_alt_text: z.union([
+    z.literal(""),
+    z.string().max(255, "Alt text is too long")
+  ]).optional(),
   school_address: z.string().optional(),
   school_phone: z.string().optional(),
   school_email: z.string().email("Invalid email").optional().or(z.literal("")),

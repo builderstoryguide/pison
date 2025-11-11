@@ -32,7 +32,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { 
-  Plus, 
   BookOpen, 
   Users, 
   TrendingUp, 
@@ -44,7 +43,6 @@ import {
   Save,
   X,
   Search,
-  Filter,
   Download,
   Upload,
   RefreshCw,
@@ -52,8 +50,7 @@ import {
   AlertCircle,
   Clock
 } from "lucide-react"
-import { AssessmentCreationForm } from "./assessment-creation-form"
-import { GradeEntryForm } from "./grade-entry-form"
+import { ClassGradeEntryForm } from "./class-grade-entry-form"
 import { StudentGradesView } from "./student-grades-view"
 
 export function EnhancedGradesManagement() {
@@ -504,7 +501,7 @@ export function EnhancedGradesManagement() {
         <div>
           <h1 className="text-3xl font-bold">Enhanced Grades Management</h1>
           <p className="text-muted-foreground">
-            Comprehensive CRUD operations for managing student assessments and grades
+            Enter grades and analyze student performance
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -538,7 +535,6 @@ export function EnhancedGradesManagement() {
       <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="create-assessment">Create Assessment</TabsTrigger>
           <TabsTrigger value="enter-grades">Enter Grades</TabsTrigger>
           <TabsTrigger value="student-grades">Student Grades</TabsTrigger>
         </TabsList>
@@ -648,17 +644,13 @@ export function EnhancedGradesManagement() {
 
           {/* Assessments Table */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader>
               <div>
                 <CardTitle>Assessments</CardTitle>
                 <CardDescription>
                   Manage your assessments and view performance statistics
                 </CardDescription>
               </div>
-              <Button onClick={() => setSelectedTab("create-assessment")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Assessment
-              </Button>
             </CardHeader>
             <CardContent>
               <Table>
@@ -763,7 +755,7 @@ export function EnhancedGradesManagement() {
                   <p className="text-muted-foreground">
                     {searchTerm || filterType !== "all" || filterStatus !== "all" 
                       ? "Try adjusting your search or filters."
-                      : "Create your first assessment to get started."
+                      : "No assessments available."
                     }
                   </p>
                 </div>
@@ -772,12 +764,8 @@ export function EnhancedGradesManagement() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="create-assessment">
-          <AssessmentCreationForm onSuccess={() => setSelectedTab("overview")} />
-        </TabsContent>
-
         <TabsContent value="enter-grades">
-          <GradeEntryForm selectedAssessmentId={selectedAssessment} onSuccess={() => setSelectedTab("overview")} />
+          <ClassGradeEntryForm onSuccess={() => setSelectedTab("overview")} />
         </TabsContent>
 
         <TabsContent value="student-grades">

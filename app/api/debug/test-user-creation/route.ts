@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     console.log('🔍 Debug: Testing user creation for teacher:', teacherEmail)
 
     // Step 1: Check if user already exists
-    const { data: existingUser, error: existingUserError } = await supabase
+    const { data: existingUser } = await supabase
       .from('users')
       .select('*')
       .eq('email', teacherEmail)

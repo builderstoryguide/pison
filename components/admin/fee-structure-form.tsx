@@ -219,34 +219,128 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
               } else if (result.status === 403) {
                 throw new Error("You don't have permission to create fee structures. Admin or Bursar role required.")
               } else if (result.status === 409) {
-                // Duplicate fee structure error
+                // Duplicate fee structure error - return error info instead of throwing
                 const errorMessage = result.error || result.data?.error || `A fee structure already exists for ${classData.name} in ${formData.academicYear} - ${termLabel} term.`
-                throw new Error(errorMessage)
+                return { 
+                  success: false, 
+                  error: errorMessage,
+                  classId,
+                  className: classData.name,
+                  term,
+                  termLabel,
+                  existingFeeStructureId: result.data?.existingFeeStructureId
+                }
               } else {
                 // Use error message from response or provide fallback
                 const errorMessage = result.error || result.data?.error || `Failed to create fee structure for ${classData.name} - ${termLabel}`
-                throw new Error(errorMessage)
+                return { 
+                  success: false, 
+                  error: errorMessage,
+                  classId,
+                  className: classData.name,
+                  term,
+                  termLabel
+                }
               }
             }
 
-            return result.data
+            return { 
+              success: true, 
+              data: result.data,
+              classId,
+              className: classData.name,
+              term,
+              termLabel
+            }
           })
         })
 
-        const results = await Promise.all(promises)
-        const successfulResults = results.filter(result => result !== null)
+        // Use allSettled to continue processing even if some fail
+        const results = await Promise.allSettled(promises)
+        
+        const successfulResults: any[] = []
+        const failedResults: Array<{ className: string; termLabel: string; error: string; existingFeeStructureId?: string }> = []
 
-        if (successfulResults.length > 0) {
-          const termCount = termsToCreate.length
-          const classCount = formData.classIds.length
-          const totalStructures = termCount * classCount
-          
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            const value = result.value
+            if (value.success && value.data) {
+              successfulResults.push(value.data)
+            } else if (value.success === false) {
+              failedResults.push({
+                className: value.className,
+                termLabel: value.termLabel,
+                error: value.error,
+                existingFeeStructureId: value.existingFeeStructureId
+              })
+            }
+          } else {
+            // Handle rejected promises (unexpected errors)
+            const promiseIndex = index
+            const classId = formData.classIds[Math.floor(promiseIndex / termsToCreate.length)]
+            const termIndex = promiseIndex % termsToCreate.length
+            const term = termsToCreate[termIndex]
+            const termLabel = term === "first" ? "First Term" : term === "second" ? "Second Term" : "Third Term"
+            const classData = classes.find(c => c.id === classId)
+            
+            failedResults.push({
+              className: classData?.name || 'Unknown class',
+              termLabel,
+              error: result.reason?.message || 'An unexpected error occurred'
+            })
+          }
+        })
+
+        const termCount = termsToCreate.length
+        const classCount = formData.classIds.length
+        const totalStructures = termCount * classCount
+
+        // Show appropriate toast messages based on results
+        if (successfulResults.length > 0 && failedResults.length === 0) {
+          // All succeeded
           toast.success("Fee structures created successfully!", {
-            description: `Successfully created ${successfulResults.length} of ${totalStructures} fee structure(s) for ${classCount} class(es)`
+            description: `Successfully created ${successfulResults.length} fee structure(s) for ${classCount} class(es)`
+          })
+          onSuccess(successfulResults[0].feeStructureId || successfulResults[0].id)
+        } else if (successfulResults.length > 0 && failedResults.length > 0) {
+          // Some succeeded, some failed
+          const duplicateErrors = failedResults.filter(f => f.error.includes('already exists'))
+          const otherErrors = failedResults.filter(f => !f.error.includes('already exists'))
+          
+          let description = `Successfully created ${successfulResults.length} of ${totalStructures} fee structure(s).`
+          
+          if (duplicateErrors.length > 0) {
+            description += `\n\n${duplicateErrors.length} already exist: ${duplicateErrors.map(f => `${f.className} - ${f.termLabel}`).join(', ')}`
+          }
+          
+          if (otherErrors.length > 0) {
+            description += `\n\n${otherErrors.length} failed: ${otherErrors.map(f => `${f.className} - ${f.termLabel}`).join(', ')}`
+          }
+
+          toast.warning("Fee structures partially created", {
+            description,
+            duration: 8000
           })
           onSuccess(successfulResults[0].feeStructureId || successfulResults[0].id)
         } else {
-          throw new Error("Failed to create any fee structures")
+          // All failed
+          const duplicateErrors = failedResults.filter(f => f.error.includes('already exists'))
+          
+          if (duplicateErrors.length === failedResults.length) {
+            // All failures are duplicates
+            const errorList = duplicateErrors.map(f => `${f.className} - ${f.termLabel}`).join(', ')
+            toast.error("Fee structures already exist", {
+              description: `All selected fee structures already exist: ${errorList}. Please edit the existing structures or choose different classes/terms.`,
+              duration: 10000
+            })
+          } else {
+            // Mixed or other errors
+            const errorMessages = failedResults.map(f => `${f.className} - ${f.termLabel}: ${f.error}`).join('\n')
+            toast.error("Failed to create fee structures", {
+              description: `All ${totalStructures} fee structure(s) failed to create:\n${errorMessages}`,
+              duration: 10000
+            })
+          }
         }
       }
     } catch (error) {

@@ -98,11 +98,64 @@ function SelectLabel({
   )
 }
 
+/**
+ * SelectItem Component
+ * 
+ * IMPORTANT: The value prop cannot be an empty string ("").
+ * 
+ * Radix UI Select uses empty strings internally to:
+ * - Clear the selection
+ * - Show the placeholder
+ * - Handle "no selection" state
+ * 
+ * If you need to represent "no selection" or an optional field:
+ * 1. Use a meaningful non-empty value like "none" or "no-branch"
+ * 2. Update form logic to handle this value (e.g., convert "none" to empty string before submission)
+ * 
+ * For loading/empty states:
+ * - Don't render SelectItem components with empty values
+ * - Disable the Select component and use the placeholder to show status messages
+ * - Example: disabled={isLoading || items.length === 0}
+ * 
+ * @example
+ * // ✅ CORRECT - Using "none" for optional selection
+ * <SelectItem value="none">No specific branch</SelectItem>
+ * 
+ * @example
+ * // ✅ CORRECT - Disabling Select for empty state
+ * <Select disabled={classes.length === 0}>
+ *   <SelectValue placeholder={classes.length === 0 ? "No classes available" : "Select class"} />
+ *   <SelectContent>
+ *     {classes.map(cls => <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>)}
+ *   </SelectContent>
+ * </Select>
+ * 
+ * @example
+ * // ❌ WRONG - Empty string value causes runtime error
+ * <SelectItem value="">No classes available</SelectItem>
+ */
 function SelectItem({
   className,
   children,
+  value,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Item>) {
+  // Runtime validation in development mode
+  // This will catch empty string values and provide helpful error messages
+  if (process.env.NODE_ENV !== 'production') {
+    if (value === '') {
+      console.error(
+        '❌ SelectItem: value prop cannot be an empty string.\n' +
+        'Radix UI Select reserves empty strings for clearing selections.\n' +
+        'Solutions:\n' +
+        '  1. Use a meaningful value like "none" for optional selections\n' +
+        '  2. Disable the Select component for empty/loading states\n' +
+        '  3. Use the placeholder to show status messages instead of SelectItem\n' +
+        'See SelectItem component documentation for examples.'
+      )
+    }
+  }
+
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -110,6 +163,7 @@ function SelectItem({
         "focus:bg-accent focus:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className
       )}
+      value={value}
       {...props}
     >
       <span className="absolute right-2 flex size-3.5 items-center justify-center">

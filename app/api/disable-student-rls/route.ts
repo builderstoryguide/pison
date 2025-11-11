@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const supabase = await createClient()
     if (!supabase) {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       status: 'active'
     }
 
-    const { data: testResult, error: testError } = await supabase
+    const { error: testError } = await supabase
       .from('students')
       .insert(testStudent)
       .select()
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         last_name: 'Student'
       }
 
-      const { data: minimalResult, error: minimalError } = await supabase
+      const { error: minimalError } = await supabase
         .from('students')
         .insert(minimalStudent)
         .select()

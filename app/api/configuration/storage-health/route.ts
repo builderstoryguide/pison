@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const supabase = await createClient()
 
     // Check authentication and admin role
-    const user = await requireRole(request, 'admin')
+    void await requireRole(request, 'admin')
 
     const healthCheck = {
       timestamp: new Date().toISOString(),
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 
       // Test bucket accessibility
       try {
-        const { data: testList, error: listError } = await supabase.storage
+        const { error: listError } = await supabase.storage
           .from('school-assets')
           .list('logos', { limit: 1 })
 

@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Users, BookOpen, Calendar, MapPin, Phone, Mail, User, GraduationCap } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Users, BookOpen, MapPin, Phone, Mail, User, GraduationCap } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -22,8 +22,20 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<Student["enrollmentStatus"] | "all">("all")
 
+  // Debug: Log class data when dialog opens
+  useEffect(() => {
+    if (open) {
+      console.log('Class Details Dialog opened for class:', {
+        classId: classData.id,
+        className: classData.name,
+        studentsCount: classData.students?.length || 0,
+        students: classData.students,
+      })
+    }
+  }, [open, classData])
+
   const getFilteredStudents = () => {
-    let students = classData.students
+    let students = classData.students || []
 
     // Apply status filter first
     if (statusFilter !== "all") {
@@ -46,7 +58,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
   }
 
   const filteredStudents = getFilteredStudents()
-  const enrolledCount = classData.students.filter((s) => s.enrollmentStatus === "enrolled").length
+  const enrolledCount = (classData.students || []).filter((s) => s.enrollmentStatus === "enrolled").length
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -67,11 +79,10 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
         </DialogHeader>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-2">
+          <TabsList className="grid w-full grid-cols-3 mb-2">
             <TabsTrigger value="overview" className="font-medium">Overview</TabsTrigger>
             <TabsTrigger value="students" className="font-medium">Students</TabsTrigger>
             <TabsTrigger value="subjects" className="font-medium">Subjects</TabsTrigger>
-            <TabsTrigger value="schedule" className="font-medium">Schedule</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6 py-4">
@@ -211,10 +222,32 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
             <Card>
               <CardHeader>
                 <CardTitle>Students ({filteredStudents.length})</CardTitle>
-                <CardDescription>Students enrolled in this class</CardDescription>
+                <CardDescription>
+                  {classData.students && classData.students.length > 0 
+                    ? `${classData.students.length} total students enrolled in this class`
+                    : 'No students enrolled in this class'}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
+                {!classData.students || classData.students.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                    <h3 className="text-lg font-medium mb-2">No Students Enrolled</h3>
+                    <p className="text-sm text-muted-foreground">
+                      This class doesn't have any students enrolled yet.
+                    </p>
+                  </div>
+                ) : filteredStudents.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">
+                      No students found matching your search criteria.
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Try adjusting your search term or status filter.
+                    </p>
+                  </div>
+                ) : (
+                  <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Student</TableHead>
@@ -225,15 +258,8 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredStudents.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                          No students found matching your criteria
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredStudents.map((student) => (
-                        <TableRow key={student.id}>
+                    {filteredStudents.map((student) => (
+                      <TableRow key={student.id}>
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <Avatar className="h-8 w-8">
@@ -299,10 +325,10 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
                             </Badge>
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
+                      ))}
                   </TableBody>
                 </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -362,41 +388,6 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="schedule" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Weekly Schedule</CardTitle>
-                <CardDescription>Class timetable for the week</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {classData.schedule.map((day) => (
-                    <div key={day.day}>
-                      <h4 className="font-medium mb-3 flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        {day.day}
-                      </h4>
-                      <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
-                        {day.periods.map((period, index) => (
-                          <Card key={index} className="p-3">
-                            <div className="space-y-1">
-                              <div className="font-medium text-sm">{period.time}</div>
-                              <div className="text-sm text-muted-foreground">{period.subject}</div>
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <MapPin className="h-3 w-3" />
-                                {period.room}
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </CardContent>
             </Card>
           </TabsContent>

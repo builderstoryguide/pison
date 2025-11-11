@@ -46,6 +46,7 @@ export interface TeacherClass {
   branch: "grammar" | "technical" | "commercial"
   academicYear: string
   capacity: number
+  currentEnrollment?: number // Optional enrollment count from database
   room: string
   students: Student[]
   subjects: Subject[]
@@ -86,16 +87,17 @@ export function TeacherClassesProvider({ children }: { children: React.ReactNode
     setError(null)
 
     try {
-      // Fetch teacher assignments which includes classes
-      const response = await fetch(`/api/teachers/${user.id}/assignments`)
+      // Fetch teacher assignments which includes classes with details (subjects and students)
+      const response = await fetch(`/api/teachers/${user.id}/assignments?includeDetails=true&page=1&limit=100`)
       const data = await response.json()
 
       console.log('Teacher classes API response:', {
         ok: data.ok,
         classesCount: data.classes?.length || 0,
         subjectsCount: data.subjects?.length || 0,
+        classesWithSubjects: data.classes?.filter((cls: any) => cls.subjects && cls.subjects.length > 0).length || 0,
+        totalSubjectsInClasses: data.classes?.reduce((sum: number, cls: any) => sum + (cls.subjects?.length || 0), 0) || 0,
         error: data.error,
-        fullResponse: data
       })
 
       if (!response.ok || !data.ok) {
@@ -172,6 +174,7 @@ export function TeacherClassesProvider({ children }: { children: React.ReactNode
           branch: (cls.branch || 'grammar') as 'grammar' | 'technical' | 'commercial',
           academicYear: cls.academicYear || '',
           capacity: cls.capacity || 40,
+          currentEnrollment: cls.currentEnrollment || students.filter(s => s.enrollmentStatus === 'enrolled').length,
           room: 'Room TBD', // Room info would need to come from timetable or class data
           students,
           subjects,

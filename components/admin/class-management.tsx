@@ -195,7 +195,10 @@ export function ClassManagement() {
           <p className="text-muted-foreground">Manage classes, assignments, and schedules</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowCreateForm(true)}>
+          <Button variant="outline" onClick={() => {
+            setSelectedClass(null)
+            setShowCreateForm(true)
+          }}>
             <Plus className="h-4 w-4 mr-2" />
             Create Class
           </Button>
@@ -203,7 +206,10 @@ export function ClassManagement() {
             <Plus className="h-4 w-4 mr-2" />
             Create Level
           </Button>
-          <Button onClick={() => setShowCreateForm(true)}>
+          <Button onClick={() => {
+            setSelectedClass(null)
+            setShowCreateForm(true)
+          }}>
             <Plus className="h-4 w-4 mr-2" />
             Quick Add
           </Button>
@@ -713,7 +719,12 @@ export function ClassManagement() {
       </Card>
 
       {/* Create/Edit Class Dialog */}
-      <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
+      <Dialog open={showCreateForm} onOpenChange={(open) => {
+        setShowCreateForm(open)
+        if (!open) {
+          setSelectedClass(null)
+        }
+      }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
@@ -792,6 +803,7 @@ export function ClassManagement() {
                   <Button
                     onClick={() => {
                       setSuccessMessage(null)
+                      setSelectedClass(null)
                       setShowCreateForm(true)
                     }}
                   >

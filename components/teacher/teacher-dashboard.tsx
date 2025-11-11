@@ -9,7 +9,7 @@ import {
   FileText,
   Eye,
   Award,
-  Plus,
+  GraduationCap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,6 +32,8 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
   // Calculate statistics
   const totalClasses = teacherClasses.length
   const totalStudents = teacherClasses.reduce((sum, cls) => sum + cls.students.length, 0)
+  const totalEnrolledStudents = teacherClasses.reduce((sum, cls) => sum + cls.students.filter(s => s.enrollmentStatus === "enrolled").length, 0)
+  const averageCapacity = teacherClasses.length > 0 ? Math.round(teacherClasses.reduce((sum, cls) => sum + cls.capacity, 0) / teacherClasses.length) : 0
 
   // Get today's schedule from classes
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
@@ -153,14 +155,6 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
             <Button 
               variant="outline" 
               className="flex-1 min-w-[200px] justify-start bg-transparent"
-              onClick={() => onNavigate?.("grades")}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Assessment
-            </Button>
-            <Button 
-              variant="outline" 
-              className="flex-1 min-w-[200px] justify-start bg-transparent"
               onClick={() => onNavigate?.("my-assignments")}
             >
               <BookOpen className="h-4 w-4 mr-2" />
@@ -200,6 +194,24 @@ export function TeacherDashboard({ onNavigate }: TeacherDashboardProps) {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Statistics Summary */}
+          <div className="grid gap-4 md:grid-cols-2 mb-6 pb-6 border-b">
+            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Students</p>
+                <p className="text-2xl font-bold mt-1">{totalEnrolledStudents}</p>
+              </div>
+              <Users className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Avg. Capacity</p>
+                <p className="text-2xl font-bold mt-1">{averageCapacity}</p>
+              </div>
+              <GraduationCap className="h-8 w-8 text-muted-foreground" />
+            </div>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {teacherClasses.slice(0, 3).map((cls) => (
               <Card key={cls.id} className="border-2">

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Save, X, Users, BookOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,23 +23,77 @@ export function GradeEntryForm({ selectedAssessmentId, onSuccess, onCancel }: Gr
   const {
     assessments,
     students,
+    grades,
     classes,
     addGrade,
     getStudentsByClass,
     getGradesByAssessment,
+    getAssessmentsForTeacher,
     calculateGrade,
+    loadStudents,
+    loadAssessments,
     loading,
+    loadingStudents,
   } = useTeacherGrades()
+
+  // Get assessments filtered by teacher's assigned classes
+  const teacherAssessments = getAssessmentsForTeacher()
 
   const [selectedAssessment, setSelectedAssessment] = useState(selectedAssessmentId || "")
   const [gradeEntries, setGradeEntries] = useState<Record<string, { marks: number; remarks: string }>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const assessment = assessments.find((a) => a.id === selectedAssessment)
-  const classStudents = assessment ? getStudentsByClass(assessment.classId) : []
-  const existingGrades = assessment ? getGradesByAssessment(assessment.id) : []
+  // Sync selectedAssessment with prop when it changes
+  useEffect(() => {
+    if (selectedAssessmentId !== null && selectedAssessmentId !== selectedAssessment) {
+      setSelectedAssessment(selectedAssessmentId)
+    }
+  }, [selectedAssessmentId, selectedAssessment])
+
+  // Load students and assessments when component mounts
+  // Only run once on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await Promise.all([
+          loadStudents(),
+          loadAssessments(),
+        ])
+      } catch (error) {
+        console.error("Error loading data in GradeEntryForm:", error)
+      }
+    }
+    loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const assessment = teacherAssessments.find((a) => a.id === selectedAssessment)
+  
+  // Memoize computed values to prevent infinite loops
+  const classStudents = useMemo(() => {
+    return assessment ? getStudentsByClass(assessment.classId) : []
+  }, [assessment?.id, assessment?.classId, getStudentsByClass, students])
+  
+  const existingGrades = useMemo(() => {
+    return assessment ? getGradesByAssessment(assessment.id) : []
+  }, [assessment?.id, getGradesByAssessment, grades])
+
+  // Debug logging to help diagnose issues
+  useEffect(() => {
+    if (assessment) {
+      console.log("Assessment selected:", {
+        assessmentId: assessment.id,
+        classId: assessment.classId,
+        className: assessment.className,
+        totalStudents: students.length,
+        classStudents: classStudents.length,
+        studentClassIds: students.map(s => s.classId).filter((id, index, arr) => arr.indexOf(id) === index),
+      })
+    }
+  }, [assessment?.id, students.length, classStudents.length])
 
   // Initialize grade entries when assessment changes
+  // Use memoized arrays as dependencies - they're stable references
   useEffect(() => {
     if (assessment && classStudents.length > 0) {
       const initialEntries: Record<string, { marks: number; remarks: string }> = {}
@@ -53,8 +107,11 @@ export function GradeEntryForm({ selectedAssessmentId, onSuccess, onCancel }: Gr
       })
 
       setGradeEntries(initialEntries)
+    } else if (assessment && classStudents.length === 0) {
+      // Clear entries if no students found
+      setGradeEntries({})
     }
-  }, [assessment?.id, classStudents.length, existingGrades.length])
+  }, [assessment?.id, classStudents, existingGrades])
 
   const validateGrades = useCallback(() => {
     const newErrors: Record<string, string> = {}
@@ -127,12 +184,15 @@ export function GradeEntryForm({ selectedAssessmentId, onSuccess, onCancel }: Gr
       },
     }))
 
-    // Clear errors for this field
-    const errorKey = field === "marks" ? `marks_${studentId}` : `remarks_${studentId}`
-    if (errors[errorKey]) {
-      setErrors((prev) => ({ ...prev, [errorKey]: "" }))
-    }
-  }, [errors])
+    // Clear errors for this field - use functional update to avoid dependency on errors
+    setErrors((prev) => {
+      const errorKey = field === "marks" ? `marks_${studentId}` : `remarks_${studentId}`
+      if (prev[errorKey]) {
+        return { ...prev, [errorKey]: "" }
+      }
+      return prev
+    })
+  }, [])
 
   const getGradePreview = useCallback((studentId: string) => {
     const entry = gradeEntries[studentId]
@@ -144,15 +204,6 @@ export function GradeEntryForm({ selectedAssessmentId, onSuccess, onCancel }: Gr
     return { percentage: Math.round(percentage * 100) / 100, grade }
   }, [gradeEntries, assessment, calculateGrade])
 
-  // Error boundary for infinite loops
-  if (assessments.length > 1000) {
-    console.error("Infinite loop detected in GradeEntryForm")
-    return (
-      <div className="p-4 text-center">
-        <p className="text-red-600">An error occurred. Please refresh the page.</p>
-      </div>
-    )
-  }
 
   return (
     <div className="space-y-6">
@@ -174,22 +225,39 @@ export function GradeEntryForm({ selectedAssessmentId, onSuccess, onCancel }: Gr
                   <SelectValue placeholder="Choose an assessment" />
                 </SelectTrigger>
                 <SelectContent>
-                  {assessments.map((assessment) => (
-                    <SelectItem key={assessment.id} value={assessment.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{assessment.title}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {assessment.className}
-                        </Badge>
-                        <Badge variant="secondary" className="text-xs capitalize">
-                          {assessment.type}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {teacherAssessments.length === 0 ? (
+                    <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                      <p>No assessments available for your assigned classes.</p>
+                      <p className="mt-1 text-xs">Please contact the administrator to create assessments.</p>
+                    </div>
+                  ) : (
+                    teacherAssessments.map((assessment) => (
+                      <SelectItem key={assessment.id} value={assessment.id}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{assessment.title}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {assessment.className}
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs capitalize">
+                            {assessment.type}
+                          </Badge>
+                          {assessment.subject && (
+                            <Badge variant="outline" className="text-xs">
+                              {assessment.subject}
+                            </Badge>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               {errors.assessment && <p className="text-sm text-red-600">{errors.assessment}</p>}
+              {teacherAssessments.length === 0 && !loading && (
+                <p className="text-sm text-muted-foreground">
+                  No assessments found for your assigned classes. Assessments are created by administrators.
+                </p>
+              )}
             </div>
 
             {/* Assessment Details */}
@@ -219,8 +287,19 @@ export function GradeEntryForm({ selectedAssessmentId, onSuccess, onCancel }: Gr
         </CardContent>
       </Card>
 
+      {/* Loading State */}
+      {assessment && loadingStudents && (
+        <Card>
+          <CardContent className="text-center py-8">
+            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4 animate-pulse" />
+            <h3 className="text-lg font-medium mb-2">Loading Students...</h3>
+            <p className="text-muted-foreground">Please wait while we load students for this class.</p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Grade Entry Table */}
-      {assessment && classStudents.length > 0 && (
+      {assessment && !loadingStudents && classStudents.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -337,12 +416,28 @@ export function GradeEntryForm({ selectedAssessmentId, onSuccess, onCancel }: Gr
       )}
 
       {/* No Students Message */}
-      {assessment && classStudents.length === 0 && (
+      {assessment && !loadingStudents && classStudents.length === 0 && students.length > 0 && (
         <Card>
           <CardContent className="text-center py-8">
             <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">No Students Found</h3>
-            <p className="text-muted-foreground">No students are enrolled in the selected class.</p>
+            <p className="text-muted-foreground">
+              No students are enrolled in class "{assessment.className}" (Class ID: {assessment.classId}).
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Total students loaded: {students.length}. Please ensure students are assigned to this class.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* No Students and No Data Loaded */}
+      {assessment && !loadingStudents && classStudents.length === 0 && students.length === 0 && (
+        <Card>
+          <CardContent className="text-center py-8">
+            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">No Students Loaded</h3>
+            <p className="text-muted-foreground">Unable to load students. Please check your connection and try again.</p>
           </CardContent>
         </Card>
       )}

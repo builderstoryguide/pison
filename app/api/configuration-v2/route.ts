@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole, getUserFromRequest } from '@/lib/auth/server'
+import { requireRole } from '@/lib/auth/server'
 
 // Enhanced error types for better debugging
 interface ApiError {
@@ -48,14 +48,11 @@ const getDefaultConfiguration = () => ({
 })
 
 // Enhanced GET endpoint with multiple fallback strategies
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   const startTime = Date.now()
   
   try {
-    // Strategy 1: Try to get authenticated user (optional for GET)
-    const user = await getUserFromRequest(request)
-
-    // Strategy 2: Try to fetch from database
+    // Strategy 1: Try to fetch from database
     try {
       const supabase = await createClient()
       
@@ -197,11 +194,25 @@ export async function PUT(request: NextRequest) {
       }, 400)
     }
 
+    // Validate logo URL if provided (optional field)
+    if (school_logo_url && school_logo_url.trim() !== '') {
+      try {
+        new URL(school_logo_url.trim())
+      } catch {
+        return createErrorResponse({
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid logo URL format',
+          details: { field: 'school_logo_url', value: school_logo_url },
+          timestamp: new Date().toISOString()
+        }, 400)
+      }
+    }
+
     // Prepare update data
     const updateData = {
       school_name: school_name.trim(),
       school_logo_url: school_logo_url?.trim() || null,
-      school_logo_alt_text: school_logo_alt_text?.trim() || 'School Logo',
+      school_logo_alt_text: school_logo_alt_text?.trim() || null,
       school_address: school_address?.trim() || null,
       school_phone: school_phone?.trim() || null,
       school_email: school_email?.trim() || null,
@@ -362,6 +373,16 @@ export async function POST(request: NextRequest) {
 
     if (action === 'reset') {
       try {
+        // Create Supabase client
+        const supabase = await createClient()
+        if (!supabase) {
+          return createErrorResponse({
+            code: 'DATABASE_ERROR',
+            message: 'Database connection failed',
+            timestamp: new Date().toISOString()
+          }, 500)
+        }
+
         // Delete existing configuration
         await supabase
           .from('app_configuration')

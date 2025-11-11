@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ classId: string }> }
 ) {
   try {
@@ -11,7 +11,7 @@ export async function GET(
       return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
     }
 
-    const { classId } = await params
+    const { classId: _classId } = await params
 
     // For now, return a mock schedule since we don't have a schedule table yet
     // In a real implementation, you would fetch from a schedule/timetable table

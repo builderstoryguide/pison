@@ -3,7 +3,6 @@ import { createClient } from '@/lib/supabase/server'
 import { testConnection } from '@/lib/database-utils'
 import type { 
   CreateSubjectBranchRequest, 
-  UpdateSubjectBranchRequest,
   SubjectBranchesResponse,
   SubjectBranchWithDetails 
 } from '@/lib/subject-branches-types'

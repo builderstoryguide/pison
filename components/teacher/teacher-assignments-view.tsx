@@ -106,18 +106,24 @@ export function TeacherAssignmentsView() {
     }
   }
 
-  const filteredSubjects = allSubjects.filter((subject) =>
-    subject.subjectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    subject.subjectCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    subject.subBranchName?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredSubjects = allSubjects.filter((subject) => {
+    const searchLower = searchTerm.toLowerCase()
+    return (
+      (subject.subjectName?.toLowerCase() || '').includes(searchLower) ||
+      (subject.subjectCode?.toLowerCase() || '').includes(searchLower) ||
+      (subject.subBranchName?.toLowerCase() || '').includes(searchLower)
+    )
+  })
 
-  const filteredClasses = allClasses.filter((cls) =>
-    cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cls.level.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cls.subsystem.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cls.branch.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredClasses = allClasses.filter((cls) => {
+    const searchLower = searchTerm.toLowerCase()
+    return (
+      (cls.name?.toLowerCase() || '').includes(searchLower) ||
+      (cls.level?.toLowerCase() || '').includes(searchLower) ||
+      (cls.subsystem?.toLowerCase() || '').includes(searchLower) ||
+      (cls.branch?.toLowerCase() || '').includes(searchLower)
+    )
+  })
 
   if (isLoading && page === 1 && allClasses.length === 0) {
     return (

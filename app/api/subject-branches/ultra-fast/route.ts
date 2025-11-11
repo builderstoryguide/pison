@@ -38,10 +38,6 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters
     const { searchParams } = new URL(request.url)
-    const subjectId = searchParams.get('subjectId')
-    const academicYear = searchParams.get('academicYear')
-    const term = searchParams.get('term')
-    const isActive = searchParams.get('isActive')
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '20'), 100)
 

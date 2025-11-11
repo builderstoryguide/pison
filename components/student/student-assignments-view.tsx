@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { ShimmerList } from "@/components/ui/shimmer-loading"
+import { apiGet, apiPost } from "@/lib/api-utils"
 
 // Form validation schema
 const submissionSchema = z.object({
@@ -125,65 +126,30 @@ export function StudentAssignmentsView() {
       setLoading(true)
       setError(null)
       
-      // First, check if the assignments table exists
-      const { error: tableCheckError } = await supabase
-        .from("assignments")
-        .select("id")
-        .limit(1)
-
-      if (tableCheckError) {
-        console.log("Assignments table not found, showing setup message")
-        setError("setup_required")
+      if (!user?.id) {
+        setError("no_assignments")
         setLoading(false)
         return
       }
 
-      // Get student's class from user profile or context
-      const { data: studentData, error: studentError } = await supabase
-        .from("students")
-        .select("class_id")
-        .eq("user_id", user?.id)
-        .single()
+      // Use the API endpoint which handles authentication and authorization
+      const result = await apiGet<{ assignments: Assignment[] }>("/api/assignments")
 
-      if (studentError) {
-        console.error("Error fetching student data:", studentError)
-        // For now, use a default class to show sample assignments
-        console.log("Using default class for demo purposes")
-        const defaultClassId = "Form 5A"
-        
-        // Try to fetch assignments for the default class
-        const { data: assignmentsData, error: assignmentsError } = await supabase
-          .from("assignments")
-          .select("*")
-          .eq("class_id", defaultClassId)
-          .eq("status", "published")
-          .order("due_date", { ascending: true })
-
-        if (assignmentsError) {
-          console.error("Error fetching assignments:", assignmentsError)
-          setError("no_assignments")
+      if (!result.success) {
+        if (result.status === 401 || result.status === 403) {
+          setError("unauthorized")
         } else {
-          setAssignments(assignmentsData || [])
+          setError("no_assignments")
         }
         setLoading(false)
         return
       }
 
-      // Fetch assignments for the student's class
-      const { data: assignmentsData, error: assignmentsError } = await supabase
-        .from("assignments")
-        .select("*")
-        .eq("class_id", studentData.class_id)
-        .eq("status", "published")
-        .order("due_date", { ascending: true })
-
-      if (assignmentsError) {
-        console.error("Error fetching assignments:", assignmentsError)
+      setAssignments(result.data?.assignments || [])
+      
+      if (!result.data?.assignments || result.data.assignments.length === 0) {
         setError("no_assignments")
-        return
       }
-
-      setAssignments(assignmentsData || [])
     } catch (err) {
       console.error("Error loading assignments:", err)
       setError("no_assignments")
@@ -287,32 +253,20 @@ export function StudentAssignmentsView() {
         submissionFileType = selectedFile.type
       }
 
-      // Check if submission is late
-      const now = new Date()
-      const dueDate = new Date(selectedAssignment.due_date)
-      const isLate = now > dueDate
+      // Use the API endpoint which handles authentication and authorization
+      const result = await apiPost("/api/assignments/submissions", {
+        assignment_id: selectedAssignment.id,
+        submitted_text: data.submittedText || null,
+        submission_file_url: submissionFileUrl,
+        submission_file_name: submissionFileName,
+        submission_file_size: submissionFileSize,
+        submission_file_type: submissionFileType,
+        remarks: data.remarks || null,
+      })
 
-      // Create submission record
-      const { error: submissionError } = await supabase
-        .from("assignment_submissions")
-        .insert({
-          submission_id: `SUB${Date.now()}`,
-          assignment_id: selectedAssignment.id,
-          student_id: user?.id,
-          teacher_id: selectedAssignment.teacher_id,
-          submitted_text: data.submittedText || null,
-          submission_file_url: submissionFileUrl,
-          submission_file_name: submissionFileName,
-          submission_file_size: submissionFileSize,
-          submission_file_type: submissionFileType,
-          remarks: data.remarks || null,
-          is_late: isLate,
-          status: "submitted"
-        })
-
-      if (submissionError) {
-        console.error("Error submitting assignment:", submissionError)
-        alert("Failed to submit assignment. Please try again.")
+      if (!result.success) {
+        console.error("Error submitting assignment:", result.error)
+        alert(result.error || "Failed to submit assignment. Please try again.")
         return
       }
 

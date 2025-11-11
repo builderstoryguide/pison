@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Verify bucket is accessible
-      const { data: testList, error: testError } = await supabase.storage
+      const { error: testError } = await supabase.storage
         .from('school-assets')
         .list('logos', { limit: 1 })
 
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
 
     // Upload to Supabase Storage
     try {
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('school-assets')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -239,7 +239,7 @@ export async function DELETE(request: NextRequest) {
     const supabase = await createClient()
 
     // Check authentication and admin role
-    const user = await requireRole(request, 'admin')
+    void await requireRole(request, 'admin')
 
     const { searchParams } = new URL(request.url)
     const fileName = searchParams.get('fileName')

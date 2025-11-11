@@ -178,7 +178,7 @@ export function EnhancedEditTeacherForm({ teacher, onSuccess, onCancel }: EditTe
           
           // Initialize selected assignments from current assignments
           const initialAssignments = assignmentsData.assignments.map((assignment: any) => ({
-            branchId: assignment.branch_id,
+            branchId: assignment.branch_id || 'none',
             classIds: [assignment.class_id],
             isPrimary: assignment.is_primary_teacher
           }))
@@ -316,7 +316,7 @@ export function EnhancedEditTeacherForm({ teacher, onSuccess, onCancel }: EditTe
   // Assignment management functions
   const addAssignment = () => {
     setSelectedAssignments(prev => [...prev, {
-      branchId: '',
+      branchId: 'none',
       classIds: [],
       isPrimary: false
     }])
@@ -464,13 +464,15 @@ export function EnhancedEditTeacherForm({ teacher, onSuccess, onCancel }: EditTe
           isPrimary: assignment.isPrimary
         })
         
-        // Only create assignments if branchId is provided (required for database)
-        if (assignment.branchId && assignment.branchId.trim() !== '') {
-          console.log('✅ Creating assignments with branchId:', assignment.branchId)
+        // Only create assignments if branchId is provided and not "none" (required for database)
+        // Convert "none" back to empty string for API, but skip if it's "none" or empty
+        const branchIdValue = assignment.branchId === 'none' ? '' : assignment.branchId
+        if (branchIdValue && branchIdValue.trim() !== '') {
+          console.log('✅ Creating assignments with branchId:', branchIdValue)
           for (const classId of assignment.classIds) {
             assignmentRequests.push({
               teacherId,
-              branchId: assignment.branchId,
+              branchId: branchIdValue,
               classId,
               academicYear: '2024-2025',
               term: 'Term 1',
@@ -480,7 +482,7 @@ export function EnhancedEditTeacherForm({ teacher, onSuccess, onCancel }: EditTe
         } else {
           console.warn('⚠️ Skipping assignment - no branchId provided:', {
             assignment,
-            reason: !assignment.branchId ? 'branchId is null/undefined' : 'branchId is empty string'
+            reason: assignment.branchId === 'none' ? 'branchId is "none" (no specific branch)' : !assignment.branchId ? 'branchId is null/undefined' : 'branchId is empty string'
           })
         }
       }
@@ -970,14 +972,14 @@ export function EnhancedEditTeacherForm({ teacher, onSuccess, onCancel }: EditTe
                         <div className="space-y-2">
                           <Label>Subject Branch (Optional)</Label>
                           <Select
-                            value={assignment.branchId}
+                            value={assignment.branchId || 'none'}
                             onValueChange={(value) => updateAssignment(index, 'branchId', value)}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Select subject branch" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">No specific branch</SelectItem>
+                              <SelectItem value="none">No specific branch</SelectItem>
                               {subjects
                                 .filter(subject => subject.subsystem === formData.subsystem)
                                 .map(subject => {

@@ -97,9 +97,9 @@ DECLARE
 	percentage NUMERIC;
 BEGIN
 	-- Get total marks from assessment
-	SELECT total_marks INTO total_marks
-	FROM public.assessments
-	WHERE id = p_assessment_id;
+	SELECT a.total_marks INTO total_marks
+	FROM public.assessments a
+	WHERE a.id = p_assessment_id;
 
 	-- Compute percentage safely
 	IF total_marks IS NOT NULL AND total_marks > 0 THEN

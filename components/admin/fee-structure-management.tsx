@@ -153,22 +153,28 @@ function FeeStructureForm({ feeStructure, onSave, onCancel, classes, classesLoad
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="class">Class *</Label>
-          <Select value={formData.class} onValueChange={(value) => setFormData({...formData, class: value})}>
+          <Select 
+            value={formData.class} 
+            onValueChange={(value) => setFormData({...formData, class: value})}
+            disabled={classesLoading || classes.length === 0}
+          >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a class" />
+              <SelectValue 
+                placeholder={
+                  classesLoading 
+                    ? "Loading classes..." 
+                    : classes.length === 0 
+                    ? "No classes available" 
+                    : "Select a class"
+                } 
+              />
             </SelectTrigger>
             <SelectContent>
-              {classesLoading ? (
-                <SelectItem value="" disabled>Loading classes...</SelectItem>
-              ) : classes.length > 0 ? (
-                classes.map((classItem) => (
-                  <SelectItem key={classItem.id} value={classItem.name}>
-                    {classItem.name} ({classItem.level} - {classItem.subsystem})
-                  </SelectItem>
-                ))
-              ) : (
-                <SelectItem value="" disabled>No classes available</SelectItem>
-              )}
+              {classes.map((classItem) => (
+                <SelectItem key={classItem.id} value={classItem.name}>
+                  {classItem.name} ({classItem.level} - {classItem.subsystem})
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

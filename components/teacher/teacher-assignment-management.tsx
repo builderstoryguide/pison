@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -39,9 +39,11 @@ import { Calendar } from "@/components/ui/calendar"
 import { ChevronDownIcon } from "lucide-react"
 import * as React from "react"
 import { useTeacherGrades } from "@/lib/teacher-grades-context"
+import { useTeacherClasses } from "@/lib/teacher-classes-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ShimmerList } from "@/components/ui/shimmer-loading"
 import { serializeSupabaseError } from "@/lib/safe-error"
+import { apiPost, apiPut, apiDelete } from "@/lib/api-utils"
 
 const assignmentSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -116,7 +118,8 @@ interface AssignmentSubmission {
 export function TeacherAssignmentManagement() {
   const { user } = useAuth()
   const { toast } = useToast()
-  const { teacherSubjects } = useTeacherGrades()
+  const { teacherSubjects, loadTeacherSubjects, loadingSubjects } = useTeacherGrades()
+  const { classes: teacherClasses, loadTeacherClasses, isLoading: isLoadingClasses, getClassSubjects } = useTeacherClasses()
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [submissions, setSubmissions] = useState<AssignmentSubmission[]>([])
   const [loading, setLoading] = useState(true)
@@ -183,8 +186,106 @@ export function TeacherAssignmentManagement() {
     },
   })
 
+  // Watch the class_id field to filter subjects when class changes
+  const selectedClassId = form.watch("class_id")
+  
+  // Get available subjects based on selected class (memoized for performance)
+  const availableSubjects = useMemo(() => {
+    // Don't compute if classes or teacher subjects are still loading
+    if (isLoadingClasses || loadingSubjects) {
+      return []
+    }
+    
+    if (!selectedClassId) {
+      // If no class selected, return empty array (subject field will be disabled)
+      return []
+    }
+    
+    // Find the selected class by name (since we're using class.name as the value)
+    const selectedClass = teacherClasses.find(cls => cls.name === selectedClassId)
+    if (!selectedClass) {
+      console.warn('Selected class not found:', selectedClassId, 'Available classes:', teacherClasses.map(c => c.name))
+      return []
+    }
+    
+    // Get subjects for this class
+    const classSubjects = getClassSubjects(selectedClass.id)
+    
+    if (classSubjects.length === 0) {
+      console.warn('No subjects found for class:', selectedClass.name, selectedClass.id)
+      return []
+    }
+    
+    // Normalize subject names for comparison (trim, lowercase, remove extra spaces)
+    // Keep special characters to maintain accuracy (e.g., "Math I" vs "Math II")
+    const normalizeName = (name: string) => {
+      return name.toLowerCase().trim().replace(/\s+/g, ' ')
+    }
+    
+    // Create a map of normalized class subject names to their original names
+    const classSubjectMap = new Map<string, string>()
+    classSubjects.forEach(subj => {
+      const normalized = normalizeName(subj.name)
+      // Store both the normalized name and original name
+      classSubjectMap.set(normalized, subj.name)
+    })
+    
+    // Filter teacher subjects to only include those that are in the class's subjects
+    // Match by subject name (case-insensitive, trimmed, normalized)
+    const matchedSubjects: string[] = []
+    const usedClassSubjects = new Set<string>()
+    
+    teacherSubjects.forEach(teacherSubject => {
+      const normalizedTeacherSubject = normalizeName(teacherSubject)
+      let matched = false
+      
+      // Try to find an exact match first
+      if (classSubjectMap.has(normalizedTeacherSubject)) {
+        const matchedClassSubject = classSubjectMap.get(normalizedTeacherSubject)!
+        if (!usedClassSubjects.has(matchedClassSubject)) {
+          matchedSubjects.push(matchedClassSubject)
+          usedClassSubjects.add(matchedClassSubject)
+        }
+        matched = true
+      } else {
+        // Try to find a partial match (one contains the other) only if no exact match
+        for (const [normalizedClassSubject, originalClassSubject] of classSubjectMap.entries()) {
+          if (normalizedClassSubject.includes(normalizedTeacherSubject) ||
+              normalizedTeacherSubject.includes(normalizedClassSubject)) {
+            // Use the original class subject name to maintain consistency
+            if (!usedClassSubjects.has(originalClassSubject)) {
+              matchedSubjects.push(originalClassSubject)
+              usedClassSubjects.add(originalClassSubject)
+            }
+            matched = true
+            break
+          }
+        }
+      }
+    })
+    
+    // If no matches found with teacher subjects, log for debugging
+    if (matchedSubjects.length === 0 && teacherSubjects.length > 0 && classSubjects.length > 0) {
+      console.warn('No matching subjects found:', {
+        classSubjects: classSubjects.map(s => s.name),
+        teacherSubjects,
+        classId: selectedClass.id,
+        className: selectedClass.name,
+        normalizedClassSubjects: Array.from(classSubjectMap.keys()),
+        normalizedTeacherSubjects: teacherSubjects.map(normalizeName)
+      })
+    }
+    
+    // Return matched subjects (only subjects that are both in class and assigned to teacher)
+    // Return in a consistent order (alphabetically)
+    return matchedSubjects.sort()
+  }, [selectedClassId, teacherClasses, teacherSubjects, getClassSubjects, isLoadingClasses, loadingSubjects])
+
   useEffect(() => {
     if (user?.id) {
+      // Load teacher subjects and classes when component mounts
+      loadTeacherSubjects()
+      loadTeacherClasses()
       // First check if table exists, then load assignments
       checkTableExists().then((tableExists) => {
         if (tableExists) {
@@ -194,7 +295,7 @@ export function TeacherAssignmentManagement() {
         }
       })
     }
-  }, [user?.id])
+  }, [user?.id, loadTeacherSubjects, loadTeacherClasses])
 
   const checkTableExists = async () => {
     try {
@@ -793,60 +894,51 @@ export function TeacherAssignmentManagement() {
         }
       }
 
-      const { error: assignmentError } = await supabase
-        .from("assignments")
-        .insert({
-          assignment_id: `ASS${Date.now()}`,
-          title: data.title,
-          description: data.description,
-          subject: data.subject,
-          class_id: data.class_id,
-          teacher_id: user.id,
-          total_marks: data.total_marks,
-          passing_marks: data.passing_marks,
-          weight_percentage: 100.0,
-          assignment_file_url: assignmentFileUrl,
-          assignment_file_name: assignmentFileName,
-          assignment_file_size: assignmentFileSize,
-          assignment_file_type: assignmentFileType,
-          assigned_date: new Date().toISOString().split('T')[0],
-          due_date: data.due_date,
-          status: "published",
-          instructions: data.instructions,
-          submission_type: data.submission_type,
-          allow_late_submission: data.allow_late_submission,
-          late_penalty_percentage: data.late_penalty_percentage,
-        })
+      // Use the API endpoint which handles authentication and authorization
+      const result = await apiPost("/api/assignments", {
+        title: data.title,
+        description: data.description,
+        subject: data.subject,
+        class_id: data.class_id,
+        total_marks: data.total_marks,
+        passing_marks: data.passing_marks,
+        weight_percentage: 100.0,
+        assignment_file_url: assignmentFileUrl,
+        assignment_file_name: assignmentFileName,
+        assignment_file_size: assignmentFileSize,
+        assignment_file_type: assignmentFileType,
+        assigned_date: new Date().toISOString().split('T')[0],
+        due_date: data.due_date,
+        status: "published",
+        instructions: data.instructions,
+        submission_type: data.submission_type,
+        allow_late_submission: data.allow_late_submission,
+        late_penalty_percentage: data.late_penalty_percentage,
+      })
 
-      if (assignmentError) {
-        console.error("Error creating assignment:", assignmentError)
-        console.error("Error details:", {
-          message: assignmentError.message,
-          details: assignmentError.details,
-          hint: assignmentError.hint,
-          code: assignmentError.code
-        })
+      if (!result.success) {
+        console.error("Error creating assignment:", result.error)
         
         // Provide more specific error messages
-        if (assignmentError.message?.includes('relation "assignments" does not exist')) {
+        if (result.error?.includes('Database setup required') || result.error?.includes('table') && result.error?.includes('does not exist')) {
           toast.error("Database setup required", { 
             description: "The assignments table doesn't exist. Please run the database setup script." 
           })
-        } else if (assignmentError.message?.includes('column') && assignmentError.message?.includes('does not exist')) {
+        } else if (result.error?.includes('schema') || result.error?.includes('column')) {
           toast.error("Database schema mismatch", { 
             description: "The database schema doesn't match the expected structure. Please update the database." 
           })
-        } else if (assignmentError.message?.includes('permission denied')) {
+        } else if (result.error?.includes('permission') || result.error?.includes('Unauthorized')) {
           toast.error("Permission denied", { 
-            description: "You don't have permission to create assignments. Please check your database permissions." 
+            description: result.error || "You don't have permission to create assignments." 
           })
-        } else if (assignmentError.message?.includes('valid_dates')) {
+        } else if (result.error?.includes('date') || result.error?.includes('due_date')) {
           toast.error("Invalid date range", { 
-            description: "The due date must be after the assigned date. Please select a future due date." 
+            description: result.error || "The due date must be after the assigned date. Please select a future due date." 
           })
         } else {
           toast.error("Failed to create assignment", { 
-            description: assignmentError.message || "Please try again." 
+            description: result.error || "Please try again." 
           })
         }
         return
@@ -879,31 +971,31 @@ export function TeacherAssignmentManagement() {
         assignmentFileType = selectedFile.type
       }
 
-      const { error: assignmentError } = await supabase
-        .from("assignments")
-        .update({
-          title: data.title,
-          description: data.description,
-          subject: data.subject,
-          class_id: data.class_id,
-          total_marks: data.total_marks,
-          passing_marks: data.passing_marks,
-          assignment_file_url: assignmentFileUrl,
-          assignment_file_name: assignmentFileName,
-          assignment_file_size: assignmentFileSize,
-          assignment_file_type: assignmentFileType,
-          due_date: data.due_date,
-          instructions: data.instructions,
-          submission_type: data.submission_type,
-          allow_late_submission: data.allow_late_submission,
-          late_penalty_percentage: data.late_penalty_percentage,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", selectedAssignment.id)
+      // Use the API endpoint which handles authentication and authorization
+      const result = await apiPut("/api/assignments", {
+        id: selectedAssignment.id,
+        title: data.title,
+        description: data.description,
+        subject: data.subject,
+        class_id: data.class_id,
+        total_marks: data.total_marks,
+        passing_marks: data.passing_marks,
+        assignment_file_url: assignmentFileUrl,
+        assignment_file_name: assignmentFileName,
+        assignment_file_size: assignmentFileSize,
+        assignment_file_type: assignmentFileType,
+        due_date: data.due_date,
+        instructions: data.instructions,
+        submission_type: data.submission_type,
+        allow_late_submission: data.allow_late_submission,
+        late_penalty_percentage: data.late_penalty_percentage,
+      })
 
-      if (assignmentError) {
-        console.error("Error updating assignment:", assignmentError)
-        toast.error("Failed to update assignment", { description: "Please try again." })
+      if (!result.success) {
+        console.error("Error updating assignment:", result.error)
+        toast.error("Failed to update assignment", { 
+          description: result.error || "Please try again." 
+        })
         return
       }
 
@@ -923,14 +1015,14 @@ export function TeacherAssignmentManagement() {
     if (!confirm("Are you sure you want to delete this assignment? This will also delete all student submissions.")) return
 
     try {
-      const { error } = await supabase
-        .from("assignments")
-        .delete()
-        .eq("id", assignmentId)
+      // Use the API endpoint which handles authentication and authorization
+      const result = await apiDelete(`/api/assignments?id=${assignmentId}`)
 
-      if (error) {
-        console.error("Error deleting assignment:", error)
-        toast.error("Failed to delete assignment", { description: "Please try again." })
+      if (!result.success) {
+        console.error("Error deleting assignment:", result.error)
+        toast.error("Failed to delete assignment", { 
+          description: result.error || "Please try again." 
+        })
         return
       }
 
@@ -947,26 +1039,19 @@ export function TeacherAssignmentManagement() {
       const submission = submissions.find(sub => sub.id === submissionId)
       if (!submission || !selectedAssignment) return
 
-      const percentage = (marks / selectedAssignment.total_marks) * 100
-      const gradeLetter = getGradeLetter(percentage)
-      const averageOn20 = getAverageOn20(percentage)
+      // Use the API endpoint which handles authentication and authorization
+      // The API will calculate percentage and grade letter automatically
+      const result = await apiPut("/api/assignments/submissions", {
+        id: submissionId,
+        marks_obtained: marks,
+        feedback: feedback,
+      })
 
-      const { error } = await supabase
-        .from("assignment_submissions")
-        .update({
-          marks_obtained: marks,
-          percentage: percentage,
-          grade_letter: gradeLetter,
-          grade_point: averageOn20, // Store average on 20 instead of GPA
-          feedback: feedback,
-          status: "graded",
-          graded_at: new Date().toISOString(),
+      if (!result.success) {
+        console.error("Error grading submission:", result.error)
+        toast.error("Failed to grade submission", { 
+          description: result.error || "Please try again." 
         })
-        .eq("id", submissionId)
-
-      if (error) {
-        console.error("Error grading submission:", error)
-        toast.error("Failed to grade submission", { description: "Please try again." })
         return
       }
 
@@ -1122,12 +1207,14 @@ export function TeacherAssignmentManagement() {
           value={filterClass}
           onChange={(e) => setFilterClass(e.target.value)}
           className="px-3 py-2 border rounded-md"
+          disabled={isLoadingClasses}
         >
           <option value="all">All Classes</option>
-          <option value="Form 5A">Form 5A</option>
-          <option value="Form 5B">Form 5B</option>
-          <option value="Form 6A">Form 6A</option>
-          <option value="Form 6B">Form 6B</option>
+          {teacherClasses.map((cls) => (
+            <option key={cls.id} value={cls.name}>
+              {cls.name} {cls.level ? `(${cls.level})` : ''}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -1270,9 +1357,19 @@ export function TeacherAssignmentManagement() {
       </div>
 
       {/* Create Assignment Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+      <Dialog 
+        open={isCreateDialogOpen} 
+        onOpenChange={(open) => {
+          setIsCreateDialogOpen(open)
+          // Load subjects and classes when dialog opens to ensure they're available
+          if (open && user?.id) {
+            loadTeacherSubjects()
+            loadTeacherClasses()
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Create New Assignment</DialogTitle>
             <DialogDescription>
               Create a new assignment for your students
@@ -1280,16 +1377,58 @@ export function TeacherAssignmentManagement() {
           </DialogHeader>
           
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleCreateAssignment)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(handleCreateAssignment)} className="flex flex-col flex-1 min-h-0">
+              <div className="overflow-y-auto flex-1 pr-2 space-y-3">
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assignment Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter assignment title..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="title"
+                  name="class_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Assignment Title</FormLabel>
+                      <FormLabel>Class *</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter assignment title..." {...field} />
+                        <Select
+                          onValueChange={(value) => {
+                            field.onChange(value)
+                            // Clear subject when class changes
+                            form.setValue("subject", "")
+                          }}
+                          value={field.value}
+                          disabled={isLoadingClasses || teacherClasses.length === 0}
+                        >
+                          <SelectTrigger>
+                            <SelectValue 
+                              placeholder={
+                                isLoadingClasses 
+                                  ? "Loading classes..." 
+                                  : teacherClasses.length === 0 
+                                  ? "No classes assigned" 
+                                  : "Select Class"
+                              } 
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {teacherClasses.map((cls) => (
+                              <SelectItem key={cls.id} value={cls.name}>
+                                {cls.name} {cls.level ? `(${cls.level})` : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -1301,20 +1440,29 @@ export function TeacherAssignmentManagement() {
                   name="subject"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Subject</FormLabel>
+                      <FormLabel>Subject *</FormLabel>
                       <FormControl>
                         <select 
-                          className="w-full px-3 py-2 border rounded-md"
+                          className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                           {...field}
+                          disabled={isLoadingClasses || loadingSubjects || !selectedClassId || (!isLoadingClasses && !loadingSubjects && availableSubjects.length === 0)}
                         >
-                          <option value="">Select Subject</option>
-                          {teacherSubjects.length > 0 ? (
-                            teacherSubjects.map((subject: string) => (
+                          <option value="">
+                            {!selectedClassId 
+                              ? "Select class first" 
+                              : isLoadingClasses || loadingSubjects
+                              ? "Loading subjects..." 
+                              : availableSubjects.length === 0
+                              ? "No matching subjects for this class"
+                              : "Select Subject"}
+                          </option>
+                          {!isLoadingClasses && !loadingSubjects && availableSubjects.length > 0 ? (
+                            availableSubjects.map((subject: string) => (
                               <option key={subject} value={subject}>{subject}</option>
                             ))
-                          ) : (
-                            <option value="" disabled>No subjects assigned</option>
-                          )}
+                          ) : !isLoadingClasses && !loadingSubjects && selectedClassId && availableSubjects.length === 0 ? (
+                            <option value="" disabled>No matching subjects available</option>
+                          ) : null}
                         </select>
                       </FormControl>
                       <FormMessage />
@@ -1332,7 +1480,7 @@ export function TeacherAssignmentManagement() {
                     <FormControl>
                       <Textarea 
                         placeholder="Describe the assignment..."
-                        className="min-h-[80px]"
+                        className="min-h-[60px]"
                         {...field} 
                       />
                     </FormControl>
@@ -1342,29 +1490,6 @@ export function TeacherAssignmentManagement() {
               />
 
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="class_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Class</FormLabel>
-                      <FormControl>
-                        <select 
-                          className="w-full px-3 py-2 border rounded-md"
-                          {...field}
-                        >
-                          <option value="">Select Class</option>
-                          <option value="Form 5A">Form 5A</option>
-                          <option value="Form 5B">Form 5B</option>
-                          <option value="Form 6A">Form 6A</option>
-                          <option value="Form 6B">Form 6B</option>
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 <FormField
                   control={form.control}
                   name="due_date"
@@ -1471,7 +1596,7 @@ export function TeacherAssignmentManagement() {
                     <FormControl>
                       <Textarea 
                         placeholder="Provide instructions for students..."
-                        className="min-h-[80px]"
+                        className="min-h-[60px]"
                         {...field} 
                       />
                     </FormControl>
@@ -1500,8 +1625,9 @@ export function TeacherAssignmentManagement() {
                   </div>
                 )}
               </div>
+              </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-4 border-t flex-shrink-0 mt-4">
                 <Button
                   type="button"
                   variant="outline"
@@ -1534,8 +1660,8 @@ export function TeacherAssignmentManagement() {
 
       {/* Edit Assignment Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Edit Assignment</DialogTitle>
             <DialogDescription>
               Update assignment details
@@ -1543,17 +1669,70 @@ export function TeacherAssignmentManagement() {
           </DialogHeader>
           
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleEditAssignment)} className="space-y-4">
-              {/* Same form fields as create dialog */}
+            <form onSubmit={form.handleSubmit(handleEditAssignment)} className="flex flex-col flex-1 min-h-0">
+              <div className="overflow-y-auto flex-1 pr-2 space-y-3">
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assignment Title</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter assignment title..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="title"
+                  name="class_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Assignment Title</FormLabel>
+                      <FormLabel>Class *</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter assignment title..." {...field} />
+                        <Select
+                          onValueChange={(value) => {
+                            field.onChange(value)
+                            // Clear subject when class changes (only if it's not in the new class's subjects)
+                            const newClass = teacherClasses.find(cls => cls.name === value)
+                            if (newClass) {
+                              const newClassSubjects = getClassSubjects(newClass.id)
+                              const currentSubject = form.getValues("subject")
+                              const isSubjectInNewClass = newClassSubjects.some(
+                                subj => subj.name.toLowerCase() === currentSubject?.toLowerCase()
+                              )
+                              if (!isSubjectInNewClass && currentSubject) {
+                                form.setValue("subject", "")
+                              }
+                            } else {
+                              form.setValue("subject", "")
+                            }
+                          }}
+                          value={field.value}
+                          disabled={isLoadingClasses || teacherClasses.length === 0}
+                        >
+                          <SelectTrigger>
+                            <SelectValue 
+                              placeholder={
+                                isLoadingClasses 
+                                  ? "Loading classes..." 
+                                  : teacherClasses.length === 0 
+                                  ? "No classes assigned" 
+                                  : "Select Class"
+                              } 
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {teacherClasses.map((cls) => (
+                              <SelectItem key={cls.id} value={cls.name}>
+                                {cls.name} {cls.level ? `(${cls.level})` : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -1565,20 +1744,29 @@ export function TeacherAssignmentManagement() {
                   name="subject"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Subject</FormLabel>
+                      <FormLabel>Subject *</FormLabel>
                       <FormControl>
                         <select 
-                          className="w-full px-3 py-2 border rounded-md"
+                          className="w-full px-3 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                           {...field}
+                          disabled={isLoadingClasses || loadingSubjects || !selectedClassId || (!isLoadingClasses && !loadingSubjects && availableSubjects.length === 0)}
                         >
-                          <option value="">Select Subject</option>
-                          {teacherSubjects.length > 0 ? (
-                            teacherSubjects.map((subject: string) => (
+                          <option value="">
+                            {!selectedClassId 
+                              ? "Select class first" 
+                              : isLoadingClasses || loadingSubjects
+                              ? "Loading subjects..." 
+                              : availableSubjects.length === 0
+                              ? "No matching subjects for this class"
+                              : "Select Subject"}
+                          </option>
+                          {!isLoadingClasses && !loadingSubjects && availableSubjects.length > 0 ? (
+                            availableSubjects.map((subject: string) => (
                               <option key={subject} value={subject}>{subject}</option>
                             ))
-                          ) : (
-                            <option value="" disabled>No subjects assigned</option>
-                          )}
+                          ) : !isLoadingClasses && !loadingSubjects && selectedClassId && availableSubjects.length === 0 ? (
+                            <option value="" disabled>No matching subjects available</option>
+                          ) : null}
                         </select>
                       </FormControl>
                       <FormMessage />
@@ -1596,7 +1784,7 @@ export function TeacherAssignmentManagement() {
                     <FormControl>
                       <Textarea 
                         placeholder="Describe the assignment..."
-                        className="min-h-[80px]"
+                        className="min-h-[60px]"
                         {...field} 
                       />
                     </FormControl>
@@ -1606,29 +1794,6 @@ export function TeacherAssignmentManagement() {
               />
 
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="class_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Class</FormLabel>
-                      <FormControl>
-                        <select 
-                          className="w-full px-3 py-2 border rounded-md"
-                          {...field}
-                        >
-                          <option value="">Select Class</option>
-                          <option value="Form 5A">Form 5A</option>
-                          <option value="Form 5B">Form 5B</option>
-                          <option value="Form 6A">Form 6A</option>
-                          <option value="Form 6B">Form 6B</option>
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
                 <FormField
                   control={form.control}
                   name="due_date"
@@ -1735,7 +1900,7 @@ export function TeacherAssignmentManagement() {
                     <FormControl>
                       <Textarea 
                         placeholder="Provide instructions for students..."
-                        className="min-h-[80px]"
+                        className="min-h-[60px]"
                         {...field} 
                       />
                     </FormControl>
@@ -1764,8 +1929,9 @@ export function TeacherAssignmentManagement() {
                   </div>
                 )}
               </div>
+              </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-4 border-t flex-shrink-0 mt-4">
                 <Button
                   type="button"
                   variant="outline"

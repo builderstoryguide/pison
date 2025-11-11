@@ -6,8 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AssessmentCreationForm } from "./assessment-creation-form"
-import { GradeEntryForm } from "./grade-entry-form"
+import { ClassGradeEntryForm } from "./class-grade-entry-form"
 import { StudentGradesView } from "./student-grades-view"
 import {
   Dialog,
@@ -19,7 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Progress } from "@/components/ui/progress"
-import { Plus, BookOpen, Users, TrendingUp, Award, Edit, Trash2, Eye, BarChart3, Loader2 } from "lucide-react"
+import { BookOpen, Users, TrendingUp, Award, Edit, Trash2, Eye, BarChart3, Loader2 } from "lucide-react"
 
 export function GradesManagement() {
   const {
@@ -28,6 +27,7 @@ export function GradesManagement() {
     students,
     classes,
     getAssessmentsByClass,
+    getAssessmentsForTeacher,
     getGradesByAssessment,
     getStudentsByClass,
     deleteAssessment,
@@ -38,6 +38,9 @@ export function GradesManagement() {
     loadGrades,
     loadAllData,
   } = useTeacherGrades()
+
+  // Get assessments filtered by teacher's assigned classes
+  const teacherAssessments = getAssessmentsForTeacher()
 
   const [selectedTab, setSelectedTab] = useState("overview")
   const [selectedAssessment, setSelectedAssessment] = useState<string | null>(null)
@@ -94,22 +97,22 @@ export function GradesManagement() {
 
   const overallStats = useMemo(() => {
     return {
-      totalAssessments: assessments.length,
+      totalAssessments: teacherAssessments.length,
       totalGrades: grades.length,
       totalStudents: students.length,
       totalClasses: classes.length,
     }
-  }, [assessments.length, grades.length, students.length, classes.length])
+  }, [teacherAssessments.length, grades.length, students.length, classes.length])
 
-  // Paginated assessments
+  // Paginated assessments (filtered by teacher's classes)
   const paginatedAssessments = useMemo(() => {
-    const sorted = [...assessments].sort((a, b) => 
+    const sorted = [...teacherAssessments].sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
     return sorted.slice(0, assessmentPage * assessmentsPerPage)
-  }, [assessments, assessmentPage, assessmentsPerPage])
+  }, [teacherAssessments, assessmentPage, assessmentsPerPage])
 
-  const hasMoreAssessments = assessments.length > paginatedAssessments.length
+  const hasMoreAssessments = teacherAssessments.length > paginatedAssessments.length
 
   const handleDeleteAssessment = async (assessmentId: string) => {
     if (
@@ -212,9 +215,17 @@ export function GradesManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {assessmentGrades.map((grade) => (
+                  {assessmentGrades.map((grade) => {
+                    // Fallback: if studentName is missing or is the studentId, try to find it from students array
+                    let displayName = grade.studentName
+                    if (!displayName || displayName === grade.studentId || displayName === "") {
+                      const student = students.find(s => s.id === grade.studentId)
+                      displayName = student?.name || grade.studentId || "Unknown Student"
+                    }
+                    
+                    return (
                     <TableRow key={grade.id}>
-                      <TableCell className="font-medium">{grade.studentName}</TableCell>
+                      <TableCell className="font-medium">{displayName}</TableCell>
                       <TableCell>
                         {grade.marks}/{assessment.totalMarks}
                       </TableCell>
@@ -241,7 +252,8 @@ export function GradesManagement() {
                       </TableCell>
                       <TableCell>{grade.remarks || "-"}</TableCell>
                     </TableRow>
-                  ))}
+                    )
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
@@ -255,13 +267,12 @@ export function GradesManagement() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Grades Management</h1>
-        <p className="text-muted-foreground">Create assessments, enter grades, and analyze student performance</p>
+        <p className="text-muted-foreground">Enter grades and analyze student performance</p>
       </div>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="create-assessment">Create Assessment</TabsTrigger>
           <TabsTrigger value="enter-grades">Enter Grades</TabsTrigger>
           <TabsTrigger value="student-grades">Student Grades</TabsTrigger>
         </TabsList>
@@ -312,15 +323,11 @@ export function GradesManagement() {
 
           {/* Recent Assessments */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader>
               <div>
                 <CardTitle>Recent Assessments</CardTitle>
                 <CardDescription>Manage your assessments and view performance</CardDescription>
               </div>
-              <Button onClick={() => setSelectedTab("create-assessment")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Assessment
-              </Button>
             </CardHeader>
             <CardContent>
               <Table>
@@ -346,7 +353,12 @@ export function GradesManagement() {
                   ) : paginatedAssessments.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8">
-                        <p className="text-muted-foreground">No assessments found. Create your first assessment!</p>
+                        <div className="space-y-2">
+                          <p className="text-muted-foreground">No assessments found for your assigned classes.</p>
+                          <p className="text-sm text-muted-foreground">
+                            Assessments are created by administrators. Please contact them if you need assessments for your classes.
+                          </p>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -415,7 +427,7 @@ export function GradesManagement() {
                         Loading...
                       </>
                     ) : (
-                      `Load More (${assessments.length - paginatedAssessments.length} remaining)`
+                      `Load More (${teacherAssessments.length - paginatedAssessments.length} remaining)`
                     )}
                   </Button>
                 </div>
@@ -424,12 +436,8 @@ export function GradesManagement() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="create-assessment">
-          <AssessmentCreationForm onSuccess={() => setSelectedTab("overview")} />
-        </TabsContent>
-
         <TabsContent value="enter-grades">
-          <GradeEntryForm selectedAssessmentId={selectedAssessment} onSuccess={() => setSelectedTab("overview")} />
+          <ClassGradeEntryForm onSuccess={() => setSelectedTab("overview")} />
         </TabsContent>
 
         <TabsContent value="student-grades">

@@ -9,10 +9,10 @@ export async function GET(request: NextRequest) {
     if (authResult.error) return authResult.error
     const user = authResult.user!
 
-    // Only allow teachers and students
-    if (user.role !== 'teacher' && user.role !== 'student') {
+    // Only allow teachers, students, and admins
+    if (user.role !== 'teacher' && user.role !== 'student' && user.role !== 'admin') {
       return NextResponse.json(
-        { error: "Unauthorized. Only teachers and students can view assignments." },
+        { error: "Unauthorized. Only teachers, students, and admins can view assignments." },
         { status: 403 }
       )
     }
@@ -42,12 +42,10 @@ export async function GET(request: NextRequest) {
       `)
       .order("created_at", { ascending: false })
 
-    // Authorization: Teachers see their own assignments, students see published assignments for their class
+    // Authorization: Teachers see their own assignments, students see published assignments for their class, admins see all
     if (user.role === 'teacher') {
-      // Teachers can only see their own assignments (unless admin)
-      if (user.role !== 'admin') {
-        query = query.eq("teacher_id", user.id)
-      }
+      // Teachers can only see their own assignments
+      query = query.eq("teacher_id", user.id)
     } else if (user.role === 'student') {
       // Students can only see published assignments for their class
       query = query.eq("status", "published")
@@ -107,6 +105,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Require teacher role
+    const user = await requireAnyRole(request, ['teacher', 'admin'])
+
     const supabase = await createClient()
     const body = await request.json()
 
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
       description,
       subject,
       class_id,
-      teacher_id,
+      teacher_id, // May be provided but will be overridden
       total_marks,
       passing_marks,
       weight_percentage,
@@ -132,8 +133,19 @@ export async function POST(request: NextRequest) {
       status = "draft"
     } = body
 
+    // Validate required fields
+    if (!title || !subject || !class_id || !total_marks || !due_date) {
+      return NextResponse.json(
+        { error: "Missing required fields: title, subject, class_id, total_marks, due_date" },
+        { status: 400 }
+      )
+    }
+
     // Generate assignment ID
     const assignment_id = `ASS${Date.now()}`
+
+    // Use authenticated user's ID as teacher_id (unless admin creating for another teacher)
+    const finalTeacherId = (user.role === 'admin' && teacher_id) ? teacher_id : user.id
 
     const { data, error } = await supabase
       .from("assignments")
@@ -143,7 +155,7 @@ export async function POST(request: NextRequest) {
         description,
         subject,
         class_id,
-        teacher_id,
+        teacher_id: finalTeacherId,
         total_marks,
         passing_marks,
         weight_percentage,
@@ -168,7 +180,11 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ assignment: data }, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
+    // Handle authentication errors
+    if (error instanceof NextResponse) {
+      return error
+    }
     console.error("Error in assignments POST:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
@@ -176,18 +192,49 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    // Require teacher role
+    const user = await requireAnyRole(request, ['teacher', 'admin'])
+
     const supabase = await createClient()
     const body = await request.json()
-    const { id, ...updateData } = body
+    const { id, teacher_id, ...updateData } = body
 
     if (!id) {
       return NextResponse.json({ error: "Assignment ID is required" }, { status: 400 })
+    }
+
+    // Check if assignment exists and user has permission to update it
+    const { data: existingAssignment, error: fetchError } = await supabase
+      .from("assignments")
+      .select("teacher_id")
+      .eq("id", id)
+      .single()
+
+    if (fetchError || !existingAssignment) {
+      return NextResponse.json({ error: "Assignment not found" }, { status: 404 })
+    }
+
+    // Authorization: Teachers can only update their own assignments (unless admin)
+    if (user.role !== 'admin' && existingAssignment.teacher_id !== user.id) {
+      return NextResponse.json(
+        { error: "Unauthorized. You can only update your own assignments." },
+        { status: 403 }
+      )
+    }
+
+    // Prevent changing teacher_id unless admin
+    if (teacher_id && user.role !== 'admin') {
+      return NextResponse.json(
+        { error: "Unauthorized. Only admins can change assignment ownership." },
+        { status: 403 }
+      )
     }
 
     const { data, error } = await supabase
       .from("assignments")
       .update({
         ...updateData,
+        ...(user.role === 'admin' && teacher_id ? { teacher_id } : {}),
         updated_at: new Date().toISOString()
       })
       .eq("id", id)
@@ -200,7 +247,11 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json({ assignment: data })
-  } catch (error) {
+  } catch (error: any) {
+    // Handle authentication errors
+    if (error instanceof NextResponse) {
+      return error
+    }
     console.error("Error in assignments PUT:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
@@ -208,12 +259,34 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    // Require teacher role
+    const user = await requireAnyRole(request, ['teacher', 'admin'])
+
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
 
     if (!id) {
       return NextResponse.json({ error: "Assignment ID is required" }, { status: 400 })
+    }
+
+    // Check if assignment exists and user has permission to delete it
+    const { data: existingAssignment, error: fetchError } = await supabase
+      .from("assignments")
+      .select("teacher_id")
+      .eq("id", id)
+      .single()
+
+    if (fetchError || !existingAssignment) {
+      return NextResponse.json({ error: "Assignment not found" }, { status: 404 })
+    }
+
+    // Authorization: Teachers can only delete their own assignments (unless admin)
+    if (user.role !== 'admin' && existingAssignment.teacher_id !== user.id) {
+      return NextResponse.json(
+        { error: "Unauthorized. You can only delete your own assignments." },
+        { status: 403 }
+      )
     }
 
     const { error } = await supabase
@@ -227,7 +300,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ message: "Assignment deleted successfully" })
-  } catch (error) {
+  } catch (error: any) {
+    // Handle authentication errors
+    if (error instanceof NextResponse) {
+      return error
+    }
     console.error("Error in assignments DELETE:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }

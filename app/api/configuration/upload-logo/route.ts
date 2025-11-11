@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
 
     // Check authentication and admin role
-    const user = await requireRole(request, 'admin')
+    void await requireRole(request, 'admin')
 
     const formData = await request.formData()
     const file = formData.get('logo') as File
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     const fileName = `school-logo-${Date.now()}.${fileExt}`
 
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('school-assets')
       .upload(`logos/${fileName}`, file, {
         cacheControl: '3600',
@@ -83,7 +83,7 @@ export async function DELETE(request: NextRequest) {
     const supabase = await createClient()
 
     // Check authentication and admin role
-    const user = await requireRole(request, 'admin')
+    void await requireRole(request, 'admin')
 
     const { searchParams } = new URL(request.url)
     const fileName = searchParams.get('fileName')

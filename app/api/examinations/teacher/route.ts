@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
         return hasMatchingLevel || (user.subsystem === exam.subsystem && user.branch === exam.branch)
       }
 
-      return hasMatchingSubject && (hasMatchingLevel || teacherClasses.length === 0)
+      return hasMatchingSubject && (hasMatchingLevel || (teacherClasses?.length === 0 || !teacherClasses))
     })
 
     // Transform database data to match frontend interface

@@ -1,10 +1,11 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react"
+import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { supabase, isSupabaseAvailable } from "./supabase"
 import { useAuth } from "@/lib/auth-context"
 import { validateDatabaseSetup, createDatabaseSetupErrorResponse } from "./database-validation"
+import { serializeSupabaseError } from "@/lib/safe-error"
 
 // Types
 export interface Assessment {
@@ -14,6 +15,7 @@ export interface Assessment {
   subject: string
   classId: string
   className: string
+  classLevel?: string // Optional class level for level-based filtering
   totalMarks: number
   date: string
   dueDate?: string
@@ -80,6 +82,7 @@ interface TeacherGradesContextType {
   updateAssessment: (id: string, updates: Partial<Assessment>) => Promise<void>
   deleteAssessment: (id: string) => Promise<void>
   getAssessmentsByClass: (classId: string) => Assessment[]
+  getAssessmentsForTeacher: () => Assessment[]
 
   // Grade functions
   addGrade: (grade: Omit<Grade, "id" | "submittedAt">) => Promise<void>
@@ -222,10 +225,11 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     },
   ]
 
-  const [assessments, setAssessments] = useState<Assessment[]>(mockAssessments)
-  const [grades, setGrades] = useState<Grade[]>(mockGrades)
-  const [students, setStudents] = useState<Student[]>(mockStudents)
-  const [classes, setClasses] = useState<TeacherClass[]>(mockClasses)
+  // Initialize with empty arrays - only use mock data if database is unavailable
+  const [assessments, setAssessments] = useState<Assessment[]>([])
+  const [grades, setGrades] = useState<Grade[]>([])
+  const [students, setStudents] = useState<Student[]>([])
+  const [classes, setClasses] = useState<TeacherClass[]>([])
   const [teacherSubjects, setTeacherSubjects] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingAssessments, setLoadingAssessments] = useState(false)
@@ -234,6 +238,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
   const [loadingClasses, setLoadingClasses] = useState(false)
   const [loadingSubjects, setLoadingSubjects] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const gradesEnrichmentRef = useRef<Set<string>>(new Set())
   const [useDatabase, setUseDatabase] = useState(false)
   const [dataLoaded, setDataLoaded] = useState({
     assessments: false,
@@ -242,6 +247,8 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     classes: false,
     subjects: false,
   })
+  const [teacherClassIds, setTeacherClassIds] = useState<string[]>([])
+  const [teacherClassLevels, setTeacherClassLevels] = useState<string[]>([])
 
   const loadTeacherSubjects = useCallback(async () => {
     // Early return if database is not enabled
@@ -420,30 +427,474 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     }
   }, [useDatabase, user, user?.id, dataLoaded.subjects, teacherSubjects.length])
 
+  // State for teacher class names
+  const [teacherClassNames, setTeacherClassNames] = useState<string[]>([])
+
+  // Load teacher's assigned class IDs, levels, and names
+  const loadTeacherClassIds = useCallback(async () => {
+    if (!user?.id || user.role !== 'teacher') {
+      setTeacherClassIds([])
+      setTeacherClassLevels([])
+      setTeacherClassNames([])
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/teachers/${user.id}/assignments?includeDetails=true&page=1&limit=100`)
+      const data = await response.json()
+
+      if (response.ok && data.ok && data.classes) {
+        const classIds = data.classes.map((cls: any) => cls.id).filter(Boolean)
+        // Extract unique class levels from assigned classes
+        const classLevels = data.classes
+          .map((cls: any) => cls.level || cls.class_level)
+          .filter((level: string | undefined): level is string => Boolean(level))
+        const uniqueLevels = Array.from(new Set(classLevels))
+        
+        // Extract unique class names from assigned classes
+        const classNames = data.classes
+          .map((cls: any) => cls.name || cls.class_name)
+          .filter((name: string | undefined): name is string => Boolean(name))
+        const uniqueNames = Array.from(new Set(classNames))
+        
+        setTeacherClassIds(classIds)
+        setTeacherClassLevels(uniqueLevels)
+        setTeacherClassNames(uniqueNames)
+        console.log(`📋 Loaded ${classIds.length} class IDs, ${uniqueLevels.length} class levels, and ${uniqueNames.length} class names for teacher ${user.id}`)
+      } else {
+        console.warn('Failed to load teacher class IDs:', data.error)
+        setTeacherClassIds([])
+        setTeacherClassLevels([])
+        setTeacherClassNames([])
+      }
+    } catch (err) {
+      console.error("Error loading teacher class IDs:", err)
+      setTeacherClassIds([])
+      setTeacherClassLevels([])
+      setTeacherClassNames([])
+    }
+  }, [user?.id, user?.role])
+
   // Individual load functions for lazy loading
   const loadAssessments = useCallback(async () => {
     if (!useDatabase || !supabase || dataLoaded.assessments) return
 
     setLoadingAssessments(true)
+    // Clear assessments before loading to prevent showing stale/mock data
+    setAssessments([])
     try {
+      // Load teacher's class IDs and levels if not already loaded
+      if (teacherClassIds.length === 0 && user?.id && user.role === 'teacher') {
+        await loadTeacherClassIds()
+      }
+
+      // Fetch all assessments (we'll filter by class_id OR class_level after joining with classes)
+      // We don't pre-filter here because we need to check both class_id and class_level matches
       const { data: assessmentsData, error: assessmentsError } = await supabase
         .from("assessments")
         .select("*")
         .order("created_at", { ascending: false })
 
       if (!assessmentsError && assessmentsData) {
-        const formattedAssessments: Assessment[] = assessmentsData.map((assessment: any) => ({
-          id: assessment.id,
-          title: assessment.title,
-          type: assessment.type,
-          subject: assessment.subject,
-          classId: assessment.class_id,
-          className: assessment.class_name || "",
-          totalMarks: assessment.total_marks,
-          date: assessment.assessment_date,
-          dueDate: assessment.due_date,
-          createdAt: assessment.created_at,
-        }))
+        // Fetch class information for assessments to get class_level
+        // Get unique class IDs from assessments
+        const assessmentClassIds = [...new Set(assessmentsData.map((a: any) => a.class_id).filter(Boolean))]
+        
+        let classLevelMap: Record<string, string> = {}
+        let classNameMap: Record<string, string> = {}
+        let classesData: any[] = []
+        
+        if (assessmentClassIds.length > 0) {
+          // Try to fetch classes - handle both UUID and VARCHAR class_id formats
+          // First, try to filter valid UUIDs
+          const validUuidIds = assessmentClassIds.filter((id: string) => {
+            // Check if it's a valid UUID format
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+            return uuidRegex.test(id)
+          })
+          
+          // Also try to match by class_name if class_id is not a UUID
+          const nonUuidIds = assessmentClassIds.filter((id: string) => {
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+            return !uuidRegex.test(id)
+          })
+          
+          // Fetch classes by UUID
+          if (validUuidIds.length > 0) {
+            const { data: fetchedClassesById } = await supabase
+              .from("classes")
+              .select("id, class_name, class_level")
+              .in("id", validUuidIds)
+            
+            if (fetchedClassesById) {
+              classesData = [...classesData, ...fetchedClassesById]
+              fetchedClassesById.forEach((cls: any) => {
+                if (cls.id) {
+                  // Store with both UUID string and original format for lookup
+                  const idStr = cls.id.toString()
+                  const idLower = idStr.toLowerCase().trim()
+                  classLevelMap[idStr] = cls.class_level || ''
+                  classLevelMap[idLower] = cls.class_level || ''
+                  classNameMap[idStr] = cls.class_name || ''
+                  classNameMap[idLower] = cls.class_name || ''
+                  
+                  // Also map by class_name for lookups
+                  if (cls.class_name) {
+                    const nameLower = cls.class_name.toLowerCase().trim()
+                    classLevelMap[cls.class_name] = cls.class_level || ''
+                    classLevelMap[nameLower] = cls.class_level || ''
+                    classNameMap[cls.class_name] = cls.class_name
+                    classNameMap[nameLower] = cls.class_name
+                  }
+                  
+                  // Map by class_level for level-based lookups
+                  if (cls.class_level) {
+                    const levelLower = cls.class_level.toLowerCase().trim()
+                    classLevelMap[cls.class_level] = cls.class_level
+                    classLevelMap[levelLower] = cls.class_level
+                  }
+                }
+              })
+            }
+          }
+          
+          // Fetch classes by name (for non-UUID class_ids)
+          if (nonUuidIds.length > 0) {
+            // Try exact match first
+            const { data: fetchedClassesByName } = await supabase
+              .from("classes")
+              .select("id, class_name, class_level")
+              .in("class_name", nonUuidIds)
+            
+            if (fetchedClassesByName) {
+              classesData = [...classesData, ...fetchedClassesByName]
+              fetchedClassesByName.forEach((cls: any) => {
+                if (cls.id) {
+                  const idStr = cls.id.toString()
+                  const idLower = idStr.toLowerCase().trim()
+                  // Map both by UUID and by class_name for lookup
+                  classLevelMap[idStr] = cls.class_level || ''
+                  classLevelMap[idLower] = cls.class_level || ''
+                  classNameMap[idStr] = cls.class_name || ''
+                  classNameMap[idLower] = cls.class_name || ''
+                  
+                  // Also map by class_name for non-UUID lookups
+                  if (cls.class_name) {
+                    const nameLower = cls.class_name.toLowerCase().trim()
+                    classLevelMap[cls.class_name] = cls.class_level || ''
+                    classLevelMap[nameLower] = cls.class_level || ''
+                    classNameMap[cls.class_name] = cls.class_name
+                    classNameMap[nameLower] = cls.class_name
+                  }
+                  
+                  // Map by class_level
+                  if (cls.class_level) {
+                    const levelLower = cls.class_level.toLowerCase().trim()
+                    classLevelMap[cls.class_level] = cls.class_level
+                    classLevelMap[levelLower] = cls.class_level
+                  }
+                }
+              })
+            }
+            
+            // Also try fetching by class_level (for assessments with level as class_id)
+            const { data: fetchedClassesByLevel } = await supabase
+              .from("classes")
+              .select("id, class_name, class_level")
+              .in("class_level", nonUuidIds)
+            
+            if (fetchedClassesByLevel) {
+              // Avoid duplicates
+              const existingIds = new Set(classesData.map((c: any) => c.id))
+              const newClasses = fetchedClassesByLevel.filter((c: any) => !existingIds.has(c.id))
+              classesData = [...classesData, ...newClasses]
+              
+              newClasses.forEach((cls: any) => {
+                if (cls.id) {
+                  const idStr = cls.id.toString()
+                  const idLower = idStr.toLowerCase().trim()
+                  classLevelMap[idStr] = cls.class_level || ''
+                  classLevelMap[idLower] = cls.class_level || ''
+                  classNameMap[idStr] = cls.class_name || ''
+                  classNameMap[idLower] = cls.class_name || ''
+                  
+                  if (cls.class_name) {
+                    const nameLower = cls.class_name.toLowerCase().trim()
+                    classLevelMap[cls.class_name] = cls.class_level || ''
+                    classLevelMap[nameLower] = cls.class_level || ''
+                    classNameMap[cls.class_name] = cls.class_name
+                    classNameMap[nameLower] = cls.class_name
+                  }
+                  
+                  if (cls.class_level) {
+                    const levelLower = cls.class_level.toLowerCase().trim()
+                    classLevelMap[cls.class_level] = cls.class_level
+                    classLevelMap[levelLower] = cls.class_level
+                  }
+                }
+              })
+            }
+          }
+          
+          console.log('📚 Class lookup results:', {
+            assessmentClassIds: assessmentClassIds.length,
+            validUuids: validUuidIds.length,
+            nonUuids: nonUuidIds.length,
+            classesFound: classesData.length,
+            classLevelMapKeys: Object.keys(classLevelMap).length,
+            sampleClassLevelMap: Object.fromEntries(Object.entries(classLevelMap).slice(0, 5))
+          })
+        }
+
+        // Filter assessments by class_id OR class_level OR class_name
+        // Convert teacher class IDs to strings for consistent comparison
+        const teacherClassIdsStr = teacherClassIds.map(id => id.toString().toLowerCase().trim())
+        
+        // Get teacher's class names from state (loaded from assignments API)
+        // Also add class names from the classes we fetched
+        const teacherClassNamesSet = new Set<string>()
+        
+        // Add class names from teacher's assigned classes (from state)
+        teacherClassNames.forEach((name: string) => {
+          if (name) {
+            teacherClassNamesSet.add(name.toLowerCase().trim())
+          }
+        })
+        
+        // Also add class names from the classes we fetched from database
+        classesData.forEach((cls: any) => {
+          if (cls.class_name) {
+            teacherClassNamesSet.add(cls.class_name.toLowerCase().trim())
+          }
+        })
+        
+        // Also get class names from teacher's assigned classes (if we have that data)
+        // For now, we'll be more permissive and include assessments that might match
+        let filteredAssessments = assessmentsData
+        
+        if (teacherClassIds.length > 0 || teacherClassLevels.length > 0 || teacherClassNamesSet.size > 0) {
+          filteredAssessments = assessmentsData.filter((assessment: any) => {
+            // Normalize assessment class_id to string for comparison
+            const assessmentClassId = (assessment.class_id?.toString() || '').toLowerCase().trim()
+            const assessmentClassIdOriginal = assessment.class_id?.toString() || ''
+            
+            // Normalize assessment class_name if it exists
+            const assessmentClassName = (assessment.class_name || '').toLowerCase().trim()
+            
+            // Check if assessment's class_id matches teacher's class IDs
+            // Try multiple comparison methods to handle UUID and VARCHAR formats
+            let matchesClassId = false
+            if (teacherClassIdsStr.length > 0 && assessmentClassId) {
+              // Direct string comparison (normalized)
+              matchesClassId = teacherClassIdsStr.includes(assessmentClassId)
+              
+              // Also check if any teacher class ID matches when both are normalized
+              if (!matchesClassId) {
+                matchesClassId = teacherClassIdsStr.some(teacherId => {
+                  const normalizedTeacherId = teacherId.toLowerCase().trim()
+                  const normalizedAssessmentId = assessmentClassId.toLowerCase().trim()
+                  return normalizedTeacherId === normalizedAssessmentId
+                })
+              }
+              
+              // Check against original format as well
+              if (!matchesClassId && assessmentClassIdOriginal) {
+                matchesClassId = teacherClassIds.some(teacherId => {
+                  const teacherIdStr = teacherId.toString()
+                  return teacherIdStr === assessmentClassIdOriginal || 
+                         teacherIdStr === assessment.class_id ||
+                         assessmentClassIdOriginal === teacherIdStr
+                })
+              }
+            }
+            
+            // Check if assessment's class level matches teacher's class levels
+            // Try to get class level from map (by UUID or by name)
+            const assessmentClassLevel = classLevelMap[assessmentClassIdOriginal] || 
+                                       classLevelMap[assessment.class_id] || 
+                                       classLevelMap[assessmentClassId] ||
+                                       assessment.class_level || ''
+            
+            let matchesClassLevel = false
+            if (teacherClassLevels.length > 0 && assessmentClassLevel) {
+              const assessmentLevelLower = assessmentClassLevel.toLowerCase().trim()
+              matchesClassLevel = teacherClassLevels.some(level => {
+                const levelLower = level.toLowerCase().trim()
+                return levelLower === assessmentLevelLower
+              })
+            }
+            
+            // Check if assessment's class_name matches teacher's class names
+            let matchesClassName = false
+            if (teacherClassNamesSet.size > 0 && assessmentClassName) {
+              matchesClassName = teacherClassNamesSet.has(assessmentClassName) ||
+                                Array.from(teacherClassNamesSet).some(name => {
+                                  return name === assessmentClassName ||
+                                         name.includes(assessmentClassName) ||
+                                         assessmentClassName.includes(name) ||
+                                         name.startsWith(assessmentClassName) ||
+                                         assessmentClassName.startsWith(name)
+                                })
+            }
+            
+            // Check if assessment's class_id matches teacher's class names (for assessments with name as class_id)
+            let matchesClassIdAsName = false
+            if (!matchesClassId && teacherClassNamesSet.size > 0 && assessmentClassId) {
+              matchesClassIdAsName = Array.from(teacherClassNamesSet).some(name => {
+                return name === assessmentClassId ||
+                       name.includes(assessmentClassId) ||
+                       assessmentClassId.includes(name) ||
+                       name.startsWith(assessmentClassId) ||
+                       assessmentClassId.startsWith(name)
+              })
+            }
+            
+            // Check if assessment's class_id matches teacher's class levels (for assessments with level as class_id)
+            let matchesClassIdAsLevel = false
+            if (!matchesClassId && !matchesClassLevel && teacherClassLevels.length > 0 && assessmentClassId) {
+              matchesClassIdAsLevel = teacherClassLevels.some(level => {
+                const levelLower = level.toLowerCase().trim()
+                return levelLower === assessmentClassId ||
+                       levelLower.includes(assessmentClassId) ||
+                       assessmentClassId.includes(levelLower)
+              })
+            }
+            
+            const matches = matchesClassId || matchesClassLevel || matchesClassName || 
+                          matchesClassIdAsName || matchesClassIdAsLevel
+            
+            // Enhanced debug logging
+            if (!matches && assessmentClassId) {
+              console.log('🔴 Assessment filtered out (teacher level):', {
+                assessmentId: assessment.id,
+                assessmentTitle: assessment.title,
+                assessmentClassId: assessmentClassIdOriginal,
+                assessmentClassName,
+                assessmentClassLevel,
+                teacherClassIds: teacherClassIdsStr.slice(0, 3), // Show first 3 for brevity
+                teacherClassLevels,
+                teacherClassNames: Array.from(teacherClassNamesSet).slice(0, 3),
+                matchesClassId,
+                matchesClassLevel,
+                matchesClassName,
+                matchesClassIdAsName,
+                matchesClassIdAsLevel
+              })
+            } else if (matches) {
+              console.log('🟢 Assessment included (teacher level):', {
+                assessmentId: assessment.id,
+                assessmentTitle: assessment.title,
+                assessmentClassId: assessmentClassIdOriginal,
+                matchesClassId,
+                matchesClassLevel,
+                matchesClassName,
+                matchesClassIdAsName,
+                matchesClassIdAsLevel
+              })
+            }
+            
+            return matches
+          })
+        } else {
+          // If no teacher class filters, include all assessments (will be filtered in component)
+          console.log('⚠️ No teacher class filters, including all assessments for component-level filtering')
+        }
+        
+        console.log('Assessment filtering summary:', {
+          totalAssessments: assessmentsData.length,
+          filteredAssessments: filteredAssessments.length,
+          teacherClassIds: teacherClassIdsStr.length,
+          teacherClassLevels: teacherClassLevels.length
+        })
+
+        const formattedAssessments: Assessment[] = filteredAssessments.map((assessment: any) => {
+          // Normalize class_id to string for consistent storage
+          const classId = assessment.class_id?.toString() || ''
+          const classIdOriginal = assessment.class_id
+          const classIdLower = classId.toLowerCase().trim()
+          
+          // Get class level from map using multiple lookup methods (case-insensitive)
+          let classLevel = ''
+          if (classIdOriginal) {
+            classLevel = classLevelMap[classIdOriginal] || 
+                        classLevelMap[classId] || 
+                        classLevelMap[classIdOriginal?.toString()] ||
+                        classLevelMap[classIdLower] ||
+                        classLevelMap[classIdOriginal.toString().toLowerCase().trim()] ||
+                        ''
+          }
+          
+          // If still no class level, try using assessment's class_name field
+          if (!classLevel && assessment.class_name) {
+            const assessmentClassName = assessment.class_name.toLowerCase().trim()
+            classLevel = classLevelMap[assessment.class_name] ||
+                        classLevelMap[assessmentClassName] ||
+                        ''
+          }
+          
+          // Fallback: if class_id looks like a level (e.g., "Form 2"), use it as classLevel
+          if (!classLevel && classId && !classId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            // Check if it matches common level patterns like "Form 2", "Level 1", etc.
+            const levelPattern = /^(form|level|grade|class)\s*\d+/i
+            if (levelPattern.test(classId)) {
+              classLevel = classId
+            }
+          }
+          
+          // Final fallback: use assessment.class_level if it exists
+          if (!classLevel) {
+            classLevel = assessment.class_level || ''
+          }
+          
+          // Get class name from map using multiple lookup methods (case-insensitive)
+          let className = ''
+          if (classIdOriginal) {
+            className = classNameMap[classIdOriginal] || 
+                       classNameMap[classId] ||
+                       classNameMap[classIdOriginal?.toString()] || 
+                       classNameMap[classIdLower] ||
+                       classNameMap[classIdOriginal.toString().toLowerCase().trim()] ||
+                       ''
+          }
+          
+          // Fallback: use assessment's class_name field if available
+          if (!className) {
+            className = assessment.class_name || ''
+          }
+          
+          // If class_id is not a UUID and looks like a class name, use it as className
+          if (!className && classId && !classId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+            // Check if it contains level info (like "Form 2 BC")
+            const namePattern = /^(form|level|grade|class)\s*\d+/i
+            if (namePattern.test(classId)) {
+              className = classId
+            }
+          }
+          
+          console.log('📝 Formatting assessment:', {
+            assessmentId: assessment.id,
+            assessmentTitle: assessment.title,
+            classId: classIdOriginal,
+            className,
+            classLevel,
+            assessmentClassName: assessment.class_name,
+            assessmentClassLevel: assessment.class_level
+          })
+          
+          return {
+            id: assessment.id,
+            title: assessment.title,
+            type: assessment.type,
+            subject: assessment.subject,
+            classId: classId, // Store as normalized string
+            className: className,
+            classLevel: classLevel, // Ensure classLevel is always populated
+            totalMarks: assessment.total_marks,
+            date: assessment.assessment_date,
+            dueDate: assessment.due_date,
+            createdAt: assessment.created_at,
+          }
+        })
         setAssessments(formattedAssessments)
         setDataLoaded(prev => ({ ...prev, assessments: true }))
       } else if (assessmentsError) {
@@ -459,38 +910,88 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     } finally {
       setLoadingAssessments(false)
     }
-  }, [useDatabase, dataLoaded.assessments])
+  }, [useDatabase, supabase, dataLoaded.assessments, teacherClassIds, teacherClassLevels, teacherClassNames, user?.id, user?.role, loadTeacherClassIds])
 
   const loadGrades = useCallback(async () => {
     if (!useDatabase || !supabase || dataLoaded.grades) return
 
     setLoadingGrades(true)
+    // Clear grades before loading to prevent showing stale/mock data
+    setGrades([])
     try {
+      // Load grades with a join to students table to get student names
       const { data: gradesData, error: gradesError } = await supabase
         .from("grades")
-        .select("*")
+        .select(`
+          *,
+          students:student_id (
+            id,
+            first_name,
+            last_name
+          )
+        `)
         .order("submitted_at", { ascending: false })
 
       if (!gradesError && gradesData) {
-        const formattedGrades: Grade[] = gradesData.map((grade: any) => ({
-          id: grade.id,
-          assessmentId: grade.assessment_id,
-          studentId: grade.student_id,
-          studentName: grade.student_name || "",
-          marks: grade.marks_obtained,
-          percentage: grade.percentage,
-          grade: grade.grade_letter,
-          remarks: grade.remarks,
-          submittedAt: grade.submitted_at,
-        }))
+        const formattedGrades: Grade[] = gradesData.map((grade: any) => {
+          // Get student name from joined data or from grade.student_name field
+          let studentName = grade.student_name || ""
+          
+          // If student_name is missing, try to get it from the joined students data
+          if (!studentName && grade.students) {
+            const student = Array.isArray(grade.students) ? grade.students[0] : grade.students
+            if (student && student.first_name && student.last_name) {
+              studentName = `${student.first_name} ${student.last_name}`.trim()
+            }
+          }
+          
+          // If still no name, use studentId as fallback (will be enriched later if students are loaded)
+          if (!studentName) {
+            studentName = grade.student_id || ""
+          }
+          
+          return {
+            id: grade.id,
+            assessmentId: grade.assessment_id,
+            studentId: grade.student_id,
+            studentName: studentName,
+            marks: grade.marks_obtained,
+            percentage: grade.percentage,
+            grade: grade.grade_letter,
+            remarks: grade.remarks,
+            submittedAt: grade.submitted_at,
+          }
+        })
         setGrades(formattedGrades)
         setDataLoaded(prev => ({ ...prev, grades: true }))
       } else if (gradesError) {
-        try {
-          const { serializeSupabaseError } = await import('./safe-error')
-          console.error('Supabase error fetching grades:', serializeSupabaseError(gradesError))
-        } catch (_) {
-          console.error('Supabase error fetching grades:', gradesError)
+        // If join fails, try loading without join and enrich later
+        const { data: gradesDataFallback, error: fallbackError } = await supabase
+          .from("grades")
+          .select("*")
+          .order("submitted_at", { ascending: false })
+
+        if (!fallbackError && gradesDataFallback) {
+          const formattedGrades: Grade[] = gradesDataFallback.map((grade: any) => ({
+            id: grade.id,
+            assessmentId: grade.assessment_id,
+            studentId: grade.student_id,
+            studentName: grade.student_name || grade.student_id || "",
+            marks: grade.marks_obtained,
+            percentage: grade.percentage,
+            grade: grade.grade_letter,
+            remarks: grade.remarks,
+            submittedAt: grade.submitted_at,
+          }))
+          setGrades(formattedGrades)
+          setDataLoaded(prev => ({ ...prev, grades: true }))
+        } else {
+          try {
+            const { serializeSupabaseError } = await import('./safe-error')
+            console.error('Supabase error fetching grades:', serializeSupabaseError(gradesError))
+          } catch (_) {
+            console.error('Supabase error fetching grades:', gradesError)
+          }
         }
       }
     } catch (err) {
@@ -501,26 +1002,38 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
   }, [useDatabase, dataLoaded.grades])
 
   const loadStudents = useCallback(async () => {
-    if (!useDatabase || !supabase || dataLoaded.students) return
+    if (!useDatabase || !supabase) return
+    // Allow reload if students array is empty even if dataLoaded is true
+    if (dataLoaded.students && students.length > 0) return
 
     setLoadingStudents(true)
+    // Clear students before loading to prevent showing stale/mock data
+    setStudents([])
     try {
+      // Try to load students with both class_id and class fields to handle schema variations
       const { data: studentsData, error: studentsError } = await supabase
         .from("students")
-        .select("id, first_name, last_name, email, student_id, class_id, class_name")
+        .select("id, first_name, last_name, email, student_id, class_id, class, class_name")
         .order("first_name", { ascending: true })
 
       if (!studentsError && studentsData) {
-        const formattedStudents: Student[] = studentsData.map((student: any) => ({
-          id: student.id,
-          name: `${student.first_name} ${student.last_name}`,
-          email: student.email,
-          studentId: student.student_id,
-          classId: student.class_id || "",
-          className: student.class_name || "",
-        }))
+        const formattedStudents: Student[] = studentsData.map((student: any) => {
+          // Handle both class_id (VARCHAR) and class (UUID) fields
+          // Prefer class (UUID) if available, otherwise use class_id
+          const classId = student.class || student.class_id || ""
+          
+          return {
+            id: student.id,
+            name: `${student.first_name} ${student.last_name}`,
+            email: student.email,
+            studentId: student.student_id,
+            classId: classId.toString(), // Ensure it's a string for comparison
+            className: student.class_name || "",
+          }
+        })
         setStudents(formattedStudents)
         setDataLoaded(prev => ({ ...prev, students: true }))
+        console.log(`Loaded ${formattedStudents.length} students`)
       } else if (studentsError) {
         try {
           const { serializeSupabaseError } = await import('./safe-error')
@@ -534,12 +1047,14 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     } finally {
       setLoadingStudents(false)
     }
-  }, [useDatabase, dataLoaded.students])
+  }, [useDatabase, dataLoaded.students, students.length])
 
   const loadClasses = useCallback(async () => {
     if (!useDatabase || !supabase || dataLoaded.classes) return
 
     setLoadingClasses(true)
+    // Clear classes before loading to prevent showing stale/mock data
+    setClasses([])
     try {
       const { data: classesData, error: classesError } = await supabase
         .from("classes")
@@ -599,6 +1114,69 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     }
   }, [useDatabase, loadAssessments, loadGrades, loadStudents, loadClasses, loadTeacherSubjects])
 
+  // Enrich grades with student names from students array
+  useEffect(() => {
+    if (grades.length > 0 && students.length > 0) {
+      // Create a map of student IDs to names for efficient lookup
+      const studentNameMap = new Map<string, string>()
+      students.forEach(student => {
+        if (student.id && student.name) {
+          studentNameMap.set(student.id, student.name)
+        }
+      })
+      
+      // Check if any grades need enrichment
+      const gradesNeedingEnrichment = grades.filter(
+        grade => {
+          const gradeKey = `${grade.id}-${grade.studentId}`
+          const needsEnrichment = (!grade.studentName || grade.studentName === grade.studentId || grade.studentName === "") &&
+                                 studentNameMap.has(grade.studentId) &&
+                                 !gradesEnrichmentRef.current.has(gradeKey)
+          return needsEnrichment
+        }
+      )
+      
+      if (gradesNeedingEnrichment.length > 0) {
+        setGrades(prevGrades => {
+          const enrichedGrades = prevGrades.map(grade => {
+            // If grade already has a proper name (not empty and not equal to studentId), keep it
+            if (grade.studentName && grade.studentName !== grade.studentId && grade.studentName.trim() !== "") {
+              return grade
+            }
+            
+            // Try to find student name from map
+            const studentName = studentNameMap.get(grade.studentId)
+            if (studentName && studentName !== grade.studentName) {
+              const gradeKey = `${grade.id}-${grade.studentId}`
+              gradesEnrichmentRef.current.add(gradeKey)
+              return {
+                ...grade,
+                studentName: studentName
+              }
+            }
+            
+            // If no student found, keep the current value (might be studentId or empty)
+            return grade
+          })
+          
+          return enrichedGrades
+        })
+      }
+    }
+  }, [grades.length, students.length])
+
+  // Load teacher class IDs and levels when user is available
+  useEffect(() => {
+    if (user?.id && user.role === 'teacher' && useDatabase) {
+      loadTeacherClassIds()
+    } else if (!useDatabase && user?.role === 'teacher') {
+      // For mock data, use mock class IDs and levels
+      setTeacherClassIds(mockClasses.map(cls => cls.id))
+      const mockLevels = [...new Set(mockClasses.map(cls => cls.level).filter(Boolean))]
+      setTeacherClassLevels(mockLevels)
+    }
+  }, [user?.id, user?.role, useDatabase, loadTeacherClassIds])
+
   // Check database availability on mount (but don't load data)
   useEffect(() => {
     const checkDatabase = async () => {
@@ -608,18 +1186,26 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           if (!error) {
             console.log("✅ Database connection established for teacher grades - using Supabase")
             setUseDatabase(true)
+            // Clear any mock data when database is available
+            setAssessments([])
+            setGrades([])
+            setStudents([])
+            setClasses([])
             // Don't auto-load data - components will call load functions explicitly
           } else {
-            console.log("⚠️ Database connection failed, using mock data for teacher grades")
+            console.log("⚠️ Database connection failed, will use empty data")
             setUseDatabase(false)
+            // Keep arrays empty - don't use mock data
           }
         } catch (err) {
-          console.log("⚠️ Database connection failed, using mock data for teacher grades")
+          console.log("⚠️ Database check failed, will use empty data:", err)
           setUseDatabase(false)
+          // Keep arrays empty - don't use mock data
         }
       } else {
-        console.log("⚠️ Supabase not available, using mock data for teacher grades")
+        console.log("⚠️ Supabase not available, will use empty data")
         setUseDatabase(false)
+        // Keep arrays empty - don't use mock data
       }
     }
 
@@ -787,18 +1373,194 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     [assessments],
   )
 
+  // Get assessments filtered by teacher's assigned classes
+  // Note: loadAssessments() already filters assessments, but this function provides
+  // an additional safety check using consistent comparison logic
+  // Filters by both class_id and class_level to show assessments created for a level
+  const getAssessmentsForTeacher = useCallback(() => {
+    // If no class IDs or levels loaded yet, return all assessments
+    if (teacherClassIds.length === 0 && teacherClassLevels.length === 0) {
+      console.log('getAssessmentsForTeacher: No teacher class IDs/levels, returning all assessments', {
+        totalAssessments: assessments.length
+      })
+      return assessments
+    }
+    
+    // Convert teacher class IDs to strings for consistent comparison
+    const teacherClassIdsStr = teacherClassIds.map(id => id.toString().toLowerCase().trim())
+    
+    // Filter assessments using consistent comparison logic (same as loadAssessments)
+    const filtered = assessments.filter((assessment) => {
+      // Normalize assessment class_id to string for comparison
+      const assessmentClassId = (assessment.classId?.toString() || '').toLowerCase().trim()
+      const assessmentClassIdOriginal = assessment.classId?.toString() || ''
+      
+      // Check if assessment's class_id matches teacher's class IDs
+      let matchesClassId = false
+      if (teacherClassIdsStr.length > 0 && assessmentClassId) {
+        // Direct string comparison (normalized)
+        matchesClassId = teacherClassIdsStr.includes(assessmentClassId)
+        
+        // Also check if any teacher class ID matches when both are normalized
+        if (!matchesClassId) {
+          matchesClassId = teacherClassIdsStr.some(teacherId => {
+            const normalizedTeacherId = teacherId.toLowerCase().trim()
+            const normalizedAssessmentId = assessmentClassId.toLowerCase().trim()
+            return normalizedTeacherId === normalizedAssessmentId
+          })
+        }
+        
+        // Check against original format as well
+        if (!matchesClassId && assessmentClassIdOriginal) {
+          matchesClassId = teacherClassIds.some(teacherId => {
+            const teacherIdStr = teacherId.toString()
+            return teacherIdStr === assessmentClassIdOriginal || 
+                   teacherIdStr === assessment.classId ||
+                   assessmentClassIdOriginal === teacherIdStr
+          })
+        }
+      }
+      
+      // Check if assessment's class level matches teacher's class levels
+      const matchesClassLevel = teacherClassLevels.length > 0 && 
+        assessment.classLevel && 
+        teacherClassLevels.includes(assessment.classLevel)
+      
+      return matchesClassId || matchesClassLevel
+    })
+    
+    console.log('getAssessmentsForTeacher filtering:', {
+      totalAssessments: assessments.length,
+      filteredAssessments: filtered.length,
+      teacherClassIds: teacherClassIdsStr.length,
+      teacherClassLevels: teacherClassLevels.length
+    })
+    
+    return filtered
+  }, [assessments, teacherClassIds, teacherClassLevels])
+
+  // Utility functions (defined early so they can be used in other callbacks)
+  const calculateGrade = useCallback((marks: number, totalMarks: number): string => {
+    const percentage = (marks / totalMarks) * 100
+    // Convert percentage to Cameroonian scale of 20
+    const averageOn20 = (percentage / 100) * 20
+    
+    if (averageOn20 >= 16) return "A" // 16-20: Excellent
+    if (averageOn20 >= 14) return "B" // 14-15.99: Very Good
+    if (averageOn20 >= 12) return "C" // 12-13.99: Good
+    if (averageOn20 >= 10) return "D" // 10-11.99: Fair
+    if (averageOn20 >= 8) return "E"  // 8-9.99: Poor
+    return "F" // 0-7.99: Very Poor
+  }, [])
+
   // Grade functions
   const addGrade = useCallback(async (gradeData: Omit<Grade, "id" | "submittedAt">) => {
     setLoading(true)
     setError(null)
+    
+    // Pre-validation of parameters
+    if (!gradeData.assessmentId) {
+      const errorMsg = 'Assessment ID is required'
+      setError(errorMsg)
+      setLoading(false)
+      throw new Error(errorMsg)
+    }
+    
+    if (!gradeData.studentId) {
+      const errorMsg = 'Student ID is required'
+      setError(errorMsg)
+      setLoading(false)
+      throw new Error(errorMsg)
+    }
+    
+    if (gradeData.marks < 0) {
+      const errorMsg = 'Marks cannot be negative'
+      setError(errorMsg)
+      setLoading(false)
+      throw new Error(errorMsg)
+    }
+    
+    if (!user?.id) {
+      const errorMsg = 'User ID is required to create grade'
+      setError(errorMsg)
+      setLoading(false)
+      throw new Error(errorMsg)
+    }
+    
     try {
       if (useDatabase && supabase) {
+        // Check if grade already exists to prevent duplicate key errors
+        const { data: existingGrade, error: checkError } = await supabase
+          .from("grades")
+          .select("id, marks_obtained, percentage, grade_letter, remarks")
+          .eq("assessment_id", gradeData.assessmentId)
+          .eq("student_id", gradeData.studentId)
+          .maybeSingle()
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          // Log check error but continue (might be table doesn't exist, etc.)
+          console.warn("Error checking for existing grade:", serializeSupabaseError(checkError))
+        }
+
+        // If grade already exists, update it instead of creating new one
+        if (existingGrade) {
+          // Get assessment to calculate percentage and grade
+          const assessment = assessments.find(a => a.id === gradeData.assessmentId)
+          const totalMarks = assessment?.totalMarks || 100
+          const percentage = (gradeData.marks / totalMarks) * 100
+          const grade = calculateGrade(gradeData.marks, totalMarks)
+
+          const { data: updatedGrade, error: updateError } = await supabase
+            .from("grades")
+            .update({
+              marks_obtained: gradeData.marks,
+              percentage: Math.round(percentage * 100) / 100,
+              grade_letter: grade,
+              remarks: gradeData.remarks || null,
+            })
+            .eq("id", existingGrade.id)
+            .select()
+            .single()
+
+          if (updateError) {
+            const errorDetails = serializeSupabaseError(updateError)
+            const errorMessage = errorDetails.message || 'Failed to update existing grade'
+            console.error("Error updating existing grade:", {
+              ...errorDetails,
+              context: {
+                gradeId: existingGrade.id,
+                assessmentId: gradeData.assessmentId,
+                studentId: gradeData.studentId,
+                operation: 'update_existing_grade'
+              }
+            })
+            throw new Error(`Failed to update existing grade: ${errorMessage}`)
+          }
+
+          if (updatedGrade) {
+            const newGrade: Grade = {
+              id: updatedGrade.id,
+              assessmentId: updatedGrade.assessment_id,
+              studentId: updatedGrade.student_id,
+              studentName: updatedGrade.student_name || gradeData.studentId,
+              marks: updatedGrade.marks_obtained,
+              percentage: updatedGrade.percentage,
+              grade: updatedGrade.grade_letter,
+              remarks: updatedGrade.remarks,
+              submittedAt: updatedGrade.submitted_at,
+            }
+            // Update the grade in the local state
+            setGrades((prev) => prev.map(g => g.id === newGrade.id ? newGrade : g))
+            return // Successfully updated, exit early
+          }
+        }
+
         // Use the database function for creating grade
         const { data: createdGradeId, error } = await supabase
           .rpc('create_grade', {
             p_assessment_id: gradeData.assessmentId,
             p_student_id: gradeData.studentId,
-            p_teacher_id: user?.id, // TODO: Get from auth context
+            p_teacher_id: user.id,
             p_marks_obtained: gradeData.marks,
             p_remarks: gradeData.remarks || null,
             p_feedback: null,
@@ -807,7 +1569,147 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
             p_is_excused: false
           })
 
-        if (error) throw error
+        if (error) {
+          // Extract error information using multiple methods
+          let errorDetails: any = {}
+          let errorMessage: string = 'Unknown error from create_grade RPC'
+          
+          // Method 1: Try serialization
+          try {
+            errorDetails = serializeSupabaseError(error)
+            errorMessage = errorDetails.message || errorMessage
+          } catch (serializeErr) {
+            // Method 2: Direct property access
+            try {
+              errorMessage = (error as any)?.message || 
+                            (error as any)?.details || 
+                            (error as any)?.hint ||
+                            (error as any)?.error_description ||
+                            String(error) || 
+                            errorMessage
+              
+              errorDetails = {
+                message: errorMessage,
+                code: (error as any)?.code,
+                details: (error as any)?.details,
+                hint: (error as any)?.hint,
+                status: (error as any)?.status,
+                type: 'direct_extraction'
+              }
+            } catch {
+              // Method 3: JSON stringify fallback
+              try {
+                const errorStr = JSON.stringify(error, Object.getOwnPropertyNames(error))
+                errorMessage = errorStr !== '{}' ? errorStr : errorMessage
+                errorDetails = {
+                  message: errorMessage,
+                  rawString: errorStr,
+                  type: 'json_stringify'
+                }
+              } catch {
+                // Method 4: Final fallback
+                errorDetails = {
+                  message: errorMessage,
+                  rawErrorType: typeof error,
+                  rawErrorConstructor: error?.constructor?.name,
+                  type: 'fallback'
+                }
+              }
+            }
+          }
+          
+          // Check for duplicate key constraint error
+          const isDuplicateError = errorMessage.includes('duplicate key') || 
+                                  errorMessage.includes('unique constraint') ||
+                                  errorMessage.includes('grades_assessment_student_unique') ||
+                                  (errorDetails.code === '23505') // PostgreSQL unique violation code
+          
+          if (isDuplicateError) {
+            // Try to update existing grade instead
+            const { data: existingGradeForUpdate } = await supabase
+              .from("grades")
+              .select("id")
+              .eq("assessment_id", gradeData.assessmentId)
+              .eq("student_id", gradeData.studentId)
+              .maybeSingle()
+
+            if (existingGradeForUpdate) {
+              // Update existing grade
+              const assessment = assessments.find(a => a.id === gradeData.assessmentId)
+              const totalMarks = assessment?.totalMarks || 100
+              const percentage = (gradeData.marks / totalMarks) * 100
+              const grade = calculateGrade(gradeData.marks, totalMarks)
+
+              const { data: updatedGrade, error: updateError } = await supabase
+                .from("grades")
+                .update({
+                  marks_obtained: gradeData.marks,
+                  percentage: Math.round(percentage * 100) / 100,
+                  grade_letter: grade,
+                  remarks: gradeData.remarks || null,
+                })
+                .eq("id", existingGradeForUpdate.id)
+                .select()
+                .single()
+
+              if (!updateError && updatedGrade) {
+                const newGrade: Grade = {
+                  id: updatedGrade.id,
+                  assessmentId: updatedGrade.assessment_id,
+                  studentId: updatedGrade.student_id,
+                  studentName: updatedGrade.student_name || gradeData.studentId,
+                  marks: updatedGrade.marks_obtained,
+                  percentage: updatedGrade.percentage,
+                  grade: updatedGrade.grade_letter,
+                  remarks: updatedGrade.remarks,
+                  submittedAt: updatedGrade.submitted_at,
+                }
+                setGrades((prev) => prev.map(g => g.id === newGrade.id ? newGrade : g))
+                return // Successfully updated, exit early
+              }
+            }
+            
+            // If update failed, throw user-friendly duplicate error
+            throw new Error(`A grade already exists for this student in this assessment. The grade has been updated.`)
+          }
+          
+          // Enhanced error logging with context - log raw error first
+          console.error("Raw error object:", {
+            error,
+            errorType: typeof error,
+            errorConstructor: error?.constructor?.name,
+            errorKeys: error ? Object.keys(error) : [],
+            errorOwnPropertyNames: error ? Object.getOwnPropertyNames(error) : [],
+            errorString: String(error),
+            errorJSON: (() => {
+              try {
+                return JSON.stringify(error, Object.getOwnPropertyNames(error))
+              } catch {
+                return 'Could not stringify'
+              }
+            })()
+          })
+          
+          const errorContext = {
+            ...errorDetails,
+            context: {
+              assessmentId: gradeData.assessmentId,
+              studentId: gradeData.studentId,
+              marks: gradeData.marks,
+              teacherId: user.id,
+              operation: 'create_grade_rpc'
+            }
+          }
+          
+          console.error("Error adding grade - RPC call failed:", errorContext)
+          throw new Error(`Failed to create grade for student ${gradeData.studentId} in assessment ${gradeData.assessmentId}: ${errorMessage}`)
+        }
+
+        if (!createdGradeId) {
+          const errorMsg = 'create_grade RPC returned no grade ID'
+          console.error("Error adding grade:", errorMsg)
+          throw new Error(errorMsg)
+        }
 
         // Fetch the created grade to get all details
         const { data: createdGrade, error: fetchError } = await supabase
@@ -817,7 +1719,40 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
           .single()
 
         if (fetchError) {
-          throw fetchError
+          // Serialize error with proper error handling
+          let errorDetails: any
+          let errorMessage: string
+          
+          try {
+            errorDetails = serializeSupabaseError(fetchError)
+            errorMessage = errorDetails.message || 'Unknown error fetching created grade'
+          } catch (serializeErr) {
+            // Fallback if serialization fails
+            errorMessage = fetchError?.message || fetchError?.details || String(fetchError) || 'Unknown error fetching created grade'
+            errorDetails = {
+              message: errorMessage,
+              rawError: fetchError,
+              serializationError: serializeErr instanceof Error ? serializeErr.message : String(serializeErr),
+              type: 'serialization_failed'
+            }
+          }
+          
+          console.error("Error adding grade - Fetch failed:", {
+            ...errorDetails,
+            context: {
+              createdGradeId,
+              assessmentId: gradeData.assessmentId,
+              studentId: gradeData.studentId,
+              operation: 'fetch_created_grade'
+            }
+          })
+          throw new Error(`Failed to fetch created grade (ID: ${createdGradeId}): ${errorMessage}`)
+        }
+
+        if (!createdGrade) {
+          const errorMsg = `Grade with ID ${createdGradeId} was not found after creation`
+          console.error("Error adding grade:", errorMsg)
+          throw new Error(errorMsg)
         }
 
         const newGrade: Grade = {
@@ -842,12 +1777,52 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
         setGrades((prev) => [...prev, newGrade])
       }
     } catch (err) {
-      setError("Failed to add grade")
-      console.error("Error adding grade:", err)
+      // Serialize error with proper error handling
+      let errorDetails: any
+      let errorMessage: string
+      
+      try {
+        errorDetails = serializeSupabaseError(err)
+        errorMessage = errorDetails.message || 'Failed to add grade'
+      } catch (serializeErr) {
+        // Fallback if serialization fails
+        if (err instanceof Error) {
+          errorMessage = err.message || 'Failed to add grade'
+        } else if (typeof err === 'string') {
+          errorMessage = err
+        } else {
+          errorMessage = 'Failed to add grade'
+        }
+        
+        errorDetails = {
+          message: errorMessage,
+          rawError: err,
+          serializationError: serializeErr instanceof Error ? serializeErr.message : String(serializeErr),
+          type: 'serialization_failed'
+        }
+      }
+      
+      setError(errorMessage)
+      
+      // Enhanced error logging with context
+      const errorInfo = {
+        ...errorDetails,
+        context: {
+          assessmentId: gradeData.assessmentId,
+          studentId: gradeData.studentId,
+          marks: gradeData.marks,
+          teacherId: user?.id,
+          operation: 'add_grade'
+        }
+      }
+      console.error("Error adding grade:", errorInfo)
+      
+      // Re-throw the error so calling code can handle it
+      throw err
     } finally {
       setLoading(false)
     }
-  }, [useDatabase, user?.id])
+  }, [useDatabase, user?.id, supabase, assessments, calculateGrade])
 
   const updateGrade = useCallback(async (id: string, updates: Partial<Grade>) => {
     setLoading(true)
@@ -926,7 +1901,13 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
   // Student functions
   const getStudentsByClass = useCallback(
     (classId: string) => {
-      return students.filter((student) => student.classId === classId)
+      if (!classId) return []
+      // Convert both to strings for comparison to handle UUID and VARCHAR types
+      const normalizedClassId = classId.toString().trim()
+      return students.filter((student) => {
+        const studentClassId = (student.classId || "").toString().trim()
+        return studentClassId === normalizedClassId && studentClassId !== ""
+      })
     },
     [students],
   )
@@ -977,19 +1958,6 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     return teacherSubjects
   }, [teacherSubjects])
 
-  // Utility functions
-  const calculateGrade = useCallback((marks: number, totalMarks: number): string => {
-    const percentage = (marks / totalMarks) * 100
-    // Convert percentage to Cameroonian scale of 20
-    const averageOn20 = (percentage / 100) * 20
-    
-    if (averageOn20 >= 16) return "A" // 16-20: Excellent
-    if (averageOn20 >= 14) return "B" // 14-15.99: Very Good
-    if (averageOn20 >= 12) return "C" // 12-13.99: Good
-    if (averageOn20 >= 10) return "D" // 10-11.99: Fair
-    if (averageOn20 >= 8) return "E"  // 8-9.99: Poor
-    return "F" // 0-7.99: Very Poor
-  }, [])
 
   const calculateAverageOn20 = useCallback((marks: number, totalMarks: number): number => {
     const percentage = (marks / totalMarks) * 100
@@ -1015,10 +1983,31 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     }
   }, [])
 
+  // Filter assessments by teacher's classes for the context value
+  // This ensures components always get filtered assessments
+  // Filters by both class_id and class_level to show assessments created for a level
+  const filteredAssessments = useMemo(() => {
+    if (teacherClassIds.length === 0 && teacherClassLevels.length === 0) {
+      return assessments // Return all if no class IDs or levels loaded yet
+    }
+    
+    return assessments.filter((assessment) => {
+      // Check if assessment's class_id matches teacher's class IDs
+      const matchesClassId = teacherClassIds.length > 0 && teacherClassIds.includes(assessment.classId)
+      
+      // Check if assessment's class level matches teacher's class levels
+      const matchesClassLevel = teacherClassLevels.length > 0 && 
+        assessment.classLevel && 
+        teacherClassLevels.includes(assessment.classLevel)
+      
+      return matchesClassId || matchesClassLevel
+    })
+  }, [assessments, teacherClassIds, teacherClassLevels])
+
   const contextValue = useMemo(
     () => ({
-      // State
-      assessments,
+      // State - use filtered assessments
+      assessments: filteredAssessments,
       grades,
       students,
       classes,
@@ -1044,6 +2033,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       updateAssessment,
       deleteAssessment,
       getAssessmentsByClass,
+      getAssessmentsForTeacher,
 
       // Grade functions
       addGrade,
@@ -1069,7 +2059,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       getGradeColor,
     }),
     [
-      assessments,
+      filteredAssessments,
       grades,
       students,
       classes,
@@ -1091,6 +2081,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       updateAssessment,
       deleteAssessment,
       getAssessmentsByClass,
+      getAssessmentsForTeacher,
       addGrade,
       updateGrade,
       deleteGrade,

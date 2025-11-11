@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole, getUserFromRequest } from '@/lib/auth/server'
+import { requireRole } from '@/lib/auth/server'
 
 // GET - Retrieve app configuration
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const supabase = await createClient()
-
-    // Check if user is authenticated (optional for GET)
-    const user = await getUserFromRequest(request)
 
     // Get the configuration (only one record should exist)
     const { data: configuration, error } = await supabase

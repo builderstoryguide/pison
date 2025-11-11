@@ -302,11 +302,11 @@ export async function GET(
 
         classesFromTimetable = Array.from(classSubjectMap.values()).map((entry) => ({
           id: entry.classId,
-          name: entry.className,
-          level: entry.level,
-          subsystem: entry.subsystem,
-          branch: entry.branch,
-          subjects: entry.subjects,
+          name: entry.className || 'Unknown',
+          level: entry.level || '',
+          subsystem: entry.subsystem || '',
+          branch: entry.branch || '',
+          subjects: entry.subjects || [],
           assignmentType: 'subject_teacher',
         }))
       }
@@ -386,18 +386,28 @@ export async function GET(
           id: user.id,
           name: user.name,
         },
-        subjects: subjects.map(s => ({ id: s.id, name: s.subjectName, code: s.subjectCode })),
+        subjects: subjects.map(s => ({
+          id: s.id,
+          subjectId: s.subjectId,
+          subjectName: s.subjectName || 'Unknown',
+          subjectCode: s.subjectCode || null,
+          subBranchId: s.subBranchId || null,
+          subBranchName: s.subBranchName || null,
+          assignmentType: s.assignmentType || 'main_subject',
+          isActive: s.isActive ?? true,
+          createdAt: s.createdAt,
+        })),
         classes: paginatedClasses.map(cls => ({
           id: cls.id,
-          name: cls.name,
-          level: cls.level,
-          subsystem: cls.subsystem,
-          branch: cls.branch,
-          academicYear: cls.academicYear,
-          capacity: cls.capacity,
-          currentEnrollment: cls.currentEnrollment,
-          assignmentType: cls.assignmentType,
-          status: cls.status,
+          name: cls.name || 'Unknown',
+          level: cls.level || '',
+          subsystem: cls.subsystem || '',
+          branch: cls.branch || '',
+          academicYear: cls.academicYear || '',
+          capacity: cls.capacity || 0,
+          currentEnrollment: cls.currentEnrollment || 0,
+          assignmentType: cls.assignmentType || 'subject_teacher',
+          status: cls.status || 'active',
         })),
         pagination: {
           page,
@@ -433,51 +443,119 @@ export async function GET(
 
     // Optimized batch queries for students and subjects
     const classIds = paginatedClasses.map(cls => cls.id)
-    const classNames = paginatedClasses.map(cls => cls.name)
 
     // Batch fetch all students for all classes at once
-    const [allStudentsByIdResult, allStudentsByNameResult] = await Promise.all([
-      // Query by class IDs (UUID format) - use IN clause for batch query
+    // Students are linked to classes via students.class (VARCHAR) or class_students junction table
+    // The class column can store either UUIDs (as strings) or class names
+    const classNames = paginatedClasses.map(cls => cls.name).filter(Boolean)
+    
+    const [studentsByClassIdResult, studentsByClassNameResult, studentsByClassColumnResult, classStudentsJunctionResult] = await Promise.all([
+      // Method 1: Query via students.class column matching class IDs (UUIDs stored as strings)
       classIds.length > 0 ? supabase
-        .from('students')
-        .select(`
-          id,
-          student_id,
-          first_name,
-          last_name,
-          email,
-          phone,
-          photo,
-          status,
-          date_of_birth,
-          address,
-          parent_name,
-          parent_phone,
-          parent_email,
-          class
-        `)
-        .in('class', classIds) : { data: [], error: null },
-      // Query by class names (for backward compatibility) - use IN clause
+          .from('students')
+          .select(`
+            id,
+            student_id,
+            first_name,
+            last_name,
+            email,
+            phone,
+            status,
+            date_of_birth,
+            address,
+            class,
+            class_id,
+            class_name,
+            enrollment_status
+          `)
+          .in('class', classIds)
+          .eq('status', 'active') : { data: [], error: null },
+      // Method 2: Query via students.class column matching class names
       classNames.length > 0 ? supabase
-        .from('students')
-        .select(`
-          id,
-          student_id,
-          first_name,
-          last_name,
-          email,
-          phone,
-          photo,
-          status,
-          date_of_birth,
-          address,
-          parent_name,
-          parent_phone,
-          parent_email,
-          class
-        `)
-        .in('class', classNames) : { data: [], error: null },
+          .from('students')
+          .select(`
+            id,
+            student_id,
+            first_name,
+            last_name,
+            email,
+            phone,
+            status,
+            date_of_birth,
+            address,
+            class,
+            class_id,
+            class_name,
+            enrollment_status
+          `)
+          .in('class', classNames)
+          .eq('status', 'active') : { data: [], error: null },
+      // Method 3: Query ALL active students and filter later (fallback if above methods don't work)
+      // This ensures we don't miss students due to type mismatches
+      supabase
+          .from('students')
+          .select(`
+            id,
+            student_id,
+            first_name,
+            last_name,
+            email,
+            phone,
+            status,
+            date_of_birth,
+            address,
+            class,
+            class_id,
+            class_name,
+            enrollment_status
+          `)
+          .eq('status', 'active'),
+      // Method 4: Query via class_students junction table (if it exists)
+      classIds.length > 0 ? supabase
+          .from('class_students')
+          .select(`
+            class_id,
+            students (
+              id,
+              student_id,
+              first_name,
+              last_name,
+              email,
+              phone,
+              status,
+              date_of_birth,
+              address,
+              class,
+              class_id,
+              class_name,
+              enrollment_status
+            )
+          `)
+          .in('class_id', classIds) : { data: [], error: null }
     ])
+
+    const studentsByClassId = studentsByClassIdResult.data || []
+    const studentsByClassName = studentsByClassNameResult.data || []
+    const allActiveStudents = studentsByClassColumnResult.data || []
+    const classStudentsJunction = classStudentsJunctionResult.data || []
+
+    // Log query results for debugging
+    if (studentsByClassIdResult.error) {
+      console.error('Error fetching students by class ID:', serializeSupabaseError(studentsByClassIdResult.error))
+    }
+    if (studentsByClassNameResult.error) {
+      console.error('Error fetching students by class name:', serializeSupabaseError(studentsByClassNameResult.error))
+    }
+    if (studentsByClassColumnResult.error) {
+      console.error('Error fetching all active students:', serializeSupabaseError(studentsByClassColumnResult.error))
+    }
+    if (classStudentsJunctionResult.error) {
+      // It's okay if this table doesn't exist, just log it
+      const errorMsg = serializeSupabaseError(classStudentsJunctionResult.error)
+      console.log('Note: class_students junction table may not exist or be accessible:', errorMsg)
+    }
+    
+    console.log(`Student query results: ${studentsByClassId.length} by class ID, ${studentsByClassName.length} by class name, ${allActiveStudents.length} total active, ${classStudentsJunction.length} from junction table`)
 
     // Batch fetch all subjects for all classes at once
     const { data: allClassSubjectsData, error: allClassSubjectsError } = classIds.length > 0
@@ -504,38 +582,212 @@ export async function GET(
       console.error('Error batch loading subjects:', serializeSupabaseError(allClassSubjectsError))
     }
 
-    // Group students by class
-    const studentsById = allStudentsByIdResult.data || []
-    const studentsByName = allStudentsByNameResult.data || []
+    // Group students by class using multiple methods
     const allStudentsMap = new Map<string, any[]>()
     
-    // Initialize map for each class
+    // Initialize map for each class - use class ID as the primary key
     paginatedClasses.forEach(cls => {
       allStudentsMap.set(cls.id, [])
-      allStudentsMap.set(cls.name, [])
     })
 
-    // Group students by class ID
-    studentsById.forEach((student: any) => {
-      const classKey = student.class
-      if (allStudentsMap.has(classKey)) {
-        allStudentsMap.get(classKey)!.push(student)
+    // Helper function to add student to map if it doesn't already exist
+    const addStudentToMap = (student: any, classId: string, method: string = 'unknown') => {
+      const existing = allStudentsMap.get(classId) || []
+      if (!existing.find((s: any) => s.id === student.id)) {
+        existing.push({
+          ...student,
+          enrollment_status: student.enrollment_status || 'enrolled'
+        })
+        allStudentsMap.set(classId, existing)
+        console.log(`✅ Student matched via ${method}:`, {
+          studentId: student.id,
+          studentName: `${student.first_name} ${student.last_name}`,
+          classId,
+          studentClass: student.class || student.class_id || student.class_name,
+          enrollmentStatus: student.enrollment_status || 'enrolled'
+        })
+      }
+    }
+
+    // Method 1: Group students from class_students junction table (if available)
+    console.log(`🔍 Matching students via junction table: ${classStudentsJunction.length} junctions`)
+    classStudentsJunction.forEach((junction: any) => {
+      const classId = junction.class_id
+      const student = junction.students
+      
+      if (student && allStudentsMap.has(classId)) {
+        addStudentToMap(student, classId, 'junction_table')
+      } else if (student && !allStudentsMap.has(classId)) {
+        console.log(`⚠️ Junction student found but classId not in map:`, {
+          classId,
+          studentId: student.id,
+          studentName: `${student.first_name} ${student.last_name}`,
+          availableClassIds: Array.from(allStudentsMap.keys())
+        })
       }
     })
 
-    // Group students by class name
-    studentsByName.forEach((student: any) => {
-      const classKey = student.class
-      // Find matching class by name
-      const matchingClass = paginatedClasses.find(cls => cls.name === classKey)
-      if (matchingClass && allStudentsMap.has(matchingClass.id)) {
-        const existing = allStudentsMap.get(matchingClass.id)!
-        // Check if student already exists (by id)
-        if (!existing.find(s => s.id === student.id)) {
-          existing.push(student)
-        }
+    // Method 2: Group students by class column matching class IDs
+    console.log(`🔍 Matching students by class ID: ${studentsByClassId.length} students`)
+    studentsByClassId.forEach((student: any) => {
+      const studentClassValue = student.class
+      if (!studentClassValue) {
+        console.log(`⚠️ Student has no class value:`, {
+          studentId: student.id,
+          studentName: `${student.first_name} ${student.last_name}`,
+          class: student.class,
+          class_id: student.class_id,
+          class_name: student.class_name
+        })
+        return
+      }
+      
+      // Find matching class by ID (exact match)
+      let matchingClass = paginatedClasses.find(cls => cls.id === studentClassValue)
+      
+      // Also try case-insensitive string comparison
+      if (!matchingClass) {
+        matchingClass = paginatedClasses.find(cls => 
+          cls.id?.toString().toLowerCase().trim() === studentClassValue.toString().toLowerCase().trim()
+        )
+      }
+      
+      if (matchingClass) {
+        addStudentToMap(student, matchingClass.id, 'class_id_exact')
+      } else {
+        console.log(`⚠️ Student class ID not matched:`, {
+          studentId: student.id,
+          studentName: `${student.first_name} ${student.last_name}`,
+          studentClassValue,
+          availableClassIds: paginatedClasses.map(c => c.id),
+          availableClassNames: paginatedClasses.map(c => c.name)
+        })
       }
     })
+
+    // Method 3: Group students by class column matching class names
+    console.log(`🔍 Matching students by class name: ${studentsByClassName.length} students`)
+    studentsByClassName.forEach((student: any) => {
+      const studentClassValue = student.class
+      if (!studentClassValue) return
+      
+      // Find matching class by name (case-insensitive, exact match)
+      let matchingClass = paginatedClasses.find(cls => 
+        cls.name?.toLowerCase().trim() === studentClassValue?.toLowerCase().trim()
+      )
+      
+      // Try partial match - check if class name contains student class or vice versa
+      if (!matchingClass) {
+        matchingClass = paginatedClasses.find(cls => {
+          const className = cls.name?.toLowerCase().trim() || ''
+          const studentClass = studentClassValue?.toLowerCase().trim() || ''
+          return className.includes(studentClass) || studentClass.includes(className) ||
+                 className.startsWith(studentClass) || studentClass.startsWith(className)
+        })
+      }
+      
+      if (matchingClass) {
+        addStudentToMap(student, matchingClass.id, 'class_name_match')
+      } else {
+        console.log(`⚠️ Student class name not matched:`, {
+          studentId: student.id,
+          studentName: `${student.first_name} ${student.last_name}`,
+          studentClassValue,
+          availableClassNames: paginatedClasses.map(c => c.name)
+        })
+      }
+    })
+
+    // Method 4: Fallback - Filter all active students by class (handles any type mismatches)
+    // This catches students that weren't found by the above methods
+    console.log(`🔍 Fallback matching: checking ${allActiveStudents.length} active students`)
+    const unmatchedStudents: any[] = []
+    
+    allActiveStudents.forEach((student: any) => {
+      // Check if student was already matched
+      const alreadyMatched = Array.from(allStudentsMap.values())
+        .some(students => students.some((s: any) => s.id === student.id))
+      
+      if (alreadyMatched) return
+      
+      const studentClassValue = student.class || student.class_id || student.class_name
+      if (!studentClassValue) {
+        unmatchedStudents.push({
+          student,
+          reason: 'no_class_value',
+          studentData: {
+            id: student.id,
+            name: `${student.first_name} ${student.last_name}`,
+            class: student.class,
+            class_id: student.class_id,
+            class_name: student.class_name
+          }
+        })
+        return
+      }
+      
+      // Try to find matching class by ID first (exact and case-insensitive)
+      let matchingClass = paginatedClasses.find(cls => cls.id === studentClassValue)
+      
+      if (!matchingClass) {
+        matchingClass = paginatedClasses.find(cls => 
+          cls.id?.toString().toLowerCase().trim() === studentClassValue.toString().toLowerCase().trim()
+        )
+      }
+      
+      // If no match by ID, try by name (exact and partial)
+      if (!matchingClass) {
+        matchingClass = paginatedClasses.find(cls => 
+          cls.name?.toLowerCase().trim() === studentClassValue?.toLowerCase().trim()
+        )
+      }
+      
+      if (!matchingClass) {
+        matchingClass = paginatedClasses.find(cls => {
+          const className = cls.name?.toLowerCase().trim() || ''
+          const studentClass = studentClassValue?.toLowerCase().trim() || ''
+          return className.includes(studentClass) || studentClass.includes(className) ||
+                 className.startsWith(studentClass) || studentClass.startsWith(className)
+        })
+      }
+      
+      // Also check if student's class_id field matches class ID
+      if (!matchingClass && student.class_id) {
+        matchingClass = paginatedClasses.find(cls => 
+          cls.id?.toString().toLowerCase().trim() === student.class_id?.toString().toLowerCase().trim()
+        )
+      }
+      
+      // Also check if student's class_name field matches class name
+      if (!matchingClass && student.class_name) {
+        matchingClass = paginatedClasses.find(cls => 
+          cls.name?.toLowerCase().trim() === student.class_name?.toLowerCase().trim()
+        )
+      }
+      
+      if (matchingClass) {
+        addStudentToMap(student, matchingClass.id, 'fallback_match')
+      } else {
+        unmatchedStudents.push({
+          student,
+          reason: 'no_class_match',
+          studentData: {
+            id: student.id,
+            name: `${student.first_name} ${student.last_name}`,
+            class: student.class,
+            class_id: student.class_id,
+            class_name: student.class_name,
+            studentClassValue
+          },
+          availableClasses: paginatedClasses.map(c => ({ id: c.id, name: c.name }))
+        })
+      }
+    })
+    
+    // Log unmatched students for debugging
+    if (unmatchedStudents.length > 0) {
+      console.log(`⚠️ ${unmatchedStudents.length} students could not be matched to any class:`, unmatchedStudents)
+    }
 
     // Group subjects by class
     const subjectsByClass = new Map<string, any[]>()
@@ -548,7 +800,8 @@ export async function GET(
         const classId = cs.class_id
         if (subjectsByClass.has(classId)) {
           const subject = cs.subjects
-          if (subject) {
+          // Only include active subjects
+          if (subject && (subject.is_active !== false)) {
             subjectsByClass.get(classId)!.push({
               id: subject.id || cs.subject_id || `sub_${subject.name}`,
               name: subject.name || 'Unknown Subject',
@@ -564,9 +817,17 @@ export async function GET(
     // Transform classes with batched data
     const classesWithDetails = paginatedClasses.map((cls) => {
       // Get students for this class
-      const studentsData = allStudentsMap.get(cls.id) || []
+      let studentsData = allStudentsMap.get(cls.id) || []
       
-      // Remove duplicates by student id
+      // Log for debugging
+      if (studentsData.length > 0) {
+        console.log(`Found ${studentsData.length} students for class ${cls.name} (ID: ${cls.id})`)
+      } else {
+        console.log(`No students found for class ${cls.name} (ID: ${cls.id}). Available keys in map:`, Array.from(allStudentsMap.keys()))
+        console.log(`Students by class ID: ${studentsByClassId.length}, by class name: ${studentsByClassName.length}, total active: ${allActiveStudents.length}, from junction: ${classStudentsJunction.length}`)
+      }
+      
+      // Remove duplicates by student id (shouldn't happen, but just in case)
       const uniqueStudentsMap = new Map()
       studentsData.forEach((student: any) => {
         uniqueStudentsMap.set(student.id, student)
@@ -575,13 +836,53 @@ export async function GET(
 
       // Transform students data
       const students = uniqueStudents.map((student: any) => {
+        // Use enrollment_status from enrollment if available, otherwise derive from student.status
+        // Default to 'enrolled' for active students
         let enrollmentStatus: 'enrolled' | 'pending' | 'transferred' = 'enrolled'
-        if (student.status === 'active' || student.status === 'enrolled') {
+        
+        // Priority 1: Check enrollment_status field (from database or set during matching)
+        if (student.enrollment_status) {
+          const status = student.enrollment_status.toString().toLowerCase().trim()
+          if (status === 'enrolled') {
+            enrollmentStatus = 'enrolled'
+          } else if (status === 'pending') {
+            enrollmentStatus = 'pending'
+          } else if (status === 'transferred' || status === 'inactive') {
+            enrollmentStatus = 'transferred'
+          } else {
+            // If enrollment_status exists but has unexpected value, default to enrolled for active students
+            enrollmentStatus = 'enrolled'
+          }
+        } 
+        // Priority 2: Check student.status field
+        else if (student.status) {
+          const status = student.status.toString().toLowerCase().trim()
+          if (status === 'active' || status === 'enrolled') {
+            enrollmentStatus = 'enrolled'
+          } else if (status === 'pending') {
+            enrollmentStatus = 'pending'
+          } else if (status === 'transferred' || status === 'inactive') {
+            enrollmentStatus = 'transferred'
+          } else {
+            // Default to enrolled for any other status if student is in the system
+            enrollmentStatus = 'enrolled'
+          }
+        }
+        // Priority 3: Default to 'enrolled' if no status information
+        // This ensures all students in classes are treated as enrolled by default
+        else {
           enrollmentStatus = 'enrolled'
-        } else if (student.status === 'pending') {
-          enrollmentStatus = 'pending'
-        } else if (student.status === 'transferred' || student.status === 'inactive') {
-          enrollmentStatus = 'transferred'
+        }
+
+        // Log when enrollmentStatus is set to non-enrolled for debugging
+        if (enrollmentStatus !== 'enrolled') {
+          console.log(`📋 Student enrollmentStatus set to '${enrollmentStatus}':`, {
+            studentId: student.id,
+            studentName: `${student.first_name} ${student.last_name}`,
+            enrollment_status: student.enrollment_status,
+            status: student.status,
+            finalEnrollmentStatus: enrollmentStatus
+          })
         }
 
         return {
@@ -591,14 +892,27 @@ export async function GET(
           lastName: student.last_name || '',
           email: student.email || '',
           phone: student.phone || undefined,
-          photo: student.photo || undefined,
+          // photo column doesn't exist in students table, so we don't include it
           enrollmentStatus,
-          parentName: student.parent_name || undefined,
-          parentPhone: student.parent_phone || undefined,
-          parentEmail: student.parent_email || undefined,
+          // parent_name, parent_phone, parent_email don't exist in students table
+          // They are in the parents table, which would require a separate query
+          parentName: undefined,
+          parentPhone: undefined,
+          parentEmail: undefined,
           dateOfBirth: student.date_of_birth || undefined,
           address: student.address || undefined,
         }
+      })
+      
+      // Log student enrollment status summary for this class
+      const enrolledCount = students.filter(s => s.enrollmentStatus === 'enrolled').length
+      const pendingCount = students.filter(s => s.enrollmentStatus === 'pending').length
+      const transferredCount = students.filter(s => s.enrollmentStatus === 'transferred').length
+      console.log(`📊 Student enrollment status for class ${cls.name} (${cls.id}):`, {
+        total: students.length,
+        enrolled: enrolledCount,
+        pending: pendingCount,
+        transferred: transferredCount
       })
 
       // Get subjects for this class
@@ -623,7 +937,15 @@ export async function GET(
     })
 
     // Log summary for debugging
-    console.log('Teacher assignments summary:', {
+    const studentSummary = classesWithDetails.map(cls => ({
+      classId: cls.id,
+      className: cls.name,
+      studentsCount: cls.students?.length || 0,
+      enrolledCount: cls.students?.filter((s: any) => s.enrollmentStatus === 'enrolled').length || 0,
+      studentIds: cls.students?.map((s: any) => s.id) || []
+    }))
+    
+    console.log('📊 Teacher assignments summary:', {
       teacherId: user.id,
       teacherName: user.name,
       subjectsCount: subjects.length,
@@ -634,7 +956,30 @@ export async function GET(
       teacherRecordFound: !teacherRecordError && !!teacherRecord,
       teacherRecordId: teacherRecord?.id,
       totalStudents: classesWithDetails.reduce((sum, cls) => sum + (cls.students?.length || 0), 0),
+      totalEnrolledStudents: classesWithDetails.reduce((sum, cls) => 
+        sum + (cls.students?.filter((s: any) => s.enrollmentStatus === 'enrolled').length || 0), 0),
       totalSubjects: classesWithDetails.reduce((sum, cls) => sum + (cls.subjects?.length || 0), 0),
+      studentSummary
+    })
+    
+    // Log detailed student matching results for each class
+    classesWithDetails.forEach(cls => {
+      if (cls.students && cls.students.length > 0) {
+        console.log(`✅ Class "${cls.name}" (${cls.id}) has ${cls.students.length} students:`, {
+          students: cls.students.map((s: any) => ({
+            id: s.id,
+            name: `${s.firstName} ${s.lastName}`,
+            enrollmentStatus: s.enrollmentStatus,
+            studentId: s.studentId
+          }))
+        })
+      } else {
+        console.warn(`⚠️ Class "${cls.name}" (${cls.id}) has NO students`, {
+          classId: cls.id,
+          className: cls.name,
+          studentsInMap: allStudentsMap.get(cls.id)?.length || 0
+        })
+      }
     })
 
     return NextResponse.json({

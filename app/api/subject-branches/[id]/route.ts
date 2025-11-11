@@ -2,13 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { testConnection } from '@/lib/database-utils'
 import type { 
-  UpdateSubjectBranchRequest,
   SubjectBranchWithDetails 
 } from '@/lib/subject-branches-types'
 
 // GET /api/subject-branches/[id] - Get a specific subject branch
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -145,7 +144,7 @@ export async function PUT(
     }
 
     const { id: branchId } = await params
-    const body: UpdateSubjectBranchRequest = await request.json()
+    const body = await request.json()
 
     // Check if branch exists
     const { data: existingBranch, error: fetchError } = await supabase
@@ -245,7 +244,7 @@ export async function PUT(
 
 // DELETE /api/subject-branches/[id] - Delete a subject branch
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {

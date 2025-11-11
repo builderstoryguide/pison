@@ -8,7 +8,7 @@ import { validateDatabaseSetup, checkTableExists, checkViewExists } from '@/lib/
  * Validates database setup status by checking if required tables and views exist.
  * Returns detailed information about what's missing and what's configured.
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Check if environment variables are set
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {

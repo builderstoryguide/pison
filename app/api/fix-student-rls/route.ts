@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const supabase = await createClient()
     if (!supabase) {
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
         console.log('✅ RLS disabled temporarily')
         
         // Test again
-        const { data: testResult2, error: testError2 } = await supabase
+        const { error: testError2 } = await supabase
           .from('students')
           .insert({ ...testStudent, student_id: 'TEST2_' + Date.now() })
           .select()
