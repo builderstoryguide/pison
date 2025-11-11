@@ -375,7 +375,7 @@ function transformFallbackData(rawAssignments: any[]): any {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { action, teacherId, academicYear, term, userId } = body
+    const { action, teacherId, userId } = body
 
     if (action === 'repair_user_profile') {
       if (!userId) {

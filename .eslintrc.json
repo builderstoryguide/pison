@@ -1,5 +1,10 @@
 {
   "extends": ["next/core-web-vitals"],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": "./tsconfig.json",
+    "tsconfigRootDir": "."
+  },
   "rules": {
     "no-undef": "error",
     "@typescript-eslint/no-unused-vars": [

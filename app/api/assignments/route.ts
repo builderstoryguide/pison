@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/service"
 import { authenticateUser, requireAnyRole } from "@/lib/auth/server"
+import { serializeSupabaseError } from "@/lib/safe-error"
 
 export async function GET(request: NextRequest) {
   try {
@@ -147,7 +149,11 @@ export async function POST(request: NextRequest) {
     // Use authenticated user's ID as teacher_id (unless admin creating for another teacher)
     const finalTeacherId = (user.role === 'admin' && teacher_id) ? teacher_id : user.id
 
-    const { data, error } = await supabase
+    // Use service role client to bypass RLS for insert operation
+    // Security is maintained by the requireAnyRole check above
+    const supabaseService = createServiceClient()
+
+    const { data, error } = await supabaseService
       .from("assignments")
       .insert({
         assignment_id,
@@ -175,8 +181,90 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error("Error creating assignment:", error)
-      return NextResponse.json({ error: "Failed to create assignment" }, { status: 500 })
+      const errorDetails = serializeSupabaseError(error)
+      console.error("Error creating assignment:", {
+        errorDetails,
+        requestBody: {
+          title,
+          subject,
+          class_id,
+          teacher_id: finalTeacherId,
+          total_marks,
+          passing_marks,
+          due_date,
+          assigned_date,
+          status
+        }
+      })
+
+      // Provide specific error messages based on error type
+      let userMessage = "Failed to create assignment"
+      let statusCode = 500
+
+      // Check for RLS policy violations
+      if (errorDetails.code === '42501' || 
+          errorDetails.message?.includes('permission denied') ||
+          errorDetails.message?.includes('row-level security') ||
+          errorDetails.message?.includes('policy violation')) {
+        userMessage = "Permission denied. You may not have permission to create assignments. Please check your account permissions or contact your administrator."
+        statusCode = 403
+      }
+      // Check for constraint violations
+      else if (errorDetails.code === '23514' || 
+               errorDetails.message?.includes('check constraint') ||
+               errorDetails.message?.includes('valid_dates') ||
+               errorDetails.message?.includes('valid_marks') ||
+               errorDetails.message?.includes('valid_late_penalty')) {
+        if (errorDetails.message?.includes('valid_dates') || errorDetails.details?.includes('due_date')) {
+          userMessage = "Invalid date: The due date must be on or after the assigned date."
+        } else if (errorDetails.message?.includes('valid_marks') || errorDetails.details?.includes('marks')) {
+          userMessage = "Invalid marks: Total marks must be greater than 0, and passing marks must be between 0 and total marks."
+        } else if (errorDetails.message?.includes('valid_late_penalty')) {
+          userMessage = "Invalid late penalty: Late penalty percentage must be between 0 and 100."
+        } else {
+          userMessage = `Validation error: ${errorDetails.message || errorDetails.details || 'Please check your input values.'}`
+        }
+        statusCode = 400
+      }
+      // Check for foreign key violations
+      else if (errorDetails.code === '23503' || 
+               errorDetails.message?.includes('foreign key') ||
+               errorDetails.message?.includes('violates foreign key constraint')) {
+        if (errorDetails.message?.includes('teacher_id') || errorDetails.details?.includes('teacher_id')) {
+          userMessage = "Invalid teacher ID. Please ensure you are properly authenticated."
+        } else {
+          userMessage = "Invalid reference: One or more referenced records do not exist. Please check your class and subject selections."
+        }
+        statusCode = 400
+      }
+      // Check for unique constraint violations
+      else if (errorDetails.code === '23505' || 
+               errorDetails.message?.includes('unique constraint') ||
+               errorDetails.message?.includes('duplicate key')) {
+        userMessage = "An assignment with this ID already exists. Please try again."
+        statusCode = 409
+      }
+      // Check for table/column not found
+      else if (errorDetails.code === '42P01' || 
+               errorDetails.message?.includes('does not exist') ||
+               errorDetails.message?.includes('relation') ||
+               errorDetails.type === 'empty_object_with_properties') {
+        userMessage = "Database setup required: The assignments table may not exist or is not accessible. Please run the database migration script."
+        statusCode = 500
+      }
+      // Use detailed error message if available
+      else if (errorDetails.message && errorDetails.message !== "Unknown error occurred - no error message available") {
+        userMessage = errorDetails.message
+        // Include hint if available for better debugging
+        if (errorDetails.hint) {
+          userMessage += ` (Hint: ${errorDetails.hint})`
+        }
+      }
+
+      return NextResponse.json({ 
+        error: userMessage,
+        details: process.env.NODE_ENV === 'development' ? errorDetails : undefined
+      }, { status: statusCode })
     }
 
     return NextResponse.json({ assignment: data }, { status: 201 })
@@ -185,8 +273,17 @@ export async function POST(request: NextRequest) {
     if (error instanceof NextResponse) {
       return error
     }
-    console.error("Error in assignments POST:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    
+    const errorDetails = serializeSupabaseError(error)
+    console.error("Error in assignments POST:", {
+      errorDetails,
+      error: error instanceof Error ? error.stack : error
+    })
+    
+    return NextResponse.json({ 
+      error: errorDetails.message || "Internal server error",
+      details: process.env.NODE_ENV === 'development' ? errorDetails : undefined
+    }, { status: 500 })
   }
 }
 

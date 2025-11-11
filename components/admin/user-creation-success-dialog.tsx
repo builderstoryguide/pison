@@ -1,7 +1,7 @@
 "use client"
 
 import { Check, Copy, Download, User, Users } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -36,6 +36,7 @@ export function UserCreationSuccessDialog({
 }: UserCreationSuccessDialogProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const { toast } = useToast()
+  const hasDownloadedRef = useRef(false)
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text)
@@ -43,7 +44,7 @@ export function UserCreationSuccessDialog({
     setTimeout(() => setCopiedField(null), 2000)
   }
 
-  const handleDownloadEmail = () => {
+  const handleDownloadEmail = (showToast = true) => {
     const lines: string[] = []
     lines.push(`Name: ${userData.name}`)
     lines.push(`Role: ${userData.role}`)
@@ -71,8 +72,49 @@ export function UserCreationSuccessDialog({
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
 
-    toast.success('Credentials downloaded')
+    if (showToast) {
+      toast.success('Credentials downloaded')
+    }
   }
+
+  // Automatically download credentials when dialog opens
+  useEffect(() => {
+    if (!hasDownloadedRef.current && userData) {
+      // Small delay to ensure dialog is fully rendered
+      const timer = setTimeout(() => {
+        // Inline download logic to avoid dependency issues
+        const lines: string[] = []
+        lines.push(`Name: ${userData.name}`)
+        lines.push(`Role: ${userData.role}`)
+        if (userData.userId) lines.push(`User ID/Code: ${userData.userId}`)
+        lines.push(`Email: ${userData.email}`)
+        if (userData.className) lines.push(`Class: ${userData.className}`)
+        lines.push(`Temporary Password: ${userData.password}`)
+        if (userData.parentName) lines.push(`Parent: ${userData.parentName}`)
+        if (userData.parentEmail) lines.push(`Parent Email: ${userData.parentEmail}`)
+        if (userData.parentCode) lines.push(`Parent Code: ${userData.parentCode}`)
+        if (userData.parentPassword) lines.push(`Parent Password: ${userData.parentPassword}`)
+        lines.push('')
+        lines.push('Important: Change the password on first login. Password expires in 30 days.')
+
+        const content = lines.join('\n')
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        const nameSafeRole = userData.role.toLowerCase()
+        const idPart = userData.userId ? `-${userData.userId}` : ''
+        a.href = url
+        a.download = `credentials-${nameSafeRole}${idPart}.txt`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+
+        hasDownloadedRef.current = true
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [userData])
 
   const getRoleDisplayName = (role: string) => {
     switch (role) {

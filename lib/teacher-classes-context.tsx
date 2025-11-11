@@ -87,9 +87,49 @@ export function TeacherClassesProvider({ children }: { children: React.ReactNode
     setError(null)
 
     try {
+      // Validate user ID before making request
+      if (!user?.id) {
+        throw new Error('User ID is required to fetch teacher classes')
+      }
+
+      const apiUrl = `/api/teachers/${user.id}/assignments?includeDetails=true&page=1&limit=100`
+      console.log('Fetching teacher classes from:', apiUrl)
+
       // Fetch teacher assignments which includes classes with details (subjects and students)
-      const response = await fetch(`/api/teachers/${user.id}/assignments?includeDetails=true&page=1&limit=100`)
-      const data = await response.json()
+      let response: Response
+      let data: any
+
+      try {
+        response = await fetch(apiUrl)
+        
+        // Check if response is ok before trying to parse JSON
+        if (!response.ok) {
+          // Try to get error message from response
+          let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+          try {
+            const errorData = await response.json()
+            errorMessage = errorData.error || errorMessage
+          } catch {
+            // If JSON parsing fails, use status text
+          }
+          throw new Error(errorMessage)
+        }
+
+        // Parse JSON response
+        try {
+          data = await response.json()
+        } catch (parseError) {
+          console.error('Failed to parse JSON response:', parseError)
+          throw new Error('Invalid response from server')
+        }
+      } catch (fetchError) {
+        // Handle network errors, CORS issues, etc.
+        console.error('Fetch error:', fetchError)
+        if (fetchError instanceof TypeError && fetchError.message === 'Failed to fetch') {
+          throw new Error('Network error: Unable to connect to server. Please check your internet connection and try again.')
+        }
+        throw fetchError
+      }
 
       console.log('Teacher classes API response:', {
         ok: data.ok,
@@ -100,7 +140,7 @@ export function TeacherClassesProvider({ children }: { children: React.ReactNode
         error: data.error,
       })
 
-      if (!response.ok || !data.ok) {
+      if (!data.ok) {
         const errorMessage = data.error || 'Failed to fetch teacher classes'
         console.error('API returned error:', errorMessage, data)
         

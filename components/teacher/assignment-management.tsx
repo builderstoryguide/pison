@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useForm } from "react-hook-form"
@@ -79,6 +80,12 @@ export function AssignmentManagement() {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState("all")
+  const [teacherSubjects, setTeacherSubjects] = useState<string[]>([])
+  const [loadingSubjects, setLoadingSubjects] = useState(false)
+  const [teacherClasses, setTeacherClasses] = useState<Array<{ id: string; name: string; level?: string; capacity?: number }>>([])
+  const [classSubjects, setClassSubjects] = useState<string[]>([])
+  const [loadingClasses, setLoadingClasses] = useState(false)
+  const [loadingClassSubjects, setLoadingClassSubjects] = useState(false)
 
   const supabase = createClient()
 
@@ -102,8 +109,221 @@ export function AssignmentManagement() {
   useEffect(() => {
     if (user?.id) {
       loadAssignments()
+      loadTeacherSubjects()
+      loadTeacherClasses()
     }
   }, [user?.id])
+
+  // Ensure teacher subjects and classes are loaded when dialog opens
+  useEffect(() => {
+    if (isCreateDialogOpen && user?.id) {
+      loadTeacherSubjects()
+      loadTeacherClasses()
+    }
+  }, [isCreateDialogOpen, user?.id])
+
+  // Watch for class_id changes and load subjects for the selected class
+  const selectedClassId = form.watch("class_id")
+  useEffect(() => {
+    if (selectedClassId) {
+      loadClassSubjects(selectedClassId)
+    } else {
+      setClassSubjects([])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClassId])
+
+  const loadTeacherSubjects = async () => {
+    if (!user?.id) return
+
+    try {
+      setLoadingSubjects(true)
+      
+      const { data: subjectsData, error: subjectsError } = await supabase
+        .from("teacher_subjects")
+        .select("subject_name")
+        .eq("teacher_id", user.id)
+        .eq("is_active", true)
+
+      if (subjectsError) {
+        console.error("Error fetching teacher subjects:", subjectsError)
+        setTeacherSubjects([])
+        return
+      }
+
+      if (subjectsData && subjectsData.length > 0) {
+        const subjects = subjectsData
+          .map((item: any) => item.subject_name)
+          .filter((name: string) => name && name.trim() !== "")
+        
+        setTeacherSubjects(subjects)
+        console.log(`Loaded ${subjects.length} teacher subjects`)
+      } else {
+        console.warn("No teacher subjects found for user:", user.id)
+        setTeacherSubjects([])
+      }
+    } catch (err) {
+      console.error("Error loading teacher subjects:", err)
+      setTeacherSubjects([])
+    } finally {
+      setLoadingSubjects(false)
+    }
+  }
+
+  const loadTeacherClasses = async () => {
+    if (!user?.id) return
+
+    try {
+      setLoadingClasses(true)
+      
+      const response = await fetch(`/api/teachers/${user.id}/assignments?includeDetails=true&page=1&limit=100`)
+      const data = await response.json()
+
+      if (!response.ok || !data.ok) {
+        console.error("Error fetching teacher classes:", data.error)
+        setTeacherClasses([])
+        return
+      }
+
+      if (data.classes && data.classes.length > 0) {
+        const classes = data.classes.map((cls: any) => ({
+          id: cls.id,
+          name: cls.name || 'Unknown Class',
+          level: cls.level || cls.class_level,
+          capacity: cls.capacity || cls.currentEnrollment || 0
+        }))
+        
+        setTeacherClasses(classes)
+        console.log(`Loaded ${classes.length} teacher classes`)
+      } else {
+        console.warn("No teacher classes found for user:", user.id)
+        setTeacherClasses([])
+      }
+    } catch (err) {
+      console.error("Error loading teacher classes:", err)
+      setTeacherClasses([])
+    } finally {
+      setLoadingClasses(false)
+    }
+  }
+
+  const loadClassSubjects = async (classId: string) => {
+    if (!classId || !user?.id) {
+      setClassSubjects([])
+      return
+    }
+
+    try {
+      setLoadingClassSubjects(true)
+      
+      console.log(`Loading subjects for class ID: ${classId}`)
+      
+      // First, verify the class exists and get its name for debugging
+      const { data: classData } = await supabase
+        .from("classes")
+        .select("id, class_name, name")
+        .eq("id", classId)
+        .single()
+      
+      if (classData) {
+        console.log(`Found class: ${classData.class_name || classData.name} (ID: ${classId})`)
+      } else {
+        console.warn(`Class with ID ${classId} not found in database`)
+      }
+      
+      // Use the same query pattern as the teacher assignments API
+      // This fetches subjects assigned to the class with full subject details
+      // Use left join to also get subject_name as fallback
+      // Note: We don't filter by subject_id IS NOT NULL to include all records
+      const { data: classSubjectsData, error: classSubjectsError } = await supabase
+        .from("class_subjects")
+        .select(`
+          id,
+          class_id,
+          subject_id,
+          subject_name,
+          is_trade_subject,
+          subjects (
+            id,
+            name,
+            code,
+            coefficient,
+            description,
+            is_active
+          )
+        `)
+        .eq("class_id", classId)
+        
+      console.log(`Query executed for class_id: ${classId} (type: ${typeof classId})`)
+
+      if (classSubjectsError) {
+        console.error("Error fetching class subjects:", classSubjectsError)
+        console.error("Error details:", JSON.stringify(classSubjectsError, null, 2))
+        setClassSubjects([])
+        return
+      }
+
+      console.log(`Raw class subjects data for class ${classId}:`, classSubjectsData)
+      console.log(`Total records found: ${classSubjectsData?.length || 0}`)
+
+      if (classSubjectsData && classSubjectsData.length > 0) {
+        // Process subjects - include all subjects assigned to the class
+        // Use subject name from joined subjects table, fallback to subject_name
+        const processedSubjects = classSubjectsData
+          .map((cs: any, index: number) => {
+            console.log(`Processing subject record ${index + 1}:`, {
+              id: cs.id,
+              subject_id: cs.subject_id,
+              subject_name: cs.subject_name,
+              has_subjects_join: !!cs.subjects,
+              subjects_name: cs.subjects?.name,
+              subjects_is_active: cs.subjects?.is_active
+            })
+            
+            // Try to get name from joined subjects table first, then fallback to subject_name
+            const subjectName = cs.subjects?.name || cs.subject_name
+            
+            if (!subjectName || subjectName.trim() === "") {
+              console.warn("Subject with no name found:", cs)
+              return null
+            }
+            
+            // Only exclude if subject is explicitly marked as inactive
+            // If subjects join failed (cs.subjects is null), use subject_name and assume active
+            if (cs.subjects !== null && cs.subjects.is_active === false) {
+              console.log(`Skipping inactive subject: ${subjectName}`)
+              return null
+            }
+            
+            return subjectName
+          })
+          .filter((name: string | null) => name && name.trim() !== "")
+
+        // Remove duplicates (in case same subject appears multiple times)
+        const uniqueSubjects = Array.from(new Set(processedSubjects))
+
+        console.log(`Processed class subjects (${uniqueSubjects.length} unique):`, uniqueSubjects)
+        console.log(`Breakdown: ${processedSubjects.length} total, ${uniqueSubjects.length} unique after deduplication`)
+
+        // Show all active subjects assigned to the class
+        setClassSubjects(uniqueSubjects)
+        
+        console.log(`Set ${uniqueSubjects.length} active subjects for class ${classId}`)
+      } else {
+        console.warn("No subjects found for class:", classId)
+        console.warn("This could mean:")
+        console.warn("1. The class has no subjects assigned in class_subjects table")
+        console.warn("2. The class_id doesn't match any records")
+        console.warn("3. There's a data type mismatch (UUID vs string)")
+        setClassSubjects([])
+      }
+    } catch (err) {
+      console.error("Error loading class subjects:", err)
+      setClassSubjects([])
+    } finally {
+      setLoadingClassSubjects(false)
+    }
+  }
 
   const loadAssignments = async () => {
     try {
@@ -197,10 +417,13 @@ export function AssignmentManagement() {
         assignmentFileType = selectedFile.type
       }
 
-      const { error: assignmentError } = await supabase
-        .from("assignments")
-        .insert({
-          assignment_id: `ASS${Date.now()}`,
+      // Use the API route instead of direct database access to avoid RLS issues
+      const response = await fetch('/api/assignments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           title: data.title,
           description: data.description,
           subject: data.subject,
@@ -220,11 +443,14 @@ export function AssignmentManagement() {
           submission_type: data.submission_type,
           allow_late_submission: data.allow_late_submission,
           late_penalty_percentage: data.late_penalty_percentage,
-        })
+        }),
+      })
 
-      if (assignmentError) {
-        console.error("Error creating assignment:", assignmentError)
-        alert("Failed to create assignment. Please try again.")
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error("Error creating assignment:", result)
+        alert(result.error || "Failed to create assignment. Please try again.")
         return
       }
 
@@ -442,15 +668,72 @@ export function AssignmentManagement() {
                 <FormField
                   control={form.control}
                   name="subject"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Subject</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Mathematics" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const selectedClassId = form.watch("class_id")
+                    const hasSelectedClass = !!selectedClassId
+                    const subjectsToShow = hasSelectedClass ? classSubjects : []
+                    const isLoading = hasSelectedClass ? loadingClassSubjects : false
+                    const isEmpty = hasSelectedClass && !isLoading && subjectsToShow.length === 0
+
+                    return (
+                      <FormItem>
+                        <FormLabel>Subject</FormLabel>
+                        <FormControl>
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            disabled={!hasSelectedClass || isLoading || isEmpty}
+                          >
+                            <SelectTrigger>
+                              <SelectValue 
+                                placeholder={
+                                  !hasSelectedClass
+                                    ? "Select a class first"
+                                    : isLoading
+                                      ? "Loading subjects..."
+                                      : isEmpty
+                                        ? "No subjects available"
+                                        : "Select a subject"
+                                } 
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {!hasSelectedClass ? (
+                                <SelectItem value="" disabled>
+                                  Please select a class first
+                                </SelectItem>
+                              ) : isLoading ? (
+                                <SelectItem value="" disabled>
+                                  Loading subjects...
+                                </SelectItem>
+                              ) : isEmpty ? (
+                                <SelectItem value="" disabled>
+                                  No subjects available for this class
+                                </SelectItem>
+                              ) : (
+                                subjectsToShow.map((subject) => (
+                                  <SelectItem key={subject} value={subject}>
+                                    {subject}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </FormControl>
+                        <FormMessage />
+                        {hasSelectedClass && !isLoading && isEmpty && (
+                          <p className="text-xs text-muted-foreground">
+                            This class has no subjects assigned, or none of the class subjects match your assigned subjects.
+                          </p>
+                        )}
+                        {!hasSelectedClass && (
+                          <p className="text-xs text-muted-foreground">
+                            Select a class to see available subjects.
+                          </p>
+                        )}
+                      </FormItem>
+                    )
+                  }}
                 />
               </div>
 
@@ -480,9 +763,59 @@ export function AssignmentManagement() {
                     <FormItem>
                       <FormLabel>Class</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Form 5A" {...field} />
+                        <Select
+                          value={field.value}
+                          onValueChange={(value) => {
+                            field.onChange(value)
+                            // Clear subject when class changes
+                            form.setValue("subject", "")
+                            setClassSubjects([])
+                          }}
+                          disabled={loadingClasses || teacherClasses.length === 0}
+                        >
+                          <SelectTrigger>
+                            <SelectValue 
+                              placeholder={
+                                loadingClasses 
+                                  ? "Loading classes..." 
+                                  : teacherClasses.length === 0 
+                                    ? "No classes assigned" 
+                                    : "Select a class"
+                              } 
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {loadingClasses ? (
+                              <SelectItem value="" disabled>
+                                Loading classes...
+                              </SelectItem>
+                            ) : teacherClasses.length === 0 ? (
+                              <SelectItem value="" disabled>
+                                No classes assigned to you
+                              </SelectItem>
+                            ) : (
+                              teacherClasses.map((cls) => (
+                                <SelectItem key={cls.id} value={cls.id}>
+                                  <div className="flex items-center gap-2">
+                                    <span>{cls.name}</span>
+                                    {cls.level && (
+                                      <span className="text-xs text-muted-foreground">
+                                        ({cls.level})
+                                      </span>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
                       </FormControl>
                       <FormMessage />
+                      {!loadingClasses && teacherClasses.length === 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Please contact an administrator to assign classes to your account.
+                        </p>
+                      )}
                     </FormItem>
                   )}
                 />

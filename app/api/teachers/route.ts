@@ -352,7 +352,7 @@ export async function POST(
     // Check if user already exists before attempting to create
     const { data: existingUser } = await supabase
       .from('users')
-      .select('id')
+      .select('id, email, name, role')
       .eq('email', email)
       .single()
 
@@ -439,38 +439,40 @@ export async function POST(
           console.log(`✅ Successfully created user account for teacher ${teacherId}`)
           
           // Create user profile for teacher
-          const { error: profileError } = await supabase
-            .from('user_profiles')
-            .insert({
-              user_id: teacherUser.id,
-              role_specific_id: teacherId,
-              subsystem: subsystem,
-              occupation: employmentType,
-              emergency_contact_name: emergencyContact?.name || null,
-              emergency_contact_phone: emergencyContact?.phone || null,
-              emergency_contact_relationship: emergencyContact?.relationship || null
-            })
+          if (teacherUser) {
+            const { error: profileError } = await supabase
+              .from('user_profiles')
+              .insert({
+                user_id: teacherUser.id,
+                role_specific_id: teacherId,
+                subsystem: subsystem,
+                occupation: employmentType,
+                emergency_contact_name: emergencyContact?.name || null,
+                emergency_contact_phone: emergencyContact?.phone || null,
+                emergency_contact_relationship: emergencyContact?.relationship || null
+              })
           
-          if (profileError) {
-            console.warn('⚠️ Failed to create teacher user profile:', profileError.message)
-            // Profile creation failure is not critical, but we log it
-            // The user account still exists, so this is recoverable
-          } else {
-            console.log(`✅ Successfully created user profile for teacher ${teacherId}`)
-          }
+            if (profileError) {
+              console.warn('⚠️ Failed to create teacher user profile:', profileError.message)
+              // Profile creation failure is not critical, but we log it
+              // The user account still exists, so this is recoverable
+            } else {
+              console.log(`✅ Successfully created user profile for teacher ${teacherId}`)
+            }
 
-          // Link teacher record to user account
-          if (insertedTeacher && teacherUser) {
+            // Link teacher record to user account
+            if (insertedTeacher) {
             const { error: updateError } = await supabase
               .from('teachers')
               .update({ user_id: teacherUser.id })
               .eq('id', insertedTeacher.id)
 
-            if (updateError) {
-              console.warn('⚠️ Failed to link teacher to user account:', updateError.message)
-              // This is not critical, but we log it
-            } else {
-              console.log(`✅ Successfully linked teacher ${teacherId} to user account`)
+              if (updateError) {
+                console.warn('⚠️ Failed to link teacher to user account:', updateError.message)
+                // This is not critical, but we log it
+              } else {
+                console.log(`✅ Successfully linked teacher ${teacherId} to user account`)
+              }
             }
           }
         }
@@ -552,7 +554,7 @@ export async function POST(
       try {
         // Get class IDs from class names
         // Classes can be stored in either class_name (new) or name (old) column for backward compatibility
-        const { data: classRecords, error: classQueryError } = await supabase
+        const { data: classRecords } = await supabase
           .from('classes')
           .select('id, class_name, name')
           .in('class_name', classes)

@@ -4,17 +4,12 @@ import { resolveTeacherId } from '@/lib/teacher-lookup'
 import { 
   TeacherDataResponse, 
   TeacherDataState, 
-  PerformanceMetrics,
-  TeacherProfile,
   TeacherClass,
   TeacherClassStudent,
   ClassSubject,
   ClassAssignment,
-  GradesData,
   Assessment,
   Grade,
-  AssessmentsData,
-  CacheMetadata,
 } from '@/lib/teacher-ultra-fast/types'
 
 // Ultra-fast cache with Redis-like performance
@@ -65,8 +60,6 @@ function setUltraFastCache(key: string, data: any, ttl: number = ULTRA_FAST_TTL)
 
 // Ultra-optimized data transformer
 function ultraFastTransform(rawData: any): TeacherDataState {
-  const startTime = performance.now()
-  
   // Transform and optimize data structure
   const classes = new Map<string, TeacherClass>()
   const students = new Map<string, TeacherClassStudent>()
@@ -192,8 +185,6 @@ function ultraFastTransform(rawData: any): TeacherDataState {
       })
     })
   }
-  
-  const transformTime = performance.now() - startTime
   
   // Convert Maps to serializable objects just before returning
   const classesObj = Object.fromEntries(classes)
@@ -385,7 +376,7 @@ async function getUltraFastTeacherData(teacherId: string): Promise<any> {
         console.error('❌ User profile not found for optimized function:', profileError)
         
         // Check if user exists in users table
-        const { data: user, error: userError } = await supabase
+        const { data: user } = await supabase
           .from('users')
           .select('id, email, role')
           .eq('id', teacherId)

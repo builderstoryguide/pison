@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { action, teacherId, data } = body
+    const { action, data } = body
     
     if (action === 'broadcast_update') {
       // Broadcast update to all connected clients
