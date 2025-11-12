@@ -26,12 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { TimetablePeriodEditor } from './timetable-period-editor'
 import { 
   Calendar,
@@ -44,11 +39,7 @@ import {
   Trash2,
   MoreHorizontal,
   AlertTriangle,
-  CheckCircle,
   RefreshCw,
-  Copy,
-  Download,
-  Eye,
   X
 } from 'lucide-react'
 // Removed framer-motion import for compatibility
@@ -122,14 +113,10 @@ export function EnhancedTimetableView({
   const [selectedPeriod, setSelectedPeriod] = useState<TimetablePeriod | null>(null)
   const [isEditorOpen, setIsEditorOpen] = useState(false)
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create')
-  const [selectedDay, setSelectedDay] = useState<string | null>(null)
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  const handleCreatePeriod = (day?: string, timeSlot?: string) => {
+  const handleCreatePeriod = (_day?: string, _timeSlot?: string) => {
     setSelectedPeriod(null)
-    setSelectedDay(day || null)
-    setSelectedTimeSlot(timeSlot || null)
     setEditorMode('create')
     setIsEditorOpen(true)
   }
@@ -143,8 +130,6 @@ export function EnhancedTimetableView({
   const handleEditorClose = () => {
     setIsEditorOpen(false)
     setSelectedPeriod(null)
-    setSelectedDay(null)
-    setSelectedTimeSlot(null)
   }
 
   const handleRefresh = async () => {
@@ -434,7 +419,7 @@ export function EnhancedTimetableView({
                         </div>
                       ) : (
                         <div className="space-y-3">
-                          {dayPeriods.map((period, index) => (
+                          {dayPeriods.map((period) => (
                             <div
                               key={period.id}
                               className="group transition-all duration-200 ease-in-out"

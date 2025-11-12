@@ -29,11 +29,9 @@ import {
   Trash2,
   Download,
   CheckSquare,
-  Square,
   Filter
 } from 'lucide-react'
 // Removed framer-motion import for compatibility
-import { TimetableStatusIndicator } from './timetable-status-indicator'
 
 interface TimetableClass {
   id: string
@@ -73,7 +71,6 @@ export function EnhancedTimetableSelection({
   onDeleteTimetable,
   onExportTimetable
 }: EnhancedTimetableSelectionProps) {
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [filterSubsystem, setFilterSubsystem] = useState<string>('all')
 
   const classesWithTimetables = classes.filter(c => c.periods.length > 0)

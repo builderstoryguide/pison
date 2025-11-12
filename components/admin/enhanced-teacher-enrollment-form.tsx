@@ -11,15 +11,10 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
 import { User, Mail, MapPin, GraduationCap, Briefcase, X, Plus, AlertCircle, BookOpen, Users } from "lucide-react"
-import { useTeacherManagement, type TeacherFormData } from "@/lib/teacher-management-context"
-import { useClassManagement } from "@/lib/class-management-context"
+import type { TeacherFormData } from "@/lib/teacher-management-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { ShimmerSubjectBranchAssignment } from "@/components/ui/shimmer-loading"
-import type { 
-  SubjectBranchWithDetails, 
-  AssignTeacherToBranchRequest
-} from '@/lib/subject-branches-types'
 
 interface TeacherEnrollmentFormProps {
   onSuccess: (result: { 
@@ -94,7 +89,6 @@ const regions = [
 
 export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollmentFormProps) {
   
-  const { classes: contextClasses } = useClassManagement()
   const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)

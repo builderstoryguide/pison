@@ -11,13 +11,11 @@ import { format, addMonths } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
-import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useFinancial, type FeeStructure } from "@/lib/financial-context"
 import { useClassManagement } from "@/lib/class-management-context"
@@ -58,8 +56,6 @@ interface FeeStructureFormProps {
   editData?: FeeStructure
 }
 
-const academicYears = ["2023-2024", "2024-2025", "2025-2026"]
-
 // Enhanced normalization function for level comparison
 const normalizeLevel = (level: string | null | undefined): string => {
   if (!level) return ""
@@ -71,7 +67,7 @@ const normalizeLevel = (level: string | null | undefined): string => {
 }
 
 export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructureFormProps) {
-  const { createFeeStructure, updateFeeStructure, isLoading } = useFinancial()
+  const { updateFeeStructure, isLoading } = useFinancial()
   const { classes, isLoading: isLoadingClasses } = useClassManagement()
   const { toast } = useToast()
   const globalAcademicYear = useGlobalAcademicYear()
@@ -153,11 +149,16 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
       if (editData) {
         // For editing, we'll use the existing updateFeeStructure
         // This would need to be enhanced to support installments, but for now we'll update the basic structure
-        const formattedData = {
-          ...formData,
+        const formattedData: Partial<FeeStructure> = {
+          subsystem: formData.subsystem,
+          branch: formData.branch,
+          level: formData.level,
           amount: formData.totalAmount,
-          dueDate: format(formData.firstInstallmentDueDate, "yyyy-MM-dd"),
+          term: formData.term !== "all" ? formData.term : undefined,
+          academicYear: formData.academicYear,
           description: formData.description || "",
+          isActive: formData.isActive,
+          classIds: formData.classIds,
         }
         const result = await updateFeeStructure(editData.id, formattedData)
         if (result.success) {
@@ -319,7 +320,6 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
 
           toast.warning("Fee structures partially created", {
             description,
-            duration: 8000
           })
           onSuccess(successfulResults[0].feeStructureId || successfulResults[0].id)
         } else {
@@ -331,14 +331,12 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
             const errorList = duplicateErrors.map(f => `${f.className} - ${f.termLabel}`).join(', ')
             toast.error("Fee structures already exist", {
               description: `All selected fee structures already exist: ${errorList}. Please edit the existing structures or choose different classes/terms.`,
-              duration: 10000
             })
           } else {
             // Mixed or other errors
             const errorMessages = failedResults.map(f => `${f.className} - ${f.termLabel}: ${f.error}`).join('\n')
             toast.error("Failed to create fee structures", {
               description: `All ${totalStructures} fee structure(s) failed to create:\n${errorMessages}`,
-              duration: 10000
             })
           }
         }

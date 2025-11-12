@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,16 +14,11 @@ import {
   Receipt, 
   Plus, 
   Search, 
-  Filter, 
-  Download, 
-  TrendingDown, 
   DollarSign, 
-  Calendar,
   Eye,
   Edit,
   Trash2,
   CheckCircle,
-  AlertCircle,
   Clock,
   X,
   Building,
@@ -204,7 +199,7 @@ const getStatusBadge = (status: Expenditure['status']) => {
 export function ExpenditureManagement() {
   const { toast } = useToast()
   const [expenditures, setExpenditures] = useState<Expenditure[]>(mockExpenditures)
-  const [stats, setStats] = useState<ExpenditureStats>(mockStats)
+  const [stats] = useState<ExpenditureStats>(mockStats)
   const [isAddExpenditureOpen, setIsAddExpenditureOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filters, setFilters] = useState<ExpenditureFilters>({
@@ -216,7 +211,6 @@ export function ExpenditureManagement() {
     budget_category: 'all',
     date_range: 'all'
   })
-  const [isLoading, setIsLoading] = useState(false)
 
   // Form state for new expenditure
   const [newExpenditure, setNewExpenditure] = useState<ExpenditureFormData>({
@@ -241,7 +235,7 @@ export function ExpenditureManagement() {
   // Quick actions state
   const [selectedExpenditure, setSelectedExpenditure] = useState<Expenditure | null>(null)
   const [showViewDialog, setShowViewDialog] = useState(false)
-  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [expenditureToDelete, setExpenditureToDelete] = useState<Expenditure | null>(null)
 

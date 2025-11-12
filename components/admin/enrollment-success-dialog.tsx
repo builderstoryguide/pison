@@ -1,13 +1,12 @@
 "use client"
 
-import { Check, Copy, Download, User, Users } from 'lucide-react'
+import { Check, Copy, Download, User } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Separator } from '@/components/ui/separator'
 
 interface EnrollmentSuccessDialogProps {
   studentId: string
@@ -27,9 +26,6 @@ export function EnrollmentSuccessDialog({
   studentName, 
   studentPassword,
   parentPassword,
-  studentEmail,
-  parentEmail,
-  className,
   onClose 
 }: EnrollmentSuccessDialogProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)

@@ -87,25 +87,28 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
   // Check if user is admin
   const isAdmin = user?.role === 'admin'
 
+  type ExaminationFormData = z.infer<typeof examinationSchema>
+
   const {
     register,
     handleSubmit,
     watch,
     setValue,
     formState: { errors },
-  } = useForm<ExamFormData>({
+  } = useForm<ExaminationFormData>({
     resolver: zodResolver(examinationSchema),
     defaultValues: {
       status: "draft",
       duration: 180,
       totalMarks: 100,
       passingMarks: 50,
-      subsystem: undefined,
-      branch: undefined,
-      level: undefined,
-      title: undefined,
+      subsystem: "english" as const,
+      branch: "grammar" as const,
+      level: "",
+      title: "First sequence" as const,
       startDate: "",
       endDate: "",
+      subjects: [],
     },
   })
 
@@ -228,7 +231,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
     return null
   }
 
-  const onSubmit = async (data: ExamFormData) => {
+  const onSubmit = async (data: ExaminationFormData) => {
     console.log("Form submitted with data:", data)
     console.log("Selected subjects:", selectedSubjects)
     console.log("Start date:", startDate)
@@ -299,6 +302,8 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
         startDate: format(startDate, "yyyy-MM-dd"),
         endDate: format(endDate, "yyyy-MM-dd"),
         subjects: selectedSubjects,
+        venue: data.venue || "", // Ensure venue is a string, not undefined
+        duration: data.duration ?? 180, // Ensure duration is a number
         gradingSystem: grades.length > 0 ? grades : undefined,
       }
 

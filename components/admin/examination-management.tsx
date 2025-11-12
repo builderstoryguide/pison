@@ -44,7 +44,7 @@ import { ExaminationDetailsDialog } from "./examination-details-dialog"
 import { ExaminationSuccessDialog } from "./examination-success-dialog"
 
 export function ExaminationManagement() {
-  const { examinations, deleteExamination, isLoading } = useExamination()
+  const { examinations, deleteExamination } = useExamination()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [typeFilter, setTypeFilter] = useState<string>("all")
@@ -95,7 +95,6 @@ export function ExaminationManagement() {
   const totalExaminations = examinations.length
   const scheduledExaminations = examinations.filter((e) => e.status === "scheduled").length
   const ongoingExaminations = examinations.filter((e) => e.status === "ongoing").length
-  const completedExaminations = examinations.filter((e) => e.status === "completed").length
   const totalEnrolledStudents = examinations.reduce((sum, exam) => sum + exam.enrolledStudents, 0)
 
   const getStatusIcon = (status: string) => {
@@ -173,7 +172,7 @@ export function ExaminationManagement() {
     }
   }
 
-  const handleEditSuccess = (result: { examinationId: string }) => {
+  const handleEditSuccess = (_result: { examinationId: string }) => {
     setShowEditForm(false)
     setSelectedExamination(null)
     // Optionally show success message
