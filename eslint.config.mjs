@@ -1,13 +1,9 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+import js from '@eslint/js';
+import tseslint from '@typescript-eslint/eslint-plugin';
+import tsparser from '@typescript-eslint/parser';
+import react from 'eslint-plugin-react';
+import reactHooks from 'eslint-plugin-react-hooks';
+import globals from 'globals';
 
 /**
  * ESLint Configuration for Missing Imports Detection
@@ -15,21 +11,55 @@ const compat = new FlatCompat({
  * This configuration helps catch missing imports and undefined variables
  * that could cause runtime errors like "BookOpen is not defined"
  * 
- * Uses ESLint 9 flat config format compatible with Next.js 15+
+ * Uses pure ESLint 9 flat config format without FlatCompat to avoid circular references
  */
 
 export default [
-  // Use Next.js ESLint config (core-web-vitals) via compat layer
-  ...compat.extends("next/core-web-vitals"),
+  // Base recommended rules
+  js.configs.recommended,
   
-  // Additional rules for missing imports and code quality
+  // Global configuration
   {
+    files: ['**/*.{js,jsx,ts,tsx}'],
+    languageOptions: {
+      ecmaVersion: 2021,
+      sourceType: 'module',
+      parser: tsparser,
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+        // Project option removed to avoid type-checking overhead and potential issues
+        // Type-aware rules can be enabled later if needed
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        ...globals.es2021,
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tseslint,
+      react: react,
+      'react-hooks': reactHooks,
+    },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
     rules: {
-      // Prevent undefined variables (catches missing imports)
+      // Base rules
       'no-undef': 'error',
+      'no-unused-vars': 'off', // Turn off base rule, use TypeScript version
+      'no-console': process.env.NODE_ENV === 'production' ? 'error' : 'warn',
+      'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'warn',
+      'no-duplicate-imports': 'error',
+      'no-var': 'error',
+      'prefer-const': 'error',
+      'prefer-arrow-callback': 'error',
       
-      // Prevent unused variables (catches unused imports)
-      'no-unused-vars': 'off', // Turn off base rule
+      // TypeScript rules
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
@@ -38,38 +68,19 @@ export default [
           caughtErrorsIgnorePattern: '^_',
         },
       ],
-      
-      // React specific rules
-      'react/jsx-uses-react': 'error',
-      'react/jsx-uses-vars': 'error',
-      'react/react-in-jsx-scope': 'off', // Not needed in Next.js
-      
-      // TypeScript specific rules
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-empty-function': 'warn',
       
-      // Prevent common React issues
-      'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
-      
-      // Prevent console errors in production
-      'no-console': process.env.NODE_ENV === 'production' ? 'error' : 'warn',
-      
-      // Prevent debugger statements
-      'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'warn',
-      
-      // Prevent common mistakes
-      'no-duplicate-imports': 'error',
-      'no-var': 'error',
-      'prefer-const': 'error',
-      'prefer-arrow-callback': 'error',
-      
-      // JSX specific rules
+      // React rules (manually specified to avoid circular references)
+      'react/react-in-jsx-scope': 'off', // Not needed in Next.js
+      'react/jsx-uses-react': 'error',
+      'react/jsx-uses-vars': 'error',
       'react/jsx-key': 'error',
       'react/jsx-no-duplicate-props': 'error',
       'react/jsx-no-undef': 'error',
+      'react/jsx-no-target-blank': 'warn',
       'react/no-children-prop': 'error',
       'react/no-danger-with-children': 'error',
       'react/no-deprecated': 'error',
@@ -83,37 +94,24 @@ export default [
       'react/no-unsafe': 'error',
       'react/prop-types': 'off', // Using TypeScript instead
       'react/require-render-return': 'error',
-    },
-    languageOptions: {
-      ecmaVersion: 2021,
-      sourceType: 'module',
-      parserOptions: {
-        ecmaFeatures: {
-          jsx: true,
-        },
-      },
-      globals: {
-        // Browser globals
-        window: 'readonly',
-        document: 'readonly',
-        navigator: 'readonly',
-        // Node.js globals
-        process: 'readonly',
-        Buffer: 'readonly',
-        __dirname: 'readonly',
-        __filename: 'readonly',
-        console: 'readonly',
-        global: 'readonly',
-        module: 'readonly',
-        require: 'readonly',
-        exports: 'readonly',
-      },
-    },
-    settings: {
-      react: {
-        version: 'detect',
-      },
+      
+      // React Hooks rules
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
     },
   },
+  
+  // Ignore patterns
+  {
+    ignores: [
+      'node_modules/**',
+      '.next/**',
+      'out/**',
+      'build/**',
+      'dist/**',
+      '*.config.js',
+      '*.config.mjs',
+      '*.config.ts',
+    ],
+  },
 ];
-
