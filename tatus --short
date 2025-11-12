@@ -1,0 +1,48 @@
+[1mdiff --git a/app/api/bursar/reports/collection/route.ts b/app/api/bursar/reports/collection/route.ts[m
+[1mindex f5c18b0..f9211f4 100644[m
+[1m--- a/app/api/bursar/reports/collection/route.ts[m
+[1m+++ b/app/api/bursar/reports/collection/route.ts[m
+[36m@@ -12,43 +12,6 @@[m [mexport async function GET(request: NextRequest) {[m
+     const paymentMethodId = searchParams.get('paymentMethodId')[m
+     const format = searchParams.get('format') || 'json'[m
+ [m
+[31m-    // Build the query[m
+[31m-    let query = `[m
+[31m-      SELECT [m
+[31m-        month_name,[m
+[31m-        payment_method,[m
+[31m-        total_transactions,[m
+[31m-        total_amount,[m
+[31m-        average_amount,[m
+[31m-        unique_students,[m
+[31m-        unique_collectors[m
+[31m-      FROM collection_report_view[m
+[31m-      WHERE 1=1[m
+[31m-    `[m
+[31m-[m
+[31m-    const params: any[] = [][m
+[31m-    let paramIndex = 1[m
+[31m-[m
+[31m-    if (startDate) {[m
+[31m-      query += ` AND month >= $${paramIndex}`[m
+[31m-      params.push(startDate)[m
+[31m-      paramIndex++[m
+[31m-    }[m
+[31m-[m
+[31m-    if (endDate) {[m
+[31m-      query += ` AND month <= $${paramIndex}`[m
+[31m-      params.push(endDate)[m
+[31m-      paramIndex++[m
+[31m-    }[m
+[31m-[m
+[31m-    if (paymentMethodId) {[m
+[31m-      query += ` AND payment_method_code = $${paramIndex}`[m
+[31m-      params.push(paymentMethodId)[m
+[31m-      paramIndex++[m
+[31m-    }[m
+[31m-[m
+[31m-    query += ` ORDER BY month DESC, total_amount DESC`[m
+[31m-[m
+     const { data, error } = await supabase.rpc('generate_collection_report', {[m
+       start_date: startDate,[m
+       end_date: endDate,[m

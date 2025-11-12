@@ -93,13 +93,31 @@ export async function GET(request: NextRequest) {
         })
         .subscribe()
       
+      // Get current academic year from configuration
+      let currentAcademicYear = process.env.NEXT_PUBLIC_ACADEMIC_YEAR || '2024-2025'
+      try {
+        const { data: config } = await supabase
+          .from('app_configuration')
+          .select('academic_year')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+        
+        if (config?.academic_year) {
+          currentAcademicYear = config.academic_year
+        }
+      } catch (configError) {
+        // Fallback to environment variable if config fetch fails
+        console.warn('Failed to fetch academic year from configuration, using default:', configError)
+      }
+
       // Get teacher's class IDs first for student updates
+      // Filter by current academic year but not by term to include all active assignments
       const { data: teacherClasses, error: classesError } = await supabase
         .from('teacher_branch_assignments')
         .select('class_id')
         .eq('teacher_id', teacherId)
-        .eq('academic_year', '2024-2025')
-        .eq('term', 'Term 1')
+        .eq('academic_year', currentAcademicYear)
 
       let studentsSubscription: any = null
       
