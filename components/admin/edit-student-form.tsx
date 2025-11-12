@@ -13,8 +13,6 @@ import {
   User, 
   GraduationCap, 
   Mail, 
-  Phone, 
-  MapPin, 
   Save,
   X,
   AlertCircle,
@@ -27,10 +25,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Student } from "@/lib/student-management-context"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
 import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
 import { Info } from "lucide-react"
-import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 
 interface EditStudentFormProps {
@@ -86,7 +82,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
   
   // Fee structure state management
   const [isLoadingFeeStructure, setIsLoadingFeeStructure] = useState(false)
-  const [feeStructureError, setFeeStructureError] = useState<string | null>(null)
+  const [_feeStructureError, setFeeStructureError] = useState<string | null>(null)
   const [hasValidFeeStructure, setHasValidFeeStructure] = useState(false)
   const [feeStructureName, setFeeStructureName] = useState<string | null>(null)
   const [term, setTerm] = useState<"first" | "second" | "third">("first")

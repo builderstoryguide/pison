@@ -1,10 +1,9 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Shield, Check, X, AlertCircle, Info, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Shield, Check, AlertCircle, Info, ToggleRight } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -68,7 +67,7 @@ const permissionCategories = {
 }
 
 export function AccessRightsDialog({ user, open, onOpenChange }: AccessRightsDialogProps) {
-  const { updateUserAccessRights, getAvailablePermissions, getAllPermissionsForCrossRole, isLoading } = useUserManagement()
+  const { updateUser, isLoading } = useUserManagement()
   const { success: toastSuccess, error: toastError } = useToast()
   
   const [availablePermissions, setAvailablePermissions] = useState<string[]>([])
@@ -95,15 +94,18 @@ export function AccessRightsDialog({ user, open, onOpenChange }: AccessRightsDia
   const loadAvailablePermissions = async () => {
     setIsLoadingPermissions(true)
     try {
-      // Load both standard and cross-role permissions
-      const [standardPermissions, crossRoleData] = await Promise.all([
-        getAvailablePermissions(user.role),
-        getAllPermissionsForCrossRole(user.role)
-      ])
+      // Load permissions from API
+      const response = await fetch(`/api/users/access-rights?role=${user.role}`)
+      const data = await response.json()
       
-      setRolePermissions(standardPermissions)
-      setAllPermissions(crossRoleData.allPermissions)
-      setAvailablePermissions(standardPermissions) // Start with standard permissions
+      if (response.ok && data.success) {
+        const standardPermissions = data.permissions || []
+        setRolePermissions(standardPermissions)
+        setAllPermissions(standardPermissions) // For now, use same permissions
+        setAvailablePermissions(standardPermissions)
+      } else {
+        toastError('Error', 'Failed to load available permissions')
+      }
     } catch (error) {
       console.error('Error loading available permissions:', error)
       toastError('Error', 'Failed to load available permissions')
@@ -153,7 +155,7 @@ export function AccessRightsDialog({ user, open, onOpenChange }: AccessRightsDia
   const handleSave = async () => {
     try {
       setIsLoadingPermissions(true)
-      const success = await updateUserAccessRights(user.id, selectedPermissions, crossRoleEnabled)
+      const success = await updateUser(user.id, { permissions: selectedPermissions })
       if (success) {
         const message = crossRoleEnabled 
           ? `Access rights updated for ${user.name} with cross-role permissions`

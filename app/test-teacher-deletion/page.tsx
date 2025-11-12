@@ -3,14 +3,12 @@
 import { useState, useEffect } from "react"
 import { useTeacherManagement, TeacherManagementProvider } from "@/lib/teacher-management-context"
 import { useUserManagement, UserManagementProvider } from "@/lib/user-management-context"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Trash2, RefreshCw, AlertTriangle, CheckCircle } from "lucide-react"
 
 function TestTeacherDeletionContent() {
-  const { teachers, deleteTeacher, loadTeachers, isLoading } = useTeacherManagement()
+  const { teachers, deleteTeacher, loadTeachers } = useTeacherManagement()
   const { users, loadUsers } = useUserManagement()
   const [testResults, setTestResults] = useState<any[]>([])
   const [isRunningTest, setIsRunningTest] = useState(false)

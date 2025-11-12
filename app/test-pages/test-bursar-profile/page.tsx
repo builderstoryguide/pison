@@ -29,7 +29,7 @@ function TestBursarProfileContent() {
     await login({
       identifier: credentials.identifier,
       password: credentials.password,
-      role: credentials.role
+      role: credentials.role as 'student' | 'admin' | 'teacher' | 'parent' | 'bursar'
     })
   }
 

@@ -8,9 +8,7 @@ import { CreateUserForm } from '@/components/admin/create-user-form'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, Users, GraduationCap } from 'lucide-react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle } from 'lucide-react'
+import { RefreshCw, Users } from 'lucide-react'
 
 function StudentSyncTest() {
   const [refreshKey, setRefreshKey] = useState(0)

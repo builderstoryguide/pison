@@ -110,7 +110,6 @@ export async function POST(request: NextRequest) {
     // Require teacher role
     const user = await requireAnyRole(request, ['teacher', 'admin'])
 
-    const supabase = await createClient()
     const body = await request.json()
 
     const {

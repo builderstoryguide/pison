@@ -14,7 +14,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { X, Plus, Loader2, AlertCircle, Info } from "lucide-react"
 import { useClassManagement, type ClassFormData } from "@/lib/class-management-context"
 import { useSubjectManagement } from "@/lib/subject-management-context"
-import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useLevels } from "@/hooks/use-levels"
 import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
 

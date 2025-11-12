@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireAnyRole } from '@/lib/auth/server'
 
 export async function GET(
   _request: NextRequest,
@@ -13,7 +14,7 @@ export async function GET(
       .from('fee_structures')
       .select(`
         *,
-        classes (name, subsystem, branch),
+        classes (name, subsystem),
         fee_structure_items (
           *,
           fee_categories (name, code, description)
@@ -77,6 +78,9 @@ export async function PUT(
 ) {
   const { id } = await params
   try {
+    // Check authentication and require admin role only
+    await requireAnyRole(request, ['admin'])
+    
     const supabase = await createClient()
     const body = await request.json()
 
@@ -166,11 +170,14 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
   try {
+    // Check authentication and require admin role only
+    await requireAnyRole(request, ['admin'])
+    
     const supabase = await createClient()
 
     // Check if fee structure is being used by any student fees

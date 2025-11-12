@@ -13,7 +13,6 @@ import {
   Users, 
   BookOpen, 
   Award, 
-  Clock, 
   CheckCircle,
   RefreshCw,
   Activity

@@ -49,21 +49,59 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // If the join didn't work (students.class is VARCHAR, not a proper FK), fetch class names separately
+    let classMap = new Map<string, string>()
+    const studentsWithClassIds = data?.filter((s: any) => 
+      s.class && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.class)
+    ) || []
+    
+    // Check if join worked by seeing if any student with a class ID has a classes relationship
+    const joinWorked = data?.some((s: any) => 
+      s.class && s.classes && (s.classes.class_name || s.classes.id)
+    )
+    
+    if (studentsWithClassIds.length > 0 && !joinWorked) {
+      // Join failed, fetch classes separately
+      const classIds = [...new Set(studentsWithClassIds.map((s: any) => s.class))]
+      const { data: classesData } = await supabase
+        .from('classes')
+        .select('id, class_name')
+        .in('id', classIds)
+      
+      if (classesData) {
+        classMap = new Map(classesData.map((cls: any) => [cls.id, cls.class_name]))
+      }
+    }
+
     // Transform data to match the expected interface
-    const transformedData = data?.map(student => ({
-      id: student.id,
-      first_name: student.first_name,
-      last_name: student.last_name,
-      student_id: student.student_id,
-      email: student.email,
-      status: student.status,
-      class: student.class,
-      class_name: student.classes?.class_name,
-      subsystem: student.subsystem,
-      academic_year: student.academic_year,
-      created_at: student.created_at,
-      updated_at: student.updated_at
-    })) || []
+    const transformedData = data?.map(student => {
+      let className = student.classes?.class_name
+      
+      // If join didn't work, try to get from our map
+      if (!className && student.class && classMap.has(student.class)) {
+        className = classMap.get(student.class)
+      }
+      
+      // If class is not a UUID, it might be a class name already
+      if (!className && student.class && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(student.class)) {
+        className = student.class
+      }
+      
+      return {
+        id: student.id,
+        first_name: student.first_name,
+        last_name: student.last_name,
+        student_id: student.student_id,
+        email: student.email,
+        status: student.status,
+        class: student.class,
+        class_name: className,
+        subsystem: student.subsystem,
+        academic_year: student.academic_year,
+        created_at: student.created_at,
+        updated_at: student.updated_at
+      }
+    }) || []
 
     return NextResponse.json(transformedData)
   } catch (error) {

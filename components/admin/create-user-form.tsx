@@ -3,9 +3,6 @@
 import React, { useState } from 'react'
 import { User, GraduationCap, Users, UserCheck, DollarSign } from 'lucide-react'
 import { useUserManagement, User as UserType } from '@/lib/user-management-context'
-import { useStudentEnrollment } from '@/lib/student-enrollment-context'
-import { useTeacherManagement } from '@/lib/teacher-management-context'
-import { useToast } from '@/hooks/use-toast'
 
 // Local type to carry created-user credentials for the success dialog
 type EmailData = {
@@ -28,10 +25,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from '@/components/ui/dialog'
 
 import { StudentEnrollmentForm } from './student-enrollment-form'
@@ -51,18 +44,13 @@ interface CreateUserFormProps {
 }
 
 export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
-  const { createUser, isLoading, error } = useUserManagement()
-  const { enrollStudent } = useStudentEnrollment()
-  const { addTeacher } = useTeacherManagement()
-  const { toast } = useToast()
+  const { createUser, error } = useUserManagement()
   
   const [selectedRole, setSelectedRole] = useState<UserType['role'] | ''>('')
-  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null)
+  const [_generatedPassword, setGeneratedPassword] = useState<string | null>(null)
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
   const [showRoleSelection, setShowRoleSelection] = useState(true)
   const [userData, setUserData] = useState<EmailData | null>(null)
-  const [isSendingEmail, setIsSendingEmail] = useState(false)
-
 
   const handleRoleChange = (role: UserType['role']) => {
     setSelectedRole(role)

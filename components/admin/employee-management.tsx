@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
   Users, 
@@ -17,10 +16,7 @@ import {
   DollarSign, 
   Clock, 
   FileText, 
-  TrendingUp, 
-  TrendingDown,
   Search,
-  Filter,
   Download,
   Upload,
   Edit,
@@ -28,11 +24,9 @@ import {
   Eye,
   MoreHorizontal,
   Calendar,
-  MapPin,
   Phone,
   Mail,
   Building,
-  Award,
   AlertCircle,
   CheckCircle,
   X,
@@ -43,12 +37,7 @@ import {
   BarChart3,
   Settings,
   UserCheck,
-  Briefcase,
-  GraduationCap,
-  CreditCard,
-  Receipt,
-  Target,
-  Activity
+  Receipt
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -78,9 +67,9 @@ import {
 
 export function EmployeeManagement() {
   const [selectedTab, setSelectedTab] = useState("overview")
-  const [selectedEmployee, setSelectedEmployee] = useState<any>(null)
+  const [_selectedEmployee, setSelectedEmployee] = useState<any>(null)
   const [isAddEmployeeOpen, setIsAddEmployeeOpen] = useState(false)
-  const [isEditEmployeeOpen, setIsEditEmployeeOpen] = useState(false)
+  const [_isEditEmployeeOpen, setIsEditEmployeeOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterDepartment, setFilterDepartment] = useState("all")
   const [filterStatus, setFilterStatus] = useState("all")
@@ -352,14 +341,6 @@ export function EmployeeManagement() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount)
-  }
-
-  const calculateTotalAllowances = (allowances: any[]) => {
-    return allowances.reduce((total, allowance) => total + allowance.amount, 0)
-  }
-
-  const calculateTotalDeductions = (deductions: any[]) => {
-    return deductions.reduce((total, deduction) => total + deduction.amount, 0)
   }
 
   return (

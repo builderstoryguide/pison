@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       .from('fee_structures')
       .select(`
         *,
-        classes (name, subsystem, branch),
+        classes (name, subsystem),
         fee_structure_items (
           *,
           fee_categories (name, code, description)
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
         if (classIds.length > 0) {
           const { data: classesData } = await supabase
             .from('classes')
-            .select('id, name, subsystem, branch')
+            .select('id, name, subsystem')
             .in('id', classIds)
 
           // Map class data to fee structures
@@ -200,8 +200,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check authentication and require bursar or admin role
-    const user = await requireAnyRole(request, ['bursar', 'admin'])
+    // Check authentication and require admin role only
+    const user = await requireAnyRole(request, ['admin'])
 
     // Check if fee structure already exists for this class, academic year, and term
     const { data: existingStructure, error: checkError } = await supabase

@@ -10,13 +10,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Checkbox } from "@/components/ui/checkbox"
-import { User, Mail, MapPin, GraduationCap, Briefcase, X, Plus, AlertCircle, Check, ChevronsUpDown, BookOpen, Users } from "lucide-react"
+import { User, Mail, GraduationCap, Briefcase, X, Plus, AlertCircle, BookOpen, Users } from "lucide-react"
 import { useTeacherManagement, type TeacherFormData, type Teacher } from "@/lib/teacher-management-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
 import { copyToClipboardWithFeedback } from "@/lib/clipboard-utils"
 
 interface EditTeacherFormProps {
@@ -89,8 +86,8 @@ export function EnhancedEditTeacherForm({ teacher, onSuccess, onCancel }: EditTe
   const [subjectBranches, setSubjectBranches] = useState<SubjectBranch[]>([])
   const [classes, setClasses] = useState<Class[]>([])
   const [currentAssignments, setCurrentAssignments] = useState<TeacherAssignment[]>([])
-  const [isLoadingSubjects, setIsLoadingSubjects] = useState(false)
-  const [isLoadingClasses, setIsLoadingClasses] = useState(false)
+  const [_isLoadingSubjects, setIsLoadingSubjects] = useState(false)
+  const [_isLoadingClasses, setIsLoadingClasses] = useState(false)
   const [isLoadingAssignments, setIsLoadingAssignments] = useState(false)
   
   // Form state
@@ -389,11 +386,6 @@ export function EnhancedEditTeacherForm({ teacher, onSuccess, onCancel }: EditTe
     setIsSubmitting(true)
     setError(null)
 
-    toast({
-      title: "Updating teacher...",
-      description: "Please wait while we save your changes."
-    })
-
     try {
       // Update basic teacher information
       await updateTeacher(teacher.id, formData)
@@ -421,10 +413,7 @@ export function EnhancedEditTeacherForm({ teacher, onSuccess, onCancel }: EditTe
       // Refresh assignments to show updated data
       await fetchTeacherAssignments()
       
-      toast({
-        title: "Teacher updated successfully!",
-        description: `${formData.firstName} ${formData.lastName}'s information has been updated.`
-      })
+      toast.success(`Teacher updated successfully! ${formData.firstName} ${formData.lastName}'s information has been updated.`)
       
       onSuccess()
     } catch (err) {
@@ -433,11 +422,7 @@ export function EnhancedEditTeacherForm({ teacher, onSuccess, onCancel }: EditTe
         err && typeof err === 'object' && 'message' in err ? String(err.message) :
         "Failed to update teacher"
       
-      toast({
-        title: "Failed to update teacher",
-        description: errorMessage,
-        variant: "destructive"
-      })
+      toast.error(`Failed to update teacher: ${errorMessage}`)
       
       setError(errorMessage)
       console.error("Error updating teacher:", err)
@@ -921,8 +906,8 @@ export function EnhancedEditTeacherForm({ teacher, onSuccess, onCancel }: EditTe
                                 const assignmentText = `${assignment.branch?.subject?.subject_name || 'Unknown Subject'} - ${assignment.branch?.branch_name || 'Unknown Branch'} - ${assignment.class?.class_name || 'Unknown Class'}`
                                 copyToClipboardWithFeedback(
                                   assignmentText,
-                                  () => toast({ title: "Assignment copied to clipboard" }),
-                                  (error) => toast({ title: "Failed to copy", description: error, variant: "destructive" })
+                                  () => toast.success("Assignment copied to clipboard"),
+                                  (error) => toast.error(`Failed to copy: ${error}`)
                                 )
                               }}
                             >

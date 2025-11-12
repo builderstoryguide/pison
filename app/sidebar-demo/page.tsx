@@ -10,7 +10,6 @@ import {
   Users, 
   GraduationCap, 
   Calendar, 
-  FileText, 
   DollarSign, 
   Settings, 
   BarChart3,

@@ -25,8 +25,6 @@ import {
   Clock, 
   Wifi, 
   WifiOff, 
-  Database, 
-  HardDrive, 
   Settings,
   RefreshCw,
   AlertTriangle,

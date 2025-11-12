@@ -15,7 +15,7 @@ import { useUserManagement, User, UserManagementProvider } from '@/lib/user-mana
 import { AccessRightsDialog } from '@/components/admin/access-rights-dialog'
 
 function TestAccessRightsContent() {
-  const { users, getAvailablePermissions, isLoading, error } = useUserManagement()
+  const { users, isLoading, error } = useUserManagement()
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [showAccessRightsDialog, setShowAccessRightsDialog] = useState(false)
   const [availablePermissions, setAvailablePermissions] = useState<Record<string, string[]>>({})
@@ -56,8 +56,11 @@ function TestAccessRightsContent() {
       const permissions: Record<string, string[]> = {}
       
       for (const role of roles) {
-        const rolePermissions = await getAvailablePermissions(role)
-        permissions[role] = rolePermissions
+        const response = await fetch(`/api/users/access-rights?role=${role}`)
+        const result = await response.json()
+        if (response.ok && result.success) {
+          permissions[role] = result.permissions || []
+        }
       }
       
       setAvailablePermissions(permissions)
@@ -111,16 +114,6 @@ function TestAccessRightsContent() {
     }
   }
 
-  const getTestColor = (status: 'pending' | 'success' | 'error') => {
-    switch (status) {
-      case 'success':
-        return 'text-green-600'
-      case 'error':
-        return 'text-red-600'
-      default:
-        return 'text-yellow-600'
-    }
-  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">

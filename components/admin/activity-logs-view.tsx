@@ -264,7 +264,7 @@ export function ActivityLogsView() {
         </CardHeader>
         <CardContent>
           {isLoadingLogs ? (
-            <ShimmerDataTable rows={8} columns={5} />
+            <ShimmerDataTable />
           ) : filteredLogs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Activity className="h-12 w-12 text-muted-foreground mb-4" />

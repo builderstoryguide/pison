@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if a timetable class already exists for this admin class
-    const { data: existingTimetableClass, error: existingClassError } = await supabase
+    const { data: existingTimetableClass } = await supabase
       .from('timetable_classes')
       .select('id')
       .eq('class_id', adminClass.id)

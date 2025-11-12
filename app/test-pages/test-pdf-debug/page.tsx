@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useFinancial, FinancialProvider } from "@/lib/financial-context"
 import { usePDFExport } from "@/hooks/use-pdf-export"
-import { Download, Bug, FileText, AlertCircle } from "lucide-react"
+import { Bug, FileText, AlertCircle } from "lucide-react"
 
 function TestPDFDebugContent() {
   const { payments, feeStructures, studentFeeAssignments } = useFinancial()

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { CalendarIcon, Plus, Trash2, Check, X } from "lucide-react"
+import { CalendarIcon } from "lucide-react"
 import { format, addMonths } from "date-fns"
 
 import { Button } from "@/components/ui/button"
@@ -64,8 +64,6 @@ interface EnhancedFeeStructureFormProps {
   onCancel: () => void
   editData?: any
 }
-
-const academicYears = ["2023-2024", "2024-2025", "2025-2026"]
 
 export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: EnhancedFeeStructureFormProps) {
   const { toast } = useToast()

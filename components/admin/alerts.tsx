@@ -28,7 +28,6 @@ import {
   Edit,
   Trash2,
   Copy,
-  Filter,
   Search
 } from "lucide-react"
 

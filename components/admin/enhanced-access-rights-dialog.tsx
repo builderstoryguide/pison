@@ -7,7 +7,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Info, Shield, Users, DollarSign, BookOpen, UserCheck } from 'lucide-react'
 import { useUserManagement } from '@/lib/user-management-context'
@@ -65,7 +64,7 @@ const PERMISSION_CATEGORIES = {
 }
 
 export function EnhancedAccessRightsDialog({ user, open, onOpenChange }: EnhancedAccessRightsDialogProps) {
-  const { updateUserAccessRights, getAllPermissionsForCrossRole } = useUserManagement()
+  const { updateUser } = useUserManagement()
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
   const [allowCrossRole, setAllowCrossRole] = useState(false)
   const [allPermissions, setAllPermissions] = useState<string[]>([])
@@ -82,9 +81,16 @@ export function EnhancedAccessRightsDialog({ user, open, onOpenChange }: Enhance
 
   const loadPermissions = async () => {
     try {
-      const result = await getAllPermissionsForCrossRole(user.role)
-      setAllPermissions(result.allPermissions)
-      setRolePermissions(result.rolePermissions)
+      const response = await fetch(`/api/users/access-rights?role=${user.role}`)
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        const permissions = data.permissions || []
+        setAllPermissions(permissions)
+        setRolePermissions(permissions)
+      } else {
+        setError('Failed to load permissions')
+      }
     } catch (err) {
       console.error('Error loading permissions:', err)
       setError('Failed to load permissions')
@@ -125,7 +131,7 @@ export function EnhancedAccessRightsDialog({ user, open, onOpenChange }: Enhance
     setError(null)
 
     try {
-      const success = await updateUserAccessRights(user.id, selectedPermissions, allowCrossRole)
+      const success = await updateUser(user.id, { permissions: selectedPermissions })
       if (success) {
         onOpenChange(false)
       } else {

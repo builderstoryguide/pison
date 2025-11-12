@@ -7,70 +7,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Textarea } from "@/components/ui/textarea"
 import { 
-  Users, 
-  Download, 
-  Upload, 
-  Search, 
-  Filter,
-  Eye,
-  Edit,
-  Trash2,
-  MoreHorizontal,
-  Printer,
-  FileText,
-  Calendar,
-  GraduationCap,
-  Award,
-  TrendingUp,
-  TrendingDown,
-  BookOpen,
-  Calculator,
-  Settings,
-  Plus,
   RefreshCw,
-  BarChart3,
-  PieChart,
-  Target,
   CheckCircle,
   AlertCircle,
   Clock,
-  Star,
-  Trophy,
-  Medal,
-  Copy,
   TestTube,
-  Database,
   Server,
   Zap,
-  Bug,
-  CheckSquare,
   XCircle,
-  Info,
   Play
 } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { ReportCards } from "@/components/admin/report-cards"
 
 interface TestResult {
@@ -107,7 +54,6 @@ export default function TestReportCardsPage() {
   }
 
   const [testSuites, setTestSuites] = useState<TestSuite[]>([])
-  const [selectedSuite, setSelectedSuite] = useState<string>("")
   const [isRunning, setIsRunning] = useState(false)
   const [testResults, setTestResults] = useState<any>({})
   const [selectedTab, setSelectedTab] = useState("overview")
@@ -320,7 +266,7 @@ export default function TestReportCardsPage() {
       ))
 
       // Update test results
-      setTestResults(prev => ({
+      setTestResults((prev: any) => ({
         ...prev,
         [testId]: {
           ...result,
@@ -1018,7 +964,7 @@ export default function TestReportCardsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {Object.entries(testResults).map(([testId, result]) => (
+                {Object.entries(testResults).map(([testId, result]: [string, any]) => (
                   <div key={testId} className="p-4 border rounded-lg">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-medium">Test {testId}</h4>

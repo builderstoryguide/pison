@@ -16,7 +16,7 @@ import type {
 } from '@/lib/subject-branches-types'
 
 export default function TestSubjectBranches() {
-  const { toast } = useToast()
+  const { error: toastError, success: toastSuccess } = useToast()
   
   // State management
   const [branches, setBranches] = useState<SubjectBranchWithDetails[]>([])
@@ -59,11 +59,7 @@ export default function TestSubjectBranches() {
       
     } catch (error) {
       console.error('Error loading test data:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to load test data',
-        variant: 'destructive'
-      })
+      toastError('Error', 'Failed to load test data')
     } finally {
       setLoading(false)
     }
@@ -74,10 +70,7 @@ export default function TestSubjectBranches() {
     
     try {
       // Test 1: Create a subject branch
-      toast({
-        title: 'Running Tests',
-        description: 'Testing subject branch creation...'
-      })
+      toastSuccess('Running Tests', 'Testing subject branch creation...')
       
       const createBranchResponse = await fetch('/api/subject-branches', {
         method: 'POST',
@@ -101,10 +94,7 @@ export default function TestSubjectBranches() {
       }
       
       // Test 2: Assign teacher to branch
-      toast({
-        title: 'Running Tests',
-        description: 'Testing teacher assignment...'
-      })
+      toastSuccess('Running Tests', 'Testing teacher assignment...')
       
       const assignTeacherResponse = await fetch('/api/teacher-branch-assignments', {
         method: 'POST',
@@ -126,10 +116,7 @@ export default function TestSubjectBranches() {
       }
       
       // Test 3: Enroll student in branch
-      toast({
-        title: 'Running Tests',
-        description: 'Testing student enrollment...'
-      })
+      toastSuccess('Running Tests', 'Testing student enrollment...')
       
       const enrollStudentResponse = await fetch('/api/student-branch-enrollments', {
         method: 'POST',
@@ -150,10 +137,7 @@ export default function TestSubjectBranches() {
       }
       
       // Test 4: Create branch assessment
-      toast({
-        title: 'Running Tests',
-        description: 'Testing assessment creation...'
-      })
+      toastSuccess('Running Tests', 'Testing assessment creation...')
       
       const createAssessmentResponse = await fetch('/api/branch-assessments', {
         method: 'POST',
@@ -181,10 +165,7 @@ export default function TestSubjectBranches() {
       }
       
       // Test 5: Grade assessment
-      toast({
-        title: 'Running Tests',
-        description: 'Testing grade recording...'
-      })
+      toastSuccess('Running Tests', 'Testing grade recording...')
       
       const gradeAssessmentResponse = await fetch('/api/branch-grades', {
         method: 'POST',
@@ -206,10 +187,7 @@ export default function TestSubjectBranches() {
       }
       
       // Test 6: Calculate aggregated grades
-      toast({
-        title: 'Running Tests',
-        description: 'Testing grade aggregation...'
-      })
+      toastSuccess('Running Tests', 'Testing grade aggregation...')
       
       const calculateGradesResponse = await fetch('/api/aggregated-grades', {
         method: 'POST',
@@ -234,19 +212,15 @@ export default function TestSubjectBranches() {
       const successCount = Object.values(results).filter((r: any) => r.success).length
       const totalTests = Object.keys(results).length
       
-      toast({
-        title: 'Tests Completed',
-        description: `${successCount}/${totalTests} tests passed`,
-        variant: successCount === totalTests ? 'default' : 'destructive'
-      })
+      if (successCount === totalTests) {
+        toastSuccess('Tests Completed', `${successCount}/${totalTests} tests passed`)
+      } else {
+        toastError('Tests Completed', `${successCount}/${totalTests} tests passed`)
+      }
       
     } catch (error) {
       console.error('Error running tests:', error)
-      toast({
-        title: 'Test Error',
-        description: 'Failed to run system tests',
-        variant: 'destructive'
-      })
+      toastError('Test Error', 'Failed to run system tests')
     }
   }
 

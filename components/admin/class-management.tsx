@@ -40,7 +40,7 @@ import { ClassForm } from "./class-form"
 import { LevelForm } from "./level-form"
 import { ClassDetailsDialog } from "./class-details-dialog"
 import { ClassStudentManagement } from "./class-student-management"
-import { ShimmerStatsCards, ShimmerDataTable } from "@/components/ui/shimmer-loading"
+import { ShimmerStatsCards } from "@/components/ui/shimmer-loading"
 import { useToast } from "@/hooks/use-toast"
 
 export function ClassManagement() {

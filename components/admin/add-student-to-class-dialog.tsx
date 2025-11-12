@@ -25,7 +25,7 @@ interface AddStudentToClassDialogProps {
 export function AddStudentToClassDialog({
   open,
   onOpenChange,
-  classId,
+  classId: _classId,
   className,
   currentStudents,
   onSuccess

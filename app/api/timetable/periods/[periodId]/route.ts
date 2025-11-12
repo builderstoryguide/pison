@@ -188,7 +188,7 @@ export async function PUT(
 
 // DELETE - Delete a period
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ periodId: string }> }
 ) {
   try {

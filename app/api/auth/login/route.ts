@@ -20,198 +20,113 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let userQuery;
+    // Helper function to check if error is a "not found" error
+    const isNotFoundError = (error: any) => {
+      return error?.code === 'PGRST116' || 
+             error?.message?.includes('The result contains 0 rows') ||
+             error?.message?.includes('Cannot coerce the result to a single JSON object');
+    };
+
+    // Helper function to query user by email
+    const queryUserByEmail = async (email: string, userRole: string) => {
+      const { data, error } = await supabase
+        .from('users')
+        .select(`
+          id,
+          email,
+          password_hash,
+          name,
+          role,
+          status,
+          avatar_url,
+          permissions,
+          has_default_password,
+          password_expiry_date
+        `)
+        .eq('email', email)
+        .eq('role', userRole)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      // Treat PGRST116 as "not found" rather than an error
+      if (error && !isNotFoundError(error)) {
+        return { data: null, error };
+      }
+      return { data, error: null };
+    };
+
+    // Helper function to query user by role-specific ID
+    const queryUserByRoleSpecificId = async (roleSpecificId: string, userRole: string) => {
+      // First get the user_id from user_profiles
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('user_id')
+        .eq('role_specific_id', roleSpecificId)
+        .maybeSingle();
+
+      // Treat PGRST116 as "not found" rather than an error
+      if (profileError && !isNotFoundError(profileError)) {
+        return { data: null, error: profileError };
+      }
+
+      if (!profileData?.user_id) {
+        return { data: null, error: null };
+      }
+
+      // Then get the user by user_id
+      const { data, error } = await supabase
+        .from('users')
+        .select(`
+          id,
+          email,
+          password_hash,
+          name,
+          role,
+          status,
+          avatar_url,
+          permissions,
+          has_default_password,
+          password_expiry_date
+        `)
+        .eq('id', profileData.user_id)
+        .eq('role', userRole)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      // Treat PGRST116 as "not found" rather than an error
+      if (error && !isNotFoundError(error)) {
+        return { data: null, error };
+      }
+      return { data, error: null };
+    };
+
+    let user = null;
+    let userError = null;
 
     // Query based on role and identifier type
     switch (role) {
       case 'admin':
       case 'bursar':
         // For admin/bursar, identifier should be email
-        userQuery = supabase
-          .from('users')
-          .select(`
-            id,
-            email,
-            password_hash,
-            name,
-            role,
-            status,
-            avatar_url,
-            permissions,
-            has_default_password,
-            password_expiry_date
-          `)
-          .eq('email', identifier)
-          .eq('role', role)
-          .eq('status', 'active')
-          .single();
+        const adminResult = await queryUserByEmail(identifier, role);
+        user = adminResult.data;
+        userError = adminResult.error;
         break;
 
       case 'teacher':
-        // For teachers, identifier can be email or teacher registration number
-        // First try email
-        userQuery = supabase
-          .from('users')
-          .select(`
-            id,
-            email,
-            password_hash,
-            name,
-            role,
-            status,
-            avatar_url,
-            permissions,
-            has_default_password,
-            password_expiry_date
-          `)
-          .eq('email', identifier)
-          .eq('role', 'teacher')
-          .eq('status', 'active')
-          .single();
-
-        // Execute the query to check if user exists by email
-        const { data: teacherByEmail } = await userQuery;
-        
-        // If not found by email, try teacher registration number
-        if (!teacherByEmail) {
-          const { data: profileData } = await supabase
-            .from('user_profiles')
-            .select('user_id')
-            .eq('role_specific_id', identifier)
-            .single();
-
-          if (profileData?.user_id) {
-            userQuery = supabase
-              .from('users')
-              .select(`
-                id,
-                email,
-                password_hash,
-                name,
-                role,
-                status,
-                avatar_url,
-                permissions,
-                has_default_password,
-                password_expiry_date
-              `)
-              .eq('id', profileData.user_id)
-              .eq('role', 'teacher')
-              .eq('status', 'active')
-              .single();
-          }
-        }
-        break;
-
       case 'student':
-        // For students, identifier can be email or student ID
-        // First try email
-        userQuery = supabase
-          .from('users')
-          .select(`
-            id,
-            email,
-            password_hash,
-            name,
-            role,
-            status,
-            avatar_url,
-            permissions,
-            has_default_password,
-            password_expiry_date
-          `)
-          .eq('email', identifier)
-          .eq('role', 'student')
-          .eq('status', 'active')
-          .single();
-
-        // Execute the query to check if user exists by email
-        const { data: studentByEmail } = await userQuery;
-        
-        // If not found by email, try student ID
-        if (!studentByEmail) {
-          const { data: profileData } = await supabase
-            .from('user_profiles')
-            .select('user_id')
-            .eq('role_specific_id', identifier)
-            .single();
-
-          if (profileData?.user_id) {
-            userQuery = supabase
-              .from('users')
-              .select(`
-                id,
-                email,
-                password_hash,
-                name,
-                role,
-                status,
-                avatar_url,
-                permissions,
-                has_default_password,
-                password_expiry_date
-              `)
-              .eq('id', profileData.user_id)
-              .eq('role', 'student')
-              .eq('status', 'active')
-              .single();
-          }
-        }
-        break;
-
       case 'parent':
-        // For parents, identifier can be email or parent code
+        // For teachers/students/parents, identifier can be email or role-specific ID
         // First try email
-        userQuery = supabase
-          .from('users')
-          .select(`
-            id,
-            email,
-            password_hash,
-            name,
-            role,
-            status,
-            avatar_url,
-            permissions,
-            has_default_password,
-            password_expiry_date
-          `)
-          .eq('email', identifier)
-          .eq('role', 'parent')
-          .eq('status', 'active')
-          .single();
+        const emailResult = await queryUserByEmail(identifier, role);
+        user = emailResult.data;
+        userError = emailResult.error;
 
-        // Execute the query to check if user exists by email
-        const { data: parentByEmail } = await userQuery;
-        
-        // If not found by email, try parent code
-        if (!parentByEmail) {
-          const { data: profileData } = await supabase
-            .from('user_profiles')
-            .select('user_id')
-            .eq('role_specific_id', identifier)
-            .single();
-
-          if (profileData?.user_id) {
-            userQuery = supabase
-              .from('users')
-              .select(`
-                id,
-                email,
-                password_hash,
-                name,
-                role,
-                status,
-                avatar_url,
-                permissions,
-                has_default_password,
-                password_expiry_date
-              `)
-              .eq('id', profileData.user_id)
-              .eq('role', 'parent')
-              .eq('status', 'active')
-              .single();
-          }
+        // If not found by email, try role-specific ID
+        if (!user && !userError) {
+          const roleIdResult = await queryUserByRoleSpecificId(identifier, role);
+          user = roleIdResult.data;
+          userError = roleIdResult.error;
         }
         break;
 
@@ -222,11 +137,17 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    // Execute the query
-    const { data: user, error: userError } = await userQuery;
+    // If there's a real error (not a "not found" error), return it
+    if (userError) {
+      console.error('Error querying user:', userError);
+      return NextResponse.json(
+        { error: 'Internal server error' },
+        { status: 500 }
+      );
+    }
 
-    if (userError || !user) {
-      console.error('User not found or error:', userError);
+    // If user not found, return authentication error
+    if (!user) {
       return NextResponse.json(
         { error: 'Invalid credentials or user not found' },
         { status: 401 }
@@ -263,12 +184,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get additional profile information
+    // Get additional profile information (optional - user may not have a profile)
     const { data: profileData } = await supabase
       .from('user_profiles')
       .select('role_specific_id, subsystem, branch, class_name')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     // Prepare user data for response (remove sensitive information)
     const userResponse = {

@@ -266,7 +266,6 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const classId = searchParams.get('classId');
-    const deletedBy = searchParams.get('deletedBy');
 
     if (!classId) {
       return NextResponse.json(

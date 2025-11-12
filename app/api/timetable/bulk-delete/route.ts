@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get class details for validation and logging
-    const { data: classesToDelete, error: fetchError } = await supabase
+    const { error: fetchError } = await supabase
       .from('timetable_classes')
       .select('id, name, level, subsystem, branch')
       .in('id', classIds)

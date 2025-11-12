@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Users, GraduationCap, Calendar, BookOpen, Settings, UserPlus, UserMinus, Edit, Trash2, Clock } from "lucide-react"
-import { useClassManagement, type ClassData } from "@/lib/class-management-context"
-import { useStudentManagement, type Student } from "@/lib/student-management-context"
+import { useClassManagement, type ClassData, type ClassSubject } from "@/lib/class-management-context"
+import { useSubjectManagement } from "@/lib/subject-management-context"
+import { type Student } from "@/lib/student-management-context"
 import { AddStudentToClassDialog } from "./add-student-to-class-dialog"
 import { RemoveStudentFromClassDialog } from "./remove-student-from-class-dialog"
 import { ClassScheduleManagement } from "./class-schedule-management"
@@ -25,11 +26,11 @@ interface ClassDetailsDialogProps {
 
 export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDelete }: ClassDetailsDialogProps) {
   const { getClassStudents, assignStudentToClass, removeStudentFromClass, updateClass, refreshClasses } = useClassManagement()
-  const { students: allStudents } = useStudentManagement()
+  const { getSubjectById } = useSubjectManagement()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("overview")
   const [students, setStudents] = useState<any[]>([])
-  const [isLoadingStudents, setIsLoadingStudents] = useState(false)
+  const [_isLoadingStudents, setIsLoadingStudents] = useState(false)
   const [showAddStudentDialog, setShowAddStudentDialog] = useState(false)
   const [showRemoveStudentDialog, setShowRemoveStudentDialog] = useState(false)
   const [showManageSubjectsDialog, setShowManageSubjectsDialog] = useState(false)
@@ -126,7 +127,16 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
   // Handle updating class subjects
   const handleUpdateSubjects = async (updatedSubjects: string[]) => {
     try {
-      const result = await updateClass(classData.id, { subjects: updatedSubjects })
+      // Convert string array to ClassSubject array
+      const classSubjects: ClassSubject[] = updatedSubjects.map(subjectId => {
+        const subject = getSubjectById(subjectId)
+        return {
+          subjectId,
+          subjectName: subject?.name || 'Unknown Subject',
+          isTradeSubject: false
+        }
+      })
+      const result = await updateClass(classData.id, { subjects: classSubjects })
       if (!result.success) {
         throw new Error(result.error || "Failed to update subjects")
       }

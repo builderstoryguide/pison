@@ -27,7 +27,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get or create timetable class record
-    const { data: existingClass, error: classError } = await supabase
+    const { data: existingClass } = await supabase
       .from('timetable_classes')
       .select('id')
       .eq('class_id', classId)

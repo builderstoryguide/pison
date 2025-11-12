@@ -1,7 +1,7 @@
 "use client"
 
 import { StudentManagementProvider, useStudentManagement } from '@/lib/student-management-context'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { RefreshCw } from 'lucide-react'
 

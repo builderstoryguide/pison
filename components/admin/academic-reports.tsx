@@ -15,10 +15,8 @@ import {
   Download, 
   BarChart3,
   PieChart,
-  Calendar,
   FileText,
-  Target,
-  Clock
+  Target
 } from "lucide-react"
 
 export function AcademicReports() {

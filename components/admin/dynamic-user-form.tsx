@@ -3,8 +3,6 @@
 import { useState } from 'react'
 import { User, GraduationCap, Users, UserCheck, DollarSign } from 'lucide-react'
 import { useUserManagement, User as UserType } from '@/lib/user-management-context'
-import { useStudentEnrollment } from '@/lib/student-enrollment-context'
-import { useTeacherManagement } from '@/lib/teacher-management-context'
 import { useToast } from '@/hooks/use-toast'
 
 // Local type to carry created-user credentials for the success dialog
@@ -28,8 +26,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -52,12 +48,10 @@ interface DynamicUserFormProps {
 
 export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
   const { createUser, isLoading, error } = useUserManagement()
-  const { enrollStudent } = useStudentEnrollment()
-  const { addTeacher } = useTeacherManagement()
   const { toast } = useToast()
   
   const [selectedRole, setSelectedRole] = useState<UserType['role'] | ''>('')
-  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null)
+  const [_generatedPassword, setGeneratedPassword] = useState<string | null>(null)
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
   const [showRoleSelection, setShowRoleSelection] = useState(true)
   const [userData, setUserData] = useState<EmailData | null>(null)
@@ -274,6 +268,11 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
       {/* User Creation Success Dialog */}
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-300">
+          <DialogHeader>
+            <DialogTitle className="sr-only">
+              User Created Successfully
+            </DialogTitle>
+          </DialogHeader>
           {userData && (
             <UserCreationSuccessDialog
               userData={userData}

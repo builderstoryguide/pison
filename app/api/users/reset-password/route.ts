@@ -122,12 +122,8 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    // Generate reset token (in a real implementation, you'd send this via email)
-    const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    const tokenExpiry = new Date();
-    tokenExpiry.setHours(tokenExpiry.getHours() + 1); // Token expires in 1 hour
-
     // Store reset token (you'd need a password_reset_tokens table)
+    // In a real implementation, you would generate a reset token and send it via email
     // For now, we'll just log the activity
     await supabase.rpc('log_user_activity', {
       p_user_id: existingUser.id,

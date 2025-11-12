@@ -200,14 +200,6 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
            formData.subjects.length > 0
   }
 
-  const handleSubsystemOrBranchChange = (field: 'subsystem' | 'branch', value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value,
-      subjects: [] // Clear subjects when subsystem or branch changes
-    }))
-  }
-
   if (editClass) {
     // Edit mode - show single form
     return (
@@ -525,24 +517,8 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              {successData?.count === 1 
-                ? `Class "${successData?.classData[0]?.name}" has been created successfully.`
-                : `${successData?.count} classes have been created successfully.`
-              }
+              Class "{successData?.classData?.name}" has been created successfully.
             </p>
-            
-            {successData && successData.count > 1 && (
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">Created Classes:</h4>
-                <div className="space-y-1">
-                  {successData.classData.map((classData, index) => (
-                    <div key={index} className="text-sm text-muted-foreground">
-                      • {classData.name}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
             
             <div className="flex justify-end">
               <Button 

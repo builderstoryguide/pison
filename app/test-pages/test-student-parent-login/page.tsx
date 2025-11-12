@@ -202,9 +202,7 @@ function TestStudentParentLoginContent() {
             <div className="text-sm space-y-1">
               <div>Current form data: {JSON.stringify({
                 ...formData,
-                password: formData.password ? 'REDACTED' : undefined,
-                pass: formData.pass ? 'REDACTED' : undefined,
-                pwd: formData.pwd ? 'REDACTED' : undefined
+                password: formData.password ? 'REDACTED' : undefined
               }, null, 2)}</div>
               <div>Loading state: {isLoading ? 'Yes' : 'No'}</div>
               <div>Auth error: {error || 'None'}</div>

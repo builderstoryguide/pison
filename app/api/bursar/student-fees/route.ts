@@ -1,23 +1,51 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createErrorResponse, createSuccessResponse, logApiError, handleSupabaseError } from '@/lib/api/error-handler'
 
 export async function GET(request: NextRequest) {
+  const requestUrl = request.url
+  const requestPath = new URL(requestUrl).pathname
+  
   try {
     const supabase = await createClient()
     
+    // Validate Supabase client
+    if (!supabase) {
+      logApiError('GET /api/bursar/student-fees', new Error('Supabase client not initialized'), { requestPath })
+      return createErrorResponse(
+        new Error('Database connection failed'),
+        500,
+        { path: requestPath, includeDetails: false }
+      )
+    }
+    
     // Get query parameters for filtering
-    const { searchParams } = new URL(request.url)
+    const { searchParams } = new URL(requestUrl)
     const studentId = searchParams.get('studentId')
     const classId = searchParams.get('classId')
     const academicYear = searchParams.get('academicYear')
     const term = searchParams.get('term')
     const status = searchParams.get('status')
 
+    const queryFilters = {
+      studentId,
+      classId,
+      academicYear,
+      term,
+      status
+    }
+
+    console.log('GET /api/bursar/student-fees - Starting query', {
+      requestPath,
+      filters: queryFilters
+    })
+
+    // Try query with nested relationships first, fallback to simpler query if it fails
     let query = supabase
-      .from('student_fees')
+      .from('student_fee_assignments')
       .select(`
         *,
-        students (first_name, last_name, student_id, classes (name, subsystem, branch)),
+        students (first_name, last_name, student_id, classes (name, subsystem)),
         fee_structures (name, academic_year, term, due_date)
       `)
       .order('created_at', { ascending: false })
@@ -39,81 +67,234 @@ export async function GET(request: NextRequest) {
       query = query.eq('status', status)
     }
 
-    const { data, error } = await query
+    let { data, error } = await query
+
+    // If query fails due to relationship issues, try simpler query
+    if (error && (error.code === 'PGRST201' || error.code === '42P01' || error.message?.includes('relation') || error.message?.includes('foreign key'))) {
+      const relationshipError = handleSupabaseError(error, 'Nested relationship query failed', {
+        table: 'student_fee_assignments',
+        operation: 'SELECT with relationships',
+        filters: queryFilters
+      })
+      
+      console.warn('Nested relationship query failed, trying simpler query:', relationshipError)
+      
+      // Fallback to simpler query without nested relationships
+      let simpleQuery = supabase
+        .from('student_fee_assignments')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (studentId) {
+        simpleQuery = simpleQuery.eq('student_id', studentId)
+      }
+      if (status) {
+        simpleQuery = simpleQuery.eq('status', status)
+      }
+
+      const simpleResult = await simpleQuery
+      data = simpleResult.data
+      error = simpleResult.error
+
+      if (error) {
+        return createErrorResponse(
+          error,
+          500,
+          { path: requestPath, includeDetails: true }
+        )
+      }
+
+      // If we have data, we'll need to fetch related data separately
+      if (data && !error && data.length > 0) {
+        try {
+          // Fetch students separately
+          const studentIds = [...new Set(data.map((sf: any) => sf.student_id).filter(Boolean))]
+          let studentsData: any[] = []
+          if (studentIds.length > 0) {
+            const { data: students, error: studentsError } = await supabase
+              .from('students')
+              .select('id, first_name, last_name, student_id, class')
+              .in('id', studentIds)
+            
+            if (studentsError) {
+              logApiError('Failed to fetch students for fee assignments', studentsError, {
+                studentIds: studentIds.length
+              })
+            } else {
+              studentsData = students || []
+            }
+          }
+
+          // Fetch fee structures separately
+          const feeStructureIds = [...new Set(data.map((sf: any) => sf.fee_structure_id).filter(Boolean))]
+          let feeStructuresData: any[] = []
+          if (feeStructureIds.length > 0) {
+            const { data: feeStructures, error: feeStructuresError } = await supabase
+              .from('fee_structures')
+              .select('id, name, academic_year, term, due_date')
+              .in('id', feeStructureIds)
+            
+            if (feeStructuresError) {
+              logApiError('Failed to fetch fee structures for fee assignments', feeStructuresError, {
+                feeStructureIds: feeStructureIds.length
+              })
+            } else {
+              feeStructuresData = feeStructures || []
+            }
+          }
+
+          // Merge the data
+          data = data.map((sf: any) => {
+            const student = studentsData.find((s: any) => s.id === sf.student_id)
+            const feeStructure = feeStructuresData.find((fs: any) => fs.id === sf.fee_structure_id)
+            return {
+              ...sf,
+              students: student ? {
+                first_name: student.first_name,
+                last_name: student.last_name,
+                student_id: student.student_id,
+                classes: null // Would need separate query to get class info
+              } : null,
+              fee_structures: feeStructure ? {
+                name: feeStructure.name,
+                academic_year: feeStructure.academic_year,
+                term: feeStructure.term,
+                due_date: feeStructure.due_date
+              } : null
+            }
+          })
+        } catch (mergeError) {
+          logApiError('Error merging related data', mergeError, {
+            dataCount: data.length
+          })
+          // Continue with data even if merge fails
+        }
+      }
+    }
 
     if (error) {
-      console.error('Error fetching student fees:', error)
-      return NextResponse.json(
-        { error: 'Failed to fetch student fees' },
-        { status: 500 }
+      return createErrorResponse(
+        error,
+        500,
+        { path: requestPath, includeDetails: true }
       )
     }
 
     // Transform data
-    const transformedData = data?.map(studentFee => ({
-      id: studentFee.id,
-      studentId: studentFee.student_id,
+    let transformedData: any[] = []
+    try {
+      transformedData = (data || []).map(studentFee => ({
+        id: studentFee.id,
+        studentId: studentFee.student_id,
       studentName: `${studentFee.students?.first_name || ''} ${studentFee.students?.last_name || ''}`.trim(),
       studentNumber: studentFee.students?.student_id,
       className: studentFee.students?.classes?.name,
       subsystem: studentFee.students?.classes?.subsystem,
-      branch: studentFee.students?.classes?.branch,
-      feeStructureId: studentFee.fee_structure_id,
-      feeStructureName: studentFee.fee_structures?.name,
-      academicYear: studentFee.fee_structures?.academic_year,
-      term: studentFee.fee_structures?.term,
-      dueDate: studentFee.fee_structures?.due_date,
-      totalAmount: parseFloat(studentFee.total_amount || 0),
-      paidAmount: parseFloat(studentFee.paid_amount || 0),
-      balanceAmount: parseFloat(studentFee.balance_amount || 0),
-      status: studentFee.status,
-      lastPaymentDate: studentFee.last_payment_date,
-      notes: studentFee.notes,
-      createdAt: studentFee.created_at,
-      updatedAt: studentFee.updated_at
-    }))
+      branch: null, // Branch column doesn't exist in classes table
+        feeStructureId: studentFee.fee_structure_id,
+        feeStructureName: studentFee.fee_structures?.name,
+        academicYear: studentFee.academic_year || studentFee.fee_structures?.academic_year,
+        term: studentFee.term || studentFee.fee_structures?.term,
+        dueDate: studentFee.due_date || studentFee.fee_structures?.due_date,
+        totalAmount: parseFloat(studentFee.total_amount || 0),
+        paidAmount: parseFloat(studentFee.amount_paid || 0),
+        balanceAmount: parseFloat(studentFee.balance_amount || 0),
+        status: studentFee.status,
+        lastPaymentDate: null, // This column doesn't exist in student_fee_assignments
+        notes: null, // This column doesn't exist in student_fee_assignments
+        createdAt: studentFee.created_at,
+        updatedAt: studentFee.updated_at
+      }))
+    } catch (transformError) {
+      logApiError('Error transforming student fee data', transformError, {
+        dataCount: data?.length || 0
+      })
+      return createErrorResponse(
+        transformError,
+        500,
+        { path: requestPath, includeDetails: true }
+      )
+    }
 
-    return NextResponse.json(transformedData)
+    return createSuccessResponse(transformedData, 200)
   } catch (error) {
-    console.error('Error in student fees GET:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+    logApiError('Unexpected error in student fees GET', error, {
+      requestPath,
+      url: requestUrl
+    })
+    return createErrorResponse(
+      error,
+      500,
+      { path: requestPath, includeDetails: true }
     )
   }
 }
 
 export async function POST(request: NextRequest) {
+  const requestUrl = request.url
+  const requestPath = new URL(requestUrl).pathname
+  
   try {
     const supabase = await createClient()
-    const body = await request.json()
+    
+    // Validate Supabase client
+    if (!supabase) {
+      logApiError('POST /api/bursar/student-fees', new Error('Supabase client not initialized'), { requestPath })
+      return createErrorResponse(
+        new Error('Database connection failed'),
+        500,
+        { path: requestPath, includeDetails: false }
+      )
+    }
+    
+    let body: any
+    try {
+      body = await request.json()
+    } catch (parseError) {
+      logApiError('Failed to parse request body', parseError, { requestPath })
+      return createErrorResponse(
+        new Error('Invalid request body'),
+        400,
+        { path: requestPath, includeDetails: false }
+      )
+    }
 
     const {
       studentId,
-      feeStructureId,
-      notes
+      feeStructureId
     } = body
 
     // Validate required fields
     if (!studentId || !feeStructureId) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
+      return createErrorResponse(
+        new Error('Missing required fields: studentId and feeStructureId are required'),
+        400,
+        { path: requestPath, includeDetails: false }
       )
     }
 
     // Check if student fee assignment already exists
-    const { data: existingAssignment } = await supabase
-      .from('student_fees')
+    const { data: existingAssignment, error: checkError } = await supabase
+      .from('student_fee_assignments')
       .select('id')
       .eq('student_id', studentId)
       .eq('fee_structure_id', feeStructureId)
       .single()
 
+    if (checkError && checkError.code !== 'PGRST116') {
+      // PGRST116 means no rows found, which is expected
+      return createErrorResponse(
+        checkError,
+        500,
+        { path: requestPath, includeDetails: true }
+      )
+    }
+
     if (existingAssignment) {
-      return NextResponse.json(
-        { error: 'Student fee assignment already exists' },
-        { status: 409 }
+      return createErrorResponse(
+        new Error('Student fee assignment already exists'),
+        409,
+        { path: requestPath, includeDetails: false }
       )
     }
 
@@ -128,10 +309,18 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (feeError) {
-      console.error('Error fetching fee structure:', feeError)
-      return NextResponse.json(
-        { error: 'Fee structure not found' },
-        { status: 404 }
+      return createErrorResponse(
+        feeError,
+        feeError.code === 'PGRST116' ? 404 : 500,
+        { path: requestPath, includeDetails: true }
+      )
+    }
+
+    if (!feeStructure) {
+      return createErrorResponse(
+        new Error('Fee structure not found'),
+        404,
+        { path: requestPath, includeDetails: false }
       )
     }
 
@@ -141,43 +330,70 @@ export async function POST(request: NextRequest) {
       0
     ) || 0
 
+    // Validate required fields from fee structure
+    if (!feeStructure.academic_year || !feeStructure.term || !feeStructure.due_date) {
+      logApiError('Fee structure missing required fields', null, {
+        feeStructureId,
+        hasAcademicYear: !!feeStructure.academic_year,
+        hasTerm: !!feeStructure.term,
+        hasDueDate: !!feeStructure.due_date
+      })
+      return createErrorResponse(
+        new Error('Fee structure is missing required fields (academic_year, term, or due_date)'),
+        400,
+        { path: requestPath, includeDetails: false }
+      )
+    }
+
     // Create student fee assignment
     const { data: studentFee, error: createError } = await supabase
-      .from('student_fees')
+      .from('student_fee_assignments')
       .insert({
         student_id: studentId,
         fee_structure_id: feeStructureId,
         total_amount: totalAmount,
-        paid_amount: 0,
+        amount_paid: 0,
         balance_amount: totalAmount,
         status: 'pending',
         due_date: feeStructure.due_date,
-        notes: notes
+        academic_year: feeStructure.academic_year,
+        term: feeStructure.term
       })
       .select()
       .single()
 
     if (createError) {
-      console.error('Error creating student fee assignment:', createError)
-      return NextResponse.json(
-        { error: 'Failed to create student fee assignment' },
-        { status: 500 }
+      return createErrorResponse(
+        createError,
+        500,
+        { path: requestPath, includeDetails: true }
       )
     }
 
-    return NextResponse.json(
+    if (!studentFee) {
+      return createErrorResponse(
+        new Error('Failed to create student fee assignment - no data returned'),
+        500,
+        { path: requestPath, includeDetails: false }
+      )
+    }
+
+    return createSuccessResponse(
       { 
-        success: true, 
         studentFeeId: studentFee.id,
         message: 'Student fee assignment created successfully' 
       },
-      { status: 201 }
+      201
     )
   } catch (error) {
-    console.error('Error in student fees POST:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+    logApiError('Unexpected error in student fees POST', error, {
+      requestPath,
+      url: requestUrl
+    })
+    return createErrorResponse(
+      error,
+      500,
+      { path: requestPath, includeDetails: true }
     )
   }
 }

@@ -2,13 +2,13 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 
 export default function TestFeeStructuresPage() {
-  const { toast } = useToast()
+  const { error: toastError, success: toastSuccess } = useToast()
   const [apiResponse, setApiResponse] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -31,32 +31,17 @@ export default function TestFeeStructuresPage() {
       
       if (data.error) {
         setError(data.error)
-        toast({
-          title: "Error",
-          description: data.error,
-          variant: "destructive"
-        })
+        toastError("Error", data.error)
       } else if (Array.isArray(data)) {
-        toast({
-          title: "Success",
-          description: `Successfully loaded ${data.length} fee structures`
-        })
+        toastSuccess("Success", `Successfully loaded ${data.length} fee structures`)
       } else {
         setError('Unexpected data format received')
-        toast({
-          title: "Error",
-          description: 'Invalid data format received',
-          variant: "destructive"
-        })
+        toastError("Error", 'Invalid data format received')
       }
     } catch (error) {
       console.error('API Test Error:', error)
       setError(error instanceof Error ? error.message : 'Unknown error')
-      toast({
-        title: "Error",
-        description: 'Failed to test API',
-        variant: "destructive"
-      })
+      toastError("Error", 'Failed to test API')
     } finally {
       setIsLoading(false)
     }

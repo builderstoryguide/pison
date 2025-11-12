@@ -502,7 +502,7 @@ async function getFallbackTeacherData(teacherId: string): Promise<any> {
     console.log('✅ Found teacher:', teacher.first_name, teacher.last_name, 'ID:', actualTeacherId)
     
     // Get teacher info using the actual teacher ID
-    const { data: teacherData, error: teacherError } = await supabase
+    const { error: teacherError } = await supabase
       .from('teachers')
       .select('*')
       .eq('id', actualTeacherId)

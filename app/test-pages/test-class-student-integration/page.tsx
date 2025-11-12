@@ -96,7 +96,7 @@ export default function TestClassStudentIntegration() {
             </div>
           ) : classesError ? (
             <div className="text-center py-8">
-              <p className="text-destructive">Error: {classesError?.message || String(classesError)}</p>
+              <p className="text-destructive">Error: {classesError}</p>
             </div>
           ) : filteredClasses.length === 0 ? (
             <div className="text-center py-8">
@@ -174,7 +174,7 @@ export default function TestClassStudentIntegration() {
               </div>
             ) : studentsError ? (
               <div className="text-center py-8">
-                <p className="text-destructive">Error: {studentsError?.message || String(studentsError)}</p>
+                <p className="text-destructive">Error: {studentsError}</p>
               </div>
             ) : students.length === 0 ? (
               <div className="text-center py-8">

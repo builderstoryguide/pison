@@ -51,7 +51,7 @@ function TestAssessmentCreationContent() {
     addResult("Testing assessment creation...")
     
     try {
-      const result = await createAssessment({
+      await createAssessment({
         title: "Test Assessment",
         type: "quiz",
         subject: "Mathematics",
@@ -61,8 +61,8 @@ function TestAssessmentCreationContent() {
         date: new Date().toISOString().split('T')[0],
       })
       
-      if (result?.error) {
-        addResult(`❌ Assessment creation failed: ${result.error}`)
+      if (error) {
+        addResult(`❌ Assessment creation failed: ${error}`)
       } else {
         addResult("✅ Assessment creation successful")
       }

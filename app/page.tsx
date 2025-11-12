@@ -18,7 +18,7 @@ import { ReactQueryProvider } from "@/lib/react-query-setup"
 import { Dashboard } from "@/components/dashboard"
 import { Loader2 } from "lucide-react"
 function AppContent() {
-  const { user, isLoading } = useAuth()
+  const { isLoading } = useAuth()
 
   if (isLoading) {
     return (
