@@ -1,13 +1,13 @@
 "use client"
 
-import { useAuth } from "@/lib/auth-context"
-import { useProfile } from "@/lib/profile-context"
+import { AuthProvider, useAuth } from "@/lib/auth-context"
+import { ProfileProvider, useProfile } from "@/lib/profile-context"
 import { ProfileSettings } from "@/components/profile/profile-settings"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, User, AlertCircle } from "lucide-react"
 
-export default function TestProfileSettingsPage() {
+function TestProfileSettingsContent() {
   const { user, isLoading: authLoading } = useAuth()
   const { profile, isLoading: profileLoading, error } = useProfile()
 
@@ -166,5 +166,15 @@ export default function TestProfileSettingsPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function TestProfileSettingsPage() {
+  return (
+    <AuthProvider>
+      <ProfileProvider>
+        <TestProfileSettingsContent />
+      </ProfileProvider>
+    </AuthProvider>
   )
 }

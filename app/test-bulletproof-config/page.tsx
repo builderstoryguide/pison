@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useState } from "react"
-import { useAppConfiguration, useConfigurationStatus } from "@/lib/app-configuration-context-v2"
+import { AuthProvider } from "@/lib/auth-context"
+import { AppConfigurationProvider, useAppConfiguration, useConfigurationStatus } from "@/lib/app-configuration-context-v2"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -19,7 +20,7 @@ import {
   Info
 } from "lucide-react"
 
-export default function TestBulletproofConfigPage() {
+function TestBulletproofConfigContent() {
   const { 
     configuration, 
     isLoading, 
@@ -346,5 +347,15 @@ export default function TestBulletproofConfigPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function TestBulletproofConfigPage() {
+  return (
+    <AuthProvider>
+      <AppConfigurationProvider>
+        <TestBulletproofConfigContent />
+      </AppConfigurationProvider>
+    </AuthProvider>
   )
 }

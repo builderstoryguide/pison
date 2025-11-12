@@ -1,7 +1,13 @@
 import { Resend } from 'resend';
 
-// Initialize Resend client
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy-initialize Resend client to avoid build-time errors
+function getResendClient(): Resend {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY is not configured. Please set it in your environment variables.');
+  }
+  return new Resend(apiKey);
+}
 
 interface SendTeacherWelcomeEmailParams {
   teacherName: string;
@@ -58,6 +64,7 @@ export class EmailService {
       });
 
       // Send email
+      const resend = getResendClient();
       const result = await resend.emails.send({
         from: 'Pison Academy <noreply@pisonacademy.cm>',
         to: [email],

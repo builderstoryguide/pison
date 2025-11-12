@@ -7,6 +7,7 @@ import { TeacherEnrollmentForm } from '@/components/admin/teacher-enrollment-for
 import { AuthProvider } from '@/lib/auth-context'
 import { ClassManagementProvider } from '@/lib/class-management-context'
 import { TeacherManagementProvider } from '@/lib/teacher-management-context'
+import { SubjectManagementProvider } from '@/lib/subject-management-context'
 
 function TestTeacherEnrollmentDebugContent() {
   const handleSuccess = (result: any) => {
@@ -38,11 +39,13 @@ function TestTeacherEnrollmentDebugContent() {
 export default function TestTeacherEnrollmentDebug() {
   return (
     <AuthProvider>
-      <ClassManagementProvider>
-        <TeacherManagementProvider>
-          <TestTeacherEnrollmentDebugContent />
-        </TeacherManagementProvider>
-      </ClassManagementProvider>
+      <SubjectManagementProvider>
+        <ClassManagementProvider>
+          <TeacherManagementProvider>
+            <TestTeacherEnrollmentDebugContent />
+          </TeacherManagementProvider>
+        </ClassManagementProvider>
+      </SubjectManagementProvider>
     </AuthProvider>
   )
 }

@@ -3,6 +3,7 @@
 import { TeacherAssignmentManagement } from "@/components/teacher/teacher-assignment-management"
 import { AuthProvider } from "@/lib/auth-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
+import { TeacherClassesProvider } from "@/lib/teacher-classes-context"
 
 function TestTeacherAssignmentsContent() {
   return (
@@ -22,9 +23,11 @@ function TestTeacherAssignmentsContent() {
 export default function TestTeacherAssignmentsPage() {
   return (
     <AuthProvider>
-      <TeacherGradesProvider>
-        <TestTeacherAssignmentsContent />
-      </TeacherGradesProvider>
+      <TeacherClassesProvider>
+        <TeacherGradesProvider>
+          <TestTeacherAssignmentsContent />
+        </TeacherGradesProvider>
+      </TeacherClassesProvider>
     </AuthProvider>
   )
 }

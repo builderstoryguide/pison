@@ -1,13 +1,14 @@
 "use client"
 
-import { useAppConfiguration, useSchoolName, useSchoolLogo, useThemeColors } from "@/lib/app-configuration-context-v2"
+import { AuthProvider } from "@/lib/auth-context"
+import { AppConfigurationProvider, useAppConfiguration, useSchoolName, useSchoolLogo, useThemeColors } from "@/lib/app-configuration-context-v2"
 import { AppConfiguration } from "@/components/admin/app-configuration"
 import { SchoolBranding } from "@/components/ui/school-branding"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Loader2 } from "lucide-react"
 
-export default function TestAppConfigurationPage() {
+function TestAppConfigurationContent() {
   const { configuration, isLoading, error } = useAppConfiguration()
   const schoolName = useSchoolName()
   const { url: logoUrl, alt: logoAlt } = useSchoolLogo()
@@ -190,5 +191,15 @@ export default function TestAppConfigurationPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function TestAppConfigurationPage() {
+  return (
+    <AuthProvider>
+      <AppConfigurationProvider>
+        <TestAppConfigurationContent />
+      </AppConfigurationProvider>
+    </AuthProvider>
   )
 }

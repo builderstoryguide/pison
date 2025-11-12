@@ -2,11 +2,14 @@
 
 import { SchoolDashboard } from "@/components/school-dashboard-simple"
 import { AuthProvider } from "@/lib/auth-context"
+import { AppConfigurationProvider } from '@/lib/app-configuration-context-v2'
 
 export default function DashboardPage() {
   return (
     <AuthProvider>
-      <SchoolDashboard />
+      <AppConfigurationProvider>
+        <SchoolDashboard />
+      </AppConfigurationProvider>
     </AuthProvider>
   )
 }
