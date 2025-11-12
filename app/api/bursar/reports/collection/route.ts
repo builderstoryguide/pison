@@ -12,43 +12,6 @@ export async function GET(request: NextRequest) {
     const paymentMethodId = searchParams.get('paymentMethodId')
     const format = searchParams.get('format') || 'json'
 
-    // Build the query
-    let query = `
-      SELECT 
-        month_name,
-        payment_method,
-        total_transactions,
-        total_amount,
-        average_amount,
-        unique_students,
-        unique_collectors
-      FROM collection_report_view
-      WHERE 1=1
-    `
-
-    const params: any[] = []
-    let paramIndex = 1
-
-    if (startDate) {
-      query += ` AND month >= $${paramIndex}`
-      params.push(startDate)
-      paramIndex++
-    }
-
-    if (endDate) {
-      query += ` AND month <= $${paramIndex}`
-      params.push(endDate)
-      paramIndex++
-    }
-
-    if (paymentMethodId) {
-      query += ` AND payment_method_code = $${paramIndex}`
-      params.push(paymentMethodId)
-      paramIndex++
-    }
-
-    query += ` ORDER BY month DESC, total_amount DESC`
-
     const { data, error } = await supabase.rpc('generate_collection_report', {
       start_date: startDate,
       end_date: endDate,

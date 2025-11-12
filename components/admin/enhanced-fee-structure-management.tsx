@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Search, Filter, Edit, Trash2, Eye, MoreHorizontal, Calendar, Users, DollarSign } from "lucide-react"
+import { Plus, Edit, Trash2, Eye, MoreHorizontal, Calendar, Users, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
@@ -111,7 +111,7 @@ export function EnhancedFeeStructureManagement() {
     }
   }
 
-  const handleFormSuccess = (feeStructureId: string) => {
+  const handleFormSuccess = (_feeStructureId: string) => {
     setShowCreateForm(false)
     setEditingFeeStructure(null)
     loadFeeStructures()
