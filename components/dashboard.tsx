@@ -12,6 +12,7 @@ import { SubjectManagementProvider } from "@/lib/subject-management-context"
 import { ExaminationProvider } from "@/lib/examination-context"
 import { FinancialProvider } from "@/lib/financial-context"
 import { ProfileProvider } from "@/lib/profile-context"
+import { AlertsProvider } from "@/lib/alerts-context"
 import { TeacherClassesProvider } from "@/lib/teacher-classes-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 import { BursarProvider } from "@/lib/bursar-context"
@@ -41,6 +42,9 @@ import { SalesManagement } from "./admin/sales-management"
 import { ExpenditureManagement } from "./admin/expenditure-management"
 import { PaymentManagement } from "./admin/payment-management"
 import { AppConfiguration } from "./admin/app-configuration"
+import { Alerts } from "./admin/alerts"
+import { FinancialReports as AdminFinancialReports } from "./admin/financial-reports"
+import { AcademicReports } from "./admin/academic-reports"
 import { ProfileSettings } from "./profile/profile-settings"
 import { BursarProfile } from "./bursar/bursar-profile"
 import { RecentActivities } from "./admin/recent-activities"
@@ -59,6 +63,7 @@ import { TeacherAssignmentsView } from "./teacher/teacher-assignments-view"
 import { ParentDashboard } from "./parent/parent-dashboard"
 import { ParentCommunication } from "./parent/parent-communication"
 import { ParentChildRecords } from "./parent/parent-child-records"
+import { ParentAlerts } from "./parent/parent-alerts"
 
 // Student Components
 import { StudentDashboard } from "./student/student-dashboard"
@@ -163,12 +168,15 @@ type AdminView =
   | "sales"
   | "payment"
   | "expenditures"
+  | "financial-reports"
+  | "academic-reports"
+  | "alerts"
   | "configuration"
   | "profile"
 
 type TeacherView = "dashboard" | "classes" | "grades" | "assignments" | "my-assignments" | "examinations" | "profile"
 
-type ParentView = "dashboard" | "records" | "communication" | "profile"
+type ParentView = "dashboard" | "records" | "communication" | "alerts" | "profile"
 
 type StudentView = "dashboard" | "grades" | "schedule" | "assignments" | "fees" | "profile"
 
@@ -438,6 +446,18 @@ export function Dashboard() {
   // Track if user manually closed the finances menu
   const [financesMenuManuallyClosed, setFinancesMenuManuallyClosed] = useState(false)
 
+  // State for managing reports menu collapsible open/close
+  const [reportsMenuOpen, setReportsMenuOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('adminCurrentView')
+      return saved === "financial-reports" || saved === "academic-reports"
+    }
+    return false
+  })
+
+  // Track if user manually closed the reports menu
+  const [reportsMenuManuallyClosed, setReportsMenuManuallyClosed] = useState(false)
+
   // Update students menu open state when view changes
   useEffect(() => {
     if (user.role === "admin") {
@@ -473,6 +493,22 @@ export function Dashboard() {
       }
     }
   }, [adminCurrentView, user.role, financesMenuManuallyClosed])
+
+  // Update reports menu open state when view changes
+  useEffect(() => {
+    if (user.role === "admin") {
+      const isSubItemActive = adminCurrentView === "financial-reports" || 
+                             adminCurrentView === "academic-reports"
+      // Only auto-open if a sub-item is active and menu wasn't manually closed
+      if (isSubItemActive && !reportsMenuManuallyClosed) {
+        setReportsMenuOpen(true)
+      }
+      // Reset manual close flag when navigating to a reports sub-item
+      if (isSubItemActive) {
+        setReportsMenuManuallyClosed(false)
+      }
+    }
+  }, [adminCurrentView, user.role, reportsMenuManuallyClosed])
   
   const [teacherCurrentView, setTeacherCurrentView] = useState<TeacherView>(() => {
     if (typeof window !== 'undefined') {
@@ -596,6 +632,7 @@ export function Dashboard() {
       { id: "dashboard", label: "Dashboard", icon: Home },
       { id: "records", label: "Child's Records", icon: FileText },
       { id: "communication", label: "Communication", icon: MessageSquare },
+      { id: "alerts", label: "Alerts", icon: Bell },
     ]
 
     const renderParentContent = () => {
@@ -604,6 +641,8 @@ export function Dashboard() {
           return <ParentChildRecords />
         case "communication":
           return <ParentCommunication />
+        case "alerts":
+          return <ParentAlerts />
         case "profile":
           return <ProfileSettings />
         default:
@@ -697,22 +736,24 @@ export function Dashboard() {
 
     return (
       <ProfileProvider>
-        <SidebarProvider>
-          <Sidebar 
-            collapsible="icon"
-            className="border-r border-border/50"
-          >
-            <ParentSidebarContent />
-          </Sidebar>
-          <SidebarInset>
-            <DashboardHeader 
-              user={user} 
-              onProfileClick={() => setParentCurrentView("profile")} 
-              onLogout={handleLogout}
-            />
-            <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderParentContent()}</div>
-          </SidebarInset>
-        </SidebarProvider>
+        <AlertsProvider>
+          <SidebarProvider>
+            <Sidebar 
+              collapsible="icon"
+              className="border-r border-border/50"
+            >
+              <ParentSidebarContent />
+            </Sidebar>
+            <SidebarInset>
+              <DashboardHeader 
+                user={user} 
+                onProfileClick={() => setParentCurrentView("profile")} 
+                onLogout={handleLogout}
+              />
+              <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderParentContent()}</div>
+            </SidebarInset>
+          </SidebarProvider>
+        </AlertsProvider>
       </ProfileProvider>
     )
   }
@@ -895,6 +936,16 @@ export function Dashboard() {
           { id: "expenditures", label: "Expenditures" },
         ],
       },
+      {
+        id: "reports",
+        label: "Reports",
+        icon: BarChart3,
+        subItems: [
+          { id: "financial-reports", label: "Financial Reports" },
+          { id: "academic-reports", label: "Academic Reports" },
+        ],
+      },
+      { id: "alerts", label: "Alerts", icon: Bell },
       { id: "configuration", label: "App Configuration", icon: Settings },
     ]
 
@@ -941,6 +992,12 @@ export function Dashboard() {
           return <PaymentManagement />
         case "expenditures":
           return <ExpenditureManagement />
+        case "financial-reports":
+          return <AdminFinancialReports />
+        case "academic-reports":
+          return <AcademicReports />
+        case "alerts":
+          return <Alerts />
         case "configuration":
           return <AppConfiguration />
         case "profile":
@@ -980,10 +1037,13 @@ export function Dashboard() {
                   if (item.subItems && item.subItems.length > 0) {
                     const isStudentsMenu = item.id === "students"
                     const isFinancesMenu = item.id === "financial"
+                    const isReportsMenu = item.id === "reports"
                     const menuOpen = isStudentsMenu 
                       ? studentsMenuOpen 
                       : isFinancesMenu 
                       ? financesMenuOpen 
+                      : isReportsMenu
+                      ? reportsMenuOpen
                       : isOpen
 
                     return (
@@ -1006,6 +1066,14 @@ export function Dashboard() {
                               setFinancesMenuManuallyClosed(true)
                             } else {
                               setFinancesMenuManuallyClosed(false)
+                            }
+                          } else if (isReportsMenu) {
+                            setReportsMenuOpen(open)
+                            // Track if user manually closed the menu
+                            if (!open) {
+                              setReportsMenuManuallyClosed(true)
+                            } else {
+                              setReportsMenuManuallyClosed(false)
                             }
                           }
                           // For other menus, the open state is controlled by isOpen which is based on active state
@@ -1120,7 +1188,8 @@ export function Dashboard() {
                   <ExaminationProvider>
                     <FinancialProvider>
                       <ProfileProvider>
-                        <SidebarProvider>
+                        <AlertsProvider>
+                          <SidebarProvider>
                           <Sidebar 
                             collapsible="icon"
                             className="border-r border-border/50"
@@ -1136,6 +1205,7 @@ export function Dashboard() {
                             <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderAdminContent()}</div>
                           </SidebarInset>
                         </SidebarProvider>
+                        </AlertsProvider>
                       </ProfileProvider>
                     </FinancialProvider>
                   </ExaminationProvider>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import { useAlerts } from "@/lib/alerts-context"
+import { useToast } from "@/hooks/use-toast"
 import { 
   Bell, 
   Send, 
@@ -28,34 +30,50 @@ import {
   Edit,
   Trash2,
   Copy,
-  Search
+  Search,
+  Loader2
 } from "lucide-react"
 
-export function Alerts() {
+// Type for lucide-react icon components
+type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>
+
+export function Alerts(): JSX.Element {
+  const { toast } = useToast()
+  const {
+    alerts,
+    parentGroups,
+    isLoading,
+    error,
+    fetchAlerts,
+    fetchAlertHistory,
+    sendAlert,
+    scheduleAlert,
+    deleteAlert,
+    fetchParentGroups
+  } = useAlerts()
+
   const [selectedTab, setSelectedTab] = useState("compose")
   const [selectedTemplate, setSelectedTemplate] = useState("")
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
-  const [alertType, setAlertType] = useState("both") // sms, email, both
-  const [priority, setPriority] = useState("normal") // low, normal, high, urgent
+  const [alertType, setAlertType] = useState<"sms" | "email" | "both">("both")
+  const [priority, setPriority] = useState<"low" | "normal" | "high" | "urgent">("normal")
+  const [alertTitle, setAlertTitle] = useState("")
+  const [alertContent, setAlertContent] = useState("")
+  const [scheduledDate, setScheduledDate] = useState("")
+  const [scheduledTime, setScheduledTime] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [sending, setSending] = useState(false)
 
-  // Mock data for demonstration
-  const parentGroups = [
-    { id: "all-parents", name: "All Parents", count: 450, description: "All registered parents" },
-    { id: "grade-1", name: "Grade 1 Parents", count: 35, description: "Parents of Grade 1 students" },
-    { id: "grade-2", name: "Grade 2 Parents", count: 38, description: "Parents of Grade 2 students" },
-    { id: "grade-3", name: "Grade 3 Parents", count: 42, description: "Parents of Grade 3 students" },
-    { id: "grade-4", name: "Grade 4 Parents", count: 40, description: "Parents of Grade 4 students" },
-    { id: "grade-5", name: "Grade 5 Parents", count: 45, description: "Parents of Grade 5 students" },
-    { id: "grade-6", name: "Grade 6 Parents", count: 48, description: "Parents of Grade 6 students" },
-    { id: "grade-7", name: "Grade 7 Parents", count: 52, description: "Parents of Grade 7 students" },
-    { id: "grade-8", name: "Grade 8 Parents", count: 50, description: "Parents of Grade 8 students" },
-    { id: "grade-9", name: "Grade 9 Parents", count: 55, description: "Parents of Grade 9 students" },
-    { id: "grade-10", name: "Grade 10 Parents", count: 58, description: "Parents of Grade 10 students" },
-    { id: "grade-11", name: "Grade 11 Parents", count: 60, description: "Parents of Grade 11 students" },
-    { id: "grade-12", name: "Grade 12 Parents", count: 62, description: "Parents of Grade 12 students" },
-    { id: "pta-members", name: "PTA Members", count: 25, description: "Active PTA members" },
-    { id: "fee-defaulters", name: "Fee Defaulters", count: 15, description: "Parents with outstanding fees" }
-  ]
+  // Load data on mount
+  useEffect(() => {
+    fetchAlerts()
+    fetchParentGroups()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Mock data for templates (can be moved to database later)
+  const parentGroupsList = parentGroups || []
 
   const alertTemplates = [
     {
@@ -95,48 +113,6 @@ export function Alerts() {
     }
   ]
 
-  const recentAlerts = [
-    {
-      id: 1,
-      title: "Parent-Teacher Meeting Reminder",
-      content: "Meeting scheduled for tomorrow at 2:00 PM",
-      type: "both",
-      priority: "high",
-      groups: ["all-parents"],
-      sentAt: "2024-01-15T10:30:00Z",
-      status: "sent",
-      recipients: 450,
-      delivered: 445,
-      failed: 5
-    },
-    {
-      id: 2,
-      title: "Examination Schedule Update",
-      content: "Mid-term exams start next week",
-      type: "email",
-      priority: "normal",
-      groups: ["grade-10", "grade-11", "grade-12"],
-      sentAt: "2024-01-14T14:20:00Z",
-      status: "sent",
-      recipients: 175,
-      delivered: 175,
-      failed: 0
-    },
-    {
-      id: 3,
-      title: "Fee Payment Reminder",
-      content: "Quarterly fees due next Friday",
-      type: "sms",
-      priority: "urgent",
-      groups: ["fee-defaulters"],
-      sentAt: "2024-01-13T09:15:00Z",
-      status: "sent",
-      recipients: 15,
-      delivered: 12,
-      failed: 3
-    }
-  ]
-
   const handleGroupToggle = (groupId: string) => {
     setSelectedGroups(prev => 
       prev.includes(groupId) 
@@ -145,33 +121,130 @@ export function Alerts() {
     )
   }
 
-  const handleSendAlert = () => {
-    console.log("Sending alert:", {
-      template: selectedTemplate,
-      groups: selectedGroups,
-      type: alertType,
-      priority
-    })
-    // TODO: Implement actual alert sending logic
+  const handleSendAlert = async () => {
+    if (!alertTitle.trim() || !alertContent.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in both title and content",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (selectedGroups.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please select at least one parent group",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setSending(true)
+    try {
+      const scheduledAt = scheduledDate && scheduledTime
+        ? new Date(`${scheduledDate}T${scheduledTime}`).toISOString()
+        : null
+
+      const result = await sendAlert({
+        title: alertTitle,
+        content: alertContent,
+        alert_type: alertType,
+        priority: priority,
+        groupIds: selectedGroups,
+        scheduled_at: scheduledAt
+      })
+
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: scheduledAt ? "Alert scheduled successfully" : "Alert sent successfully"
+        })
+        // Reset form
+        setAlertTitle("")
+        setAlertContent("")
+        setSelectedGroups([])
+        setScheduledDate("")
+        setScheduledTime("")
+        setSelectedTab("history")
+        await fetchAlerts()
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to send alert",
+          variant: "destructive"
+        })
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err.message || "Failed to send alert",
+        variant: "destructive"
+      })
+    } finally {
+      setSending(false)
+    }
   }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "urgent": return "destructive"
-      case "high": return "default"
-      case "normal": return "secondary"
-      case "low": return "outline"
-      default: return "secondary"
+  const handleUseTemplate = (template: { id: string; title: string; content: string; category: string; icon: any }) => {
+    setAlertTitle(template.title)
+    setAlertContent(template.content)
+    setSelectedTemplate(template.id)
+  }
+
+  const handleDeleteAlert = async (alertId: string) => {
+    if (!confirm("Are you sure you want to delete this alert?")) return
+
+    const result = await deleteAlert(alertId)
+    if (result.success) {
+      toast({
+        title: "Success",
+        description: "Alert deleted successfully"
+      })
+      await fetchAlerts()
+    } else {
+      toast({
+        title: "Error",
+        description: result.error || "Failed to delete alert",
+        variant: "destructive"
+      })
     }
+  }
+
+  // Get alert history with stats
+  const alertHistory = alerts.map(alert => {
+    // In a real implementation, you'd fetch recipient stats from the database
+    // For now, we'll use placeholder values
+    return {
+      ...alert,
+      recipients: 0, // Would be calculated from alert_recipients
+      delivered: 0,
+      failed: 0
+    }
+  })
+
+  // Filter alerts based on search and status
+  const filteredAlerts = alertHistory.filter(alert => {
+    const matchesSearch = !searchQuery || 
+      alert.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      alert.content.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStatus = statusFilter === "all" || alert.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
+
+  const getPriorityColor = (priority: string): string => {
+    if (priority === "urgent") return "destructive"
+    if (priority === "high") return "default"
+    if (priority === "normal") return "secondary"
+    if (priority === "low") return "outline"
+    return "secondary"
   }
 
   const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "sms": return Phone
-      case "email": return Mail
-      case "both": return MessageSquare
-      default: return Bell
-    }
+    if (type === "sms") return Phone
+    if (type === "email") return Mail
+    if (type === "both") return MessageSquare
+    return Bell
   }
 
   return (
@@ -195,6 +268,17 @@ export function Alerts() {
         </div>
       </div>
 
+      {error && (
+        <Card className="border-destructive">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-4 w-4" />
+              <span>{error}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats Overview */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -203,45 +287,49 @@ export function Alerts() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">450</div>
+            <div className="text-2xl font-bold">
+              {parentGroupsList.find(g => g.id === 'all-parents')?.count || 0}
+            </div>
             <p className="text-xs text-muted-foreground">
-              +12 from last month
+              Registered parents
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Alerts Sent Today</CardTitle>
+            <CardTitle className="text-sm font-medium">Alerts Sent</CardTitle>
             <Send className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">23</div>
+            <div className="text-2xl font-bold">{alerts.length}</div>
             <p className="text-xs text-muted-foreground">
-              +5 from yesterday
+              Total alerts sent
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Delivery Rate</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">98.2%</div>
-            <p className="text-xs text-muted-foreground">
-              +0.3% from last week
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Alerts</CardTitle>
+            <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            <div className="text-2xl font-bold">
+              {alerts.filter(a => a.status === 'scheduled').length}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Scheduled for later
+              Pending alerts
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Parent Groups</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{parentGroupsList.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Available groups
             </p>
           </CardContent>
         </Card>
@@ -271,6 +359,8 @@ export function Alerts() {
                     <Input 
                       id="alert-title" 
                       placeholder="Enter alert title..."
+                      value={alertTitle}
+                      onChange={(e) => setAlertTitle(e.target.value)}
                     />
                   </div>
                   
@@ -280,13 +370,15 @@ export function Alerts() {
                       id="alert-content"
                       placeholder="Enter your message..."
                       rows={6}
+                      value={alertContent}
+                      onChange={(e) => setAlertContent(e.target.value)}
                     />
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Alert Type</Label>
-                      <Select value={alertType} onValueChange={setAlertType}>
+                      <Select value={alertType} onValueChange={(v) => setAlertType(v as typeof alertType)}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -300,7 +392,7 @@ export function Alerts() {
                     
                     <div className="space-y-2">
                       <Label>Priority Level</Label>
-                      <Select value={priority} onValueChange={setPriority}>
+                      <Select value={priority} onValueChange={(v) => setPriority(v as typeof priority)}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -314,14 +406,45 @@ export function Alerts() {
                     </div>
                   </div>
 
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="scheduled-date">Schedule Date (Optional)</Label>
+                      <Input 
+                        id="scheduled-date"
+                        type="date"
+                        value={scheduledDate}
+                        onChange={(e) => setScheduledDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="scheduled-time">Schedule Time (Optional)</Label>
+                      <Input 
+                        id="scheduled-time"
+                        type="time"
+                        value={scheduledTime}
+                        onChange={(e) => setScheduledTime(e.target.value)}
+                        disabled={!scheduledDate}
+                      />
+                    </div>
+                  </div>
+
                   <div className="flex gap-2">
-                    <Button onClick={handleSendAlert} className="flex-1">
-                      <Send className="h-4 w-4 mr-2" />
-                      Send Alert
-                    </Button>
-                    <Button variant="outline">
-                      <Clock className="h-4 w-4 mr-2" />
-                      Schedule
+                    <Button 
+                      onClick={handleSendAlert} 
+                      className="flex-1"
+                      disabled={sending || isLoading}
+                    >
+                      {sending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          {scheduledDate && scheduledTime ? "Schedule Alert" : "Send Alert"}
+                        </>
+                      )}
                     </Button>
                   </div>
                 </CardContent>
@@ -337,8 +460,13 @@ export function Alerts() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {parentGroups.map((group) => (
+                  {isLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {parentGroupsList.map((group) => (
                       <div key={group.id} className="flex items-center space-x-2">
                         <Checkbox
                           id={group.id}
@@ -358,8 +486,9 @@ export function Alerts() {
                           </p>
                         </Label>
                       </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -377,7 +506,7 @@ export function Alerts() {
                         key={template.id}
                         variant="outline"
                         className="w-full justify-start h-auto p-3"
-                        onClick={() => setSelectedTemplate(template.id)}
+                        onClick={() => handleUseTemplate(template)}
                       >
                         <template.icon className="h-4 w-4 mr-2" />
                         <div className="text-left">
@@ -413,7 +542,11 @@ export function Alerts() {
                     {template.content}
                   </p>
                   <div className="flex gap-2">
-                    <Button size="sm" className="flex-1">
+                    <Button 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => handleUseTemplate(template)}
+                    >
                       <Copy className="h-4 w-4 mr-2" />
                       Use Template
                     </Button>
@@ -435,10 +568,12 @@ export function Alerts() {
                 <Input 
                   placeholder="Search alerts..."
                   className="pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
             </div>
-            <Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
@@ -446,55 +581,86 @@ export function Alerts() {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="sent">Sent</SelectItem>
                 <SelectItem value="scheduled">Scheduled</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-4">
-            {recentAlerts.map((alert) => {
-              const TypeIcon = getTypeIcon(alert.type)
-              return (
-                <Card key={alert.id}>
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold">{alert.title}</h3>
-                          <Badge variant={getPriorityColor(alert.priority)}>
-                            {alert.priority}
-                          </Badge>
-                          <Badge variant="outline">
-                            <TypeIcon className="h-3 w-3 mr-1" />
-                            {alert.type}
-                          </Badge>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : filteredAlerts.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-muted-foreground">
+                  No alerts found
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {filteredAlerts.map((alert) => {
+                const TypeIcon = getTypeIcon(alert.alert_type)
+                return (
+                  <Card key={alert.id}>
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold">{alert.title}</h3>
+                            <Badge variant={getPriorityColor(alert.priority)}>
+                              {alert.priority}
+                            </Badge>
+                            <Badge variant="outline">
+                              <TypeIcon className="h-3 w-3 mr-1" />
+                              {alert.alert_type}
+                            </Badge>
+                            <Badge variant="secondary">{alert.status}</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-3">
+                            {alert.content}
+                          </p>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            {alert.sent_at && (
+                              <span>Sent: {new Date(alert.sent_at).toLocaleString()}</span>
+                            )}
+                            {alert.scheduled_at && (
+                              <span>Scheduled: {new Date(alert.scheduled_at).toLocaleString()}</span>
+                            )}
+                            {!alert.sent_at && !alert.scheduled_at && (
+                              <span>Created: {new Date(alert.created_at).toLocaleString()}</span>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-3">
-                          {alert.content}
-                        </p>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                          <span>Sent: {new Date(alert.sentAt).toLocaleString()}</span>
-                          <span>Recipients: {alert.recipients}</span>
-                          <span className="text-green-600">Delivered: {alert.delivered}</span>
-                          {alert.failed > 0 && (
-                            <span className="text-red-600">Failed: {alert.failed}</span>
-                          )}
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              setAlertTitle(alert.title)
+                              setAlertContent(alert.content)
+                              setSelectedTab("compose")
+                            }}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleDeleteAlert(alert.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="groups" className="space-y-4">
@@ -512,7 +678,12 @@ export function Alerts() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {parentGroups.map((group) => (
+            {isLoading ? (
+              <div className="col-span-3 flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              parentGroupsList.map((group) => (
               <Card key={group.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -536,7 +707,7 @@ export function Alerts() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            )))}
           </div>
         </TabsContent>
       </Tabs>
