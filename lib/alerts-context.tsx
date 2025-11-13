@@ -172,23 +172,25 @@ export function AlertsProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true)
     setError(null)
     try {
-      // Fetch all parents with their students to build groups
+      // Fetch all parents
       const { data: parentsData, error: parentsError } = await supabase
         .from('parents')
-        .select(`
-          id,
-          name,
-          student_id,
-          students (
-            student_id,
-            first_name,
-            last_name,
-            class,
-            class_name
-          )
-        `)
+        .select('id, name, student_id')
 
       if (parentsError) throw parentsError
+
+      // Fetch all students
+      const { data: studentsData, error: studentsError } = await supabase
+        .from('students')
+        .select('student_id, first_name, last_name, class, class_name')
+
+      if (studentsError) throw studentsError
+
+      // Create a map of students by student_id for quick lookup
+      const studentsMap = new Map()
+      studentsData?.forEach((student: any) => {
+        studentsMap.set(student.student_id, student)
+      })
 
       // Build dynamic groups
       const groups: ParentGroup[] = []
@@ -206,7 +208,8 @@ export function AlertsProvider({ children }: { children: React.ReactNode }) {
       // Group by class
       const classGroups = new Map<string, Set<string>>()
       parentsData?.forEach((parent: any) => {
-        const className = parent.students?.class || parent.students?.class_name || 'Unknown'
+        const student = studentsMap.get(parent.student_id)
+        const className = student?.class_name || student?.class || 'Unassigned'
         if (!classGroups.has(className)) {
           classGroups.set(className, new Set())
         }
@@ -214,13 +217,15 @@ export function AlertsProvider({ children }: { children: React.ReactNode }) {
       })
 
       classGroups.forEach((parentIds, className) => {
-        groups.push({
-          id: `class-${className.replace(/\s+/g, '-').toLowerCase()}`,
-          name: `${className} Parents`,
-          description: `Parents of students in ${className}`,
-          count: parentIds.size,
-          group_type: 'class'
-        })
+        if (className !== 'Unassigned') {
+          groups.push({
+            id: `class-${className.replace(/\s+/g, '-').toLowerCase()}`,
+            name: `${className} Parents`,
+            description: `Parents of students in ${className}`,
+            count: parentIds.size,
+            group_type: 'class'
+          })
+        }
       })
 
       // Fetch custom groups from database
@@ -314,18 +319,42 @@ export function AlertsProvider({ children }: { children: React.ReactNode }) {
               targetParentIds.push(...allParents.map(p => p.id))
             }
           } else if (groupId.startsWith('class-')) {
-            // Get parents by class
-            const className = groupId.replace('class-', '').replace(/-/g, ' ')
-            const { data: classParents } = await supabase
-              .from('parents')
-              .select(`
-                id,
-                student_id,
-                students!inner(class, class_name)
-              `)
-              .or(`students.class.eq.${className},students.class_name.eq.${className}`)
-            if (classParents) {
-              targetParentIds.push(...classParents.map(p => p.id))
+            // Get parents by class - need to manually join since no FK relationship
+            // Extract the class name pattern from the group ID (lowercase with dashes)
+            const classNamePattern = groupId.replace('class-', '').replace(/-/g, ' ')
+            
+            // Escape special ILIKE wildcard characters (% and _) to prevent SQL injection
+            // This ensures literal matching instead of pattern matching
+            const escapedPattern = classNamePattern.replace(/[%_]/g, '\\$&')
+            
+            // Query both class columns separately using properly escaped pattern
+            // Use case-insensitive matching to handle the case mismatch
+            const [classResult, classNameResult] = await Promise.all([
+              supabase
+                .from('students')
+                .select('student_id')
+                .ilike('class', escapedPattern),
+              supabase
+                .from('students')
+                .select('student_id')
+                .ilike('class_name', escapedPattern)
+            ])
+            
+            // Combine and deduplicate student IDs from both queries
+            const studentIds = new Set<string>()
+            classResult.data?.forEach(s => studentIds.add(s.student_id))
+            classNameResult.data?.forEach(s => studentIds.add(s.student_id))
+            
+            if (studentIds.size > 0) {
+              // Get parents of these students
+              const { data: classParents } = await supabase
+                .from('parents')
+                .select('id, student_id')
+                .in('student_id', Array.from(studentIds))
+              
+              if (classParents) {
+                targetParentIds.push(...classParents.map(p => p.id))
+              }
             }
           } else {
             // Custom group - get from alert_group_members

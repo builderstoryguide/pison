@@ -1,8 +1,12 @@
-# XOF Currency Implementation
+# Currency Implementation (Legacy - See Dynamic Implementation)
+
+> **Note**: This document describes the original XOF-focused currency implementation. 
+> For the current **dynamic currency** implementation that supports multiple currencies configured by the admin, 
+> see [Dynamic Currency Implementation](./dynamic-currency-implementation.md).
 
 ## Overview
 
-This document outlines the centralized XOF (West African CFA franc) currency implementation in the school management application. All currency displays throughout the application now consistently use XOF formatting.
+This document outlines the original centralized XOF (West African CFA franc) currency implementation in the school management application. The system has since been upgraded to support dynamic currency selection.
 
 ## Implementation Details
 

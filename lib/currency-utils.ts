@@ -1,16 +1,19 @@
 /**
- * Currency Utilities for XOF (West African CFA franc)
+ * Currency Utilities
  * Centralized currency formatting for the school management application
+ * Supports dynamic currency based on app configuration
  */
 
 /**
- * Format amount as XOF currency
+ * Format amount with specified currency
  * @param amount - The amount to format
+ * @param currencyCode - The ISO currency code (e.g., 'XOF', 'USD', 'EUR')
  * @param options - Optional formatting options
  * @returns Formatted currency string
  */
-export function formatXOF(
+export function formatWithCurrency(
   amount: number,
+  currencyCode: string = 'XOF',
   options: {
     showSymbol?: boolean
     showDecimals?: boolean
@@ -23,39 +26,68 @@ export function formatXOF(
     locale = 'en-US'
   } = options
 
-  return new Intl.NumberFormat(locale, {
-    style: showSymbol ? 'currency' : 'decimal',
-    currency: 'XOF',
-    minimumFractionDigits: showDecimals ? 2 : 0,
-    maximumFractionDigits: showDecimals ? 2 : 0,
-  }).format(amount)
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: showSymbol ? 'currency' : 'decimal',
+      currency: currencyCode,
+      minimumFractionDigits: showDecimals ? 2 : 0,
+      maximumFractionDigits: showDecimals ? 2 : 0,
+    }).format(amount)
+  } catch (error) {
+    // Fallback if currency code is invalid
+    console.error(`Invalid currency code: ${currencyCode}`, error)
+    return `${currencyCode} ${amount.toLocaleString(locale, {
+      minimumFractionDigits: showDecimals ? 2 : 0,
+      maximumFractionDigits: showDecimals ? 2 : 0,
+    })}`
+  }
 }
 
 /**
- * Format amount as XOF with symbol (default)
+ * Format amount as XOF currency (backward compatibility)
  * @param amount - The amount to format
- * @returns Formatted currency string with XOF symbol
+ * @param options - Optional formatting options
+ * @returns Formatted currency string
  */
-export function formatCurrency(amount: number): string {
-  return formatXOF(amount, { showSymbol: true, showDecimals: false })
+export function formatXOF(
+  amount: number,
+  options: {
+    showSymbol?: boolean
+    showDecimals?: boolean
+    locale?: string
+  } = {}
+): string {
+  return formatWithCurrency(amount, 'XOF', options)
 }
 
 /**
- * Format amount as XOF without symbol
+ * Format amount with symbol (uses XOF by default for backward compatibility)
  * @param amount - The amount to format
+ * @param currencyCode - Optional currency code (defaults to XOF)
+ * @returns Formatted currency string with symbol
+ */
+export function formatCurrency(amount: number, currencyCode: string = 'XOF'): string {
+  return formatWithCurrency(amount, currencyCode, { showSymbol: true, showDecimals: false })
+}
+
+/**
+ * Format amount without symbol
+ * @param amount - The amount to format
+ * @param currencyCode - Optional currency code (defaults to XOF)
  * @returns Formatted number string without currency symbol
  */
-export function formatAmount(amount: number): string {
-  return formatXOF(amount, { showSymbol: false, showDecimals: false })
+export function formatAmount(amount: number, currencyCode: string = 'XOF'): string {
+  return formatWithCurrency(amount, currencyCode, { showSymbol: false, showDecimals: false })
 }
 
 /**
- * Format amount as XOF with decimals
+ * Format amount with decimals
  * @param amount - The amount to format
+ * @param currencyCode - Optional currency code (defaults to XOF)
  * @returns Formatted currency string with decimals
  */
-export function formatCurrencyWithDecimals(amount: number): string {
-  return formatXOF(amount, { showSymbol: true, showDecimals: true })
+export function formatCurrencyWithDecimals(amount: number, currencyCode: string = 'XOF'): string {
+  return formatWithCurrency(amount, currencyCode, { showSymbol: true, showDecimals: true })
 }
 
 /**
@@ -83,32 +115,42 @@ export function isValidCurrency(amount: number): boolean {
 }
 
 /**
- * Get currency symbol for XOF
- * @returns XOF currency symbol
+ * Get currency symbol for a given currency code
+ * @param currencyCode - The currency code (defaults to XOF)
+ * @returns Currency symbol
  */
-export function getCurrencySymbol(): string {
-  return 'XOF'
+export function getCurrencySymbol(currencyCode: string = 'XOF'): string {
+  return currencyCode
 }
 
 /**
  * Get currency name
+ * @param currencyCode - The currency code (defaults to XOF)
  * @returns Full currency name
  */
-export function getCurrencyName(): string {
-  return 'West African CFA franc'
+export function getCurrencyName(currencyCode: string = 'XOF'): string {
+  const currencyNames: { [key: string]: string } = {
+    'XOF': 'West African CFA franc',
+    'XAF': 'Central African CFA franc',
+    'USD': 'US Dollar',
+    'EUR': 'Euro',
+    'GBP': 'British Pound',
+  }
+  return currencyNames[currencyCode] || currencyCode
 }
 
 /**
  * Format range of amounts
  * @param minAmount - Minimum amount
  * @param maxAmount - Maximum amount
+ * @param currencyCode - Optional currency code (defaults to XOF)
  * @returns Formatted range string
  */
-export function formatCurrencyRange(minAmount: number, maxAmount: number): string {
+export function formatCurrencyRange(minAmount: number, maxAmount: number, currencyCode: string = 'XOF'): string {
   if (minAmount === maxAmount) {
-    return formatCurrency(minAmount)
+    return formatCurrency(minAmount, currencyCode)
   }
-  return `${formatCurrency(minAmount)} - ${formatCurrency(maxAmount)}`
+  return `${formatCurrency(minAmount, currencyCode)} - ${formatCurrency(maxAmount, currencyCode)}`
 }
 
 /**
@@ -126,46 +168,51 @@ export function formatCurrencyPercentage(amount: number, total: number): string 
 /**
  * Format currency for display in tables
  * @param amount - The amount to format
+ * @param currencyCode - Optional currency code (defaults to XOF)
  * @returns Formatted currency string optimized for table display
  */
-export function formatCurrencyForTable(amount: number): string {
-  return formatXOF(amount, { showSymbol: true, showDecimals: false })
+export function formatCurrencyForTable(amount: number, currencyCode: string = 'XOF'): string {
+  return formatWithCurrency(amount, currencyCode, { showSymbol: true, showDecimals: false })
 }
 
 /**
  * Format currency for display in cards/dashboards
  * @param amount - The amount to format
+ * @param currencyCode - Optional currency code (defaults to XOF)
  * @returns Formatted currency string optimized for card display
  */
-export function formatCurrencyForCard(amount: number): string {
-  return formatXOF(amount, { showSymbol: true, showDecimals: false })
+export function formatCurrencyForCard(amount: number, currencyCode: string = 'XOF'): string {
+  return formatWithCurrency(amount, currencyCode, { showSymbol: true, showDecimals: false })
 }
 
 /**
  * Format currency for display in forms
  * @param amount - The amount to format
+ * @param currencyCode - Optional currency code (defaults to XOF)
  * @returns Formatted currency string optimized for form display
  */
-export function formatCurrencyForForm(amount: number): string {
-  return formatXOF(amount, { showSymbol: false, showDecimals: false })
+export function formatCurrencyForForm(amount: number, currencyCode: string = 'XOF'): string {
+  return formatWithCurrency(amount, currencyCode, { showSymbol: false, showDecimals: false })
 }
 
 /**
  * Format currency for PDF reports
  * @param amount - The amount to format
+ * @param currencyCode - Optional currency code (defaults to XOF)
  * @returns Formatted currency string optimized for PDF display
  */
-export function formatCurrencyForPDF(amount: number): string {
-  return formatXOF(amount, { showSymbol: true, showDecimals: false })
+export function formatCurrencyForPDF(amount: number, currencyCode: string = 'XOF'): string {
+  return formatWithCurrency(amount, currencyCode, { showSymbol: true, showDecimals: false })
 }
 
 /**
  * Format currency for receipts
  * @param amount - The amount to format
+ * @param currencyCode - Optional currency code (defaults to XOF)
  * @returns Formatted currency string optimized for receipt display
  */
-export function formatCurrencyForReceipt(amount: number): string {
-  return formatXOF(amount, { showSymbol: true, showDecimals: false })
+export function formatCurrencyForReceipt(amount: number, currencyCode: string = 'XOF'): string {
+  return formatWithCurrency(amount, currencyCode, { showSymbol: true, showDecimals: false })
 }
 
 // Export default function for backward compatibility

@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { formatCurrency } from '@/lib/currency-utils'
+import { useCurrencyFormatter } from '@/lib/app-configuration-context-v2'
 import { PaymentDetailsDialog } from './payment-details-dialog'
 
 interface Student {
@@ -55,6 +55,7 @@ interface Payment {
 
 export function PaymentRecording() {
   const { toast } = useToast()
+  const { formatCurrency } = useCurrencyFormatter()
   const [students, setStudents] = useState<Student[]>([])
   const [studentFees, setStudentFees] = useState<StudentFee[]>([])
   const [payments, setPayments] = useState<Payment[]>([])

@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
 import { EnhancedFeeStructureForm } from "./enhanced-fee-structure-form"
 import { format } from "date-fns"
-import { formatCurrency } from "@/lib/currency-utils"
+import { useCurrencyFormatter } from "@/lib/app-configuration-context-v2"
 
 interface FeeStructure {
   id: string
@@ -37,6 +37,7 @@ interface FeeStructure {
 export function EnhancedFeeStructureManagement() {
   const { toast } = useToast()
   const globalAcademicYear = useGlobalAcademicYear()
+  const { formatCurrency } = useCurrencyFormatter()
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")

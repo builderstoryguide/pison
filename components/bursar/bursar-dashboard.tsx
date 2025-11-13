@@ -61,7 +61,7 @@ import { PaymentForm } from './payment-form'
 import { CollectionReport } from './reports/collection-report'
 import { OutstandingReport } from './reports/outstanding-report'
 import { RevenueReport } from './reports/revenue-report'
-import { formatCurrency } from '@/lib/currency-utils'
+import { useCurrencyFormatter } from '@/lib/app-configuration-context-v2'
 import { useToast } from '@/hooks/use-toast'
 
 interface BursarDashboardProps {
@@ -80,6 +80,7 @@ export function BursarDashboard({ onNavigate }: BursarDashboardProps = {}) {
   } = useBursar()
 
   const { toast } = useToast()
+  const { formatCurrency } = useCurrencyFormatter()
   const [selectedView, setSelectedView] = useState<string>("overview")
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState<string>("all")

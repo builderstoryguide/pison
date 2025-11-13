@@ -743,3 +743,91 @@ export const useGlobalSystemSettings = () => {
     configuration.language
   ])
 }
+
+/**
+ * Currency Formatter Hook
+ * Provides currency formatting functions that automatically use the global currency
+ * from app configuration. This ensures consistent currency display throughout the app.
+ */
+export const useCurrencyFormatter = () => {
+  const currency = useGlobalCurrency()
+  
+  return useMemo(() => {
+    // Import currency utility functions dynamically
+    const {
+      formatCurrency,
+      formatAmount,
+      formatCurrencyWithDecimals,
+      formatCurrencyRange,
+      formatCurrencyForTable,
+      formatCurrencyForCard,
+      formatCurrencyForForm,
+      formatCurrencyForPDF,
+      formatCurrencyForReceipt,
+      getCurrencySymbol,
+      getCurrencyName
+    } = require('./currency-utils')
+
+    return {
+      /**
+       * Format amount with currency symbol using the global currency
+       */
+      formatCurrency: (amount: number) => formatCurrency(amount, currency),
+      
+      /**
+       * Format amount without currency symbol using the global currency
+       */
+      formatAmount: (amount: number) => formatAmount(amount, currency),
+      
+      /**
+       * Format amount with decimals using the global currency
+       */
+      formatCurrencyWithDecimals: (amount: number) => formatCurrencyWithDecimals(amount, currency),
+      
+      /**
+       * Format range of amounts using the global currency
+       */
+      formatCurrencyRange: (minAmount: number, maxAmount: number) => formatCurrencyRange(minAmount, maxAmount, currency),
+      
+      /**
+       * Format currency for table display using the global currency
+       */
+      formatCurrencyForTable: (amount: number) => formatCurrencyForTable(amount, currency),
+      
+      /**
+       * Format currency for card/dashboard display using the global currency
+       */
+      formatCurrencyForCard: (amount: number) => formatCurrencyForCard(amount, currency),
+      
+      /**
+       * Format currency for form display using the global currency
+       */
+      formatCurrencyForForm: (amount: number) => formatCurrencyForForm(amount, currency),
+      
+      /**
+       * Format currency for PDF reports using the global currency
+       */
+      formatCurrencyForPDF: (amount: number) => formatCurrencyForPDF(amount, currency),
+      
+      /**
+       * Format currency for receipts using the global currency
+       */
+      formatCurrencyForReceipt: (amount: number) => formatCurrencyForReceipt(amount, currency),
+      
+      /**
+       * Get the current currency symbol
+       */
+      getCurrencySymbol: () => getCurrencySymbol(currency),
+      
+      /**
+       * Get the current currency name
+       */
+      getCurrencyName: () => getCurrencyName(currency),
+      
+      /**
+       * Get the current currency code
+       */
+      currency
+    }
+  }, [currency])
+}

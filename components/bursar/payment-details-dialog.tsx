@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
-import { formatCurrency } from '@/lib/currency-utils'
+import { useCurrencyFormatter } from '@/lib/app-configuration-context-v2'
 
 interface Payment {
   id: string
@@ -46,6 +46,7 @@ interface PaymentDetailsDialogProps {
 
 export function PaymentDetailsDialog({ payment, isOpen, onClose }: PaymentDetailsDialogProps) {
   const { toast } = useToast()
+  const { formatCurrency } = useCurrencyFormatter()
   const [isPrinting, setIsPrinting] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
 

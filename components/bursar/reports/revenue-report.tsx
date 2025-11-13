@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
-import { formatCurrency } from '@/lib/currency-utils'
+import { useCurrencyFormatter } from '@/lib/app-configuration-context-v2'
 
 interface RevenueReportData {
   monthName: string
@@ -42,6 +42,7 @@ interface RevenueReportSummary {
 
 export function RevenueReport() {
   const { toast } = useToast()
+  const { formatCurrency } = useCurrencyFormatter()
   const [reportData, setReportData] = useState<RevenueReportData[]>([])
   const [summary, setSummary] = useState<RevenueReportSummary | null>(null)
   const [isLoading, setIsLoading] = useState(false)

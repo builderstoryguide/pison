@@ -7,6 +7,7 @@ import { UserManagementProvider } from "@/lib/user-management-context"
 import { StudentEnrollmentProvider } from "@/lib/student-enrollment-context"
 import { StudentManagementProvider } from "@/lib/student-management-context"
 import { TeacherManagementProvider } from "@/lib/teacher-management-context"
+import { EmployeeManagementProvider } from "@/lib/employee-management-context"
 import { ClassManagementProvider } from "@/lib/class-management-context"
 import { SubjectManagementProvider } from "@/lib/subject-management-context"
 import { ExaminationProvider } from "@/lib/examination-context"
@@ -19,7 +20,7 @@ import { BursarProvider } from "@/lib/bursar-context"
 import { TimetableProvider } from "@/lib/timetable-context"
 import { useNotifications } from "@/lib/notification-context"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { formatCurrency } from "@/lib/currency-utils"
+import { useCurrencyFormatter } from "@/lib/app-configuration-context-v2"
 
 // Context hooks for data fetching
 import { useStudentManagement } from "@/lib/student-management-context"
@@ -33,6 +34,7 @@ import { StudentManagement } from "./admin/student-management"
 import { StudentIdCards } from "./admin/student-id-cards"
 import { ReportCards } from "./admin/report-cards-backup"
 import { TeacherManagement } from "./admin/teacher-management"
+import { EmployeeManagement } from "./admin/employee-management"
 import { ClassManagement } from "./admin/class-management"
 import { SubjectManagement } from "./admin/subject-management"
 import { ExaminationManagement } from "./admin/examination-management"
@@ -150,6 +152,7 @@ import {
   Award,
   RefreshCw,
   ChevronRight,
+  Briefcase,
 } from "lucide-react"
 
 type AdminView =
@@ -160,6 +163,7 @@ type AdminView =
   | "student-id-cards"
   | "report-cards"
   | "teachers"
+  | "employees"
   | "classes"
   | "subjects"
   | "timetable"
@@ -399,6 +403,7 @@ interface BursarDashboardProps {
 
 export function Dashboard() {
   const { user, logout: originalLogout } = useAuth()
+  const { formatCurrency } = useCurrencyFormatter()
   
   // Custom logout function that clears localStorage
   const handleLogout = () => {
@@ -922,6 +927,7 @@ export function Dashboard() {
         ],
       },
       { id: "teachers", label: "Teacher Management", icon: UserCheck },
+      { id: "employees", label: "Manage Employees", icon: Briefcase },
       { id: "classes", label: "Class Management", icon: BookOpen },
       { id: "subjects", label: "Manage Subjects", icon: BookOpen },
       { id: "timetable", label: "Timetable Management", icon: CalendarDays },
@@ -964,6 +970,12 @@ export function Dashboard() {
           return <ReportCards />
         case "teachers":
           return <TeacherManagement />
+        case "employees":
+          return (
+            <EmployeeManagementProvider>
+              <EmployeeManagement />
+            </EmployeeManagementProvider>
+          )
         case "classes":
           return <ClassManagement />
         case "subjects":

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useToast } from '@/hooks/use-toast'
-import { formatCurrency } from '@/lib/currency-utils'
+import { useCurrencyFormatter } from '@/lib/app-configuration-context-v2'
 
 interface FeeStructure {
   id: string
@@ -23,6 +23,7 @@ interface FeeStructure {
 
 export function FeeStructureManagement() {
   const { toast } = useToast()
+  const { formatCurrency } = useCurrencyFormatter()
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
