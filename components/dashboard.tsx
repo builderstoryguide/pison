@@ -465,7 +465,7 @@ export function Dashboard() {
 
   // Update students menu open state when view changes
   useEffect(() => {
-    if (user.role === "admin") {
+    if (user?.role === "admin") {
       const isSubItemActive = adminCurrentView === "students-list" || 
                              adminCurrentView === "student-id-cards" || 
                              adminCurrentView === "report-cards" || 
@@ -479,11 +479,11 @@ export function Dashboard() {
         setStudentsMenuManuallyClosed(false)
       }
     }
-  }, [adminCurrentView, user.role, studentsMenuManuallyClosed])
+  }, [adminCurrentView, user?.role, studentsMenuManuallyClosed])
 
   // Update finances menu open state when view changes
   useEffect(() => {
-    if (user.role === "admin") {
+    if (user?.role === "admin") {
       const isSubItemActive = adminCurrentView === "sales" || 
                              adminCurrentView === "payment" || 
                              adminCurrentView === "expenditures" || 
@@ -497,11 +497,11 @@ export function Dashboard() {
         setFinancesMenuManuallyClosed(false)
       }
     }
-  }, [adminCurrentView, user.role, financesMenuManuallyClosed])
+  }, [adminCurrentView, user?.role, financesMenuManuallyClosed])
 
   // Update reports menu open state when view changes
   useEffect(() => {
-    if (user.role === "admin") {
+    if (user?.role === "admin") {
       const isSubItemActive = adminCurrentView === "financial-reports" || 
                              adminCurrentView === "academic-reports"
       // Only auto-open if a sub-item is active and menu wasn't manually closed
@@ -513,7 +513,7 @@ export function Dashboard() {
         setReportsMenuManuallyClosed(false)
       }
     }
-  }, [adminCurrentView, user.role, reportsMenuManuallyClosed])
+  }, [adminCurrentView, user?.role, reportsMenuManuallyClosed])
   
   const [teacherCurrentView, setTeacherCurrentView] = useState<TeacherView>(() => {
     if (typeof window !== 'undefined') {
@@ -561,7 +561,7 @@ export function Dashboard() {
 
   // Update bursar finances menu open state when view changes
   useEffect(() => {
-    if (user.role === "bursar") {
+    if (user?.role === "bursar") {
       const isSubItemActive = bursarCurrentView === "sales" || 
                              bursarCurrentView === "payment" || 
                              bursarCurrentView === "expenditures" || 
@@ -575,7 +575,7 @@ export function Dashboard() {
         setBursarFinancesMenuManuallyClosed(false)
       }
     }
-  }, [bursarCurrentView, user.role, bursarFinancesMenuManuallyClosed])
+  }, [bursarCurrentView, user?.role, bursarFinancesMenuManuallyClosed])
   
   // Sidebar state is now managed by SidebarProvider
   
