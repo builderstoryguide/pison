@@ -33,6 +33,7 @@ const MIGRATION_SCRIPTS = {
   'app_configuration': '2025-11-04_006_app_configuration.sql',
   'examinations': '2025-11-04_010_examinations.sql',
   'exam_results': '2025-11-04_010_examinations.sql',
+  'sales': '2025-11-04_028_create_sales_table.sql',
 }
 
 const SETUP_INSTRUCTIONS = `Run the database migration scripts in order in your Supabase SQL Editor:
@@ -66,11 +67,15 @@ export async function checkTableExists(
 
     if (error) {
       // Check if it's a "relation does not exist" error
+      // PGRST205: Could not find the table in the schema cache
+      // PGRST116: relation does not exist
       if (
         error.code === 'PGRST116' ||
+        error.code === 'PGRST205' ||
         error.message?.includes('relation') ||
         error.message?.includes('does not exist') ||
-        error.message?.includes('no such table')
+        error.message?.includes('no such table') ||
+        error.message?.includes('Could not find the table')
       ) {
         const setupScript = MIGRATION_SCRIPTS[tableName as keyof typeof MIGRATION_SCRIPTS]
         return {
@@ -118,11 +123,15 @@ export async function checkViewExists(
 
     if (error) {
       // Check if it's a "relation does not exist" error
+      // PGRST205: Could not find the table in the schema cache
+      // PGRST116: relation does not exist
       if (
         error.code === 'PGRST116' ||
+        error.code === 'PGRST205' ||
         error.message?.includes('relation') ||
         error.message?.includes('does not exist') ||
-        error.message?.includes('no such table')
+        error.message?.includes('no such table') ||
+        error.message?.includes('Could not find the table')
       ) {
         const setupScript = MIGRATION_SCRIPTS[viewName as keyof typeof MIGRATION_SCRIPTS]
         return {

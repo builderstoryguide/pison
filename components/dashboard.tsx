@@ -1031,6 +1031,7 @@ export function Dashboard() {
                                   <SidebarMenuSubButton
                                     onClick={() => setAdminCurrentView(subItem.id as AdminView)}
                                     isActive={adminCurrentView === subItem.id}
+                                    className="hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
                                   >
                                     <span>{subItem.label}</span>
                                   </SidebarMenuSubButton>
@@ -1403,6 +1404,7 @@ export function Dashboard() {
                                   <SidebarMenuSubButton
                                     onClick={() => setBursarCurrentView(subItem.id as BursarView)}
                                     isActive={bursarCurrentView === subItem.id}
+                                    className="hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
                                   >
                                     <span>{subItem.label}</span>
                                   </SidebarMenuSubButton>

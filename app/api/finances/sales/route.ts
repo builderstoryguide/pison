@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { checkTableExists } from '@/lib/database-validation';
 
 // GET - Fetch all sales
 export async function GET(request: NextRequest) {
@@ -12,6 +13,21 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
 
     const supabase = createServiceClient();
+
+    // Validate that the sales table exists
+    const { exists, error: tableError } = await checkTableExists(supabase, 'sales');
+    if (!exists) {
+      console.error('Sales table does not exist:', tableError);
+      return NextResponse.json({
+        sales: [],
+        total: 0,
+        limit,
+        offset,
+        error: tableError?.message || 'Sales table not found. Please run the database migration script: 2025-11-04_028_create_sales_table.sql',
+        setupRequired: true,
+        setupScript: '2025-11-04_028_create_sales_table.sql'
+      }, { status: 503 }); // 503 Service Unavailable - indicates missing database setup
+    }
 
     // Build query for Supabase
     let query = supabase
@@ -146,18 +162,16 @@ export async function POST(request: NextRequest) {
     // Use service client to bypass RLS for API operations
     const supabase = createServiceClient();
 
-    // Test if table exists by doing a simple select
-    const { error: tableError } = await supabase
-      .from('sales')
-      .select('id')
-      .limit(1);
-
-    if (tableError) {
-      console.error('Table access error:', tableError);
+    // Validate that the sales table exists
+    const { exists, error: tableError } = await checkTableExists(supabase, 'sales');
+    if (!exists) {
+      console.error('Sales table does not exist:', tableError);
       return NextResponse.json({
         success: false,
-        error: `Database table error: ${tableError.message || 'Sales table not accessible'}`
-      }, { status: 500 });
+        error: tableError?.message || 'Sales table not found. Please run the database migration script: 2025-11-04_028_create_sales_table.sql',
+        setupRequired: true,
+        setupScript: '2025-11-04_028_create_sales_table.sql'
+      }, { status: 503 }); // 503 Service Unavailable - indicates missing database setup
     }
 
     // Insert into Supabase
@@ -203,6 +217,18 @@ export async function PUT(request: NextRequest) {
     }
 
     const supabase = createServiceClient();
+
+    // Validate that the sales table exists
+    const { exists, error: tableError } = await checkTableExists(supabase, 'sales');
+    if (!exists) {
+      console.error('Sales table does not exist:', tableError);
+      return NextResponse.json({
+        success: false,
+        error: tableError?.message || 'Sales table not found. Please run the database migration script: 2025-11-04_028_create_sales_table.sql',
+        setupRequired: true,
+        setupScript: '2025-11-04_028_create_sales_table.sql'
+      }, { status: 503 });
+    }
 
     // Update in Supabase
     const { data, error } = await supabase
@@ -258,6 +284,18 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = createServiceClient();
+
+    // Validate that the sales table exists
+    const { exists, error: tableError } = await checkTableExists(supabase, 'sales');
+    if (!exists) {
+      console.error('Sales table does not exist:', tableError);
+      return NextResponse.json({
+        success: false,
+        error: tableError?.message || 'Sales table not found. Please run the database migration script: 2025-11-04_028_create_sales_table.sql',
+        setupRequired: true,
+        setupScript: '2025-11-04_028_create_sales_table.sql'
+      }, { status: 503 });
+    }
 
     // Delete from Supabase
     const { error } = await supabase

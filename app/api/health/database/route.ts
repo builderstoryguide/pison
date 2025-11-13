@@ -40,6 +40,7 @@ export async function GET(_request: NextRequest) {
       'grades',
       'examinations',
       'exam_results',
+      'sales',
     ]
 
     const requiredViews = [
@@ -107,6 +108,7 @@ export async function GET(_request: NextRequest) {
 8. 2025-11-04_008_seed_admin_user.sql
 9. 2025-11-04_009_fk_classes_teacher.sql
 10. 2025-11-04_010_examinations.sql
+11. 2025-11-04_028_create_sales_table.sql
 
 See scripts/README.md for detailed instructions.`,
       missingScripts: validationResult.isValid

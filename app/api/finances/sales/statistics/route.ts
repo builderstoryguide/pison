@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { checkTableExists } from '@/lib/database-validation';
 
 // Types
 interface SalesStats {
@@ -70,6 +71,13 @@ async function getOverviewStats() {
   try {
     const supabase = createServiceClient();
 
+    // Validate that the sales table exists
+    const { exists, error: tableError } = await checkTableExists(supabase, 'sales');
+    if (!exists) {
+      console.error('Sales table does not exist:', tableError);
+      return NextResponse.json(getEmptyStats());
+    }
+
     // Calculate statistics directly from sales table
     const { data: salesData, error: salesError } = await supabase
       .from('sales')
@@ -133,6 +141,12 @@ async function getMonthlySummary() {
   try {
     const supabase = createServiceClient();
 
+    // Validate that the sales table exists
+    const { exists } = await checkTableExists(supabase, 'sales');
+    if (!exists) {
+      return NextResponse.json([]);
+    }
+
     const { data: salesData, error: salesError } = await supabase
       .from('sales')
       .select('total_amount, quantity, sale_date, status')
@@ -188,6 +202,12 @@ async function getMonthlySummary() {
 async function getItemTypeSummary() {
   try {
     const supabase = createServiceClient();
+
+    // Validate that the sales table exists
+    const { exists } = await checkTableExists(supabase, 'sales');
+    if (!exists) {
+      return NextResponse.json([]);
+    }
 
     const { data: salesData, error: salesError } = await supabase
       .from('sales')
