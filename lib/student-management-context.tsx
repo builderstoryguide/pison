@@ -23,6 +23,7 @@ export interface Student {
   subsystem?: "english" | "french"
   branch?: "grammar" | "technical" | "commercial"
   class?: string
+  class_name?: string
   previous_school?: string
   previous_class?: string
   is_new_student?: boolean
@@ -163,26 +164,55 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
         return
       }
 
-      // Load from Supabase
-      if (!supabase) {
-        console.log("⚠️ Supabase client not available, using mock data")
+      // Use API route which includes class_name in the response
+      const response = await fetch("/api/students")
+      
+      if (!response.ok) {
+        console.log("⚠️ Failed to load from API, using mock data")
         setStudents(mockStudents)
         return
       }
 
-      const { data, error: fetchError } = await supabase
-        .from("students")
-        .select("*")
-        .order("created_at", { ascending: false })
+      const data = await response.json()
+      
+      // Transform API response to match Student interface
+      // The API already includes class_name, so we can use it directly
+      const transformedData: Student[] = (data || []).map((student: any) => ({
+        id: student.id,
+        student_id: student.student_id,
+        first_name: student.first_name,
+        last_name: student.last_name,
+        middle_name: student.middle_name,
+        email: student.email,
+        phone: student.phone,
+        date_of_birth: student.date_of_birth,
+        gender: student.gender,
+        place_of_birth: student.place_of_birth,
+        nationality: student.nationality,
+        religion: student.religion,
+        address: student.address,
+        city: student.city,
+        region: student.region,
+        subsystem: student.subsystem,
+        branch: student.branch,
+        class: student.class,
+        class_name: student.class_name, // This is now included from the API
+        previous_school: student.previous_school,
+        previous_class: student.previous_class,
+        is_new_student: student.is_new_student,
+        total_fees: student.total_fees || 0,
+        paid_fees: student.paid_fees || 0,
+        fees_status: student.fees_status || "pending",
+        enrollment_status: student.enrollment_status || "pending",
+        academic_year: student.academic_year,
+        status: student.status || "active",
+        enrollment_date: student.enrollment_date,
+        created_at: student.created_at,
+        updated_at: student.updated_at,
+      }))
 
-      if (fetchError) {
-        console.log("⚠️ Failed to load from database, using mock data:", fetchError.message)
-        setStudents(mockStudents)
-        return
-      }
-
-      setStudents(data || [])
-      console.log("Loaded students from database:", data?.length || 0)
+      setStudents(transformedData)
+      console.log("Loaded students from API:", transformedData.length)
     } catch (err) {
       console.log("⚠️ Error loading students, using mock data:", err)
       setStudents(mockStudents)

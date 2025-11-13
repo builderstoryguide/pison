@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useFinancial } from "@/lib/financial-context"
 import { useStudentManagement } from "@/lib/student-management-context"
-import { cn } from "@/lib/utils"
+import { cn, getStudentClassName } from "@/lib/utils"
 import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
 import { Info } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -199,7 +199,7 @@ export function StudentFeeAssignmentForm({ onSuccess, onCancel, editData }: Stud
                                 {student.first_name} {student.last_name}
                               </span>
                               <span className="text-sm text-muted-foreground">
-                                ID: {student.student_id} • Class: {student.class}
+                                ID: {student.student_id} • Class: {getStudentClassName(student) || 'Not Assigned'}
                               </span>
                             </div>
                           </SelectItem>

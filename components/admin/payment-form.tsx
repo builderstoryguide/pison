@@ -19,7 +19,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useFinancial, type Payment } from "@/lib/financial-context"
 import { useStudentManagement } from "@/lib/student-management-context"
 import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
-import { cn } from "@/lib/utils"
+import { cn, getStudentClassName } from "@/lib/utils"
 
 const paymentSchema = z.object({
   studentId: z.string().min(1, "Student is required"),
@@ -158,11 +158,14 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {students.map((student) => (
-                            <SelectItem key={student.id} value={student.id}>
-                              {student.first_name} {student.last_name} - {(student as any).class_name || student.class}
-                            </SelectItem>
-                          ))}
+                          {students.map((student) => {
+                            const className = getStudentClassName(student)
+                            return (
+                              <SelectItem key={student.id} value={student.id}>
+                                {student.first_name} {student.last_name}{className ? ` - ${className}` : ''}
+                              </SelectItem>
+                            )
+                          })}
                         </SelectContent>
                       </Select>
                       <FormMessage />

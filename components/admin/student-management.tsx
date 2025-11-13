@@ -52,6 +52,7 @@ import {
 import { useStudentManagement, type Student, type StudentFilters } from "@/lib/student-management-context"
 import { useUserManagement } from "@/lib/user-management-context"
 import { useToast } from "@/hooks/use-toast"
+import { getStudentClassName } from "@/lib/utils"
 import { StudentEnrollmentForm } from "./student-enrollment-form"
 import { EnrollmentSuccessDialog } from "./enrollment-success-dialog"
 import { StudentDetailsDialog } from "./student-details-dialog"
@@ -971,7 +972,7 @@ export function StudentManagement() {
                           </TableCell>
                           <TableCell>
                             <div>
-                              <div className="font-medium">{student.class}</div>
+                              <div className="font-medium">{getStudentClassName(student) || student.class || 'Not Assigned'}</div>
                               <div className="text-sm text-muted-foreground capitalize">{student.subsystem} System</div>
                             </div>
                           </TableCell>

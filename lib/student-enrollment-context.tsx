@@ -119,7 +119,10 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
       setIsUsingDatabase(connected)
       return connected
     } catch (error) {
-      console.error("Database connection test failed:", error)
+      // Use console.warn instead of console.error to avoid triggering Next.js error boundaries
+      if (process.env.NODE_ENV === 'development') {
+        console.warn("Database connection test failed:", error)
+      }
       setIsUsingDatabase(false)
       return false
     }

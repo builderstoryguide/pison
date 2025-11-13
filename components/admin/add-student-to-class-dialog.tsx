@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Search, Users, UserPlus, AlertCircle } from "lucide-react"
 import { useStudentManagement, type Student } from "@/lib/student-management-context"
 import { useToast } from "@/hooks/use-toast"
+import { getStudentClassName } from "@/lib/utils"
 
 interface AddStudentToClassDialogProps {
   open: boolean
@@ -196,7 +197,7 @@ export function AddStudentToClassDialog({
                             </div>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-xs">
-                                {student.class || "No Class"}
+                                {getStudentClassName(student) || "No Class"}
                               </Badge>
                               <Badge 
                                 variant={student.fees_status === "paid" ? "default" : "secondary"}

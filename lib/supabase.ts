@@ -11,7 +11,10 @@ export const isSupabaseAvailable = (): boolean => {
 
 export const testConnection = async (): Promise<boolean> => {
   if (!supabase) {
-    console.error('Supabase client not initialized - missing environment variables')
+    // Use console.warn instead of console.error to avoid triggering Next.js error boundaries
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Supabase client not initialized - missing environment variables')
+    }
     return false
   }
 
@@ -20,13 +23,26 @@ export const testConnection = async (): Promise<boolean> => {
     const { error } = await supabase.from("users").select("count", { count: "exact", head: true })
     
     if (error) {
-      console.error('Database connection test failed:', error.message)
+      // Use console.warn instead of console.error to avoid triggering Next.js error boundaries
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Database connection test failed:', error.message || 'Unknown error')
+      }
       return false
     }
     
     return true
   } catch (error) {
-    console.error('Database connection test failed with exception:', error)
+    // Use console.warn instead of console.error to avoid triggering Next.js error boundaries
+    // Extract error message safely
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : error instanceof TypeError && error.message === 'Failed to fetch'
+        ? 'Network error: Unable to reach Supabase. Check your internet connection and Supabase URL.'
+        : String(error)
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Database connection test failed with exception:', errorMessage)
+    }
     return false
   }
 }
