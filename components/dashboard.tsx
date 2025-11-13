@@ -37,6 +37,9 @@ import { SubjectManagement } from "./admin/subject-management"
 import { ExaminationManagement } from "./admin/examination-management"
 import { TimetableManagement } from "./admin/timetable-management"
 import { FinancialManagement } from "./admin/financial-management"
+import { SalesManagement } from "./admin/sales-management"
+import { ExpenditureManagement } from "./admin/expenditure-management"
+import { PaymentManagement } from "./admin/payment-management"
 import { AppConfiguration } from "./admin/app-configuration"
 import { ProfileSettings } from "./profile/profile-settings"
 import { BursarProfile } from "./bursar/bursar-profile"
@@ -157,6 +160,9 @@ type AdminView =
   | "timetable"
   | "examinations"
   | "financial"
+  | "sales"
+  | "payment"
+  | "expenditures"
   | "configuration"
   | "profile"
 
@@ -166,7 +172,7 @@ type ParentView = "dashboard" | "records" | "communication" | "profile"
 
 type StudentView = "dashboard" | "grades" | "schedule" | "assignments" | "fees" | "profile"
 
-type BursarView = "dashboard" | "financial" | "reports" | "profile"
+type BursarView = "dashboard" | "financial" | "sales" | "payment" | "expenditures" | "reports" | "profile"
 
 // Mock notifications data
 const mockNotifications = [
@@ -420,6 +426,18 @@ export function Dashboard() {
   // Track if user manually closed the menu
   const [studentsMenuManuallyClosed, setStudentsMenuManuallyClosed] = useState(false)
 
+  // State for managing finances menu collapsible open/close
+  const [financesMenuOpen, setFinancesMenuOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('adminCurrentView')
+      return saved === "sales" || saved === "payment" || saved === "expenditures" || saved === "financial"
+    }
+    return false
+  })
+
+  // Track if user manually closed the finances menu
+  const [financesMenuManuallyClosed, setFinancesMenuManuallyClosed] = useState(false)
+
   // Update students menu open state when view changes
   useEffect(() => {
     if (user.role === "admin") {
@@ -437,6 +455,24 @@ export function Dashboard() {
       }
     }
   }, [adminCurrentView, user.role, studentsMenuManuallyClosed])
+
+  // Update finances menu open state when view changes
+  useEffect(() => {
+    if (user.role === "admin") {
+      const isSubItemActive = adminCurrentView === "sales" || 
+                             adminCurrentView === "payment" || 
+                             adminCurrentView === "expenditures" || 
+                             adminCurrentView === "financial"
+      // Only auto-open if a sub-item is active and menu wasn't manually closed
+      if (isSubItemActive && !financesMenuManuallyClosed) {
+        setFinancesMenuOpen(true)
+      }
+      // Reset manual close flag when navigating to a finances sub-item
+      if (isSubItemActive) {
+        setFinancesMenuManuallyClosed(false)
+      }
+    }
+  }, [adminCurrentView, user.role, financesMenuManuallyClosed])
   
   const [teacherCurrentView, setTeacherCurrentView] = useState<TeacherView>(() => {
     if (typeof window !== 'undefined') {
@@ -469,6 +505,36 @@ export function Dashboard() {
     }
     return "dashboard"
   })
+
+  // State for managing bursar finances menu collapsible open/close
+  const [bursarFinancesMenuOpen, setBursarFinancesMenuOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bursarCurrentView')
+      return saved === "sales" || saved === "payment" || saved === "expenditures" || saved === "financial"
+    }
+    return false
+  })
+
+  // Track if user manually closed the bursar finances menu
+  const [bursarFinancesMenuManuallyClosed, setBursarFinancesMenuManuallyClosed] = useState(false)
+
+  // Update bursar finances menu open state when view changes
+  useEffect(() => {
+    if (user.role === "bursar") {
+      const isSubItemActive = bursarCurrentView === "sales" || 
+                             bursarCurrentView === "payment" || 
+                             bursarCurrentView === "expenditures" || 
+                             bursarCurrentView === "financial"
+      // Only auto-open if a sub-item is active and menu wasn't manually closed
+      if (isSubItemActive && !bursarFinancesMenuManuallyClosed) {
+        setBursarFinancesMenuOpen(true)
+      }
+      // Reset manual close flag when navigating to a finances sub-item
+      if (isSubItemActive) {
+        setBursarFinancesMenuManuallyClosed(false)
+      }
+    }
+  }, [bursarCurrentView, user.role, bursarFinancesMenuManuallyClosed])
   
   // Sidebar state is now managed by SidebarProvider
   
@@ -819,7 +885,16 @@ export function Dashboard() {
       { id: "subjects", label: "Manage Subjects", icon: BookOpen },
       { id: "timetable", label: "Timetable Management", icon: CalendarDays },
       { id: "examinations", label: "Examinations", icon: FileText },
-      { id: "financial", label: "Financial Management", icon: DollarSign },
+      {
+        id: "financial",
+        label: "Finances",
+        icon: DollarSign,
+        subItems: [
+          { id: "sales", label: "Sales" },
+          { id: "payment", label: "Payment" },
+          { id: "expenditures", label: "Expenditures" },
+        ],
+      },
       { id: "configuration", label: "App Configuration", icon: Settings },
     ]
 
@@ -860,6 +935,12 @@ export function Dashboard() {
           )
         case "financial":
           return <FinancialManagement />
+        case "sales":
+          return <SalesManagement />
+        case "payment":
+          return <PaymentManagement />
+        case "expenditures":
+          return <ExpenditureManagement />
         case "configuration":
           return <AppConfiguration />
         case "profile":
@@ -898,7 +979,12 @@ export function Dashboard() {
 
                   if (item.subItems && item.subItems.length > 0) {
                     const isStudentsMenu = item.id === "students"
-                    const menuOpen = isStudentsMenu ? studentsMenuOpen : isOpen
+                    const isFinancesMenu = item.id === "financial"
+                    const menuOpen = isStudentsMenu 
+                      ? studentsMenuOpen 
+                      : isFinancesMenu 
+                      ? financesMenuOpen 
+                      : isOpen
 
                     return (
                       <Collapsible
@@ -912,6 +998,14 @@ export function Dashboard() {
                               setStudentsMenuManuallyClosed(true)
                             } else {
                               setStudentsMenuManuallyClosed(false)
+                            }
+                          } else if (isFinancesMenu) {
+                            setFinancesMenuOpen(open)
+                            // Track if user manually closed the menu
+                            if (!open) {
+                              setFinancesMenuManuallyClosed(true)
+                            } else {
+                              setFinancesMenuManuallyClosed(false)
                             }
                           }
                           // For other menus, the open state is controlled by isOpen which is based on active state
@@ -1194,9 +1288,23 @@ export function Dashboard() {
 
   // Bursar Dashboard
   if (user.role === "bursar") {
-    const bursarMenuItems = [
+    const bursarMenuItems: Array<{
+      id: string
+      label: string
+      icon: any
+      subItems?: Array<{ id: string; label: string }>
+    }> = [
       { id: "dashboard", label: "Dashboard", icon: Home },
-      { id: "financial", label: "Fee Management", icon: DollarSign },
+      {
+        id: "financial",
+        label: "Finances",
+        icon: DollarSign,
+        subItems: [
+          { id: "sales", label: "Sales" },
+          { id: "payment", label: "Payment" },
+          { id: "expenditures", label: "Expenditures" },
+        ],
+      },
       { id: "reports", label: "Financial Reports", icon: BarChart3 },
     ]
 
@@ -1212,6 +1320,12 @@ export function Dashboard() {
               <BursarDashboard />
             </div>
           )
+        case "sales":
+          return <SalesManagement />
+        case "payment":
+          return <PaymentManagement />
+        case "expenditures":
+          return <ExpenditureManagement />
         case "reports":
           return <FinancialReports onNavigate={(view: string) => setBursarCurrentView(view as BursarView)} />
         case "profile":
@@ -1240,18 +1354,80 @@ export function Dashboard() {
             <SidebarGroup>
               <SidebarGroupLabel>Financial Management</SidebarGroupLabel>
               <SidebarMenu>
-                {bursarMenuItems.map((item) => (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton
-                      onClick={() => setBursarCurrentView(item.id as BursarView)}
-                      isActive={bursarCurrentView === item.id}
-                      className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                {bursarMenuItems.map((item) => {
+                  // Check if any sub-item is active
+                  const isSubItemActive = item.subItems?.some(
+                    (subItem) => bursarCurrentView === subItem.id
+                  )
+                  const isParentActive = bursarCurrentView === item.id || isSubItemActive
+                  const isOpen = isSubItemActive || bursarCurrentView === item.id
+
+                  if (item.subItems && item.subItems.length > 0) {
+                    const isFinancesMenu = item.id === "financial"
+                    const menuOpen = isFinancesMenu ? bursarFinancesMenuOpen : isOpen
+
+                    return (
+                      <Collapsible
+                        key={item.id}
+                        open={menuOpen}
+                        onOpenChange={(open) => {
+                          if (isFinancesMenu) {
+                            setBursarFinancesMenuOpen(open)
+                            // Track if user manually closed the menu
+                            if (!open) {
+                              setBursarFinancesMenuManuallyClosed(true)
+                            } else {
+                              setBursarFinancesMenuManuallyClosed(false)
+                            }
+                          }
+                          // For other menus, the open state is controlled by isOpen which is based on active state
+                          // They will automatically close when a different menu item is selected
+                        }}
+                        className="group/collapsible"
+                      >
+                        <SidebarMenuItem>
+                          <CollapsibleTrigger asChild>
+                            <SidebarMenuButton
+                              isActive={isParentActive}
+                              className="hover:bg-accent hover:text-accent-foreground transition-colors w-full"
+                            >
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.label}</span>
+                              <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                            </SidebarMenuButton>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+                            <SidebarMenuSub>
+                              {item.subItems.map((subItem) => (
+                                <SidebarMenuSubItem key={subItem.id}>
+                                  <SidebarMenuSubButton
+                                    onClick={() => setBursarCurrentView(subItem.id as BursarView)}
+                                    isActive={bursarCurrentView === subItem.id}
+                                  >
+                                    <span>{subItem.label}</span>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              ))}
+                            </SidebarMenuSub>
+                          </CollapsibleContent>
+                        </SidebarMenuItem>
+                      </Collapsible>
+                    )
+                  }
+
+                  return (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        onClick={() => setBursarCurrentView(item.id as BursarView)}
+                        isActive={bursarCurrentView === item.id}
+                        className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
               </SidebarMenu>
             </SidebarGroup>
           </SidebarContent>
