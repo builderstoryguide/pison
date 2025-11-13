@@ -8,7 +8,6 @@ import { TeacherManagementProvider } from "@/lib/teacher-management-context"
 import { ClassManagementProvider } from "@/lib/class-management-context"
 import { ExaminationProvider } from "@/lib/examination-context"
 import { FinancialProvider } from "@/lib/financial-context"
-import { ReportsAnalyticsProvider } from "@/lib/reports-analytics-context"
 import { ProfileProvider } from "@/lib/profile-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 import { TeacherExaminationProvider } from "@/lib/teacher-examination-context"
@@ -45,11 +44,9 @@ function AppContent() {
                       <TeacherGradesProvider>
                         <TeacherExaminationProvider>
                           <TeacherExamMarksProvider>
-                            <ReportsAnalyticsProvider>
-                              <ProfileProvider>
-                                <Dashboard />
-                              </ProfileProvider>
-                            </ReportsAnalyticsProvider>
+                            <ProfileProvider>
+                              <Dashboard />
+                            </ProfileProvider>
                           </TeacherExamMarksProvider>
                         </TeacherExaminationProvider>
                       </TeacherGradesProvider>

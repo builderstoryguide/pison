@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic'
 import React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ReportCards } from "@/components/admin/report-cards"
 
 export default function TestReportCardsSimplePage() {
   // Production gate - prevent this page from running in production
@@ -42,7 +41,9 @@ export default function TestReportCardsSimplePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ReportCards />
+          <div className="text-center py-8 text-muted-foreground">
+            <p>Report Cards functionality has been removed.</p>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -178,7 +178,6 @@ export function AccessRightsDialog({ user, open, onOpenChange }: AccessRightsDia
       'all': 'Full system access - can perform any action',
       'manage_users': 'Create, edit, and delete user accounts',
       'manage_system': 'Configure system settings and preferences',
-      'view_reports': 'Access to system reports and analytics',
       'manage_classes': 'Create and manage class assignments',
       'grade_students': 'Enter and modify student grades',
       'view_grades': 'View student grades and academic records',

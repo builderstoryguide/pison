@@ -12,11 +12,6 @@ import { ExaminationManagement } from "./admin/examination-management"
 import { TimetableManagement } from "./admin/timetable-management"
 import { FinancialManagement } from "./admin/financial-management"
 import { ProfileSettings } from "./profile/profile-settings"
-import { AnalyticsDashboard } from "@/components/admin/analytics-dashboard"
-import { AcademicPerformance } from "@/components/admin/academic-performance"
-import { ReportTemplates } from "@/components/admin/report-templates"
-import { GeneratedReports } from "@/components/admin/generated-reports"
-import { ReportCards } from "@/components/admin/report-cards"
 import { TeacherDashboard } from "./teacher/teacher-dashboard"
 import { TeacherClassesView } from "./teacher/teacher-classes-view"
 import { GradesManagement } from "./teacher/grades-management"
@@ -89,7 +84,6 @@ import {
   Clock,
   CalendarDays,
   Download,
-  ChevronDown,
   Award,
   Sun,
   Moon,
@@ -105,13 +99,7 @@ type AdminView =
   | "timetable"
   | "examinations"
   | "financial"
-  | "reports"
   | "profile"
-  | "reports-analytics"
-  | "reports-academic-performance"
-  | "reports-templates"
-  | "reports-generated"
-  | "reports-cards"
 
 type TeacherView = "dashboard" | "classes" | "grades" | "assignments" | "profile"
 type ParentView = "dashboard" | "records" | "communication" | "profile"
@@ -211,8 +199,6 @@ function AppSidebar({
   onProfileClick: () => void
   onLogout: () => void
 }) {
-  const [reportsDropdownOpen, setReportsDropdownOpen] = useState(false)
-
   const getMenuItems = () => {
     switch (user.role) {
       case "admin":
@@ -258,21 +244,7 @@ function AppSidebar({
     }
   }
 
-  const getReportsSubItems = () => {
-    if (user.role === "admin") {
-      return [
-        { id: "reports-analytics", label: "Analytics", icon: BarChart3 },
-        { id: "reports-academic-performance", label: "Academic Performance", icon: GraduationCap },
-        { id: "reports-templates", label: "Report Templates", icon: FileText },
-        { id: "reports-generated", label: "Generated Reports", icon: Download },
-        { id: "reports-cards", label: "Report Cards", icon: ClipboardList },
-      ]
-    }
-    return []
-  }
-
   const menuItems = getMenuItems()
-  const reportsSubItems = getReportsSubItems()
 
   return (
     <Sidebar className="border-r">
@@ -305,37 +277,6 @@ function AppSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
-            
-            {/* Reports & Analytics Dropdown for Admin */}
-            {user.role === "admin" && (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => setReportsDropdownOpen(!reportsDropdownOpen)}
-                  isActive={currentView.startsWith('reports')}
-                  className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  <span>Reports & Analytics</span>
-                  <ChevronDown className={`ml-auto size-4 transition-transform ${reportsDropdownOpen ? 'rotate-180' : ''}`} />
-                </SidebarMenuButton>
-                {reportsDropdownOpen && (
-                  <SidebarMenuSub>
-                    {reportsSubItems.map((item) => (
-                      <SidebarMenuSubItem key={item.id}>
-                        <SidebarMenuSubButton
-                          onClick={() => onViewChange(item.id)}
-                          isActive={currentView === item.id}
-                          className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    ))}
-                  </SidebarMenuSub>
-                )}
-              </SidebarMenuItem>
-            )}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
@@ -542,17 +483,6 @@ export function SchoolDashboard() {
             return <ExaminationManagement />
           case "financial":
             return <FinancialManagement />
-          case "reports":
-          case "reports-analytics":
-            return <AnalyticsDashboard />
-          case "reports-academic-performance":
-            return <AcademicPerformance />
-          case "reports-templates":
-            return <ReportTemplates />
-          case "reports-generated":
-            return <GeneratedReports />
-          case "reports-cards":
-            return <ReportCards />
           case "profile":
             return <ProfileSettings />
           default:

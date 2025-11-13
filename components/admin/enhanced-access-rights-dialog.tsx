@@ -54,12 +54,6 @@ const PERMISSION_CATEGORIES = {
     icon: UserCheck,
     permissions: ['view_child_progress'],
     description: 'Student and parent specific permissions'
-  },
-  reports: {
-    title: 'Reports & Analytics',
-    icon: Info,
-    permissions: ['view_reports'],
-    description: 'Access to system reports and analytics'
   }
 }
 

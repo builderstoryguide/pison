@@ -11,7 +11,6 @@ import { ClassManagementProvider } from "@/lib/class-management-context"
 import { SubjectManagementProvider } from "@/lib/subject-management-context"
 import { ExaminationProvider } from "@/lib/examination-context"
 import { FinancialProvider } from "@/lib/financial-context"
-import { ReportsAnalyticsProvider } from "@/lib/reports-analytics-context"
 import { ProfileProvider } from "@/lib/profile-context"
 import { TeacherClassesProvider } from "@/lib/teacher-classes-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
@@ -36,16 +35,10 @@ import { SubjectManagement } from "./admin/subject-management"
 import { ExaminationManagement } from "./admin/examination-management"
 import { TimetableManagement } from "./admin/timetable-management"
 import { FinancialManagement } from "./admin/financial-management"
-import { ReportsAnalyticsManagement } from "./admin/reports-analytics-management"
 import { AppConfiguration } from "./admin/app-configuration"
 import { ProfileSettings } from "./profile/profile-settings"
 import { BursarProfile } from "./bursar/bursar-profile"
 import { RecentActivities } from "./admin/recent-activities"
-import { AnalyticsDashboard } from "@/components/admin/analytics-dashboard"
-import { AcademicPerformance } from "@/components/admin/academic-performance"
-import { ReportTemplates } from "@/components/admin/report-templates"
-import { GeneratedReports } from "@/components/admin/generated-reports"
-import { ReportCards } from "@/components/admin/report-cards"
 import { Dashboard01 } from "./dashboard-01"
 import { QuickActionsDashboard } from "./admin/quick-actions-dashboard"
 
@@ -136,7 +129,6 @@ import {
   X,
   CalendarDays,
   Download,
-  ChevronDown,
   Award,
   RefreshCw,
 } from "lucide-react"
@@ -151,14 +143,8 @@ type AdminView =
   | "timetable"
   | "examinations"
   | "financial"
-  | "reports"
   | "configuration"
   | "profile"
-  | "reports-analytics"
-  | "reports-academic-performance"
-  | "reports-templates"
-  | "reports-generated"
-  | "reports-cards"
 
 type TeacherView = "dashboard" | "classes" | "grades" | "assignments" | "my-assignments" | "examinations" | "profile"
 
@@ -440,7 +426,6 @@ export function Dashboard() {
     return "dashboard"
   })
   
-  const [reportsDropdownOpen, setReportsDropdownOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   
   // Update CSS variable when sidebar state changes
@@ -777,14 +762,6 @@ export function Dashboard() {
       { id: "configuration", label: "App Configuration", icon: Settings },
     ]
 
-    const reportsSubItems = [
-      { id: "reports-analytics", label: "Analytics", icon: BarChart3 },
-      { id: "reports-academic-performance", label: "Academic Performance", icon: GraduationCap },
-      { id: "reports-templates", label: "Report Templates", icon: FileText },
-      { id: "reports-generated", label: "Generated Reports", icon: Download },
-      { id: "reports-cards", label: "Report Cards", icon: ClipboardList },
-    ]
-
     const renderAdminContent = () => {
       switch (adminCurrentView) {
         case "quick-actions":
@@ -819,17 +796,6 @@ export function Dashboard() {
           return <FinancialManagement />
         case "configuration":
           return <AppConfiguration />
-        case "reports":
-        case "reports-analytics":
-          return <AnalyticsDashboard />
-        case "reports-academic-performance":
-          return <AcademicPerformance />
-        case "reports-templates":
-          return <ReportTemplates />
-        case "reports-generated":
-          return <GeneratedReports />
-        case "reports-cards":
-          return <ReportCards />
         case "profile":
           return <ProfileSettings />
         default:
@@ -846,9 +812,8 @@ export function Dashboard() {
                 <SubjectManagementProvider>
                   <ExaminationProvider>
                     <FinancialProvider>
-                      <ReportsAnalyticsProvider>
-                          <ProfileProvider>
-                          <div className="flex h-screen">
+                      <ProfileProvider>
+                        <div className="flex h-screen">
                             <Sidebar 
                               collapsed={sidebarCollapsed} 
                               onCollapsedChange={setSidebarCollapsed}
@@ -879,39 +844,6 @@ export function Dashboard() {
                                         </SidebarMenuButton>
                                       </SidebarMenuItem>
                                     ))}
-                                    
-                                    {/* Reports & Analytics Dropdown */}
-                                    <SidebarMenuItem>
-                                      <SidebarMenuButton
-                                        onClick={() => setReportsDropdownOpen(!reportsDropdownOpen)}
-                                        isActive={adminCurrentView.startsWith('reports')}
-                                        className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                                      >
-                                        <BarChart3 className="h-4 w-4" />
-                                        {!sidebarCollapsed && (
-                                          <>
-                                            <span>Reports & Analytics</span>
-                                            <ChevronDown className={`ml-auto size-4 transition-transform ${reportsDropdownOpen ? 'rotate-180' : ''}`} />
-                                          </>
-                                        )}
-                                      </SidebarMenuButton>
-                                      {reportsDropdownOpen && !sidebarCollapsed && (
-                                        <SidebarMenuSub>
-                                          {reportsSubItems.map((item) => (
-                                            <SidebarMenuSubItem key={item.id}>
-                                              <SidebarMenuSubButton
-                                                onClick={() => setAdminCurrentView(item.id as AdminView)}
-                                                isActive={adminCurrentView === item.id}
-                                                className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                                              >
-                                                <item.icon className="h-4 w-4" />
-                                                <span>{item.label}</span>
-                                              </SidebarMenuSubButton>
-                                            </SidebarMenuSubItem>
-                                          ))}
-                                        </SidebarMenuSub>
-                                      )}
-                                    </SidebarMenuItem>
                                   </SidebarMenu>
                                 </SidebarGroup>
                               </SidebarContent>
@@ -976,8 +908,7 @@ export function Dashboard() {
                             </div>
                           </div>
                         </ProfileProvider>
-                      </ReportsAnalyticsProvider>
-                  </FinancialProvider>
+                      </FinancialProvider>
                 </ExaminationProvider>
               </SubjectManagementProvider>
             </ClassManagementProvider>

@@ -498,7 +498,6 @@ export function EmployeeManagement() {
           <TabsTrigger value="overview">Employee Overview</TabsTrigger>
           <TabsTrigger value="payroll">Payroll Management</TabsTrigger>
           <TabsTrigger value="time-tracking">Time Tracking</TabsTrigger>
-          <TabsTrigger value="reports">Reports & Analytics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -872,112 +871,6 @@ export function EmployeeManagement() {
                 </CardContent>
               </Card>
             </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="reports" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold">Reports & Analytics</h3>
-              <p className="text-sm text-muted-foreground">
-                Generate comprehensive employee reports and analytics
-              </p>
-            </div>
-            <Button>
-              <Download className="h-4 w-4 mr-2" />
-              Export Report
-            </Button>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Department Distribution</CardTitle>
-                <CardDescription>Employee distribution across departments</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {departments.map((dept) => (
-                    <div key={dept.id} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                        <span className="text-sm">{dept.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{dept.count}</span>
-                        <span className="text-xs text-muted-foreground">
-                          ({Math.round((dept.count / employees.length) * 100)}%)
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Salary Distribution</CardTitle>
-                <CardDescription>Salary ranges across the organization</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">$20k - $30k</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-20 h-2 bg-gray-200 rounded-full">
-                        <div className="w-1/4 h-full bg-green-500 rounded-full"></div>
-                      </div>
-                      <span className="text-sm font-medium">1</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">$30k - $50k</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-20 h-2 bg-gray-200 rounded-full">
-                        <div className="w-3/4 h-full bg-blue-500 rounded-full"></div>
-                      </div>
-                      <span className="text-sm font-medium">3</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">$50k - $80k</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-20 h-2 bg-gray-200 rounded-full">
-                        <div className="w-1/2 h-full bg-purple-500 rounded-full"></div>
-                      </div>
-                      <span className="text-sm font-medium">1</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Attendance Trends</CardTitle>
-                <CardDescription>Monthly attendance patterns</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Attendance trends chart will be displayed here</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Payroll Trends</CardTitle>
-                <CardDescription>Monthly payroll expenses</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <PieChart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Payroll trends chart will be displayed here</p>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </TabsContent>
       </Tabs>

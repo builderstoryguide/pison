@@ -18,7 +18,6 @@ import {
   XCircle,
   Play
 } from "lucide-react"
-import { ReportCards } from "@/components/admin/report-cards"
 
 interface TestResult {
   id: string
@@ -1008,7 +1007,9 @@ export default function TestReportCardsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ReportCards />
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Report Cards functionality has been removed.</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
