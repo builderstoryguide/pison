@@ -5,6 +5,10 @@ import { SidebarLayout } from "@/components/sidebar-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 export default function TestSimplePage() {
   return (
     <SidebarLayout>

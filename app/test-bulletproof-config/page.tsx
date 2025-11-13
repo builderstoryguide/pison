@@ -20,6 +20,10 @@ import {
   Info
 } from "lucide-react"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TestBulletproofConfigContent() {
   const { 
     configuration, 

@@ -10,6 +10,10 @@ import { ExaminationEditForm } from "@/components/admin/examination-edit-form"
 import { ExaminationDetailsDialog } from "@/components/admin/examination-details-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TestExamCRUDContent() {
   const { examinations, createExamination, updateExamination, deleteExamination, getExaminationById } = useExamination()
   const [showCreateForm, setShowCreateForm] = useState(false)

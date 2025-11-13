@@ -5,6 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Loader2, CheckCircle, XCircle } from "lucide-react"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 export default function TestContextV2Page() {
   try {
     const { configuration, isLoading, error } = useAppConfiguration()

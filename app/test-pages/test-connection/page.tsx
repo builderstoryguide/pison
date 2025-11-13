@@ -8,6 +8,10 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, XCircle, AlertCircle, Database, Key, Globe } from 'lucide-react'
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 export default function TestConnectionPage() {
   const [connectionStatus, setConnectionStatus] = useState<any>(null)
   const [isTesting, setIsTesting] = useState(false)

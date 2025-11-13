@@ -6,6 +6,10 @@ import { BursarProfile } from "@/components/bursar/bursar-profile"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TestBursarProfileContent() {
   const { user, login } = useAuth()
   const { profile } = useProfile()

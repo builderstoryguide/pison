@@ -15,6 +15,10 @@ import type {
   AggregatedSubjectGrade
 } from '@/lib/subject-branches-types'
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 export default function TestSubjectBranches() {
   const { error: toastError, success: toastSuccess } = useToast()
   

@@ -10,6 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { RefreshCw, Users } from 'lucide-react'
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function StudentSyncTest() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [showCreateForm, setShowCreateForm] = useState(false)

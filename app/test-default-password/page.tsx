@@ -5,6 +5,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { generateDefaultPassword, generateTemporaryPassword, validatePassword } from '@/lib/password-utils'
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 export default function TestDefaultPassword() {
   const [generatedPassword, setGeneratedPassword] = useState<string>('')
   const [tempPassword, setTempPassword] = useState<string>('')

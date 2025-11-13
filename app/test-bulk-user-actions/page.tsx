@@ -5,6 +5,10 @@ import { UserManagementProvider } from '@/lib/user-management-context'
 import { StudentManagementProvider } from '@/lib/student-management-context'
 import { TeacherManagementProvider } from '@/lib/teacher-management-context'
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TestBulkUserActionsContent() {
   return (
     <div className="container mx-auto py-6 space-y-6">

@@ -7,6 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Mail, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 export default function TestEmailPage() {
   const [testEmail, setTestEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)

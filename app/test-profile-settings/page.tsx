@@ -7,6 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Loader2, User, AlertCircle } from "lucide-react"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TestProfileSettingsContent() {
   const { user, isLoading: authLoading } = useAuth()
   const { profile, isLoading: profileLoading, error } = useProfile()

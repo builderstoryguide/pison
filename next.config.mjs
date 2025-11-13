@@ -23,6 +23,21 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  
+  // Exclude test pages from production builds
+  async redirects() {
+    // Only apply redirects in production
+    if (process.env.NODE_ENV === 'production') {
+      return [
+        {
+          source: '/test-:path*',
+          destination: '/',
+          permanent: false,
+        },
+      ]
+    }
+    return []
+  },
 }
 
 export default nextConfig

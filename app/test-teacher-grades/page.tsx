@@ -5,6 +5,10 @@ import { AuthProvider } from "@/lib/auth-context"
 import { GradesManagement } from "@/components/teacher/grades-management"
 import { useEffect } from "react"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TestTeacherGradesContent() {
   useEffect(() => {
     console.log("🔍 Teacher Grades Test Page loaded")

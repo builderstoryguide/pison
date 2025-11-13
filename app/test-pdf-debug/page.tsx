@@ -7,6 +7,10 @@ import { useFinancial, FinancialProvider } from "@/lib/financial-context"
 import { usePDFExport } from "@/hooks/use-pdf-export"
 import { Bug, FileText, AlertCircle } from "lucide-react"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TestPDFDebugContent() {
   const { payments, feeStructures, studentFeeAssignments } = useFinancial()
   const { isGenerating, exportPaymentReport } = usePDFExport()

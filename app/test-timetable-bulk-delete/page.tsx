@@ -3,6 +3,10 @@
 import { TimetableManagement } from '@/components/admin/timetable-management'
 import { TimetableProvider } from '@/lib/timetable-context'
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TestTimetableBulkDeleteContent() {
   return (
     <div className="container mx-auto py-6 space-y-6">

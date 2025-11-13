@@ -7,6 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle, XCircle, Database, Table } from "lucide-react"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 export default function TestDatabasePage() {
   const [testResults, setTestResults] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)

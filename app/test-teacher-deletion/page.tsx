@@ -7,6 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TestTeacherDeletionContent() {
   const { teachers, deleteTeacher, loadTeachers } = useTeacherManagement()
   const { users, loadUsers } = useUserManagement()

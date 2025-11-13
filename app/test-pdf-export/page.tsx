@@ -6,6 +6,10 @@ import { useFinancial, FinancialProvider } from "@/lib/financial-context"
 import { usePDFExport } from "@/hooks/use-pdf-export"
 import { Download, FileText, Receipt, Users, CreditCard } from "lucide-react"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TestPDFExportContent() {
   const { 
     payments, 

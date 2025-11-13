@@ -9,6 +9,10 @@ import { TeacherManagement } from '@/components/admin/teacher-management'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 export default function TestDataConsistencyPage() {
   return (
     <div className="container mx-auto py-6 space-y-6">

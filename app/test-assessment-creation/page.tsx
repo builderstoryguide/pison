@@ -7,6 +7,10 @@ import { useTeacherGrades, TeacherGradesProvider } from "@/lib/teacher-grades-co
 import { AuthProvider } from "@/lib/auth-context"
 import { testConnection, getConnectionError } from "@/lib/supabase"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TestAssessmentCreationContent() {
   const [testResults, setTestResults] = useState<string[]>([])
   const [isTesting, setIsTesting] = useState(false)

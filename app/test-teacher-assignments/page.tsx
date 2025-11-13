@@ -5,6 +5,10 @@ import { AuthProvider } from "@/lib/auth-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 import { TeacherClassesProvider } from "@/lib/teacher-classes-context"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TestTeacherAssignmentsContent() {
   return (
     <div className="container mx-auto py-8">

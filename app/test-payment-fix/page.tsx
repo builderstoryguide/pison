@@ -8,6 +8,10 @@ import { useStudentManagement, StudentManagementProvider } from "@/lib/student-m
 import { useFinancial, FinancialProvider } from "@/lib/financial-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TestPaymentFixContent() {
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const { students, loadStudents } = useStudentManagement()

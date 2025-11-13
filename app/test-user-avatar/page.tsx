@@ -3,6 +3,10 @@
 import { UserAvatar } from "@/components/ui/user-avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 export default function TestUserAvatar() {
   const testUsers = [
     { name: "James Smith", avatar: null },

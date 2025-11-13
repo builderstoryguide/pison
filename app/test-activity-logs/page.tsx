@@ -3,6 +3,10 @@
 import { ActivityLogsView } from '@/components/admin/activity-logs-view'
 import { UserManagementProvider } from '@/lib/user-management-context'
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TestActivityLogsContent() {
   return (
     <div className="container mx-auto py-6">

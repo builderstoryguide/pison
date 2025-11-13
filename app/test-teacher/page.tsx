@@ -6,6 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 function TeacherTest() {
   const { teachers, addTeacher, isLoading, error } = useTeacherManagement()
   const [testResult, setTestResult] = useState<string>('')

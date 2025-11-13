@@ -5,6 +5,10 @@ import { AppConfigurationProvider } from '@/lib/app-configuration-context-v2'
 import { EnhancedTimetableProvider } from '@/lib/enhanced-timetable-context'
 import { TimetableManagementEnhanced } from '@/components/admin/timetable-management-enhanced'
 
+
+// Force dynamic rendering to skip static generation during build
+export const dynamic = 'force-dynamic'
+
 export default function TestEnhancedTimetablePage() {
   return (
     <AuthProvider>
