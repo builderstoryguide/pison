@@ -35,15 +35,11 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-} from "@/components/ui/sidebar-07"
+  useSidebar,
+} from "@/components/ui/sidebar-08"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-
-interface SchoolSidebarProps {
-  collapsed?: boolean
-  onCollapsedChange?: (collapsed: boolean) => void
-}
 
 const navigationItems = [
   {
@@ -143,11 +139,13 @@ const navigationItems = [
   },
 ]
 
-export function SchoolSidebar({ collapsed = false, onCollapsedChange }: SchoolSidebarProps) {
+export function SchoolSidebar() {
   const pathname = usePathname()
+  const { state } = useSidebar()
+  const collapsed = state === "collapsed"
 
   return (
-    <Sidebar collapsed={collapsed} onCollapsedChange={onCollapsedChange}>
+    <Sidebar collapsible="icon">
       <SidebarHeader>
         <SidebarHeaderTitle>
           <div className="flex items-center gap-2">

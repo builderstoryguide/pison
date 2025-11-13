@@ -47,7 +47,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarProvider,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar-08"
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -29,6 +29,8 @@ import { useFinancial } from "@/lib/financial-context"
 // Admin Components
 import { UserManagement } from "./admin/user-management"
 import { StudentManagement } from "./admin/student-management"
+import { StudentIdCards } from "./admin/student-id-cards"
+import { ReportCards } from "./admin/report-cards-backup"
 import { TeacherManagement } from "./admin/teacher-management"
 import { ClassManagement } from "./admin/class-management"
 import { SubjectManagement } from "./admin/subject-management"
@@ -85,7 +87,15 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarTrigger,
-} from "@/components/ui/sidebar-07"
+  SidebarProvider,
+  SidebarInset,
+  useSidebar,
+} from "@/components/ui/sidebar-08"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -131,12 +141,16 @@ import {
   Download,
   Award,
   RefreshCw,
+  ChevronRight,
 } from "lucide-react"
 
 type AdminView =
   | "quick-actions"
   | "users"
   | "students"
+  | "students-list"
+  | "student-id-cards"
+  | "report-cards"
   | "teachers"
   | "classes"
   | "subjects"
@@ -393,6 +407,36 @@ export function Dashboard() {
     }
     return "quick-actions"
   })
+
+  // State for managing students menu collapsible open/close
+  const [studentsMenuOpen, setStudentsMenuOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('adminCurrentView')
+      return saved === "students-list" || saved === "student-id-cards" || saved === "report-cards" || saved === "students"
+    }
+    return false
+  })
+
+  // Track if user manually closed the menu
+  const [studentsMenuManuallyClosed, setStudentsMenuManuallyClosed] = useState(false)
+
+  // Update students menu open state when view changes
+  useEffect(() => {
+    if (user.role === "admin") {
+      const isSubItemActive = adminCurrentView === "students-list" || 
+                             adminCurrentView === "student-id-cards" || 
+                             adminCurrentView === "report-cards" || 
+                             adminCurrentView === "students"
+      // Only auto-open if a sub-item is active and menu wasn't manually closed
+      if (isSubItemActive && !studentsMenuManuallyClosed) {
+        setStudentsMenuOpen(true)
+      }
+      // Reset manual close flag when navigating to a students sub-item
+      if (isSubItemActive) {
+        setStudentsMenuManuallyClosed(false)
+      }
+    }
+  }, [adminCurrentView, user.role, studentsMenuManuallyClosed])
   
   const [teacherCurrentView, setTeacherCurrentView] = useState<TeacherView>(() => {
     if (typeof window !== 'undefined') {
@@ -426,16 +470,7 @@ export function Dashboard() {
     return "dashboard"
   })
   
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  
-  // Update CSS variable when sidebar state changes
-  useEffect(() => {
-    if (sidebarCollapsed) {
-      document.documentElement.style.setProperty('--sidebar-width', '4rem')
-    } else {
-      document.documentElement.style.setProperty('--sidebar-width', '18rem')
-    }
-  }, [sidebarCollapsed])
+  // Sidebar state is now managed by SidebarProvider
   
   // Get data from contexts for Admin Dashboard
   const { students, isLoading: studentsLoading, error: studentsError } = useStudentManagement()
@@ -510,102 +545,108 @@ export function Dashboard() {
       }
     }
 
+    function ParentSidebarContent() {
+      const { state } = useSidebar()
+      const collapsed = state === "collapsed"
+      
+      return (
+        <>
+          <SidebarHeader>
+            <SidebarHeaderTitle>
+              <SchoolBranding 
+                showSubtitle={true}
+                subtitle="Parent Portal"
+                collapsed={collapsed}
+              />
+            </SidebarHeaderTitle>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Parent Tools</SidebarGroupLabel>
+              <SidebarMenu>
+                {parentMenuItems.map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      onClick={() => setParentCurrentView(item.id as ParentView)}
+                      isActive={parentCurrentView === item.id}
+                      className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroup>
+          </SidebarContent>
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton
+                      className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                      <UserAvatar user={user} size="sm" className="rounded-lg" />
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-semibold">{user.name}</span>
+                        <span className="truncate text-xs">{user.email}</span>
+                      </div>
+                      <ChevronUp className="ml-auto size-4" />
+                    </SidebarMenuButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                    side="bottom"
+                    align="end"
+                    sideOffset={4}
+                  >
+                    <DropdownMenuLabel className="p-0 font-normal">
+                      <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                        <UserAvatar user={user} size="sm" className="rounded-lg" />
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                          <span className="truncate font-semibold">{user.name}</span>
+                          <span className="truncate text-xs">{user.email}</span>
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setParentCurrentView("profile")}>
+                      <Settings />
+                      Profile Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut />
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </>
+      )
+    }
+
     return (
       <ProfileProvider>
-        <div className="flex h-screen">
+        <SidebarProvider>
           <Sidebar 
-            collapsed={sidebarCollapsed} 
-            onCollapsedChange={setSidebarCollapsed}
+            collapsible="icon"
             className="border-r border-border/50"
           >
-            <SidebarHeader>
-              <SidebarHeaderTitle>
-                <SchoolBranding 
-                  showSubtitle={true}
-                  subtitle="Parent Portal"
-                  collapsed={sidebarCollapsed}
-                />
-              </SidebarHeaderTitle>
-            </SidebarHeader>
-            <SidebarContent>
-              <SidebarGroup>
-                <SidebarGroupLabel>Parent Tools</SidebarGroupLabel>
-                <SidebarMenu>
-                  {parentMenuItems.map((item) => (
-                    <SidebarMenuItem key={item.id}>
-                      <SidebarMenuButton
-                        onClick={() => setParentCurrentView(item.id as ParentView)}
-                        isActive={parentCurrentView === item.id}
-                        className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {!sidebarCollapsed && <span>{item.label}</span>}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroup>
-            </SidebarContent>
-            <SidebarFooter>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton
-                        className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                      >
-                        <UserAvatar user={user} size="sm" className="rounded-lg" />
-                        {!sidebarCollapsed && (
-                          <>
-                            <div className="grid flex-1 text-left text-sm leading-tight">
-                              <span className="truncate font-semibold">{user.name}</span>
-                              <span className="truncate text-xs">{user.email}</span>
-                            </div>
-                            <ChevronUp className="ml-auto size-4" />
-                          </>
-                        )}
-                      </SidebarMenuButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-                      side="bottom"
-                      align="end"
-                      sideOffset={4}
-                    >
-                      <DropdownMenuLabel className="p-0 font-normal">
-                        <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                          <UserAvatar user={user} size="sm" className="rounded-lg" />
-                          <div className="grid flex-1 text-left text-sm leading-tight">
-                            <span className="truncate font-semibold">{user.name}</span>
-                            <span className="truncate text-xs">{user.email}</span>
-                          </div>
-                        </div>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setParentCurrentView("profile")}>
-                        <Settings />
-                        Profile Settings
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleLogout}>
-                        <LogOut />
-                        Log out
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarFooter>
+            <ParentSidebarContent />
           </Sidebar>
-          <div className="flex-1 flex flex-col">
-                         <DashboardHeader 
-               user={user} 
-               onProfileClick={() => setParentCurrentView("profile")} 
-               onLogout={handleLogout}
-             />
+          <SidebarInset>
+            <DashboardHeader 
+              user={user} 
+              onProfileClick={() => setParentCurrentView("profile")} 
+              onLogout={handleLogout}
+            />
             <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderParentContent()}</div>
-          </div>
-        </div>
+          </SidebarInset>
+        </SidebarProvider>
       </ProfileProvider>
     )
   }
@@ -647,112 +688,132 @@ export function Dashboard() {
       }
     }
 
+    function StudentSidebarContent() {
+      const { state } = useSidebar()
+      const collapsed = state === "collapsed"
+      
+      return (
+        <>
+          <SidebarHeader>
+            <SidebarHeaderTitle>
+              <SchoolBranding 
+                showSubtitle={true}
+                subtitle="Student Portal"
+                collapsed={collapsed}
+              />
+            </SidebarHeaderTitle>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Student Tools</SidebarGroupLabel>
+              <SidebarMenu>
+                {studentMenuItems.map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      onClick={() => setStudentCurrentView(item.id as StudentView)}
+                      isActive={studentCurrentView === item.id}
+                      className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroup>
+          </SidebarContent>
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton
+                      className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                      <UserAvatar user={user} size="sm" className="rounded-lg" />
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-semibold">{user.name}</span>
+                        <span className="truncate text-xs">{user.email}</span>
+                      </div>
+                      <ChevronUp className="ml-auto size-4" />
+                    </SidebarMenuButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                    side="bottom"
+                    align="end"
+                    sideOffset={4}
+                  >
+                    <DropdownMenuLabel className="p-0 font-normal">
+                      <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                        <UserAvatar user={user} size="sm" className="rounded-lg" />
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                          <span className="truncate font-semibold">{user.name}</span>
+                          <span className="truncate text-xs">{user.email}</span>
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setStudentCurrentView("profile")}>
+                      <Settings />
+                      Profile Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut />
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </>
+      )
+    }
+
     return (
       <ProfileProvider>
-        <div className="flex h-screen">
+        <SidebarProvider>
           <Sidebar 
-            collapsed={sidebarCollapsed} 
-            onCollapsedChange={setSidebarCollapsed}
+            collapsible="icon"
             className="border-r border-border/50"
           >
-            <SidebarHeader>
-              <SidebarHeaderTitle>
-                <SchoolBranding 
-                  showSubtitle={true}
-                  subtitle="Student Portal"
-                  collapsed={sidebarCollapsed}
-                />
-              </SidebarHeaderTitle>
-            </SidebarHeader>
-            <SidebarContent>
-              <SidebarGroup>
-                <SidebarGroupLabel>Student Tools</SidebarGroupLabel>
-                <SidebarMenu>
-                  {studentMenuItems.map((item) => (
-                    <SidebarMenuItem key={item.id}>
-                      <SidebarMenuButton
-                        onClick={() => setStudentCurrentView(item.id as StudentView)}
-                        isActive={studentCurrentView === item.id}
-                        className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {!sidebarCollapsed && <span>{item.label}</span>}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroup>
-            </SidebarContent>
-            <SidebarFooter>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton
-                        className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                      >
-                        <UserAvatar user={user} size="sm" className="rounded-lg" />
-                        {!sidebarCollapsed && (
-                          <>
-                            <div className="grid flex-1 text-left text-sm leading-tight">
-                              <span className="truncate font-semibold">{user.name}</span>
-                              <span className="truncate text-xs">{user.email}</span>
-                            </div>
-                            <ChevronUp className="ml-auto size-4" />
-                          </>
-                        )}
-                      </SidebarMenuButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-                      side="bottom"
-                      align="end"
-                      sideOffset={4}
-                    >
-                      <DropdownMenuLabel className="p-0 font-normal">
-                        <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                          <UserAvatar user={user} size="sm" className="rounded-lg" />
-                          <div className="grid flex-1 text-left text-sm leading-tight">
-                            <span className="truncate font-semibold">{user.name}</span>
-                            <span className="truncate text-xs">{user.email}</span>
-                          </div>
-                        </div>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setStudentCurrentView("profile")}>
-                        <Settings />
-                        Profile Settings
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleLogout}>
-                        <LogOut />
-                        Log out
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarFooter>
+            <StudentSidebarContent />
           </Sidebar>
-          <div className="flex-1 flex flex-col">
-                         <DashboardHeader 
-               user={user} 
-               onProfileClick={() => setStudentCurrentView("profile")} 
-               onLogout={handleLogout}
-             />
+          <SidebarInset>
+            <DashboardHeader 
+              user={user} 
+              onProfileClick={() => setStudentCurrentView("profile")} 
+              onLogout={handleLogout}
+            />
             <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderStudentContent()}</div>
-          </div>
-        </div>
+          </SidebarInset>
+        </SidebarProvider>
       </ProfileProvider>
     )
   }
 
   // Admin Dashboard
   if (user.role === "admin") {
-    const adminMenuItems = [
+    const adminMenuItems: Array<{
+      id: string
+      label: string
+      icon: any
+      subItems?: Array<{ id: string; label: string }>
+    }> = [
       { id: "quick-actions", label: "Dashboard", icon: Home },
       { id: "users", label: "User Management", icon: Users },
-      { id: "students", label: "Student Management", icon: GraduationCap },
+      {
+        id: "students",
+        label: "Manage Students",
+        icon: GraduationCap,
+        subItems: [
+          { id: "students-list", label: "Students" },
+          { id: "student-id-cards", label: "Student ID" },
+          { id: "report-cards", label: "Report cards" },
+        ],
+      },
       { id: "teachers", label: "Teacher Management", icon: UserCheck },
       { id: "classes", label: "Class Management", icon: BookOpen },
       { id: "subjects", label: "Manage Subjects", icon: BookOpen },
@@ -769,7 +830,12 @@ export function Dashboard() {
         case "users":
           return <UserManagement />
         case "students":
+        case "students-list":
           return <StudentManagement />
+        case "student-id-cards":
+          return <StudentIdCards />
+        case "report-cards":
+          return <ReportCards />
         case "teachers":
           return <TeacherManagement />
         case "classes":
@@ -803,6 +869,152 @@ export function Dashboard() {
       }
     }
 
+    function AdminSidebarContent() {
+      const { state } = useSidebar()
+      const collapsed = state === "collapsed"
+      
+      return (
+        <>
+          <SidebarHeader>
+            <SidebarHeaderTitle>
+              <SchoolBranding 
+                showSubtitle={true}
+                subtitle="Admin Panel"
+                collapsed={collapsed}
+              />
+            </SidebarHeaderTitle>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Management</SidebarGroupLabel>
+              <SidebarMenu>
+                {adminMenuItems.map((item) => {
+                  // Check if any sub-item is active
+                  const isSubItemActive = item.subItems?.some(
+                    (subItem) => adminCurrentView === subItem.id
+                  )
+                  const isParentActive = adminCurrentView === item.id || isSubItemActive
+                  const isOpen = isSubItemActive || adminCurrentView === item.id
+
+                  if (item.subItems && item.subItems.length > 0) {
+                    const isStudentsMenu = item.id === "students"
+                    const menuOpen = isStudentsMenu ? studentsMenuOpen : isOpen
+
+                    return (
+                      <Collapsible
+                        key={item.id}
+                        open={menuOpen}
+                        onOpenChange={(open) => {
+                          if (isStudentsMenu) {
+                            setStudentsMenuOpen(open)
+                            // Track if user manually closed the menu
+                            if (!open) {
+                              setStudentsMenuManuallyClosed(true)
+                            } else {
+                              setStudentsMenuManuallyClosed(false)
+                            }
+                          }
+                          // For other menus, the open state is controlled by isOpen which is based on active state
+                          // They will automatically close when a different menu item is selected
+                        }}
+                        className="group/collapsible"
+                      >
+                        <SidebarMenuItem>
+                          <CollapsibleTrigger asChild>
+                            <SidebarMenuButton
+                              isActive={isParentActive}
+                              className="hover:bg-accent hover:text-accent-foreground transition-colors w-full"
+                            >
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.label}</span>
+                              <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                            </SidebarMenuButton>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+                            <SidebarMenuSub>
+                              {item.subItems.map((subItem) => (
+                                <SidebarMenuSubItem key={subItem.id}>
+                                  <SidebarMenuSubButton
+                                    onClick={() => setAdminCurrentView(subItem.id as AdminView)}
+                                    isActive={adminCurrentView === subItem.id}
+                                  >
+                                    <span>{subItem.label}</span>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              ))}
+                            </SidebarMenuSub>
+                          </CollapsibleContent>
+                        </SidebarMenuItem>
+                      </Collapsible>
+                    )
+                  }
+
+                  return (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        onClick={() => setAdminCurrentView(item.id as AdminView)}
+                        isActive={adminCurrentView === item.id}
+                        className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroup>
+          </SidebarContent>
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton
+                      className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                      <UserAvatar user={user} size="sm" className="rounded-lg" />
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-semibold">{user.name}</span>
+                        <span className="truncate text-xs">{user.email}</span>
+                      </div>
+                      <ChevronUp className="ml-auto size-4" />
+                    </SidebarMenuButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                    side="bottom"
+                    align="end"
+                    sideOffset={4}
+                  >
+                    <DropdownMenuLabel className="p-0 font-normal">
+                      <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                        <UserAvatar user={user} size="sm" className="rounded-lg" />
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                          <span className="truncate font-semibold">{user.name}</span>
+                          <span className="truncate text-xs">{user.email}</span>
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setAdminCurrentView("profile")}>
+                      <Settings />
+                      Profile Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut />
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </>
+      )
+    }
+
     return (
       <UserManagementProvider>
         <StudentEnrollmentProvider>
@@ -813,105 +1025,27 @@ export function Dashboard() {
                   <ExaminationProvider>
                     <FinancialProvider>
                       <ProfileProvider>
-                        <div className="flex h-screen">
-                            <Sidebar 
-                              collapsed={sidebarCollapsed} 
-                              onCollapsedChange={setSidebarCollapsed}
-                              className="border-r border-border/50 fixed left-0 top-0 h-full z-50"
-                            >
-                              <SidebarHeader>
-                                <SidebarHeaderTitle>
-                                  <SchoolBranding 
-                                    showSubtitle={true}
-                                    subtitle="Admin Panel"
-                                    collapsed={sidebarCollapsed}
-                                  />
-                                </SidebarHeaderTitle>
-                              </SidebarHeader>
-                              <SidebarContent>
-                                <SidebarGroup>
-                                  <SidebarGroupLabel>Management</SidebarGroupLabel>
-                                  <SidebarMenu>
-                                    {adminMenuItems.map((item) => (
-                                      <SidebarMenuItem key={item.id}>
-                                        <SidebarMenuButton
-                                          onClick={() => setAdminCurrentView(item.id as AdminView)}
-                                          isActive={adminCurrentView === item.id}
-                                          className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                                        >
-                                          <item.icon className="h-4 w-4" />
-                                          {!sidebarCollapsed && <span>{item.label}</span>}
-                                        </SidebarMenuButton>
-                                      </SidebarMenuItem>
-                                    ))}
-                                  </SidebarMenu>
-                                </SidebarGroup>
-                              </SidebarContent>
-                              <SidebarFooter>
-                                <SidebarMenu>
-                                  <SidebarMenuItem>
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <SidebarMenuButton
-                                          className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                                        >
-                                          <UserAvatar user={user} size="sm" className="rounded-lg" />
-                                          {!sidebarCollapsed && (
-                                            <>
-                                              <div className="grid flex-1 text-left text-sm leading-tight">
-                                                <span className="truncate font-semibold">{user.name}</span>
-                                                <span className="truncate text-xs">{user.email}</span>
-                                              </div>
-                                              <ChevronUp className="ml-auto size-4" />
-                                            </>
-                                          )}
-                                        </SidebarMenuButton>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent
-                                        className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-                                        side="bottom"
-                                        align="end"
-                                        sideOffset={4}
-                                      >
-                                        <DropdownMenuLabel className="p-0 font-normal">
-                                          <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                                            <UserAvatar user={user} size="sm" className="rounded-lg" />
-                                            <div className="grid flex-1 text-left text-sm leading-tight">
-                                              <span className="truncate font-semibold">{user.name}</span>
-                                              <span className="truncate text-xs">{user.email}</span>
-                                            </div>
-                                          </div>
-                                        </DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={() => setAdminCurrentView("profile")}>
-                                          <Settings />
-                                          Profile Settings
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onClick={handleLogout}>
-                                          <LogOut />
-                                          Log out
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  </SidebarMenuItem>
-                                </SidebarMenu>
-                              </SidebarFooter>
-                            </Sidebar>
-                            <div className="flex-1 flex flex-col ml-[var(--sidebar-width)]">
-                              <DashboardHeader
-                                user={user}
-                                onProfileClick={() => setAdminCurrentView("profile")}
-                                onLogout={handleLogout}
-                              />
-                              <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderAdminContent()}</div>
-                            </div>
-                          </div>
-                        </ProfileProvider>
-                      </FinancialProvider>
-                </ExaminationProvider>
-              </SubjectManagementProvider>
-            </ClassManagementProvider>
+                        <SidebarProvider>
+                          <Sidebar 
+                            collapsible="icon"
+                            className="border-r border-border/50"
+                          >
+                            <AdminSidebarContent />
+                          </Sidebar>
+                          <SidebarInset>
+                            <DashboardHeader
+                              user={user}
+                              onProfileClick={() => setAdminCurrentView("profile")}
+                              onLogout={handleLogout}
+                            />
+                            <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderAdminContent()}</div>
+                          </SidebarInset>
+                        </SidebarProvider>
+                      </ProfileProvider>
+                    </FinancialProvider>
+                  </ExaminationProvider>
+                </SubjectManagementProvider>
+              </ClassManagementProvider>
             </TeacherManagementProvider>
           </StudentManagementProvider>
         </StudentEnrollmentProvider>
@@ -948,104 +1082,110 @@ export function Dashboard() {
       }
     }
 
+    function TeacherSidebarContent() {
+      const { state } = useSidebar()
+      const collapsed = state === "collapsed"
+      
+      return (
+        <>
+          <SidebarHeader>
+            <SidebarHeaderTitle>
+              <SchoolBranding 
+                showSubtitle={true}
+                subtitle="Teacher Portal"
+                collapsed={collapsed}
+              />
+            </SidebarHeaderTitle>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Teaching</SidebarGroupLabel>
+              <SidebarMenu>
+                {teacherMenuItems.map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      onClick={() => setTeacherCurrentView(item.id as TeacherView)}
+                      isActive={teacherCurrentView === item.id}
+                      className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroup>
+          </SidebarContent>
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton
+                      className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                      <UserAvatar user={user} size="sm" className="rounded-lg" />
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-semibold">{user.name}</span>
+                        <span className="truncate text-xs">{user.email}</span>
+                      </div>
+                      <ChevronUp className="ml-auto size-4" />
+                    </SidebarMenuButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                    side="bottom"
+                    align="end"
+                    sideOffset={4}
+                  >
+                    <DropdownMenuLabel className="p-0 font-normal">
+                      <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                        <UserAvatar user={user} size="sm" className="rounded-lg" />
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                          <span className="truncate font-semibold">{user.name}</span>
+                          <span className="truncate text-xs">{user.email}</span>
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setTeacherCurrentView("profile")}>
+                      <Settings />
+                      Profile Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut />
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </>
+      )
+    }
+
     return (
       <TeacherClassesProvider>
           <TeacherGradesProvider>
             <ProfileProvider>
-              <div className="flex h-screen">
+              <SidebarProvider>
                 <Sidebar 
-                  collapsed={sidebarCollapsed} 
-                  onCollapsedChange={setSidebarCollapsed}
-                  className="border-r border-border/50 fixed left-0 top-0 h-full z-50"
+                  collapsible="icon"
+                  className="border-r border-border/50"
                 >
-                  <SidebarHeader>
-                    <SidebarHeaderTitle>
-                      <SchoolBranding 
-                        showSubtitle={true}
-                        subtitle="Teacher Portal"
-                        collapsed={sidebarCollapsed}
-                      />
-                    </SidebarHeaderTitle>
-                  </SidebarHeader>
-                  <SidebarContent>
-                    <SidebarGroup>
-                      <SidebarGroupLabel>Teaching</SidebarGroupLabel>
-                      <SidebarMenu>
-                        {teacherMenuItems.map((item) => (
-                          <SidebarMenuItem key={item.id}>
-                            <SidebarMenuButton
-                              onClick={() => setTeacherCurrentView(item.id as TeacherView)}
-                              isActive={teacherCurrentView === item.id}
-                              className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                            >
-                              <item.icon className="h-4 w-4" />
-                              {!sidebarCollapsed && <span>{item.label}</span>}
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
-                        ))}
-                      </SidebarMenu>
-                    </SidebarGroup>
-                  </SidebarContent>
-                  <SidebarFooter>
-                    <SidebarMenu>
-                      <SidebarMenuItem>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <SidebarMenuButton
-                              className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                            >
-                              <UserAvatar user={user} size="sm" className="rounded-lg" />
-                              {!sidebarCollapsed && (
-                                <>
-                                  <div className="grid flex-1 text-left text-sm leading-tight">
-                                    <span className="truncate font-semibold">{user.name}</span>
-                                    <span className="truncate text-xs">{user.email}</span>
-                                  </div>
-                                  <ChevronUp className="ml-auto size-4" />
-                                </>
-                              )}
-                            </SidebarMenuButton>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-                            side="bottom"
-                            align="end"
-                            sideOffset={4}
-                          >
-                            <DropdownMenuLabel className="p-0 font-normal">
-                              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                                <UserAvatar user={user} size="sm" className="rounded-lg" />
-                                <div className="grid flex-1 text-left text-sm leading-tight">
-                                  <span className="truncate font-semibold">{user.name}</span>
-                                  <span className="truncate text-xs">{user.email}</span>
-                                </div>
-                              </div>
-                            </DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => setTeacherCurrentView("profile")}>
-                              <Settings />
-                              Profile Settings
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={handleLogout}>
-                              <LogOut />
-                              Log out
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </SidebarMenuItem>
-                    </SidebarMenu>
-                  </SidebarFooter>
+                  <TeacherSidebarContent />
                 </Sidebar>
-                <div className="flex-1 flex flex-col ml-[var(--sidebar-width)]">
+                <SidebarInset>
                   <DashboardHeader
                     user={user}
                     onProfileClick={() => setTeacherCurrentView("profile")}
                     onLogout={handleLogout}
                   />
                   <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderTeacherContent()}</div>
-                </div>
-              </div>
+                </SidebarInset>
+              </SidebarProvider>
             </ProfileProvider>
           </TeacherGradesProvider>
         </TeacherClassesProvider>
@@ -1081,103 +1221,109 @@ export function Dashboard() {
       }
     }
 
+    function BursarSidebarContent() {
+      const { state } = useSidebar()
+      const collapsed = state === "collapsed"
+      
+      return (
+        <>
+          <SidebarHeader>
+            <SidebarHeaderTitle>
+              <SchoolBranding 
+                showSubtitle={true}
+                subtitle="Bursar Portal"
+                collapsed={collapsed}
+              />
+            </SidebarHeaderTitle>
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Financial Management</SidebarGroupLabel>
+              <SidebarMenu>
+                {bursarMenuItems.map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      onClick={() => setBursarCurrentView(item.id as BursarView)}
+                      isActive={bursarCurrentView === item.id}
+                      className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroup>
+          </SidebarContent>
+          <SidebarFooter>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton
+                      className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                      <UserAvatar user={user} size="sm" className="rounded-lg" />
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-semibold">{user.name}</span>
+                        <span className="truncate text-xs">{user.email}</span>
+                      </div>
+                      <ChevronUp className="ml-auto size-4" />
+                    </SidebarMenuButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                    side="bottom"
+                    align="end"
+                    sideOffset={4}
+                  >
+                    <DropdownMenuLabel className="p-0 font-normal">
+                      <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                        <UserAvatar user={user} size="sm" className="rounded-lg" />
+                        <div className="grid flex-1 text-left text-sm leading-tight">
+                          <span className="truncate font-semibold">{user.name}</span>
+                          <span className="truncate text-xs">{user.email}</span>
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setBursarCurrentView("profile")}>
+                      <Settings />
+                      Profile Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut />
+                      Log out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarFooter>
+        </>
+      )
+    }
+
     return (
       <BursarProvider>
         <ProfileProvider>
-          <div className="flex h-screen">
+          <SidebarProvider>
             <Sidebar 
-              collapsed={sidebarCollapsed} 
-              onCollapsedChange={setSidebarCollapsed}
-              className="border-r border-border/50 fixed left-0 top-0 h-full z-50"
+              collapsible="icon"
+              className="border-r border-border/50"
             >
-              <SidebarHeader>
-                <SidebarHeaderTitle>
-                  <SchoolBranding 
-                    showSubtitle={true}
-                    subtitle="Bursar Portal"
-                    collapsed={sidebarCollapsed}
-                  />
-                </SidebarHeaderTitle>
-              </SidebarHeader>
-              <SidebarContent>
-                <SidebarGroup>
-                  <SidebarGroupLabel>Financial Management</SidebarGroupLabel>
-                  <SidebarMenu>
-                    {bursarMenuItems.map((item) => (
-                      <SidebarMenuItem key={item.id}>
-                        <SidebarMenuButton
-                          onClick={() => setBursarCurrentView(item.id as BursarView)}
-                          isActive={bursarCurrentView === item.id}
-                          className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          {!sidebarCollapsed && <span>{item.label}</span>}
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroup>
-              </SidebarContent>
-              <SidebarFooter>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <SidebarMenuButton
-                          className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                        >
-                          <UserAvatar user={user} size="sm" className="rounded-lg" />
-                          {!sidebarCollapsed && (
-                            <>
-                              <div className="grid flex-1 text-left text-sm leading-tight">
-                                <span className="truncate font-semibold">{user.name}</span>
-                                <span className="truncate text-xs">{user.email}</span>
-                              </div>
-                              <ChevronUp className="ml-auto size-4" />
-                            </>
-                          )}
-                        </SidebarMenuButton>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-                        side="bottom"
-                        align="end"
-                        sideOffset={4}
-                      >
-                        <DropdownMenuLabel className="p-0 font-normal">
-                          <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                            <UserAvatar user={user} size="sm" className="rounded-lg" />
-                            <div className="grid flex-1 text-left text-sm leading-tight">
-                              <span className="truncate font-semibold">{user.name}</span>
-                              <span className="truncate text-xs">{user.email}</span>
-                            </div>
-                          </div>
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => setBursarCurrentView("profile")}>
-                          <Settings />
-                          Profile Settings
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={handleLogout}>
-                          <LogOut />
-                          Log out
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarFooter>
+              <BursarSidebarContent />
             </Sidebar>
-            <div className="flex-1 flex flex-col ml-[var(--sidebar-width)]">
+            <SidebarInset>
               <DashboardHeader 
                 user={user} 
                 onProfileClick={() => setBursarCurrentView("profile")} 
                 onLogout={handleLogout}
               />
               <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderBursarContent()}</div>
-            </div>
-          </div>
+            </SidebarInset>
+          </SidebarProvider>
         </ProfileProvider>
       </BursarProvider>
     )
