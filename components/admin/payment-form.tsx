@@ -137,7 +137,7 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
     <div className="max-w-4xl mx-auto">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="space-y-6">
             {/* Student Information */}
             <Card>
               <CardHeader>
@@ -153,14 +153,14 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
                       <FormLabel>Student</FormLabel>
                       <Select onValueChange={handleStudentSelect} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select student" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {students.map((student) => (
                             <SelectItem key={student.id} value={student.id}>
-                              {student.first_name} {student.last_name} - {student.class}
+                              {student.first_name} {student.last_name} - {(student as any).class_name || student.class}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -177,7 +177,7 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
                     <FormItem>
                       <FormLabel>Paid By</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Parent - John Doe" {...field} />
+                        <Input placeholder="e.g., Parent - John Doe" className="w-full" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -201,7 +201,7 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
                       <FormLabel>Fee Structure</FormLabel>
                       <Select onValueChange={handleFeeStructureSelect} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select fee structure" />
                           </SelectTrigger>
                         </FormControl>
@@ -229,6 +229,7 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
                           <Input
                             type="number"
                             readOnly
+                            className="w-full"
                             {...field}
                             onChange={(e) => field.onChange(Number(e.target.value))}
                           />
@@ -248,6 +249,7 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
                           <Input
                             type="number"
                             placeholder="50000"
+                            className="w-full"
                             {...field}
                             onChange={(e) => field.onChange(Number(e.target.value))}
                           />
