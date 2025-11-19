@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -78,6 +78,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
   const [allSubjects, setAllSubjects] = useState<Subject[]>([])
   const [isLoadingSubjects, setIsLoadingSubjects] = useState(false)
   const [subjectSearchTerm, setSubjectSearchTerm] = useState<string>("")
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("")
   const [startDate, setStartDate] = useState<Date>()
   const [endDate, setEndDate] = useState<Date>()
   const [error, setError] = useState<string>("")
@@ -124,24 +125,55 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
 
   const availableLevels = fetchedLevels.map((level) => level.name)
 
-  // Filter subjects based on search term
-  const filteredSubjects = allSubjects.filter((subject) =>
-    subject.name.toLowerCase().includes(subjectSearchTerm.toLowerCase()) ||
-    (subject.code && subject.code.toLowerCase().includes(subjectSearchTerm.toLowerCase()))
-  )
+  // Debounce search term to prevent excessive filtering
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(subjectSearchTerm)
+    }, 300) // 300ms debounce delay
 
-  // Load subjects from database
+    return () => clearTimeout(timer)
+  }, [subjectSearchTerm])
+
+  // Memoize filtered subjects to prevent unnecessary recalculations
+  const filteredSubjects = useMemo(() => {
+    if (!debouncedSearchTerm.trim()) {
+      return allSubjects
+    }
+    const searchLower = debouncedSearchTerm.toLowerCase()
+    return allSubjects.filter((subject) =>
+      subject.name.toLowerCase().includes(searchLower) ||
+      (subject.code && subject.code.toLowerCase().includes(searchLower))
+    )
+  }, [allSubjects, debouncedSearchTerm])
+
+  // Limit visible subjects to prevent rendering too many at once
+  const MAX_VISIBLE_SUBJECTS = 100
+  const visibleSubjects = useMemo(() => {
+    return filteredSubjects.slice(0, MAX_VISIBLE_SUBJECTS)
+  }, [filteredSubjects])
+
+  const hasMoreSubjects = filteredSubjects.length > MAX_VISIBLE_SUBJECTS
+
+  // Load subjects from database - optimized to only fetch essential fields
   useEffect(() => {
     const loadSubjects = async () => {
       setIsLoadingSubjects(true)
       try {
+        // Only fetch essential fields to reduce payload size
         const response = await fetch('/api/subjects?is_active=true')
         if (!response.ok) {
           throw new Error('Failed to load subjects')
         }
         const data = await response.json()
-        // Filter only active subjects and extract just the name
-        const activeSubjects = (data || []).filter((subject: Subject) => subject.is_active !== false)
+        // Filter only active subjects and map to simplified structure
+        const activeSubjects = (data || [])
+          .filter((subject: Subject) => subject.is_active !== false)
+          .map((subject: Subject) => ({
+            id: subject.id,
+            name: subject.name,
+            code: subject.code,
+            is_active: subject.is_active
+          }))
         setAllSubjects(activeSubjects)
       } catch (err) {
         console.error('Error loading subjects:', err)
@@ -522,24 +554,32 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
                   {allSubjects.length === 0 ? (
                     <p>No subjects found. Please create subjects first.</p>
                   ) : (
-                    <p>No subjects match your search "{subjectSearchTerm}".</p>
+                    <p>No subjects match your search "{debouncedSearchTerm}".</p>
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {filteredSubjects.map((subject) => (
-                    <div key={subject.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={subject.id}
-                        checked={selectedSubjects.includes(subject.name)}
-                        onCheckedChange={() => handleSubjectToggle(subject.name)}
-                      />
-                      <Label htmlFor={subject.id} className="text-sm" title={subject.name}>
-                        {subject.code || subject.name}
-                      </Label>
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {visibleSubjects.map((subject) => (
+                      <div key={subject.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={subject.id}
+                          checked={selectedSubjects.includes(subject.name)}
+                          onCheckedChange={() => handleSubjectToggle(subject.name)}
+                        />
+                        <Label htmlFor={subject.id} className="text-sm" title={subject.name}>
+                          {subject.code || subject.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  {hasMoreSubjects && (
+                    <div className="text-center py-2 text-sm text-muted-foreground">
+                      Showing {MAX_VISIBLE_SUBJECTS} of {filteredSubjects.length} subjects. 
+                      {debouncedSearchTerm && " Refine your search to see more."}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
 
               {selectedSubjects.length > 0 && (
