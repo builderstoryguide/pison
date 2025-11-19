@@ -54,8 +54,8 @@ interface Payment {
 }
 
 export function PaymentRecording() {
-  const { toast } = useToast()
-  const { formatCurrency } = useCurrencyFormatter()
+  const { success: toastSuccess, error: toastError } = useToast()
+  const { formatCurrency, getCurrencySymbol } = useCurrencyFormatter()
   const [students, setStudents] = useState<Student[]>([])
   const [studentFees, setStudentFees] = useState<StudentFee[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
@@ -105,7 +105,7 @@ export function PaymentRecording() {
       const methodsData = await methodsResponse.json()
       setPaymentMethods(methodsData)
     } catch (error) {
-      toast.error("Failed to load data")
+      toastError("Failed to load data")
     } finally {
       setIsLoading(false)
     }
@@ -165,15 +165,15 @@ export function PaymentRecording() {
       const result = await response.json()
 
       if (result.success) {
-        toast.success(`Payment recorded successfully. Receipt: ${result.receiptNumber}`)
+        toastSuccess(`Payment recorded successfully. Receipt: ${result.receiptNumber}`)
         setIsPaymentDialogOpen(false)
         resetPaymentForm()
         loadData()
       } else {
-        toast.error(result.error || "Failed to record payment")
+        toastError(result.error || "Failed to record payment")
       }
     } catch (error) {
-      toast.error("Failed to record payment")
+      toastError("Failed to record payment")
     }
   }
 
@@ -557,7 +557,7 @@ export function PaymentRecording() {
           </DialogHeader>
           <div className="overflow-y-auto max-h-[calc(85vh-120px)] pr-2 grid gap-4 py-4">
             <div>
-              <Label htmlFor="amount">Amount (XOF)</Label>
+              <Label htmlFor="amount">Amount ({getCurrencySymbol()})</Label>
               <Input
                 id="amount"
                 type="number"

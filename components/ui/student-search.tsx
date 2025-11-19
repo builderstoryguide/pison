@@ -55,16 +55,16 @@ export function StudentSearch({
     setSearchQuery(value?.fullName || '')
   }, [value])
 
-  // Debounced search
+  // Debounced search - now searches even with empty query to fetch all students
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setStudents([])
+    // Only search if dropdown is open
+    if (!isOpen) {
       return
     }
 
     const timeoutId = setTimeout(() => {
       searchStudents(searchQuery)
-    }, 300)
+    }, searchQuery.trim() ? 300 : 0) // No delay for empty search (fetch all)
 
     return () => {
       clearTimeout(timeoutId)
@@ -73,7 +73,7 @@ export function StudentSearch({
         abortControllerRef.current.abort()
       }
     }
-  }, [searchQuery])
+  }, [searchQuery, isOpen])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -103,8 +103,6 @@ export function StudentSearch({
   }, [])
 
   const searchStudents = async (query: string) => {
-    if (!query.trim()) return
-
     // Abort any previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
@@ -116,7 +114,9 @@ export function StudentSearch({
 
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/students/search?q=${encodeURIComponent(query)}&limit=10`, {
+      // If query is empty, fetch all students (increased limit for "show all" scenario)
+      const limit = query.trim() ? 10 : 50
+      const response = await fetch(`/api/students/search?q=${encodeURIComponent(query.trim())}&limit=${limit}`, {
         signal: controller.signal
       })
       const data = await response.json()
@@ -151,9 +151,8 @@ export function StudentSearch({
   }
 
   const handleInputFocus = () => {
-    if (searchQuery.trim()) {
-      setIsOpen(true)
-    }
+    // Always open dropdown on focus, will trigger search via useEffect
+    setIsOpen(true)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -329,7 +328,7 @@ export function StudentSearch({
             </div>
           ) : (
             <div className="px-4 py-3 text-sm text-muted-foreground text-center">
-              Start typing to search for students...
+              No students available
             </div>
           )}
         </div>

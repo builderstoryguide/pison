@@ -45,7 +45,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
   const { addTeacher } = useTeacherManagement()
   const { classes: allClasses, isLoading: classesLoading, error: classesError } = useClassManagement()
   const { subjects: allSubjects, isLoading: subjectsLoading, loadSubjects } = useSubjectManagement()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, info: toastInfo } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -242,7 +242,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
     
     if (!validateStep(currentStep)) {
       console.log("❌ Step validation failed")
-      toast.error("Form validation failed", {
+      toastError("Form validation failed", {
         description: "Please fill in all required fields before proceeding."
       })
       return
@@ -252,7 +252,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
     setError(null)
 
     // Show loading toast
-    toast.info("Enrolling teacher...", {
+    toastInfo("Enrolling teacher...", {
       description: "Please wait while we process your request."
     })
 
@@ -278,7 +278,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
       console.log("📊 Full result:", result)
       
       // Show success toast
-      toast.success("Teacher enrolled successfully!", {
+      toastSuccess("Teacher enrolled successfully!", {
         description: `${formData.title} ${formData.firstName} ${formData.lastName} has been added to the system.`
       })
       
@@ -295,7 +295,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
         "Failed to enroll teacher"
       
       // Show error toast
-      toast.error("Failed to enroll teacher", {
+      toastError("Failed to enroll teacher", {
         description: errorMessage
       })
       

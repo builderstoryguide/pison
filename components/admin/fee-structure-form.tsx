@@ -21,7 +21,7 @@ import { useFinancial, type FeeStructure } from "@/lib/financial-context"
 import { useClassManagement } from "@/lib/class-management-context"
 import { cn } from "@/lib/utils"
 import { useLevels } from "@/hooks/use-levels"
-import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
+import { useGlobalAcademicYear, useCurrencyFormatter } from "@/lib/app-configuration-context-v2"
 import { apiPost } from "@/lib/api-utils"
 
 const feeStructureSchema = z.object({
@@ -69,8 +69,9 @@ const normalizeLevel = (level: string | null | undefined): string => {
 export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructureFormProps) {
   const { updateFeeStructure, isLoading } = useFinancial()
   const { classes, isLoading: isLoadingClasses } = useClassManagement()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast()
   const globalAcademicYear = useGlobalAcademicYear()
+  const { formatCurrency, getCurrencySymbol } = useCurrencyFormatter()
   const [selectedSubsystem, setSelectedSubsystem] = useState<"english" | "french">(editData?.subsystem || "english")
 
   const form = useForm<FeeStructureFormData>({
@@ -163,10 +164,10 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
         const result = await updateFeeStructure(editData.id, formattedData)
         if (result.success) {
           onSuccess(editData.id)
-          toast.success("Fee structure updated successfully!")
+          toastSuccess("Fee structure updated successfully!")
         } else {
           console.error("Error updating fee structure:", result.error)
-          toast.error("Failed to update fee structure", {
+          toastError("Failed to update fee structure", {
             description: result.error || "An error occurred while updating the fee structure."
           })
         }
@@ -299,7 +300,7 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
         // Show appropriate toast messages based on results
         if (successfulResults.length > 0 && failedResults.length === 0) {
           // All succeeded
-          toast.success("Fee structures created successfully!", {
+          toastSuccess("Fee structures created successfully!", {
             description: `Successfully created ${successfulResults.length} fee structure(s) for ${classCount} class(es)`
           })
           onSuccess(successfulResults[0].feeStructureId || successfulResults[0].id)
@@ -318,7 +319,7 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
             description += `\n\n${otherErrors.length} failed: ${otherErrors.map(f => `${f.className} - ${f.termLabel}`).join(', ')}`
           }
 
-          toast.warning("Fee structures partially created", {
+          toastWarning("Fee structures partially created", {
             description,
           })
           onSuccess(successfulResults[0].feeStructureId || successfulResults[0].id)
@@ -329,13 +330,13 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
           if (duplicateErrors.length === failedResults.length) {
             // All failures are duplicates
             const errorList = duplicateErrors.map(f => `${f.className} - ${f.termLabel}`).join(', ')
-            toast.error("Fee structures already exist", {
+            toastError("Fee structures already exist", {
               description: `All selected fee structures already exist: ${errorList}. Please edit the existing structures or choose different classes/terms.`,
             })
           } else {
             // Mixed or other errors
             const errorMessages = failedResults.map(f => `${f.className} - ${f.termLabel}: ${f.error}`).join('\n')
-            toast.error("Failed to create fee structures", {
+            toastError("Failed to create fee structures", {
               description: `All ${totalStructures} fee structure(s) failed to create:\n${errorMessages}`,
             })
           }
@@ -343,7 +344,7 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
       }
     } catch (error) {
       console.error("Error saving fee structure:", error)
-      toast.error("Failed to create fee structure", {
+      toastError("Failed to create fee structure", {
         description: error instanceof Error ? error.message : "An error occurred while creating the fee structure."
       })
     }
@@ -539,7 +540,7 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
                   name="totalAmount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Total Amount (FCFA)</FormLabel>
+                      <FormLabel>Total Amount ({getCurrencySymbol()})</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -565,7 +566,7 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
                         name="firstInstallmentAmount"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Amount (FCFA)</FormLabel>
+                            <FormLabel>Amount ({getCurrencySymbol()})</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -626,7 +627,7 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
                         name="secondInstallmentAmount"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Amount (FCFA)</FormLabel>
+                            <FormLabel>Amount ({getCurrencySymbol()})</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -687,7 +688,7 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
                         name="thirdInstallmentAmount"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Amount (FCFA)</FormLabel>
+                            <FormLabel>Amount ({getCurrencySymbol()})</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -753,15 +754,15 @@ export function FeeStructureForm({ onSuccess, onCancel, editData }: FeeStructure
                       <div className="pt-4 border-t">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Sum of Installments:</span>
-                          <span className="font-medium">{sum.toLocaleString()} FCFA</span>
+                          <span className="font-medium">{formatCurrency(sum)}</span>
                         </div>
                         <div className="flex items-center justify-between text-sm mt-1">
                           <span className="text-muted-foreground">Total Amount:</span>
-                          <span className="font-medium">{totalAmount.toLocaleString()} FCFA</span>
+                          <span className="font-medium">{formatCurrency(totalAmount)}</span>
                         </div>
                         {totalAmount > 0 && !isValid && (
                           <div className="mt-2 text-sm text-amber-600">
-                            Warning: Sum of installments ({sum.toLocaleString()} FCFA) does not match total amount ({totalAmount.toLocaleString()} FCFA)
+                            Warning: Sum of installments ({formatCurrency(sum)}) does not match total amount ({formatCurrency(totalAmount)})
                           </div>
                         )}
                         {totalAmount > 0 && isValid && (

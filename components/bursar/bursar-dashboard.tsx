@@ -79,7 +79,7 @@ export function BursarDashboard({ onNavigate }: BursarDashboardProps = {}) {
     error 
   } = useBursar()
 
-  const { toast } = useToast()
+  const { success: toastSuccess } = useToast()
   const { formatCurrency } = useCurrencyFormatter()
   const [selectedView, setSelectedView] = useState<string>("overview")
   const [searchTerm, setSearchTerm] = useState("")
@@ -144,7 +144,7 @@ export function BursarDashboard({ onNavigate }: BursarDashboardProps = {}) {
 
   const handlePaymentSuccess = (paymentId: string) => {
     setShowPaymentForm(false)
-    toast.success("Payment recorded successfully")
+    toastSuccess("Payment recorded successfully")
     // Optionally refresh data here if needed
   }
 

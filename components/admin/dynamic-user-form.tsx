@@ -48,7 +48,7 @@ interface DynamicUserFormProps {
 
 export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
   const { createUser, isLoading, error } = useUserManagement()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   
   const [selectedRole, setSelectedRole] = useState<UserType['role'] | ''>('')
   const [_generatedPassword, setGeneratedPassword] = useState<string | null>(null)
@@ -101,7 +101,7 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
     
     setShowPasswordDialog(true)
     
-    toast.success("Student enrolled successfully!", {
+    toastSuccess("Student enrolled successfully!", {
       description: `${result.studentName} has been enrolled with ID ${result.studentId}. Parent account created with code ${result.parentCode}.`
     })
     
@@ -127,7 +127,7 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
     
     setShowPasswordDialog(true)
     
-    toast.success("Teacher enrolled successfully!", {
+    toastSuccess("Teacher enrolled successfully!", {
       description: `${result.teacherData.firstName} ${result.teacherData.lastName} has been enrolled with ID ${result.teacherId}.`
     })
     
@@ -148,17 +148,17 @@ export function DynamicUserForm({ onSuccess }: DynamicUserFormProps) {
           className: formData.class
         })
         setShowPasswordDialog(true)
-        toast.success(`${formData.role.charAt(0).toUpperCase() + formData.role.slice(1)} created successfully!`, {
+        toastSuccess(`${formData.role.charAt(0).toUpperCase() + formData.role.slice(1)} created successfully!`, {
           description: `${formData.name} has been created and user account is ready.`
         })
         // Don't call onSuccess() here - let the success dialog handle it
       } else {
-        toast.error("Failed to create user account", {
+        toastError("Failed to create user account", {
           description: "An error occurred while creating the user account."
         })
       }
     } catch (error) {
-      toast.error("Error creating user account", {
+      toastError("Error creating user account", {
         description: "An unexpected error occurred while creating the user account."
       })
     }

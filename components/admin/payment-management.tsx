@@ -108,7 +108,7 @@ export function PaymentManagement() {
     date: new Date().toISOString().split('T')[0],
     status: 'pending'
   })
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
 
   const filteredPayments = payments.filter(payment => {
     const matchesSearch = payment.payerName.toLowerCase().includes(searchQuery.toLowerCase()) ||

@@ -3,6 +3,19 @@
 import * as React from 'react'
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react'
 import { useAuth } from './auth-context'
+import {
+  formatCurrency,
+  formatAmount,
+  formatCurrencyWithDecimals,
+  formatCurrencyRange,
+  formatCurrencyForTable,
+  formatCurrencyForCard,
+  formatCurrencyForForm,
+  formatCurrencyForPDF,
+  formatCurrencyForReceipt,
+  getCurrencySymbol,
+  getCurrencyName
+} from './currency-utils'
 
 export interface AppConfiguration {
   id: string | null
@@ -753,21 +766,6 @@ export const useCurrencyFormatter = () => {
   const currency = useGlobalCurrency()
   
   return useMemo(() => {
-    // Import currency utility functions dynamically
-    const {
-      formatCurrency,
-      formatAmount,
-      formatCurrencyWithDecimals,
-      formatCurrencyRange,
-      formatCurrencyForTable,
-      formatCurrencyForCard,
-      formatCurrencyForForm,
-      formatCurrencyForPDF,
-      formatCurrencyForReceipt,
-      getCurrencySymbol,
-      getCurrencyName
-    } = require('./currency-utils')
-
     return {
       /**
        * Format amount with currency symbol using the global currency

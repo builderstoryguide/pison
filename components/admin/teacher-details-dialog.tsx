@@ -44,7 +44,7 @@ export function TeacherDetailsDialog({
   const [assignments, setAssignments] = useState<any[]>([])
   const [isLoadingAssignments, setIsLoadingAssignments] = useState(false)
   const [assignmentsError, setAssignmentsError] = useState<string | null>(null)
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
 
   // Fetch teacher assignments when dialog opens
   useEffect(() => {

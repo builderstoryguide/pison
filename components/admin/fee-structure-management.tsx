@@ -289,7 +289,7 @@ function FeeStructureForm({ feeStructure, onSave, onCancel, classes, classesLoad
 }
 
 export function FeeStructureManagement() {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
   const { classes, isLoading: classesLoading } = useClassManagement()
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>(mockFeeStructures)
   const [isAddFeeStructureOpen, setIsAddFeeStructureOpen] = useState(false)

@@ -27,7 +27,7 @@ interface ClassDetailsDialogProps {
 export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDelete }: ClassDetailsDialogProps) {
   const { getClassStudents, assignStudentToClass, removeStudentFromClass, updateClass, refreshClasses } = useClassManagement()
   const { getSubjectById } = useSubjectManagement()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
   const [activeTab, setActiveTab] = useState("overview")
   const [students, setStudents] = useState<any[]>([])
   const [_isLoadingStudents, setIsLoadingStudents] = useState(false)
@@ -87,11 +87,11 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
       // Refresh classes to update enrollment count
       await refreshClasses()
       
-      toast("Students added successfully", {
+      toastSuccess("Students added successfully", {
         description: `${addedStudents.length} student${addedStudents.length === 1 ? '' : 's'} added to ${classData.name}`,
       })
          } catch (error) {
-      toast("Error adding students", {
+      toastError("Error adding students", {
         description: error instanceof Error ? error.message : "Failed to add students to class",
       })
     }
@@ -114,11 +114,11 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
       // Refresh classes to update enrollment count
       await refreshClasses()
       
-      toast("Students removed successfully", {
+      toastSuccess("Students removed successfully", {
         description: `${removedStudents.length} student${removedStudents.length === 1 ? '' : 's'} removed from ${classData.name}`,
       })
          } catch (error) {
-      toast("Error removing students", {
+      toastError("Error removing students", {
         description: error instanceof Error ? error.message : "Failed to remove students from class",
       })
     }
@@ -144,11 +144,11 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
       // Refresh classes to update the subjects
       await refreshClasses()
       
-      toast("Subjects updated successfully", {
+      toastSuccess("Subjects updated successfully", {
         description: `Subjects for ${classData.name} have been updated.`,
       })
          } catch (error) {
-      toast("Error updating subjects", {
+      toastError("Error updating subjects", {
         description: error instanceof Error ? error.message : "Failed to update subjects",
       })
     }
@@ -193,13 +193,10 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
 
           <TabsContent value="overview" className="space-y-6 py-4">
             {/* Key Metrics */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col gap-6">
               <Card className="shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Enrollment Status</CardTitle>
-                  <div className="p-1.5 rounded-md bg-primary/10">
-                    <Users className="h-4 w-4 text-primary" />
-                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-end justify-between">
@@ -233,9 +230,6 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
               <Card className="shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Class Information</CardTitle>
-                  <div className="p-1.5 rounded-md bg-primary/10">
-                    <GraduationCap className="h-4 w-4 text-primary" />
-                  </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center justify-between border-b border-border pb-2">
@@ -256,9 +250,6 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
               <Card className="shadow-sm">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Resources & Schedule</CardTitle>
-                  <div className="p-1.5 rounded-md bg-primary/10">
-                    <BookOpen className="h-4 w-4 text-primary" />
-                  </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center justify-between border-b border-border pb-2">
@@ -286,26 +277,16 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
             {/* Detailed Information */}
             <Card className="shadow-sm">
               <CardHeader>
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-md bg-primary/10">
-                    <Settings className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle>Class Details</CardTitle>
-                    <CardDescription>Comprehensive information about this class</CardDescription>
-                  </div>
+                <div>
+                  <CardTitle>Class Details</CardTitle>
+                  <CardDescription>Comprehensive information about this class</CardDescription>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-8 md:grid-cols-2">
+                <div className="flex flex-col gap-8">
                   {/* System Configuration */}
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="p-1.5 rounded-md bg-primary/10">
-                        <GraduationCap className="h-4 w-4 text-primary" />
-                      </div>
-                      <h4 className="font-medium text-base">System Configuration</h4>
-                    </div>
+                    <h4 className="font-medium text-base mb-4">System Configuration</h4>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between bg-muted/40 p-3 rounded-md">
                         <span className="text-sm font-medium">Subsystem</span>
@@ -324,12 +305,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                   
                   {/* Class Details */}
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="p-1.5 rounded-md bg-primary/10">
-                        <Clock className="h-4 w-4 text-primary" />
-                      </div>
-                      <h4 className="font-medium text-base">Time Information</h4>
-                    </div>
+                    <h4 className="font-medium text-base mb-4">Time Information</h4>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between bg-muted/40 p-3 rounded-md">
                         <span className="text-sm font-medium">Created</span>
@@ -508,14 +484,9 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                         className="flex flex-col bg-card border rounded-lg shadow-sm overflow-hidden hover:border-primary/50 transition-colors"
                       >
                         <div className="bg-muted/30 p-4 border-b">
-                          <div className="flex items-center gap-3">
-                            <div className="p-1.5 rounded-md bg-primary/10">
-                              <BookOpen className="h-4 w-4 text-primary flex-shrink-0" />
-                            </div>
-                            <h4 className="font-medium text-sm leading-tight truncate" title={typeof subject === 'string' ? subject : subject.subjectName}>
-                              {typeof subject === 'string' ? subject : subject.subjectName}
-                            </h4>
-                          </div>
+                          <h4 className="font-medium text-sm leading-tight truncate" title={typeof subject === 'string' ? subject : subject.subjectName}>
+                            {typeof subject === 'string' ? subject : subject.subjectName}
+                          </h4>
                         </div>
                         <div className="p-4 flex items-center justify-between">
                           <div className="flex items-center gap-2">

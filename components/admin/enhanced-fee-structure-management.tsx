@@ -35,7 +35,7 @@ interface FeeStructure {
 }
 
 export function EnhancedFeeStructureManagement() {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const globalAcademicYear = useGlobalAcademicYear()
   const { formatCurrency } = useCurrencyFormatter()
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([])
@@ -70,13 +70,13 @@ export function EnhancedFeeStructureManagement() {
         const data = await response.json()
         setFeeStructures(data)
       } else {
-        toast.error("Error loading fee structures", {
+        toastError("Error loading fee structures", {
           description: "Failed to load fee structures"
         })
       }
     } catch (error) {
       console.error("Error loading fee structures:", error)
-      toast.error("Error loading fee structures", {
+      toastError("Error loading fee structures", {
         description: "Failed to load fee structures"
       })
     } finally {
@@ -96,17 +96,17 @@ export function EnhancedFeeStructureManagement() {
       const result = await response.json()
 
       if (result.success) {
-        toast.success("Fee structure deleted", {
+        toastSuccess("Fee structure deleted", {
           description: "Fee structure deleted successfully"
         })
         loadFeeStructures()
       } else {
-        toast.error("Error deleting fee structure", {
+        toastError("Error deleting fee structure", {
           description: result.error || "Failed to delete fee structure"
         })
       }
     } catch (error) {
-      toast.error("Error deleting fee structure", {
+      toastError("Error deleting fee structure", {
         description: "Failed to delete fee structure"
       })
     }
@@ -116,7 +116,7 @@ export function EnhancedFeeStructureManagement() {
     setShowCreateForm(false)
     setEditingFeeStructure(null)
     loadFeeStructures()
-    toast.success("Fee structure created", {
+    toastSuccess("Fee structure created", {
       description: "Fee structure created successfully"
     })
   }

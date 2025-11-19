@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CheckCircle, User, Phone, GraduationCap, Copy, Download, Check, Sparkles, Shield, Clock, Key, Mail } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 
 interface TeacherEnrollmentSuccessDialogProps {
   teacherId: string
@@ -38,6 +38,7 @@ export function TeacherEnrollmentSuccessDialog({
   open,
 }: TeacherEnrollmentSuccessDialogProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const hasDownloadedRef = useRef(false)
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text)
@@ -85,6 +86,22 @@ Pison Academy of Excellence
     window.URL.revokeObjectURL(url)
   }
 
+  // Automatically download credentials when dialog opens
+  useEffect(() => {
+    if (open && !hasDownloadedRef.current && teacherId) {
+      // Small delay to ensure dialog is fully rendered
+      const timer = setTimeout(() => {
+        generateWelcomeEmail()
+        hasDownloadedRef.current = true
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+    
+    // Reset when dialog closes
+    if (!open) {
+      hasDownloadedRef.current = false
+    }
+  }, [open, teacherId])
 
   return (
     <Dialog open={open} onOpenChange={onClose}>

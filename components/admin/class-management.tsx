@@ -45,7 +45,7 @@ import { useToast } from "@/hooks/use-toast"
 
 export function ClassManagement() {
   const { isLoading, deleteClass, getClassesPaginated, totalClassesCount } = useClassManagement()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [subsystemFilter, setSubsystemFilter] = useState<string>("all")
   const [branchFilter, setBranchFilter] = useState<string>("all")
@@ -71,6 +71,13 @@ export function ClassManagement() {
   const [activeTab, setActiveTab] = useState("classes")
   const [levels, setLevels] = useState<Array<{ id: string; name: string; subsystem: string; branch: string; created_at: string }>>([])
   const [isLoadingLevels, setIsLoadingLevels] = useState(false)
+  
+  // Level filtering and sorting state
+  const [levelSearchTerm, setLevelSearchTerm] = useState("")
+  const [levelSubsystemFilter, setLevelSubsystemFilter] = useState<string>("all")
+  const [levelBranchFilter, setLevelBranchFilter] = useState<string>("all")
+  const [levelSortBy, setLevelSortBy] = useState<"name" | "subsystem" | "branch" | "created_at">("name")
+  const [levelSortOrder, setLevelSortOrder] = useState<"asc" | "desc">("asc")
 
   // Load classes with pagination and filters
   const loadPaginatedClasses = React.useCallback(async () => {
@@ -127,6 +134,52 @@ export function ClassManagement() {
       loadLevels()
     }
   }, [activeTab, loadLevels])
+
+  // Filter and sort levels
+  const filteredAndSortedLevels = React.useMemo(() => {
+    let filtered = [...levels]
+
+    // Apply search filter
+    if (levelSearchTerm) {
+      filtered = filtered.filter((level) =>
+        level.name.toLowerCase().includes(levelSearchTerm.toLowerCase())
+      )
+    }
+
+    // Apply subsystem filter
+    if (levelSubsystemFilter !== "all") {
+      filtered = filtered.filter((level) => level.subsystem === levelSubsystemFilter)
+    }
+
+    // Apply branch filter
+    if (levelBranchFilter !== "all") {
+      filtered = filtered.filter((level) => level.branch === levelBranchFilter)
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let compareValue = 0
+
+      switch (levelSortBy) {
+        case "name":
+          compareValue = a.name.localeCompare(b.name)
+          break
+        case "subsystem":
+          compareValue = a.subsystem.localeCompare(b.subsystem)
+          break
+        case "branch":
+          compareValue = a.branch.localeCompare(b.branch)
+          break
+        case "created_at":
+          compareValue = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          break
+      }
+
+      return levelSortOrder === "asc" ? compareValue : -compareValue
+    })
+
+    return filtered
+  }, [levels, levelSearchTerm, levelSubsystemFilter, levelBranchFilter, levelSortBy, levelSortOrder])
   
   // Reset to first page when filters change
   React.useEffect(() => {
@@ -632,14 +685,84 @@ export function ClassManagement() {
             </TabsContent>
 
             <TabsContent value="levels" className="mt-6">
+              {/* Filters and Search for Levels */}
+              <div className="flex flex-col gap-4 mb-6">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search levels by name..."
+                        value={levelSearchTerm}
+                        onChange={(e) => setLevelSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  
+                  <Select value={levelSubsystemFilter} onValueChange={setLevelSubsystemFilter}>
+                    <SelectTrigger className="w-full md:w-[180px]">
+                      <SelectValue placeholder="Subsystem" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Subsystems</SelectItem>
+                      <SelectItem value="english">English</SelectItem>
+                      <SelectItem value="french">French</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={levelBranchFilter} onValueChange={setLevelBranchFilter}>
+                    <SelectTrigger className="w-full md:w-[180px]">
+                      <SelectValue placeholder="Branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Branches</SelectItem>
+                      <SelectItem value="grammar">Grammar</SelectItem>
+                      <SelectItem value="technical">Technical</SelectItem>
+                      <SelectItem value="commercial">Commercial</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={levelSortBy} onValueChange={(value) => setLevelSortBy(value as typeof levelSortBy)}>
+                    <SelectTrigger className="w-full md:w-[180px]">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">Name</SelectItem>
+                      <SelectItem value="subsystem">Subsystem</SelectItem>
+                      <SelectItem value="branch">Branch</SelectItem>
+                      <SelectItem value="created_at">Created Date</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLevelSortOrder(levelSortOrder === "asc" ? "desc" : "asc")}
+                    className="w-full md:w-auto"
+                  >
+                    {levelSortOrder === "asc" ? "↑ Asc" : "↓ Desc"}
+                  </Button>
+                </div>
+
+                {/* Results count */}
+                <div className="text-sm text-muted-foreground">
+                  Showing {filteredAndSortedLevels.length} of {levels.length} levels
+                </div>
+              </div>
+
               <div className="space-y-4">
                 {isLoadingLevels ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground">Loading levels...</p>
                   </div>
-                ) : levels.length === 0 ? (
+                ) : filteredAndSortedLevels.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-muted-foreground">No levels found. Create a level to get started.</p>
+                    <p className="text-muted-foreground">
+                      {levels.length === 0 
+                        ? "No levels found. Create a level to get started." 
+                        : "No levels match your filters. Try adjusting your search criteria."}
+                    </p>
                   </div>
                 ) : (
                   <div className="rounded-md border overflow-hidden">
@@ -654,7 +777,7 @@ export function ClassManagement() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {levels.map((level) => (
+                        {filteredAndSortedLevels.map((level) => (
                           <TableRow key={level.id} className="hover:bg-muted/50 transition-colors border-b border-border/50">
                             <TableCell className="px-4 py-3 font-medium">{level.name}</TableCell>
                             <TableCell className="px-4 py-3 capitalize">{level.subsystem}</TableCell>
@@ -680,19 +803,19 @@ export function ClassManagement() {
                                         })
                                           .then((response) => {
                                             if (response.ok) {
-                                              toast.success("Level deleted successfully", {
+                                              toastSuccess("Level deleted successfully", {
                                                 description: `Level "${level.name}" has been deleted.`
                                               })
                                               loadLevels()
                                             } else {
-                                              toast.error("Failed to delete level", {
+                                              toastError("Failed to delete level", {
                                                 description: "An error occurred while deleting the level."
                                               })
                                             }
                                           })
                                           .catch((error) => {
                                             console.error('Error deleting level:', error)
-                                            toast.error("Error deleting level", {
+                                            toastError("Error deleting level", {
                                               description: error instanceof Error ? error.message : "An unexpected error occurred."
                                             })
                                           })
@@ -750,7 +873,10 @@ export function ClassManagement() {
           <LevelForm 
             onSuccess={() => {
               setShowCreateLevelForm(false)
-              loadLevels()
+              // Add a small delay to ensure database update has propagated
+              setTimeout(() => {
+                loadLevels()
+              }, 300)
             }} 
             onCancel={() => setShowCreateLevelForm(false)}
           />

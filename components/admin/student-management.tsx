@@ -242,10 +242,18 @@ export function StudentManagement() {
     
     const updateSuccess = await updateStudent(selectedStudent.id, updatedData)
     if (updateSuccess) {
-      loadStudents() // Refresh the list
+      // Close the form first
       setShowEditForm(false)
       setSelectedStudent(null)
+      
+      // Show success message
       success("Student updated successfully", `${selectedStudent.first_name} ${selectedStudent.last_name}'s information has been updated.`)
+      
+      // Refresh the list after a short delay to ensure database update has propagated
+      setTimeout(() => {
+        loadStudents()
+      }, 300)
+      
       return true
     } else {
       showError("Failed to update student", "There was an error updating the student's information. Please try again.")
@@ -1070,10 +1078,6 @@ export function StudentManagement() {
       {/* Enrollment Form Dialog */}
       <Dialog open={showEnrollmentForm} onOpenChange={setShowEnrollmentForm}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Student Enrollment</DialogTitle>
-            <DialogDescription>Complete the enrollment process for a new student</DialogDescription>
-          </DialogHeader>
           <StudentEnrollmentForm onSuccess={handleEnrollmentSuccess} onCancel={() => setShowEnrollmentForm(false)} />
         </DialogContent>
       </Dialog>

@@ -35,6 +35,7 @@ import {
   MoreHorizontal
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { useCurrencyFormatter, useGlobalCurrency } from '@/lib/app-configuration-context-v2'
 import type { 
   Expenditure, 
   ExpenditureFormData,
@@ -197,7 +198,9 @@ const getStatusBadge = (status: Expenditure['status']) => {
 }
 
 export function ExpenditureManagement() {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
+  const { formatCurrency } = useCurrencyFormatter()
+  const globalCurrency = useGlobalCurrency()
   const [expenditures, setExpenditures] = useState<Expenditure[]>(mockExpenditures)
   const [stats] = useState<ExpenditureStats>(mockStats)
   const [isAddExpenditureOpen, setIsAddExpenditureOpen] = useState(false)
@@ -218,7 +221,7 @@ export function ExpenditureManagement() {
     description: '',
     category: 'other',
     amount: 0,
-    currency: 'XOF',
+    currency: globalCurrency as 'XOF' | 'USD' | 'EUR',
     payment_method: 'cash',
     payment_date: getTodayDate(),
     vendor: '',
@@ -258,10 +261,8 @@ export function ExpenditureManagement() {
   // Handle adding new expenditure
   const handleAddExpenditure = async () => {
     if (!newExpenditure.title || !newExpenditure.vendor || newExpenditure.amount <= 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields with valid values",
-        variant: "destructive"
+      toastError("Validation Error", {
+        description: "Please fill in all required fields with valid values"
       })
       return
     }
@@ -279,8 +280,7 @@ export function ExpenditureManagement() {
       setExpenditures(prev => [newExp, ...prev])
       setIsAddExpenditureOpen(false)
       
-      toast({
-        title: "Expenditure Created Successfully! 🎉",
+      toastSuccess("Expenditure Created Successfully! 🎉", {
         description: `Expenditure "${newExpenditure.title}" has been created`,
       })
       
@@ -305,10 +305,8 @@ export function ExpenditureManagement() {
       })
     } catch (error) {
       console.error('Error creating expenditure:', error)
-      toast({
-        title: "Failed to create expenditure",
-        description: "An error occurred while creating the expenditure",
-        variant: "destructive"
+      toastError("Failed to create expenditure", {
+        description: "An error occurred while creating the expenditure"
       })
     }
   }
@@ -335,8 +333,7 @@ export function ExpenditureManagement() {
       setShowDeleteDialog(false)
       setExpenditureToDelete(null)
       
-      toast({
-        title: "Expenditure Deleted",
+      toastSuccess("Expenditure Deleted", {
         description: `Expenditure "${expenditureToDelete.title}" has been successfully deleted.`,
       })
     }
@@ -353,8 +350,7 @@ export function ExpenditureManagement() {
 
     setExpenditures(prev => prev.map(exp => exp.id === expenditure.id ? updatedExpenditure : exp))
     
-    toast({
-      title: "Status Updated",
+    toastSuccess("Status Updated", {
       description: `Expenditure status has been updated to ${newStatus}`,
     })
   }
@@ -442,21 +438,6 @@ export function ExpenditureManagement() {
                         placeholder="0"
                         className="w-full"
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="currency">Currency</Label>
-                      <Select value={newExpenditure.currency} onValueChange={(value) => setNewExpenditure({...newExpenditure, currency: value as Expenditure['currency']})}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CURRENCIES.map((currency) => (
-                            <SelectItem key={currency.value} value={currency.value}>
-                              {currency.label} ({currency.symbol})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="paymentMethod">Payment Method</Label>
@@ -640,9 +621,9 @@ export function ExpenditureManagement() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total_amount.toLocaleString()} XOF</div>
+            <div className="text-2xl font-bold">{formatCurrency(stats.total_amount)}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.monthly_expenditure.toLocaleString()} XOF this month
+              {formatCurrency(stats.monthly_expenditure)} this month
             </p>
           </CardContent>
         </Card>
@@ -767,7 +748,7 @@ export function ExpenditureManagement() {
                     </TableCell>
                     <TableCell>{expenditure.vendor}</TableCell>
                     <TableCell className="font-medium">
-                      {expenditure.amount.toLocaleString()} {expenditure.currency}
+                      {formatCurrency(expenditure.amount)}
                     </TableCell>
                     <TableCell>{getStatusBadge(expenditure.status)}</TableCell>
                     <TableCell>{new Date(expenditure.payment_date).toLocaleDateString()}</TableCell>
@@ -892,7 +873,7 @@ export function ExpenditureManagement() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Amount</Label>
-                  <p className="text-lg font-bold">{selectedExpenditure.amount.toLocaleString()} {selectedExpenditure.currency}</p>
+                  <p className="text-lg font-bold">{formatCurrency(selectedExpenditure.amount)}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Payment Method</Label>
@@ -993,7 +974,7 @@ export function ExpenditureManagement() {
                   <strong>ID:</strong> {expenditureToDelete.id}<br/>
                   <strong>Title:</strong> {expenditureToDelete.title}<br/>
                   <strong>Vendor:</strong> {expenditureToDelete.vendor}<br/>
-                  <strong>Amount:</strong> {expenditureToDelete.amount.toLocaleString()} {expenditureToDelete.currency}
+                  <strong>Amount:</strong> {formatCurrency(expenditureToDelete.amount)}
                 </p>
               </div>
             </div>

@@ -35,7 +35,7 @@ const regions = ["Adamawa", "Centre", "East", "Far North", "Littoral", "North", 
 
 export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFormProps) {
   const { updateTeacher } = useTeacherManagement()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, info: toastInfo } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -180,7 +180,7 @@ export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFor
     setError(null)
 
     // Show loading toast
-    toast.info("Updating teacher...", {
+    toastInfo("Updating teacher...", {
       description: "Please wait while we save your changes."
     })
 
@@ -188,7 +188,7 @@ export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFor
       await updateTeacher(teacher.id, formData)
       
       // Show success toast
-      toast.success("Teacher updated successfully!", {
+      toastSuccess("Teacher updated successfully!", {
         description: `${formData.firstName} ${formData.lastName}'s information has been updated.`
       })
       
@@ -200,7 +200,7 @@ export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFor
         "Failed to update teacher"
       
       // Show error toast
-      toast.error("Failed to update teacher", {
+      toastError("Failed to update teacher", {
         description: errorMessage
       })
       

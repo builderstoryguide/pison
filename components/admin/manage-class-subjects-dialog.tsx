@@ -107,7 +107,7 @@ export function ManageClassSubjectsDialog({
   classData,
   onSuccess
 }: ManageClassSubjectsDialogProps) {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
@@ -160,7 +160,7 @@ export function ManageClassSubjectsDialog({
 
   const handleAddSubjects = () => {
     if (selectedSubjects.length === 0) {
-      toast.error("No subjects selected", {
+      toastError("No subjects selected", {
         description: "Please select at least one subject to add to the class."
       })
       return
@@ -177,7 +177,7 @@ export function ManageClassSubjectsDialog({
       // For now, we'll simulate the update
       onSuccess(updatedSubjects)
       
-      toast.success("Subjects updated successfully", {
+      toastSuccess("Subjects updated successfully", {
         description: `Subjects for ${classData.name} have been updated.`
       })
       
@@ -185,7 +185,7 @@ export function ManageClassSubjectsDialog({
       setSearchQuery("")
       onOpenChange(false)
     } catch (error) {
-      toast.error("Error updating subjects", {
+      toastError("Error updating subjects", {
         description: "Failed to update subjects. Please try again."
       })
     } finally {

@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import { StudentSearch } from '@/components/ui/student-search'
 import { useToast } from '@/hooks/use-toast'
+import { useCurrencyFormatter } from '@/lib/app-configuration-context-v2'
 import { useClassManagement } from '@/lib/class-management-context'
 import type { 
   RegistrationFee, 
@@ -246,7 +247,7 @@ function EditRegistrationForm({ registration, onSave, onCancel, classes, classes
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="registrationFee">Reg. Fee (XOF)</Label>
+          <Label htmlFor="registrationFee">Reg. Fee ({getCurrencySymbol()})</Label>
           <Input
             id="registrationFee"
             type="number"
@@ -257,7 +258,7 @@ function EditRegistrationForm({ registration, onSave, onCancel, classes, classes
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="ptaFee">PTA Fee (XOF)</Label>
+          <Label htmlFor="ptaFee">PTA Fee ({getCurrencySymbol()})</Label>
           <Input
             id="ptaFee"
             type="number"
@@ -271,7 +272,7 @@ function EditRegistrationForm({ registration, onSave, onCancel, classes, classes
       
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="tuitionFee">School Fees (XOF)</Label>
+          <Label htmlFor="tuitionFee">School Fees ({getCurrencySymbol()})</Label>
           <Input
             id="tuitionFee"
             type="number"
@@ -294,7 +295,7 @@ function EditRegistrationForm({ registration, onSave, onCancel, classes, classes
           </Select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="installmentAmount">Amount (XOF)</Label>
+          <Label htmlFor="installmentAmount">Amount ({getCurrencySymbol()})</Label>
           <Input
             id="installmentAmount"
             type="number"
@@ -328,7 +329,7 @@ function EditRegistrationForm({ registration, onSave, onCancel, classes, classes
 
       <div className="p-3 bg-muted rounded-lg">
         <p className="text-sm font-medium">
-          Total Amount: {totalAmount.toLocaleString()} XOF
+          Total Amount: {formatCurrency(totalAmount)}
         </p>
       </div>
 
@@ -370,12 +371,12 @@ function PaymentForm({ registration, onSave, onCancel }: PaymentFormProps) {
         </div>
         <div>
           <Label className="text-sm font-medium text-muted-foreground">Balance Due</Label>
-          <p className="text-sm font-medium">{registration.balance.toLocaleString()} XOF</p>
+          <p className="text-sm font-medium">{formatCurrency(registration.balance)}</p>
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="amount">Payment Amount (XOF) *</Label>
+        <Label htmlFor="amount">Payment Amount ({getCurrencySymbol()}) *</Label>
         <Input
           id="amount"
           type="number"
@@ -445,7 +446,8 @@ function PaymentForm({ registration, onSave, onCancel }: PaymentFormProps) {
 }
 
 export function RegistrationManagement() {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
+  const { formatCurrency, getCurrencySymbol } = useCurrencyFormatter()
   const { classes, isLoading: classesLoading } = useClassManagement()
   const [registrations, setRegistrations] = useState<RegistrationFee[]>(mockRegistrations)
   const [stats, setStats] = useState<RegistrationStats>({
@@ -768,7 +770,7 @@ export function RegistrationManagement() {
       if (payment.amount > selectedRegistration.balance) {
         toast({
           title: "Payment exceeds outstanding balance",
-          description: `Payment amount (${payment.amount.toLocaleString()} XOF) cannot exceed the outstanding balance (${selectedRegistration.balance.toLocaleString()} XOF)`,
+          description: `Payment amount (${formatCurrency(payment.amount)}) cannot exceed the outstanding balance (${formatCurrency(selectedRegistration.balance)})`,
           variant: "destructive"
         })
         return
@@ -797,7 +799,7 @@ export function RegistrationManagement() {
       
       toast({
         title: "Payment Recorded",
-        description: `Payment of ${payment.amount.toLocaleString()} XOF has been recorded.`,
+        description: `Payment of ${formatCurrency(payment.amount)} has been recorded.`,
       })
     }
   }
@@ -910,7 +912,7 @@ export function RegistrationManagement() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="registrationFee">Reg. Fee (XOF)</Label>
+                  <Label htmlFor="registrationFee">Reg. Fee ({getCurrencySymbol()})</Label>
                   <Input
                     id="registrationFee"
                     type="number"
@@ -921,7 +923,7 @@ export function RegistrationManagement() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ptaFee">PTA Fee (XOF)</Label>
+                  <Label htmlFor="ptaFee">PTA Fee ({getCurrencySymbol()})</Label>
                   <Input
                     id="ptaFee"
                     type="number"
@@ -935,7 +937,7 @@ export function RegistrationManagement() {
               
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="tuitionFee">School Fees (XOF)</Label>
+                  <Label htmlFor="tuitionFee">School Fees ({getCurrencySymbol()})</Label>
                   <Input
                     id="tuitionFee"
                     type="number"
@@ -958,7 +960,7 @@ export function RegistrationManagement() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="installmentAmount">Amount (XOF)</Label>
+                  <Label htmlFor="installmentAmount">Amount ({getCurrencySymbol()})</Label>
                   <Input
                     id="installmentAmount"
                     type="number"
@@ -992,7 +994,7 @@ export function RegistrationManagement() {
 
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-sm font-medium">
-                  Total Amount: {(newRegistration.registration_fee + newRegistration.pta_fee + newRegistration.tuition_fee).toLocaleString()} XOF
+                  Total Amount: {formatCurrency(newRegistration.registration_fee + newRegistration.pta_fee + newRegistration.tuition_fee)}
                 </p>
               </div>
               </div>
@@ -1031,7 +1033,7 @@ export function RegistrationManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {registrations.reduce((sum, reg) => sum + reg.registration_fee, 0).toLocaleString()} XOF
+              {formatCurrency(registrations.reduce((sum, reg) => sum + reg.registration_fee, 0))}
             </div>
             <p className="text-xs text-muted-foreground">
               Total registration fees collected
@@ -1045,7 +1047,7 @@ export function RegistrationManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {registrations.reduce((sum, reg) => sum + reg.pta_fee, 0).toLocaleString()} XOF
+              {formatCurrency(registrations.reduce((sum, reg) => sum + reg.pta_fee, 0))}
             </div>
             <p className="text-xs text-muted-foreground">
               Total PTA fees collected
@@ -1059,7 +1061,7 @@ export function RegistrationManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {registrations.reduce((sum, reg) => sum + reg.tuition_fee, 0).toLocaleString()} XOF
+              {formatCurrency(registrations.reduce((sum, reg) => sum + reg.tuition_fee, 0))}
             </div>
             <p className="text-xs text-muted-foreground">
               Total school fees collected
@@ -1072,9 +1074,9 @@ export function RegistrationManagement() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total_revenue.toLocaleString()} XOF</div>
+            <div className="text-2xl font-bold">{formatCurrency(stats.total_revenue)}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.monthly_revenue.toLocaleString()} XOF this month
+              {formatCurrency(stats.monthly_revenue)} this month
             </p>
           </CardContent>
         </Card>

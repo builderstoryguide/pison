@@ -24,7 +24,7 @@ import {
 
 export function ParentAlerts() {
   const { user } = useAuth()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
   const { fetchParentAlerts, markAlertAsRead, isLoading } = useAlerts()
   
   const [alerts, setAlerts] = useState<any[]>([])

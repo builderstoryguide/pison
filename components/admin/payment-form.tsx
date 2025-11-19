@@ -18,7 +18,7 @@ import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useFinancial, type Payment } from "@/lib/financial-context"
 import { useStudentManagement } from "@/lib/student-management-context"
-import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
+import { useGlobalAcademicYear, useCurrencyFormatter } from "@/lib/app-configuration-context-v2"
 import { cn, getStudentClassName } from "@/lib/utils"
 
 const paymentSchema = z.object({
@@ -46,6 +46,7 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
   const { recordPayment, updatePayment, feeStructures, isLoading } = useFinancial()
   const { students, loadStudents } = useStudentManagement()
   const globalAcademicYear = useGlobalAcademicYear()
+  const { formatCurrency, getCurrencySymbol } = useCurrencyFormatter()
   const [selectedStudent, setSelectedStudent] = useState<string>(editData?.studentId || "")
   const [selectedFeeStructure, setSelectedFeeStructure] = useState<string>(editData?.feeStructureId || "")
 
@@ -211,7 +212,7 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
                         <SelectContent>
                           {feeStructures.map((fee) => (
                             <SelectItem key={fee.id} value={fee.id}>
-                              {fee.name} - {fee.amount.toLocaleString()} FCFA
+                              {fee.name} - {formatCurrency(fee.amount)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -227,7 +228,7 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
                     name="amount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Total Amount (FCFA)</FormLabel>
+                        <FormLabel>Total Amount ({getCurrencySymbol()})</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -247,7 +248,7 @@ export function PaymentForm({ onSuccess, onCancel, editData }: PaymentFormProps)
                     name="amountPaid"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Amount Paid (FCFA)</FormLabel>
+                        <FormLabel>Amount Paid ({getCurrencySymbol()})</FormLabel>
                         <FormControl>
                           <Input
                             type="number"

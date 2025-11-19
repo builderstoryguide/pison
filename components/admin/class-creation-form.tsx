@@ -213,12 +213,6 @@ export function ClassCreationForm({ onSuccess, onCancel }: ClassCreationFormProp
                   className="bg-muted"
                   placeholder="Academic year"
                 />
-                <Alert className="mt-2 py-2">
-                  <Info className="h-4 w-4" />
-                  <AlertDescription className="text-xs">
-                    Academic Year is managed globally in App Configuration. To change it, go to Settings → App Configuration → System Settings.
-                  </AlertDescription>
-                </Alert>
               </div>
             </CardContent>
           </Card>

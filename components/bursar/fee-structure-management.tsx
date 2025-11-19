@@ -22,7 +22,7 @@ interface FeeStructure {
 }
 
 export function FeeStructureManagement() {
-  const { toast } = useToast()
+  const { error: toastError } = useToast()
   const { formatCurrency } = useCurrencyFormatter()
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -40,7 +40,7 @@ export function FeeStructureManagement() {
       // Check if the response contains an error
       if (data.error) {
         console.error('API Error:', data.error)
-        toast.error(data.error || "Failed to load fee structures")
+        toastError(data.error || "Failed to load fee structures")
         setFeeStructures([])
         return
       }
@@ -51,12 +51,12 @@ export function FeeStructureManagement() {
         setFeeStructures(data)
       } else {
         console.error('Unexpected data format:', data)
-        toast.error("Invalid data format received")
+        toastError("Invalid data format received")
         setFeeStructures([])
       }
     } catch (error) {
       console.error('Fetch error:', error)
-      toast.error("Failed to load fee structures")
+      toastError("Failed to load fee structures")
       setFeeStructures([])
     } finally {
       setIsLoading(false)

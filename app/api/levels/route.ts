@@ -45,8 +45,24 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const body = await request.json()
+    
+    // Check authentication and require admin role first
+    let user
+    try {
+      user = await requireRole(request, 'admin')
+    } catch (authError) {
+      // requireRole throws a NextResponse on auth failure
+      if (authError instanceof NextResponse) {
+        return authError
+      }
+      // If it's some other error, return a generic auth error
+      return NextResponse.json(
+        { error: 'Authentication failed' },
+        { status: 401 }
+      )
+    }
 
+    const body = await request.json()
     const { name, subsystem, branch } = body
 
     // Validate required fields
@@ -58,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if level already exists for this subsystem and branch
-    const { data: existingLevel } = await supabase
+    const { data: existingLevel, error: checkError } = await supabase
       .from('levels')
       .select('id')
       .eq('name', name)
@@ -66,15 +82,23 @@ export async function POST(request: NextRequest) {
       .eq('branch', branch)
       .single()
 
-    if (existingLevel) {
+    // Check for database errors during existence check
+    if (checkError && checkError.code !== 'PGRST116') {
+      // PGRST116 is "not found" error, which is expected when level doesn't exist
+      // Any other error indicates a database problem
+      console.error('Error checking for existing level:', serializeSupabaseError(checkError))
       return NextResponse.json(
-        { error: 'Level already exists for this subsystem and branch combination' },
-        { status: 409 }
+        { error: 'Failed to verify level existence. Please try again.' },
+        { status: 500 }
       )
     }
 
-    // Check authentication and require admin role
-    const user = await requireRole(request, 'admin')
+    if (existingLevel) {
+      return NextResponse.json(
+        { error: `Level "${name}" already exists for ${subsystem} subsystem and ${branch} branch combination` },
+        { status: 409 }
+      )
+    }
 
     // Create level
     const { data: newLevel, error } = await supabase

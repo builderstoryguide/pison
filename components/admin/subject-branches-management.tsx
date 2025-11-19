@@ -50,7 +50,7 @@ interface Student {
 
 
 export default function SubjectBranchesManagement() {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
   const { classes: contextClasses, isLoading: classesLoading } = useClassManagement()
   
   // State management

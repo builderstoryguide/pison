@@ -48,7 +48,7 @@ import { EmployeeAttendanceTracking } from "./employee-attendance-tracking"
 
 export function EmployeeManagement() {
   const { employees, isLoading } = useEmployeeManagement()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
 
   const [searchTerm, setSearchTerm] = useState("")
   const [filterEmploymentType, setFilterEmploymentType] = useState("all")

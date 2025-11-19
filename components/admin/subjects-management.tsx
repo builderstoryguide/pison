@@ -41,7 +41,7 @@ interface CreateSubjectRequest {
 }
 
 export default function SubjectsManagement() {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
   
   // React Query hooks
   const { data: subjects = [], isLoading, error } = useSubjects()

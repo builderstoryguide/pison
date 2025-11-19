@@ -54,7 +54,7 @@ interface Student {
 }
 
 export default function BranchAssessments() {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
   
   // State management
   const [teacherAssignments, setTeacherAssignments] = useState<TeacherBranchAssignment[]>([])

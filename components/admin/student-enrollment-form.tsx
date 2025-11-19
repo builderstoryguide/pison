@@ -168,7 +168,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
       case 3:
         return !!(formData.class)
       case 4:
-        return !!(formData.parentName && formData.parentEmail && (!formData.parentPhone || isValidPhoneFormat(formData.parentPhone)))
+        return !!(formData.parentName && (!formData.parentPhone || isValidPhoneFormat(formData.parentPhone)))
       case 5:
         return !!(formData.emergencyContactName && (!formData.emergencyContactPhone || isValidPhoneFormat(formData.emergencyContactPhone)))
       case 6:
@@ -197,7 +197,6 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
         break
       case 4:
         if (!formData.parentName) return "Parent/guardian name is required"
-        if (!formData.parentEmail) return "Parent email is required"
         if (formData.parentPhone && !isValidPhoneFormat(formData.parentPhone)) return "Valid parent phone number is required (Format: +237 6XXXXXXXX)"
         break
       case 5:
@@ -246,43 +245,20 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">
             Student Enrollment
           </h1>
-          <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
-            Complete the enrollment process for a new student. This form will guide you through all necessary information.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 flex-wrap">
-            <Badge variant="outline" className="px-3 py-1 md:px-4 md:py-2 text-xs md:text-sm font-mono">
-              ID: {generateStudentId()}
-            </Badge>
-          </div>
         </div>
 
         {/* Progress Section */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-muted-foreground">Enrollment Progress</span>
-                <span className="text-sm font-bold text-primary">{Math.round(progress)}% Complete</span>
-              </div>
-              <Progress value={progress} className="h-3" />
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium text-muted-foreground">Enrollment Progress</span>
+            <span className="text-sm font-bold text-primary">{Math.round(progress)}% Complete</span>
+          </div>
+          <Progress value={progress} className="h-3" />
+        </div>
 
         {/* Form Content */}
         <Card>
-          <CardHeader className="pb-6">
-            <div className="text-center">
-              <CardTitle className="text-xl sm:text-2xl font-bold">
-                Student Enrollment Form
-              </CardTitle>
-              <CardDescription className="text-sm sm:text-base">
-                Please fill in all required information
-              </CardDescription>
-            </div>
-          </CardHeader>
-
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 pt-6">
             {/* Validation Alert */}
             {!isStepValid(currentStep) && (
               <Alert>
@@ -296,7 +272,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
             {/* Step 1: Personal Information */}
             {currentStep === 1 && (
               <div className="space-y-6">
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">
                       First Name <span className="text-destructive">*</span>
@@ -307,17 +283,6 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                       onChange={(e) => updateFormData('firstName', e.target.value)}
                       placeholder="Enter first name"
                       required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="middleName">
-                      Middle Name
-                    </Label>
-                    <Input
-                      id="middleName"
-                      value={formData.middleName}
-                      onChange={(e) => updateFormData('middleName', e.target.value)}
-                      placeholder="Enter middle name"
                     />
                   </div>
                   <div className="space-y-2">
@@ -336,13 +301,13 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
 
                 <Separator />
 
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-                  <Form {...dateForm}>
+                <div className="flex flex-col gap-4">
+                  <Form {...dateForm} className="w-full">
                     <FormField
                       control={dateForm.control}
                       name="dateOfBirth"
                       render={({ field }) => (
-                        <FormItem className="flex flex-col space-y-2">
+                        <FormItem className="flex flex-col space-y-2 w-full">
                           <FormLabel>
                             Date of Birth <span className="text-destructive">*</span>
                           </FormLabel>
@@ -351,7 +316,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                               <FormControl>
                                 <Button
                                   variant={"outline"}
-                                  className={`pl-3 text-left font-normal ${!field.value ? "text-muted-foreground" : ""}`}
+                                  className={`pl-3 text-left font-normal w-full ${!field.value ? "text-muted-foreground" : ""}`}
                                 >
                                   {field.value ? (
                                     format(field.value, "PPP")
@@ -384,12 +349,12 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                       )}
                     />
                   </Form>
-                  <div className="space-y-2">
+                  <div className="space-y-2 w-full">
                     <Label htmlFor="gender">
                       Gender <span className="text-destructive">*</span>
                     </Label>
                     <Select value={formData.gender || ''} onValueChange={(value) => updateFormData('gender', value)}>
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
                       <SelectContent>
@@ -684,7 +649,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                 <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="parentEmail">
-                      Parent Email <span className="text-destructive">*</span>
+                      Parent Email
                     </Label>
                     <Input
                       id="parentEmail"
@@ -692,7 +657,6 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                       value={formData.parentEmail}
                       onChange={(e) => updateFormData('parentEmail', e.target.value)}
                       placeholder="parent@example.com"
-                      required
                     />
                   </div>
                   <div className="space-y-2">

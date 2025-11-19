@@ -35,7 +35,7 @@ export function UserCreationSuccessDialog({
   onSuccess 
 }: UserCreationSuccessDialogProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
-  const { toast } = useToast()
+  const { success: toastSuccess } = useToast()
   const hasDownloadedRef = useRef(false)
 
   const copyToClipboard = (text: string, field: string) => {
@@ -73,7 +73,7 @@ export function UserCreationSuccessDialog({
     URL.revokeObjectURL(url)
 
     if (showToast) {
-      toast.success('Credentials downloaded')
+      toastSuccess('Credentials downloaded')
     }
   }
 

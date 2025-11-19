@@ -141,8 +141,16 @@ export async function POST(request: NextRequest) {
     // Calculate total amount
     const total_amount = quantityNum * unitPriceNum;
 
-    // Generate sale ID using crypto.randomUUID for collision-free uniqueness
-    const saleId = `SALE-${crypto.randomUUID()}`;
+    // Generate short sale ID: YYMMDD + 4 random hex = 10 characters max
+    // Format: 251119A3F2 (10 characters)
+    // Using 4 hex characters provides 65,536 unique combinations per day (16^4)
+    // This significantly reduces collision probability compared to 2 characters (256 combinations)
+    const now = new Date();
+    const year = now.getFullYear().toString().slice(-2); // Last 2 digits of year
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const randomHex = crypto.randomUUID().replace(/-/g, '').substring(0, 4).toUpperCase();
+    const saleId = `${year}${month}${day}${randomHex}`;
 
     const newSale = {
       id: saleId,

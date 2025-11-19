@@ -45,7 +45,7 @@ interface PaymentDetailsDialogProps {
 }
 
 export function PaymentDetailsDialog({ payment, isOpen, onClose }: PaymentDetailsDialogProps) {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const { formatCurrency } = useCurrencyFormatter()
   const [isPrinting, setIsPrinting] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
@@ -87,10 +87,10 @@ export function PaymentDetailsDialog({ payment, isOpen, onClose }: PaymentDetail
         printWindow.document.close()
         printWindow.print()
         printWindow.close()
-        toast.success("Receipt printed successfully")
+        toastSuccess("Receipt printed successfully")
       }
     } catch (error) {
-      toast.error("Failed to print receipt")
+      toastError("Failed to print receipt")
     } finally {
       setIsPrinting(false)
     }
@@ -113,9 +113,9 @@ export function PaymentDetailsDialog({ payment, isOpen, onClose }: PaymentDetail
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
       
-      toast.success("Receipt downloaded successfully")
+      toastSuccess("Receipt downloaded successfully")
     } catch (error) {
-      toast.error("Failed to download receipt")
+      toastError("Failed to download receipt")
     } finally {
       setIsDownloading(false)
     }

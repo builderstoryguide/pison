@@ -76,7 +76,7 @@ const regions = ["Adamawa", "Centre", "East", "Far North", "Littoral", "North", 
 
 export function EnhancedEditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFormProps) {
   const { updateTeacher } = useTeacherManagement()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -413,7 +413,7 @@ export function EnhancedEditTeacherForm({ teacher, onSuccess, onCancel }: EditTe
       // Refresh assignments to show updated data
       await fetchTeacherAssignments()
       
-      toast.success(`Teacher updated successfully! ${formData.firstName} ${formData.lastName}'s information has been updated.`)
+      toastSuccess(`Teacher updated successfully! ${formData.firstName} ${formData.lastName}'s information has been updated.`)
       
       onSuccess()
     } catch (err) {
@@ -422,7 +422,7 @@ export function EnhancedEditTeacherForm({ teacher, onSuccess, onCancel }: EditTe
         err && typeof err === 'object' && 'message' in err ? String(err.message) :
         "Failed to update teacher"
       
-      toast.error(`Failed to update teacher: ${errorMessage}`)
+      toastError(`Failed to update teacher: ${errorMessage}`)
       
       setError(errorMessage)
       console.error("Error updating teacher:", err)
@@ -906,8 +906,8 @@ export function EnhancedEditTeacherForm({ teacher, onSuccess, onCancel }: EditTe
                                 const assignmentText = `${assignment.branch?.subject?.subject_name || 'Unknown Subject'} - ${assignment.branch?.branch_name || 'Unknown Branch'} - ${assignment.class?.class_name || 'Unknown Class'}`
                                 copyToClipboardWithFeedback(
                                   assignmentText,
-                                  () => toast.success("Assignment copied to clipboard"),
-                                  (error) => toast.error(`Failed to copy: ${error}`)
+                                  () => toastSuccess("Assignment copied to clipboard"),
+                                  (error) => toastError(`Failed to copy: ${error}`)
                                 )
                               }}
                             >

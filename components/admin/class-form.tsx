@@ -37,7 +37,7 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
   const { createClass, updateClass } = useClassManagement()
   const { teachers } = useTeacherManagement()
   const { subjects, isLoading: subjectsLoading, error: subjectsError, loadSubjects } = useSubjectManagement()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const globalAcademicYear = useGlobalAcademicYear()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -149,14 +149,14 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
         console.log("Editing class with data:", formData)
         const result = await updateClass(editClass.id, formData)
         if (result.success) {
-          toast.success("Class Updated Successfully!", {
+          toastSuccess("Class Updated Successfully!", {
             description: `Class "${formData.name}" has been updated.`
           })
           onSuccess({ classId: editClass.id, classData: formData })
         } else {
           const errorMessage = result.error || "Failed to update class"
           setError(errorMessage)
-          toast.error("Class Update Failed", {
+          toastError("Class Update Failed", {
             description: errorMessage
           })
         }
@@ -166,7 +166,7 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
         const result = await createClass(formData)
         
         if (result.success && result.classId) {
-          toast.success("Class Created Successfully!", {
+          toastSuccess("Class Created Successfully!", {
             description: `Class "${formData.name}" has been created.`
           })
           
@@ -182,7 +182,7 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
         } else {
           const errorMessage = result.error || "Failed to create class"
           setError(errorMessage)
-          toast.error("Class Creation Failed", {
+          toastError("Class Creation Failed", {
             description: errorMessage
           })
         }
@@ -233,6 +233,56 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
             <CardContent className="space-y-4">
               <div className="grid gap-4">
                 <div className="space-y-2">
+                  <Label htmlFor="branch" className="text-sm font-medium">
+                    Branch <span className="text-destructive">*</span>
+                  </Label>
+                  <Select value={formData.branch} onValueChange={(value: "grammar" | "technical" | "commercial") => setFormData({ ...formData, branch: value, subjects: [] })}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue placeholder="Select branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="grammar">Grammar</SelectItem>
+                      <SelectItem value="technical">Technical</SelectItem>
+                      <SelectItem value="commercial">Commercial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subsystem" className="text-sm font-medium">
+                    Subsystem <span className="text-destructive">*</span>
+                  </Label>
+                  <Select value={formData.subsystem} onValueChange={(value: "english" | "french") => setFormData({ ...formData, subsystem: value, subjects: [] })}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue placeholder="Select subsystem" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="english">English</SelectItem>
+                      <SelectItem value="french">French</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="academicYear" className="text-sm font-medium">
+                    Academic Year <span className="text-destructive">*</span>
+                  </Label>
+                  <Select 
+                    value={globalAcademicYear} 
+                    disabled={true}
+                  >
+                    <SelectTrigger className="h-10 bg-muted w-full">
+                      <SelectValue placeholder="Select academic year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={globalAcademicYear}>
+                        {globalAcademicYear}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="name" className="text-sm font-medium">
                     Class Name <span className="text-destructive">*</span>
                   </Label>
@@ -270,56 +320,6 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                           </SelectItem>
                         ))
                       )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="subsystem" className="text-sm font-medium">
-                    Subsystem <span className="text-destructive">*</span>
-                  </Label>
-                  <Select value={formData.subsystem} onValueChange={(value: "english" | "french") => setFormData({ ...formData, subsystem: value, subjects: [] })}>
-                    <SelectTrigger className="h-10 w-full">
-                      <SelectValue placeholder="Select subsystem" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="english">English</SelectItem>
-                      <SelectItem value="french">French</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="branch" className="text-sm font-medium">
-                    Branch <span className="text-destructive">*</span>
-                  </Label>
-                  <Select value={formData.branch} onValueChange={(value: "grammar" | "technical" | "commercial") => setFormData({ ...formData, branch: value, subjects: [] })}>
-                    <SelectTrigger className="h-10 w-full">
-                      <SelectValue placeholder="Select branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="grammar">Grammar</SelectItem>
-                      <SelectItem value="technical">Technical</SelectItem>
-                      <SelectItem value="commercial">Commercial</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="academicYear" className="text-sm font-medium">
-                    Academic Year <span className="text-destructive">*</span>
-                  </Label>
-                  <Select 
-                    value={globalAcademicYear} 
-                    disabled={true}
-                  >
-                    <SelectTrigger className="h-10 bg-muted w-full">
-                      <SelectValue placeholder="Select academic year" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={globalAcademicYear}>
-                        {globalAcademicYear}
-                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -570,6 +570,56 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
             <CardContent className="space-y-4">
               <div className="grid gap-4">
                 <div className="space-y-2">
+                  <Label htmlFor="branch" className="text-sm font-medium">
+                    Branch <span className="text-destructive">*</span>
+                  </Label>
+                  <Select value={formData.branch} onValueChange={(value: "grammar" | "technical" | "commercial") => setFormData({ ...formData, branch: value, subjects: [] })}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue placeholder="Select branch" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="grammar">Grammar</SelectItem>
+                      <SelectItem value="technical">Technical</SelectItem>
+                      <SelectItem value="commercial">Commercial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subsystem" className="text-sm font-medium">
+                    Subsystem <span className="text-destructive">*</span>
+                  </Label>
+                  <Select value={formData.subsystem} onValueChange={(value: "english" | "french") => setFormData({ ...formData, subsystem: value, subjects: [] })}>
+                    <SelectTrigger className="h-10 w-full">
+                      <SelectValue placeholder="Select subsystem" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="english">English</SelectItem>
+                      <SelectItem value="french">French</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="academicYear" className="text-sm font-medium">
+                    Academic Year <span className="text-destructive">*</span>
+                  </Label>
+                  <Select 
+                    value={globalAcademicYear} 
+                    disabled={true}
+                  >
+                    <SelectTrigger className="h-10 bg-muted w-full">
+                      <SelectValue placeholder="Select academic year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={globalAcademicYear}>
+                        {globalAcademicYear}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="name" className="text-sm font-medium">
                     Class Name <span className="text-destructive">*</span>
                   </Label>
@@ -607,56 +657,6 @@ export function ClassForm({ onSuccess, onCancel, editClass }: ClassFormProps) {
                           </SelectItem>
                         ))
                       )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="subsystem" className="text-sm font-medium">
-                    Subsystem <span className="text-destructive">*</span>
-                  </Label>
-                  <Select value={formData.subsystem} onValueChange={(value: "english" | "french") => setFormData({ ...formData, subsystem: value, subjects: [] })}>
-                    <SelectTrigger className="h-10 w-full">
-                      <SelectValue placeholder="Select subsystem" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="english">English</SelectItem>
-                      <SelectItem value="french">French</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="branch" className="text-sm font-medium">
-                    Branch <span className="text-destructive">*</span>
-                  </Label>
-                  <Select value={formData.branch} onValueChange={(value: "grammar" | "technical" | "commercial") => setFormData({ ...formData, branch: value, subjects: [] })}>
-                    <SelectTrigger className="h-10 w-full">
-                      <SelectValue placeholder="Select branch" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="grammar">Grammar</SelectItem>
-                      <SelectItem value="technical">Technical</SelectItem>
-                      <SelectItem value="commercial">Commercial</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="academicYear" className="text-sm font-medium">
-                    Academic Year <span className="text-destructive">*</span>
-                  </Label>
-                  <Select 
-                    value={globalAcademicYear} 
-                    disabled={true}
-                  >
-                    <SelectTrigger className="h-10 bg-muted w-full">
-                      <SelectValue placeholder="Select academic year" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={globalAcademicYear}>
-                        {globalAcademicYear}
-                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -48,7 +48,7 @@ export function StudentFeeAssignmentForm({ onSuccess, onCancel, editData }: Stud
   const { createStudentFeeAssignment, updateStudentFeeAssignment, isLoading } = useFinancial()
   const { students } = useStudentManagement()
   const { feeStructures } = useFinancial()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const globalAcademicYear = useGlobalAcademicYear()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
@@ -130,10 +130,10 @@ export function StudentFeeAssignmentForm({ onSuccess, onCancel, editData }: Stud
         const result = await updateStudentFeeAssignment(editData.id, formattedData)
         if (result.success) {
           onSuccess(editData.id)
-          toast.success("Fee assignment updated successfully!")
+          toastSuccess("Fee assignment updated successfully!")
         } else {
           console.error("Error updating fee assignment:", result.error)
-          toast.error("Failed to update fee assignment", {
+          toastError("Failed to update fee assignment", {
             description: result.error || "An error occurred while updating the fee assignment."
           })
         }
@@ -141,17 +141,17 @@ export function StudentFeeAssignmentForm({ onSuccess, onCancel, editData }: Stud
         const result = await createStudentFeeAssignment(formattedData)
         if (result.success && result.assignmentId) {
           onSuccess(result.assignmentId)
-          toast.success("Fee assigned to student successfully!")
+          toastSuccess("Fee assigned to student successfully!")
         } else {
           console.error("Error creating fee assignment:", result.error)
-          toast.error("Failed to assign fee to student", {
+          toastError("Failed to assign fee to student", {
             description: result.error || "An error occurred while assigning the fee."
           })
         }
       }
     } catch (error) {
       console.error("Form submission error:", error)
-      toast.error("An unexpected error occurred")
+      toastError("An unexpected error occurred")
     }
   }
 
@@ -345,12 +345,6 @@ export function StudentFeeAssignmentForm({ onSuccess, onCancel, editData }: Stud
                           </SelectContent>
                         </Select>
                       </FormControl>
-                      <Alert className="mt-2 py-2">
-                        <Info className="h-4 w-4" />
-                        <AlertDescription className="text-xs">
-                          Academic Year is managed globally in App Configuration. To change it, go to Settings → App Configuration → System Settings.
-                        </AlertDescription>
-                      </Alert>
                       <FormMessage />
                     </FormItem>
                   )}

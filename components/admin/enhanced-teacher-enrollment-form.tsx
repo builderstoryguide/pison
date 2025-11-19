@@ -89,7 +89,7 @@ const regions = [
 
 export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollmentFormProps) {
   
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)

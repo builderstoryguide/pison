@@ -45,7 +45,7 @@ interface Student {
 }
 
 export default function SubjectBranchesManagementOptimized() {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
   const { classes: contextClasses, isLoading: classesLoading } = useClassManagement()
   
   // React Query hooks - Performance monitor removed

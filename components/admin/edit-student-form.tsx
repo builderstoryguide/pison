@@ -338,13 +338,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Edit Student</h2>
-          <p className="text-muted-foreground">
-            Update information for {student.first_name} {student.last_name}
-          </p>
-        </div>
+      <div className="flex items-center justify-end">
         <div className="flex gap-2">
           <Button variant="outline" onClick={onCancel}>
             <X className="h-4 w-4 mr-2" />
@@ -636,12 +630,6 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                     className="bg-muted"
                     placeholder="Academic year"
                   />
-                  <Alert className="mt-2 py-2">
-                    <Info className="h-4 w-4" />
-                    <AlertDescription className="text-xs">
-                      Academic Year is managed globally in App Configuration. To change it, go to Settings → App Configuration → System Settings.
-                    </AlertDescription>
-                  </Alert>
                 </div>
               </div>
 
@@ -779,14 +767,6 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                     <p className="text-xs text-muted-foreground">
                       From: {feeStructureName}
                     </p>
-                  )}
-                  {!hasValidFeeStructure && formData.class && formData.academic_year && term && !isLoadingFeeStructure && (
-                    <Alert variant="destructive" className="mt-2">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription className="text-sm">
-                        No fee structure found for this class, academic year, and term combination. Please create and assign a fee structure in Fee Management before saving.
-                      </AlertDescription>
-                    </Alert>
                   )}
                 </div>
                 <div className="space-y-2">

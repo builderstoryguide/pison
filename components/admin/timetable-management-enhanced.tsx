@@ -138,7 +138,7 @@ export function TimetableManagementEnhanced() {
     updateTimetableStatus
   } = useEnhancedTimetable()
   
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast()
   const globalAcademicYear = useGlobalAcademicYear()
   
   const [selectedClass, setSelectedClass] = useState<string>("")
@@ -218,18 +218,18 @@ export function TimetableManagementEnhanced() {
           setStatusBanners(prev => [updatedClass, ...prev.filter(c => c.id !== classId)])
         }
         
-        toast.success("Timetable generated successfully", {
+        toastSuccess("Timetable generated successfully", {
           description: `${generatedClass?.name || 'Class'} timetable is now ready for use`
         })
       } else {
         // Update status to error
         await updateTimetableStatus(classId, 'error', { generatedBy: 'admin' })
-        toast.error("Failed to generate timetable", { description: result.error })
+        toastError("Failed to generate timetable", { description: result.error })
       }
     } catch (error) {
       // Update status to error
       await updateTimetableStatus(classId, 'error', { generatedBy: 'admin' })
-      toast.error("An unexpected error occurred", { description: error instanceof Error ? error.message : "Unknown error" })
+      toastError("An unexpected error occurred", { description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setIsGenerating(false)
       setShowGenerationOptions(false)
@@ -246,13 +246,13 @@ export function TimetableManagementEnhanced() {
     try {
       const result = await deleteTimetable(classId)
       if (result.success) {
-        toast.success("Timetable deleted successfully")
+        toastSuccess("Timetable deleted successfully")
         await refreshClasses()
       } else {
-        toast.error("Failed to delete timetable", { description: result.error })
+        toastError("Failed to delete timetable", { description: result.error })
       }
     } catch (error) {
-      toast.error("An unexpected error occurred", { description: error instanceof Error ? error.message : "Unknown error" })
+      toastError("An unexpected error occurred", { description: error instanceof Error ? error.message : "Unknown error" })
     }
   }
 
@@ -260,9 +260,9 @@ export function TimetableManagementEnhanced() {
   const handleExportTimetable = async (classId: string) => {
     try {
       await exportTimetable(classId)
-      toast.success("Timetable exported successfully")
+      toastSuccess("Timetable exported successfully")
     } catch (error) {
-      toast.error("Failed to export timetable", { description: error instanceof Error ? error.message : "Unknown error" })
+      toastError("Failed to export timetable", { description: error instanceof Error ? error.message : "Unknown error" })
     }
   }
 
@@ -293,7 +293,7 @@ export function TimetableManagementEnhanced() {
 
   const handleBulkDelete = async () => {
     if (selectedTimetables.size === 0) {
-      toast.warning("No timetables selected for deletion")
+      toastWarning("No timetables selected for deletion")
       return
     }
 
@@ -301,15 +301,15 @@ export function TimetableManagementEnhanced() {
     
     if (result.success) {
       if (result.errors.length > 0) {
-        toast.warning(`Deleted ${result.deletedCount} timetables with ${result.errors.length} errors`)
+        toastWarning(`Deleted ${result.deletedCount} timetables with ${result.errors.length} errors`)
       } else {
-        toast.success(`Successfully deleted ${result.deletedCount} timetables`)
+        toastSuccess(`Successfully deleted ${result.deletedCount} timetables`)
       }
       setSelectedTimetables(new Set())
       setSelectAll(false)
       await refreshClasses()
     } else {
-      toast.error("Failed to delete timetables", { description: result.errors[0] })
+      toastError("Failed to delete timetables", { description: result.errors[0] })
     }
   }
 
@@ -350,15 +350,15 @@ export function TimetableManagementEnhanced() {
       const failed = results.filter(r => r.status === 'rejected').length
       
       if (successful > 0) {
-        toast.success(`Generated ${successful} timetables successfully${failed > 0 ? ` (${failed} failed)` : ''}`)
+        toastSuccess(`Generated ${successful} timetables successfully${failed > 0 ? ` (${failed} failed)` : ''}`)
         setSelectedClassesForGeneration(new Set())
         setSelectAllForGeneration(false)
         await refreshClasses()
       } else {
-        toast.error("Failed to generate any timetables")
+        toastError("Failed to generate any timetables")
       }
     } catch (error) {
-      toast.error("An unexpected error occurred during bulk generation", { description: error instanceof Error ? error.message : "Unknown error" })
+      toastError("An unexpected error occurred during bulk generation", { description: error instanceof Error ? error.message : "Unknown error" })
     } finally {
       setIsGenerating(false)
       setIsGenerationDialogOpen(false)

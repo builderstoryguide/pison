@@ -45,7 +45,7 @@ interface OutstandingReportSummary {
 }
 
 export function OutstandingReport() {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const { formatCurrency } = useCurrencyFormatter()
   const [reportData, setReportData] = useState<OutstandingReportData[]>([])
   const [summary, setSummary] = useState<OutstandingReportSummary | null>(null)
@@ -69,7 +69,7 @@ export function OutstandingReport() {
       const data = await response.json()
       setClasses(data)
     } catch (error) {
-      toast.error("Failed to load classes")
+      toastError("Failed to load classes")
     }
   }
 
@@ -86,15 +86,15 @@ export function OutstandingReport() {
       const data = await response.json()
 
       if (data.error) {
-        toast.error(data.error)
+        toastError(data.error)
         return
       }
 
       setReportData(data.data || [])
       setSummary(data.summary)
-      toast.success("Outstanding report generated successfully")
+      toastSuccess("Outstanding report generated successfully")
     } catch (error) {
-      toast.error("Failed to generate outstanding report")
+      toastError("Failed to generate outstanding report")
     } finally {
       setIsLoading(false)
     }
@@ -134,9 +134,9 @@ export function OutstandingReport() {
         window.URL.revokeObjectURL(url)
       }
 
-      toast.success(`Report exported as ${format.toUpperCase()}`)
+      toastSuccess(`Report exported as ${format.toUpperCase()}`)
     } catch (error) {
-      toast.error("Failed to export report")
+      toastError("Failed to export report")
     }
   }
 

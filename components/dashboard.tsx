@@ -937,8 +937,9 @@ export function Dashboard() {
         label: "Finances",
         icon: DollarSign,
         subItems: [
+          { id: "financial", label: "Fee Management" },
           { id: "sales", label: "Sales" },
-          { id: "payment", label: "Payment" },
+          { id: "payment", label: "Fees Payment" },
           { id: "expenditures", label: "Expenditures" },
         ],
       },
@@ -1384,7 +1385,7 @@ export function Dashboard() {
         icon: DollarSign,
         subItems: [
           { id: "sales", label: "Sales" },
-          { id: "payment", label: "Payment" },
+          { id: "payment", label: "Fees Payment" },
           { id: "expenditures", label: "Expenditures" },
         ],
       },

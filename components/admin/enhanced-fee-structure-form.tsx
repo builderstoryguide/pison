@@ -21,7 +21,7 @@ import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
+import { useGlobalAcademicYear, useCurrencyFormatter } from "@/lib/app-configuration-context-v2"
 import { apiPost } from "@/lib/api-utils"
 import { Info } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -66,8 +66,9 @@ interface EnhancedFeeStructureFormProps {
 }
 
 export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: EnhancedFeeStructureFormProps) {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const globalAcademicYear = useGlobalAcademicYear()
+  const { formatCurrency, getCurrencySymbol } = useCurrencyFormatter()
   const [classes, setClasses] = useState<Class[]>([])
   const [isLoadingClasses, setIsLoadingClasses] = useState(true)
   const [installments, setInstallments] = useState<Installment[]>([])
@@ -147,7 +148,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
       }
     } catch (error) {
       console.error("Error loading classes:", error)
-      toast.error("Error loading classes", {
+      toastError("Error loading classes", {
         description: "Failed to load classes. Using sample data."
       })
     } finally {
@@ -240,7 +241,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
       const successfulResults = results.filter(result => result !== null)
 
       if (successfulResults.length > 0) {
-        toast.success("Fee structures created", {
+        toastSuccess("Fee structures created", {
           description: `Successfully created fee structures for ${successfulResults.length} class(es)`
         })
         onSuccess(successfulResults[0].feeStructureId)
@@ -249,7 +250,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
       }
     } catch (error) {
       console.error("Error creating fee structures:", error)
-      toast.error("Error creating fee structures", {
+      toastError("Error creating fee structures", {
         description: error instanceof Error ? error.message : "Failed to create fee structures"
       })
     }
@@ -325,12 +326,6 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                           </SelectContent>
                         </Select>
                       </FormControl>
-                      <Alert className="mt-2 py-2">
-                        <Info className="h-4 w-4" />
-                        <AlertDescription className="text-xs">
-                          Academic Year is managed globally in App Configuration. To change it, go to Settings → App Configuration → System Settings.
-                        </AlertDescription>
-                      </Alert>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -410,7 +405,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                   name="totalAmount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Total Amount (FCFA)</FormLabel>
+                      <FormLabel>Total Amount ({getCurrencySymbol()})</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -469,7 +464,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                             </span>
                             <div className="text-right">
                               <div className="text-sm font-medium">
-                                {installment.amount.toLocaleString()} FCFA
+                                {formatCurrency(installment.amount)}
                               </div>
                               <div className="text-xs text-muted-foreground">
                                 Due: {format(installment.dueDate, "MMM dd, yyyy")}
@@ -606,7 +601,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary">
-                      {totalAmount.toLocaleString()} FCFA
+                      {formatCurrency(totalAmount)}
                     </div>
                     <div className="text-sm text-muted-foreground">Total Amount</div>
                   </div>

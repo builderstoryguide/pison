@@ -32,7 +32,7 @@ interface ClassOption {
 
 export function ExamMarksEntryForm({ examination, onSuccess, onCancel }: ExamMarksEntryFormProps) {
   const { user } = useAuth()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const {
     loadStudentsForClass,
     loadExistingMarks,
@@ -202,7 +202,7 @@ export function ExamMarksEntryForm({ examination, onSuccess, onCancel }: ExamMar
     e.preventDefault()
 
     if (!validateMarks() || !selectedClass || !selectedSubject) {
-      toast.error("Validation Error", {
+      toastError("Validation Error", {
         description: "Please fix the errors before submitting",
       })
       return
@@ -235,7 +235,7 @@ export function ExamMarksEntryForm({ examination, onSuccess, onCancel }: ExamMar
         })
 
       if (marksToSave.length === 0) {
-        toast.error("No Marks", {
+        toastError("No Marks", {
           description: "Please enter at least one mark",
         })
         return
@@ -244,20 +244,20 @@ export function ExamMarksEntryForm({ examination, onSuccess, onCancel }: ExamMar
       const result = await saveExamMarks(marksToSave)
 
       if (result.success) {
-        toast.success("Marks Saved", {
+        toastSuccess("Marks Saved", {
           description: `Successfully saved marks for ${marksToSave.length} student(s)`,
         })
         if (onSuccess) {
           onSuccess()
         }
       } else {
-        toast.error("Failed to Save Marks", {
+        toastError("Failed to Save Marks", {
           description: result.error || "An error occurred while saving marks",
         })
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to save marks"
-      toast.error("Error", {
+      toastError("Error", {
         description: errorMessage,
       })
     }

@@ -117,8 +117,8 @@ export async function GET(request: NextRequest) {
         .replace(/[()]/g, '') // Remove parentheses that could break the filter
         .trim();
       
-      // Search in students table with proper field mapping
-      const { data, error: dbError } = await supabase
+      // Build the query based on whether we have a search term
+      let dbQuery = supabase
         .from('students')
         .select(`
           id,
@@ -130,10 +130,17 @@ export async function GET(request: NextRequest) {
           enrollment_status,
           status
         `)
-        .or(`first_name.ilike.%${sanitizedQuery}%,last_name.ilike.%${sanitizedQuery}%,student_id.ilike.%${sanitizedQuery}%`)
         .in('enrollment_status', ['enrolled', 'pending'])
         .in('status', ['active', 'pending'])
+        .order('first_name', { ascending: true })
         .limit(limit);
+      
+      // Only add search filter if query is not empty
+      if (sanitizedQuery) {
+        dbQuery = dbQuery.or(`first_name.ilike.%${sanitizedQuery}%,last_name.ilike.%${sanitizedQuery}%,student_id.ilike.%${sanitizedQuery}%`);
+      }
+      
+      const { data, error: dbError } = await dbQuery;
 
       if (dbError) {
         console.warn('Database query failed, using mock data:', dbError);

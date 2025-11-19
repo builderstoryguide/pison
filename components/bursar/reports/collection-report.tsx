@@ -40,7 +40,7 @@ interface CollectionReportSummary {
 }
 
 export function CollectionReport() {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const { formatCurrency } = useCurrencyFormatter()
   const [reportData, setReportData] = useState<CollectionReportData[]>([])
   const [summary, setSummary] = useState<CollectionReportSummary | null>(null)
@@ -63,7 +63,7 @@ export function CollectionReport() {
       const data = await response.json()
       setPaymentMethods(data)
     } catch (error) {
-      toast.error("Failed to load payment methods")
+      toastError("Failed to load payment methods")
     }
   }
 
@@ -79,15 +79,15 @@ export function CollectionReport() {
       const data = await response.json()
 
       if (data.error) {
-        toast.error(data.error)
+        toastError(data.error)
         return
       }
 
       setReportData(data.data || [])
       setSummary(data.summary)
-      toast.success("Collection report generated successfully")
+      toastSuccess("Collection report generated successfully")
     } catch (error) {
-      toast.error("Failed to generate collection report")
+      toastError("Failed to generate collection report")
     } finally {
       setIsLoading(false)
     }
@@ -126,9 +126,9 @@ export function CollectionReport() {
         window.URL.revokeObjectURL(url)
       }
 
-      toast.success(`Report exported as ${format.toUpperCase()}`)
+      toastSuccess(`Report exported as ${format.toUpperCase()}`)
     } catch (error) {
-      toast.error("Failed to export report")
+      toastError("Failed to export report")
     }
   }
 

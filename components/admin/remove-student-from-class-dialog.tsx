@@ -30,7 +30,7 @@ export function RemoveStudentFromClassDialog({
   classStudents,
   onSuccess
 }: RemoveStudentFromClassDialogProps) {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
@@ -61,7 +61,7 @@ export function RemoveStudentFromClassDialog({
 
   const handleRemoveStudents = async () => {
     if (selectedStudents.length === 0) {
-      toast.error("No students selected", {
+      toastError("No students selected", {
         description: "Please select at least one student to remove from the class."
       })
       return
@@ -75,7 +75,7 @@ export function RemoveStudentFromClassDialog({
       
       onSuccess(removedStudents)
       
-      toast.success("Students removed successfully", {
+      toastSuccess("Students removed successfully", {
         description: `${selectedStudents.length} student${selectedStudents.length === 1 ? '' : 's'} removed from ${className}`
       })
       
@@ -83,7 +83,7 @@ export function RemoveStudentFromClassDialog({
       setSearchQuery("")
       onOpenChange(false)
     } catch (error) {
-      toast.error("Error removing students", {
+      toastError("Error removing students", {
         description: "Failed to remove students from the class. Please try again."
       })
     } finally {

@@ -23,7 +23,7 @@ interface TeacherExportFormProps {
 
 export function TeacherExportForm({ onCancel, onSuccess, preSelectedTeacher, preSelectedTeachers }: TeacherExportFormProps) {
   const { teachers } = useTeacherManagement()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const [exportType, setExportType] = useState<"single" | "multiple">(
     preSelectedTeacher ? "single" : (preSelectedTeachers && preSelectedTeachers.length > 0 ? "multiple" : "single")
   )
@@ -175,14 +175,14 @@ export function TeacherExportForm({ onCancel, onSuccess, preSelectedTeacher, pre
     }
 
     if (teachersToExport.length === 0) {
-      toast.error("No teachers selected", {
+      toastError("No teachers selected", {
         description: "Please select at least one teacher to export."
       })
       return
     }
 
     if (selectedFields.length === 0) {
-      toast.error("No fields selected", {
+      toastError("No fields selected", {
         description: "Please select at least one field to export."
       })
       return
@@ -205,13 +205,13 @@ export function TeacherExportForm({ onCancel, onSuccess, preSelectedTeacher, pre
         exportToJSON(exportData)
       }
 
-      toast.success("Export successful", {
+      toastSuccess("Export successful", {
         description: `Successfully exported ${teachersToExport.length} teacher(s) to ${exportFormat.toUpperCase()} format.`
       })
 
       onSuccess?.()
     } catch (error) {
-      toast.error("Export failed", {
+      toastError("Export failed", {
         description: "An error occurred while exporting the data. Please try again."
       })
     }

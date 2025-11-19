@@ -40,7 +40,7 @@ interface PaymentPlanFormProps {
 export function PaymentPlanForm({ onSuccess, onCancel, editData }: PaymentPlanFormProps) {
   const { createPaymentPlan, updatePaymentPlan, isLoading } = useFinancial()
   const { students } = useStudentManagement()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
 
@@ -107,22 +107,22 @@ export function PaymentPlanForm({ onSuccess, onCancel, editData }: PaymentPlanFo
         const result = await updatePaymentPlan(editData.id, formattedData)
         if (result.success) {
           onSuccess(editData.id)
-          toast.success("Payment plan updated successfully!")
+          toastSuccess("Payment plan updated successfully!")
         } else {
-          toast.error("Failed to update payment plan")
+          toastError("Failed to update payment plan")
         }
       } else {
         const result = await createPaymentPlan(formattedData)
         if (result.success && result.planId) {
           onSuccess(result.planId)
-          toast.success("Payment plan created successfully!")
+          toastSuccess("Payment plan created successfully!")
         } else {
-          toast.error("Failed to create payment plan")
+          toastError("Failed to create payment plan")
         }
       }
     } catch (error) {
       console.error("Form submission error:", error)
-      toast.error("An unexpected error occurred")
+      toastError("An unexpected error occurred")
     }
   }
 

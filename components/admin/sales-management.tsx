@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { StudentSearch } from '@/components/ui/student-search'
 import { useToast } from '@/hooks/use-toast'
+import { useCurrencyFormatter } from '@/lib/app-configuration-context-v2'
 
 // Types
 interface Sale {
@@ -118,9 +119,11 @@ interface EditSaleFormProps {
   sale: Sale
   onSave: (updatedSale: Sale) => void
   onCancel: () => void
+  getCurrencySymbol: () => string
+  formatCurrency: (amount: number) => string
 }
 
-function EditSaleForm({ sale, onSave, onCancel }: EditSaleFormProps) {
+function EditSaleForm({ sale, onSave, onCancel, getCurrencySymbol, formatCurrency }: EditSaleFormProps) {
   const [editForm, setEditForm] = useState({
     itemName: sale.itemName,
     itemType: sale.itemType,
@@ -195,7 +198,7 @@ function EditSaleForm({ sale, onSave, onCancel }: EditSaleFormProps) {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="editUnitPrice">Unit Price (XOF) *</Label>
+          <Label htmlFor="editUnitPrice">Unit Price ({getCurrencySymbol()}) *</Label>
           <Input
             id="editUnitPrice"
             type="number"
@@ -234,7 +237,7 @@ function EditSaleForm({ sale, onSave, onCancel }: EditSaleFormProps) {
 
       {editForm.quantity > 0 && editForm.unitPrice > 0 && (
         <div className="p-3 bg-muted rounded-lg">
-          <p className="text-sm font-medium">Total Amount: {editForm.quantity * editForm.unitPrice} XOF</p>
+          <p className="text-sm font-medium">Total Amount: {formatCurrency(editForm.quantity * editForm.unitPrice)}</p>
         </div>
       )}
 
@@ -251,7 +254,8 @@ function EditSaleForm({ sale, onSave, onCancel }: EditSaleFormProps) {
 }
 
 export function SalesManagement() {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
+  const { formatCurrency, getCurrencySymbol } = useCurrencyFormatter()
   const [sales, setSales] = useState<Sale[]>([])
   const [stats, setStats] = useState<SalesStats>({
     totalSales: 0,
@@ -279,18 +283,14 @@ export function SalesManagement() {
         setSales(convertedSales)
       } else {
         console.error('Error fetching sales:', data.error)
-        toast({
-          title: "Error loading sales data",
-          description: data.error || "Failed to fetch sales",
-          variant: "destructive"
+        toastError("Error loading sales data", {
+          description: data.error || "Failed to fetch sales"
         })
       }
     } catch (error) {
       console.error('Error fetching sales:', error)
-      toast({
-        title: "Error loading sales data",
-        description: "Failed to connect to server",
-        variant: "destructive"
+      toastError("Error loading sales data", {
+        description: "Failed to connect to server"
       })
     }
   }
@@ -377,10 +377,8 @@ export function SalesManagement() {
   // Handle adding new sale
   const handleAddSale = async () => {
     if (!selectedStudent || !newSale.itemType || !newSale.itemName || newSale.unitPrice <= 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields and select a student",
-        variant: "destructive"
+      toastError("Validation Error", {
+        description: "Please fill in all required fields and select a student"
       })
       return
     }
@@ -420,9 +418,8 @@ export function SalesManagement() {
         }, 1500)
 
         // Show success toast
-        toast({
-          title: "Sale Recorded Successfully! 🎉",
-          description: `${newSale.itemName} sold to ${selectedStudent.fullName} for ${(newSale.quantity * newSale.unitPrice).toLocaleString()} XOF`,
+        toastSuccess("Sale Recorded Successfully! 🎉", {
+          description: `${newSale.itemName} sold to ${selectedStudent.fullName} for ${formatCurrency(newSale.quantity * newSale.unitPrice)}`
         })
         
         // Reset form
@@ -436,18 +433,14 @@ export function SalesManagement() {
         })
         setSelectedStudent(null)
       } else {
-        toast({
-          title: "Failed to record sale",
-          description: data.error || "An unknown error occurred",
-          variant: "destructive"
+        toastError("Failed to record sale", {
+          description: data.error || "An unknown error occurred"
         })
       }
     } catch (error) {
       console.error('Error creating sale:', error)
-      toast({
-        title: "Failed to record sale",
-        description: "Failed to connect to server",
-        variant: "destructive"
+      toastError("Failed to record sale", {
+        description: "Failed to connect to server"
       })
     }
   }
@@ -484,23 +477,18 @@ export function SalesManagement() {
           setShowDeleteDialog(false)
           setSaleToDelete(null)
           
-          toast({
-            title: "Sale Deleted",
-            description: `Sale ${saleToDelete.id} has been successfully deleted.`,
+          toastSuccess("Sale Deleted", {
+            description: `Sale ${saleToDelete.id} has been successfully deleted.`
           })
         } else {
-          toast({
-            title: "Failed to delete sale",
-            description: data.error || "An unknown error occurred",
-            variant: "destructive"
+          toastError("Failed to delete sale", {
+            description: data.error || "An unknown error occurred"
           })
         }
       } catch (error) {
         console.error('Error deleting sale:', error)
-        toast({
-          title: "Failed to delete sale",
-          description: "Failed to connect to server",
-          variant: "destructive"
+        toastError("Failed to delete sale", {
+          description: "Failed to connect to server"
         })
       }
     }
@@ -537,23 +525,18 @@ export function SalesManagement() {
         setShowEditDialog(false)
         setSelectedSale(null)
         
-        toast({
-          title: "Sale Updated",
-          description: `Sale ${updatedSale.id} has been successfully updated.`,
+        toastSuccess("Sale Updated", {
+          description: `Sale ${updatedSale.id} has been successfully updated.`
         })
       } else {
-        toast({
-          title: "Failed to update sale",
-          description: data.error || "An unknown error occurred",
-          variant: "destructive"
+        toastError("Failed to update sale", {
+          description: data.error || "An unknown error occurred"
         })
       }
     } catch (error) {
       console.error('Error updating sale:', error)
-      toast({
-        title: "Failed to update sale",
-        description: "Failed to connect to server",
-        variant: "destructive"
+      toastError("Failed to update sale", {
+        description: "Failed to connect to server"
       })
     }
   }
@@ -703,7 +686,7 @@ export function SalesManagement() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="unitPrice">Unit Price (XOF) *</Label>
+                  <Label htmlFor="unitPrice">Unit Price ({getCurrencySymbol()}) *</Label>
                   <Input
                     id="unitPrice"
                     type="number"
@@ -726,7 +709,7 @@ export function SalesManagement() {
               </div>
               {newSale.quantity > 0 && newSale.unitPrice > 0 && (
                 <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-sm font-medium">Total Amount: {newSale.quantity * newSale.unitPrice} XOF</p>
+                  <p className="text-sm font-medium">Total Amount: {formatCurrency(newSale.quantity * newSale.unitPrice)}</p>
                 </div>
               )}
             </div>
@@ -762,9 +745,9 @@ export function SalesManagement() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalRevenue.toLocaleString()} XOF</div>
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.revenueThisMonth.toLocaleString()} XOF this month
+              {formatCurrency(stats.revenueThisMonth)} this month
             </p>
           </CardContent>
         </Card>
@@ -786,7 +769,7 @@ export function SalesManagement() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.averageOrderValue.toLocaleString()} XOF</div>
+            <div className="text-2xl font-bold">{formatCurrency(stats.averageOrderValue)}</div>
             <p className="text-xs text-muted-foreground">
               Top seller: {stats.topSellingItem}
             </p>
@@ -846,7 +829,6 @@ export function SalesManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Sale ID</TableHead>
                   <TableHead>Student</TableHead>
                   <TableHead>Item</TableHead>
                   <TableHead>Type</TableHead>
@@ -861,7 +843,6 @@ export function SalesManagement() {
               <TableBody>
                 {filteredSales.map((sale) => (
                   <TableRow key={sale.id}>
-                    <TableCell className="font-medium">{sale.id}</TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">{sale.studentName}</div>
@@ -871,8 +852,8 @@ export function SalesManagement() {
                     <TableCell>{sale.itemName}</TableCell>
                     <TableCell>{getItemTypeDisplay(sale.itemType)}</TableCell>
                     <TableCell>{sale.quantity}</TableCell>
-                    <TableCell>{sale.unitPrice.toLocaleString()} XOF</TableCell>
-                    <TableCell className="font-medium">{sale.totalAmount.toLocaleString()} XOF</TableCell>
+                    <TableCell>{formatCurrency(sale.unitPrice)}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency(sale.totalAmount)}</TableCell>
                     <TableCell>{sale.saleDate.toLocaleDateString()}</TableCell>
                     <TableCell>{getStatusBadge(sale.status)}</TableCell>
                     <TableCell>
@@ -974,11 +955,11 @@ export function SalesManagement() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Unit Price</Label>
-                  <p className="text-sm">{selectedSale.unitPrice.toLocaleString()} XOF</p>
+                  <p className="text-sm">{formatCurrency(selectedSale.unitPrice)}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Total Amount</Label>
-                  <p className="text-lg font-bold">{selectedSale.totalAmount.toLocaleString()} XOF</p>
+                  <p className="text-lg font-bold">{formatCurrency(selectedSale.totalAmount)}</p>
                 </div>
               </div>
 
@@ -1023,6 +1004,8 @@ export function SalesManagement() {
               sale={selectedSale} 
               onSave={handleUpdateSale}
               onCancel={() => setShowEditDialog(false)}
+              getCurrencySymbol={getCurrencySymbol}
+              formatCurrency={formatCurrency}
             />
           )}
         </DialogContent>
@@ -1045,7 +1028,7 @@ export function SalesManagement() {
                   <strong>ID:</strong> {saleToDelete.id}<br/>
                   <strong>Student:</strong> {saleToDelete.studentName}<br/>
                   <strong>Item:</strong> {saleToDelete.itemName}<br/>
-                  <strong>Amount:</strong> {saleToDelete.totalAmount.toLocaleString()} XOF
+                  <strong>Amount:</strong> {formatCurrency(saleToDelete.totalAmount)}
                 </p>
               </div>
             </div>

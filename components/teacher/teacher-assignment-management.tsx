@@ -117,7 +117,7 @@ interface AssignmentSubmission {
 
 export function TeacherAssignmentManagement() {
   const { user } = useAuth()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast()
   const { teacherSubjects, loadTeacherSubjects, loadingSubjects } = useTeacherGrades()
   const { classes: teacherClasses, loadTeacherClasses, isLoading: isLoadingClasses, getClassSubjects } = useTeacherClasses()
   const [assignments, setAssignments] = useState<Assignment[]>([])
@@ -315,7 +315,7 @@ export function TeacherAssignmentManagement() {
             errorMessage.includes('does not exist') ||
             errorCode === '42P01') {
           console.error("Assignments table does not exist:", errorDetails)
-          toast.error("Database setup required", { 
+          toastError("Database setup required", { 
             description: "The assignments table doesn't exist. Please run the migration script: scripts/2025-11-04_018_create_assignments_tables.sql",
             duration: 10000
           })
@@ -328,7 +328,7 @@ export function TeacherAssignmentManagement() {
             errorMessage.includes('row-level security') ||
             errorCode === '42501') {
           console.error("RLS policy error:", errorDetails)
-          toast.error("Permission denied", { 
+          toastError("Permission denied", { 
             description: "You don't have permission to access assignments. Please check RLS policies.",
             duration: 8000
           })
@@ -495,7 +495,7 @@ export function TeacherAssignmentManagement() {
 
         // Show error toast with retry option if applicable
         if (isRetryable && retryCount < 2) {
-          toast.error(userErrorMessage, {
+          toastError(userErrorMessage, {
             description: `${userErrorDescription} Retrying... (${retryCount + 1}/2)`,
             duration: 3000,
           })
@@ -507,7 +507,7 @@ export function TeacherAssignmentManagement() {
             loadAssignments(true).finally(() => setIsRetrying(false))
           }, delay)
         } else {
-          toast.error(userErrorMessage, {
+          toastError(userErrorMessage, {
             description: userErrorDescription,
             action: isRetryable ? {
               label: "Retry",
@@ -700,7 +700,7 @@ export function TeacherAssignmentManagement() {
 
       // Show error toast with retry option if applicable
       if (isRetryable && retryCount < 2 && !isRetry) {
-        toast.error("Error loading assignments", {
+        toastError("Error loading assignments", {
           description: `${userErrorDescription} Retrying... (${retryCount + 1}/2)`,
           duration: 3000,
         })
@@ -712,7 +712,7 @@ export function TeacherAssignmentManagement() {
           loadAssignments(true).finally(() => setIsRetrying(false))
         }, delay)
       } else {
-        toast.error("Error loading assignments", {
+        toastError("Error loading assignments", {
           description: userErrorDescription,
           action: isRetryable ? {
             label: "Retry",
@@ -741,7 +741,7 @@ export function TeacherAssignmentManagement() {
       if (submissionsError) {
         const errorDetails = serializeSupabaseError(submissionsError)
         console.error("Error fetching submissions:", errorDetails)
-        toast.error("Failed to load submissions", {
+        toastError("Failed to load submissions", {
           description: errorDetails.message || "An error occurred while loading submissions.",
         })
         setSubmissions([])
@@ -752,7 +752,7 @@ export function TeacherAssignmentManagement() {
     } catch (err) {
       const errorDetails = serializeSupabaseError(err)
       console.error("Error loading submissions:", errorDetails)
-      toast.error("Error loading submissions", {
+      toastError("Error loading submissions", {
         description: errorDetails.message || "An unexpected error occurred while loading submissions.",
       })
       setSubmissions([])
@@ -769,12 +769,12 @@ export function TeacherAssignmentManagement() {
       ]
       
       if (!allowedTypes.includes(file.type)) {
-        toast.error("Invalid file type", { description: "Please select a PDF or Word document" })
+        toastError("Invalid file type", { description: "Please select a PDF or Word document" })
         return
       }
 
       if (file.size > 10 * 1024 * 1024) {
-        toast.error("File too large", { description: "File size must be less than 10MB" })
+        toastError("File too large", { description: "File size must be less than 10MB" })
         return
       }
 
@@ -857,14 +857,14 @@ export function TeacherAssignmentManagement() {
     try {
             // Check if user is available
       if (!user?.id) {
-        toast.error("Authentication required", { description: "Please log in to create assignments." })
+        toastError("Authentication required", { description: "Please log in to create assignments." })
         return
       }
 
       // Validate due date
       const today = new Date().toISOString().split('T')[0]
       if (data.due_date <= today) {
-        toast.error("Invalid due date", { 
+        toastError("Invalid due date", { 
           description: "Due date must be after today's date." 
         })
         return
@@ -885,12 +885,12 @@ export function TeacherAssignmentManagement() {
           } else {
             // File upload failed but we can still create the assignment
             console.warn("File upload failed, creating assignment without file")
-            toast.warning("File upload failed", { description: "Assignment will be created without the attached file due to storage issues." })
+            toastWarning("File upload failed", { description: "Assignment will be created without the attached file due to storage issues." })
           }
         } catch (uploadError) {
           console.error("File upload error:", uploadError)
           // Continue with assignment creation without the file
-          toast.error("File upload failed", { description: "Assignment will be created without the attached file due to upload issues." })
+          toastError("File upload failed", { description: "Assignment will be created without the attached file due to upload issues." })
         }
       }
 
@@ -921,23 +921,23 @@ export function TeacherAssignmentManagement() {
         
         // Provide more specific error messages
         if (result.error?.includes('Database setup required') || result.error?.includes('table') && result.error?.includes('does not exist')) {
-          toast.error("Database setup required", { 
+          toastError("Database setup required", { 
             description: "The assignments table doesn't exist. Please run the database setup script." 
           })
         } else if (result.error?.includes('schema') || result.error?.includes('column')) {
-          toast.error("Database schema mismatch", { 
+          toastError("Database schema mismatch", { 
             description: "The database schema doesn't match the expected structure. Please update the database." 
           })
         } else if (result.error?.includes('permission') || result.error?.includes('Unauthorized')) {
-          toast.error("Permission denied", { 
+          toastError("Permission denied", { 
             description: result.error || "You don't have permission to create assignments." 
           })
         } else if (result.error?.includes('date') || result.error?.includes('due_date')) {
-          toast.error("Invalid date range", { 
+          toastError("Invalid date range", { 
             description: result.error || "The due date must be after the assigned date. Please select a future due date." 
           })
         } else {
-          toast.error("Failed to create assignment", { 
+          toastError("Failed to create assignment", { 
             description: result.error || "Please try again." 
           })
         }
@@ -948,10 +948,10 @@ export function TeacherAssignmentManagement() {
       setSelectedFile(null)
       setIsCreateDialogOpen(false)
       await loadAssignments()
-      toast.success("Assignment created successfully!")
+      toastSuccess("Assignment created successfully!")
     } catch (err) {
       console.error("Error creating assignment:", err)
-      toast.error("Error creating assignment", { description: "An error occurred while creating the assignment" })
+      toastError("Error creating assignment", { description: "An error occurred while creating the assignment" })
     }
   }
 
@@ -993,7 +993,7 @@ export function TeacherAssignmentManagement() {
 
       if (!result.success) {
         console.error("Error updating assignment:", result.error)
-        toast.error("Failed to update assignment", { 
+        toastError("Failed to update assignment", { 
           description: result.error || "Please try again." 
         })
         return
@@ -1004,10 +1004,10 @@ export function TeacherAssignmentManagement() {
       setIsEditDialogOpen(false)
       setSelectedAssignment(null)
       await loadAssignments()
-      toast.success("Assignment updated successfully!")
+      toastSuccess("Assignment updated successfully!")
     } catch (err) {
       console.error("Error updating assignment:", err)
-      toast.error("Error updating assignment", { description: "An error occurred while updating the assignment" })
+      toastError("Error updating assignment", { description: "An error occurred while updating the assignment" })
     }
   }
 
@@ -1020,17 +1020,17 @@ export function TeacherAssignmentManagement() {
 
       if (!result.success) {
         console.error("Error deleting assignment:", result.error)
-        toast.error("Failed to delete assignment", { 
+        toastError("Failed to delete assignment", { 
           description: result.error || "Please try again." 
         })
         return
       }
 
       await loadAssignments()
-      toast.success("Assignment deleted successfully!")
+      toastSuccess("Assignment deleted successfully!")
     } catch (err) {
       console.error("Error deleting assignment:", err)
-      toast.error("Error deleting assignment", { description: "An error occurred while deleting the assignment" })
+      toastError("Error deleting assignment", { description: "An error occurred while deleting the assignment" })
     }
   }
 
@@ -1049,17 +1049,17 @@ export function TeacherAssignmentManagement() {
 
       if (!result.success) {
         console.error("Error grading submission:", result.error)
-        toast.error("Failed to grade submission", { 
+        toastError("Failed to grade submission", { 
           description: result.error || "Please try again." 
         })
         return
       }
 
       await loadSubmissions(selectedAssignment.id)
-      toast.success("Submission graded successfully!")
+      toastSuccess("Submission graded successfully!")
     } catch (err) {
       console.error("Error grading submission:", err)
-      toast.error("Error grading submission", { description: "An error occurred while grading the submission" })
+      toastError("Error grading submission", { description: "An error occurred while grading the submission" })
     }
   }
 
@@ -2066,7 +2066,7 @@ export function TeacherAssignmentManagement() {
                               const feedback = feedbackInput.value
                               
                               if (isNaN(marks) || marks < 0 || marks > (selectedAssignment?.total_marks || 0)) {
-                                toast.error("Invalid marks", { description: "Please enter valid marks" })
+                                toastError("Invalid marks", { description: "Please enter valid marks" })
                                 return
                               }
                               

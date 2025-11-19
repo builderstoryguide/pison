@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useCurrencyFormatter } from "@/lib/app-configuration-context-v2"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,6 +60,7 @@ import { useToast } from "@/hooks/use-toast"
 import { usePDFExport } from "@/hooks/use-pdf-export"
 
 export function FinancialManagement() {
+  const { formatCurrency } = useCurrencyFormatter()
   const { 
     feeStructures, 
     payments, 
@@ -73,7 +75,7 @@ export function FinancialManagement() {
     loadFinancialData
   } = useFinancial()
   
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const { 
     isGenerating,
     exportPaymentReport,
@@ -174,7 +176,7 @@ export function FinancialManagement() {
   const handleFeeStructureSuccess = async (feeStructureId: string) => {
     setShowFeeStructureForm(false)
     setEditingFeeStructure(undefined)
-    toast.success(
+    toastSuccess(
       editingFeeStructure ? "Fee structure updated successfully" : "Fee structure created successfully"
     )
     // Reload financial data to show the newly created fee structure
@@ -184,7 +186,7 @@ export function FinancialManagement() {
   const handlePaymentSuccess = (paymentId: string) => {
     setShowPaymentForm(false)
     setEditingPayment(undefined)
-    toast.success(
+    toastSuccess(
       editingPayment ? "Payment updated successfully" : "Payment recorded successfully"
     )
   }
@@ -192,7 +194,7 @@ export function FinancialManagement() {
   const handleStudentFeeAssignmentSuccess = (assignmentId: string) => {
     setShowStudentFeeAssignmentForm(false)
     setEditingStudentFeeAssignment(undefined)
-    toast.success(
+    toastSuccess(
       editingStudentFeeAssignment ? "Fee assignment updated successfully" : "Fee assigned to student successfully"
     )
   }
@@ -200,7 +202,7 @@ export function FinancialManagement() {
   const handlePaymentPlanSuccess = (planId: string) => {
     setShowPaymentPlanForm(false)
     setEditingPaymentPlan(undefined)
-    toast.success(
+    toastSuccess(
       editingPaymentPlan ? "Payment plan updated successfully" : "Payment plan created successfully"
     )
   }
@@ -210,9 +212,9 @@ export function FinancialManagement() {
     if (confirm("Are you sure you want to delete this fee structure? This action cannot be undone.")) {
       const result = await deleteFeeStructure(id)
       if (result.success) {
-        toast.success("Fee structure deleted successfully")
+        toastSuccess("Fee structure deleted successfully")
       } else {
-        toast.error(result.error || "Failed to delete fee structure")
+        toastError(result.error || "Failed to delete fee structure")
       }
     }
   }
@@ -229,19 +231,19 @@ export function FinancialManagement() {
     try {
       const result = await deletePayment(paymentToDelete.id)
       if (result.success) {
-        toast.success("Payment deleted successfully", {
+        toastSuccess("Payment deleted successfully", {
           description: `Payment for ${paymentToDelete.studentName} has been deleted.`
         })
         // Reload financial data to ensure UI is in sync with database
         await loadFinancialData()
       } else {
-        toast.error("Failed to delete payment", {
+        toastError("Failed to delete payment", {
           description: result.error || "An error occurred while deleting the payment."
         })
       }
     } catch (error) {
       console.error("Error deleting payment:", error)
-      toast.error("Failed to delete payment", {
+      toastError("Failed to delete payment", {
         description: "An unexpected error occurred."
       })
     } finally {
@@ -255,9 +257,9 @@ export function FinancialManagement() {
     if (confirm("Are you sure you want to delete this fee assignment? This action cannot be undone.")) {
       const result = await deleteStudentFeeAssignment(id)
       if (result.success) {
-        toast.success("Fee assignment deleted successfully")
+        toastSuccess("Fee assignment deleted successfully")
       } else {
-        toast.error(result.error || "Failed to delete fee assignment")
+        toastError(result.error || "Failed to delete fee assignment")
       }
     }
   }
@@ -266,9 +268,9 @@ export function FinancialManagement() {
     if (confirm("Are you sure you want to delete this payment plan? This action cannot be undone.")) {
       const result = await deletePaymentPlan(id)
       if (result.success) {
-        toast.success("Payment plan deleted successfully")
+        toastSuccess("Payment plan deleted successfully")
       } else {
-        toast.error(result.error || "Failed to delete payment plan")
+        toastError(result.error || "Failed to delete payment plan")
       }
     }
   }
@@ -365,7 +367,7 @@ export function FinancialManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {financialSummary.totalCollections.toLocaleString()} FCFA
+              {formatCurrency(financialSummary.totalCollections)}
             </div>
             <p className="text-xs text-muted-foreground">
               {financialSummary.collectionRate.toFixed(1)}% collection rate
@@ -380,7 +382,7 @@ export function FinancialManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {financialSummary.totalOutstanding.toLocaleString()} FCFA
+              {formatCurrency(financialSummary.totalOutstanding)}
             </div>
             <p className="text-xs text-muted-foreground">
               {financialSummary.overduePayments} overdue payments
@@ -521,10 +523,10 @@ export function FinancialManagement() {
                           <TableCell>{payment.feeName}</TableCell>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{payment.amountPaid.toLocaleString()} FCFA</p>
+                              <p className="font-medium">{formatCurrency(payment.amountPaid)}</p>
                               {payment.balance > 0 && (
                                 <p className="text-sm text-muted-foreground">
-                                  Balance: {payment.balance.toLocaleString()} FCFA
+                                  Balance: {formatCurrency(payment.balance)}
                                 </p>
                               )}
                             </div>
@@ -650,7 +652,7 @@ export function FinancialManagement() {
                               <span className="text-muted-foreground text-sm">No classes assigned</span>
                             )}
                           </TableCell>
-                          <TableCell>{feeStructure.amount.toLocaleString()} FCFA</TableCell>
+                          <TableCell>{formatCurrency(feeStructure.amount)}</TableCell>
                           <TableCell>{format(new Date(feeStructure.dueDate), "MMM dd, yyyy")}</TableCell>
                           <TableCell>
                             <Badge variant={feeStructure.isActive ? "default" : "secondary"}>

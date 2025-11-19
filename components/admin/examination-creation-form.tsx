@@ -73,7 +73,7 @@ interface Subject {
 export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCreationFormProps) {
   const { createExamination, isLoading } = useExamination()
   const { user } = useAuth()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([])
   const [allSubjects, setAllSubjects] = useState<Subject[]>([])
   const [isLoadingSubjects, setIsLoadingSubjects] = useState(false)
@@ -145,7 +145,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
         setAllSubjects(activeSubjects)
       } catch (err) {
         console.error('Error loading subjects:', err)
-        toast.error("Failed to Load Subjects", {
+        toastError("Failed to Load Subjects", {
           description: "Could not load subjects from database. Please try again.",
         })
       } finally {
@@ -154,7 +154,8 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
     }
 
     loadSubjects()
-  }, [toast])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleSubjectToggle = (subject: string) => {
     const updatedSubjects = selectedSubjects.includes(subject)
@@ -245,7 +246,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
       if (!startDate || !endDate) {
         const errorMessage = "Please select both start and end dates"
         setError(errorMessage)
-        toast.error("Validation Error", {
+        toastError("Validation Error", {
           description: errorMessage,
         })
         setIsSubmitting(false)
@@ -255,7 +256,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
       if (endDate < startDate) {
         const errorMessage = "End date must be after start date"
         setError(errorMessage)
-        toast.error("Validation Error", {
+        toastError("Validation Error", {
           description: errorMessage,
         })
         setIsSubmitting(false)
@@ -266,7 +267,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
       if (data.passingMarks >= data.totalMarks) {
         const errorMessage = "Passing marks must be less than total marks"
         setError(errorMessage)
-        toast.error("Validation Error", {
+        toastError("Validation Error", {
           description: errorMessage,
         })
         setIsSubmitting(false)
@@ -277,7 +278,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
       if (selectedSubjects.length === 0) {
         const errorMessage = "Please select at least one subject"
         setError(errorMessage)
-        toast.error("Validation Error", {
+        toastError("Validation Error", {
           description: errorMessage,
         })
         setIsSubmitting(false)
@@ -288,7 +289,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
       const gradingSystemError = validateGradingSystem()
       if (gradingSystemError) {
         setError(gradingSystemError)
-        toast.error("Grading System Validation Error", {
+        toastError("Grading System Validation Error", {
           description: gradingSystemError,
         })
         setIsSubmitting(false)
@@ -314,7 +315,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
       console.log("createExamination result:", result)
 
       if (result.success && result.examinationId) {
-        toast.success("Examination Created Successfully!", {
+        toastSuccess("Examination Created Successfully!", {
           description: `"${data.title}" has been created successfully.`,
         })
         
@@ -330,7 +331,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
         const errorMessage = result.error || "Failed to create examination"
         console.error("Examination creation failed:", errorMessage)
         setError(errorMessage)
-        toast.error("Failed to Create Examination", {
+        toastError("Failed to Create Examination", {
           description: errorMessage,
         })
       }
@@ -338,7 +339,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
       console.error("Error creating examination:", error)
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred while creating the examination"
       setError(errorMessage)
-      toast.error("Failed to Create Examination", {
+      toastError("Failed to Create Examination", {
         description: errorMessage,
       })
     } finally {
@@ -378,7 +379,7 @@ export function ExaminationCreationForm({ onSuccess, onCancel }: ExaminationCrea
             return `${key}: ${error?.message || "Invalid value"}`
           }).join(", ")
           setError(`Please fix the following errors: ${errorMessages}`)
-          toast.error("Validation Error", {
+          toastError("Validation Error", {
             description: `Please fix the form errors: ${errorMessages}`,
           })
         }

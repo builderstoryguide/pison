@@ -33,7 +33,7 @@ export function CopyButton({
   children
 }: CopyButtonProps) {
   const [isCopied, setIsCopied] = useState(false)
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
 
   const handleCopy = async () => {
     if (!text || disabled) return
@@ -185,7 +185,7 @@ export function CopyButtonWithIcon({
   className?: string 
 }) {
   const [isCopied, setIsCopied] = useState(false)
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
 
   const handleCopy = async () => {
     if (!text) return

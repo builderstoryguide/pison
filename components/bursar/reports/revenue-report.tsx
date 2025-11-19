@@ -41,7 +41,7 @@ interface RevenueReportSummary {
 }
 
 export function RevenueReport() {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const { formatCurrency } = useCurrencyFormatter()
   const [reportData, setReportData] = useState<RevenueReportData[]>([])
   const [summary, setSummary] = useState<RevenueReportSummary | null>(null)
@@ -67,7 +67,7 @@ export function RevenueReport() {
       const data = await response.json()
       setClasses(data)
     } catch (error) {
-      toast.error("Failed to load classes")
+      toastError("Failed to load classes")
     }
   }
 
@@ -77,7 +77,7 @@ export function RevenueReport() {
       const data = await response.json()
       setFeeCategories(data)
     } catch (error) {
-      toast.error("Failed to load fee categories")
+      toastError("Failed to load fee categories")
     }
   }
 
@@ -94,15 +94,15 @@ export function RevenueReport() {
       const data = await response.json()
 
       if (data.error) {
-        toast.error(data.error)
+        toastError(data.error)
         return
       }
 
       setReportData(data.data || [])
       setSummary(data.summary)
-      toast.success("Revenue report generated successfully")
+      toastSuccess("Revenue report generated successfully")
     } catch (error) {
-      toast.error("Failed to generate revenue report")
+      toastError("Failed to generate revenue report")
     } finally {
       setIsLoading(false)
     }
@@ -142,9 +142,9 @@ export function RevenueReport() {
         window.URL.revokeObjectURL(url)
       }
 
-      toast.success(`Report exported as ${format.toUpperCase()}`)
+      toastSuccess(`Report exported as ${format.toUpperCase()}`)
     } catch (error) {
-      toast.error("Failed to export report")
+      toastError("Failed to export report")
     }
   }
 

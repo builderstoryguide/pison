@@ -40,7 +40,7 @@ import { TeacherExportForm } from "./teacher-export-form"
 export function TeacherManagement() {
   const { teachers, isLoading, deleteTeacher } = useTeacherManagement()
   const { users, createUser } = useUserManagement()
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
  
 
   const [searchTerm, setSearchTerm] = useState("")
@@ -80,18 +80,18 @@ export function TeacherManagement() {
       import('@/lib/password-utils').then(({ generateDefaultPassword }) => {
         const testPassword = generateDefaultPassword('teacher')
         console.log("🧪 Test password generation:", testPassword)
-        toast.info("Password generation test", {
+        toastInfo("Password generation test", {
           description: `Generated: ${testPassword}`
         })
       }).catch(err => {
         console.error("Error importing password utils:", err)
-        toast.error("Password generation test failed", {
+        toastError("Password generation test failed", {
           description: "Could not import password utility function"
         })
       })
     } catch (error) {
       console.error("Error in test function:", error)
-      toast.error("Password generation test failed", {
+      toastError("Password generation test failed", {
         description: "Unexpected error occurred"
       })
     }
@@ -116,7 +116,7 @@ export function TeacherManagement() {
       })
       
       if (teachersWithoutUserAccounts.length === 0) {
-        toast.success("All teachers are already synced!", {
+        toastSuccess("All teachers are already synced!", {
           description: "No teachers found without user accounts."
         })
         return
@@ -155,18 +155,18 @@ export function TeacherManagement() {
       }
       
       if (successCount > 0) {
-        toast.success(`Sync completed!`, {
+        toastSuccess(`Sync completed!`, {
           description: `Successfully created ${successCount} user account(s). ${errorCount > 0 ? `${errorCount} failed.` : ''}`
         })
       } else if (errorCount > 0) {
-        toast.error("Sync failed", {
+        toastError("Sync failed", {
           description: `Failed to create ${errorCount} user account(s). Please try again.`
         })
       }
       
     } catch (error) {
       console.error("Error syncing teachers:", error)
-      toast.error("Sync failed", {
+      toastError("Sync failed", {
         description: "An error occurred while syncing teachers with User Management."
       })
     } finally {
@@ -219,17 +219,17 @@ export function TeacherManagement() {
     if (result.userAccountCreated === false) {
       // User account creation failed - API should have rolled back, but check anyway
       if (result.userAccountError) {
-        toast.error("Teacher enrollment failed", {
+        toastError("Teacher enrollment failed", {
           description: `Could not create login credentials: ${result.userAccountError}. Please try again or contact support.`
         })
       } else {
-        toast.warning("Teacher enrolled but user account already exists", {
+        toastWarning("Teacher enrolled but user account already exists", {
           description: "The teacher was added to the system, but a user account with this email already exists. Please contact support to link the accounts."
         })
       }
     } else {
       // Success - user account was created successfully
-      toast.success("Teacher enrolled successfully!", {
+      toastSuccess("Teacher enrolled successfully!", {
         description: `${result.teacherData.firstName} ${result.teacherData.lastName} has been added to the system with login credentials.`
       })
     }
@@ -248,7 +248,7 @@ export function TeacherManagement() {
   const handleEditSuccess = () => {
     setShowEditTeacherForm(false)
     setSelectedTeacher(null)
-    toast.success("Teacher updated successfully!", {
+    toastSuccess("Teacher updated successfully!", {
       description: "The teacher's information has been updated in the database."
     })
   }
@@ -264,7 +264,7 @@ export function TeacherManagement() {
     setIsDeleting(true)
     try {
       await deleteTeacher(teacherToDelete.id)
-      toast.success("Teacher deleted successfully!", {
+      toastSuccess("Teacher deleted successfully!", {
         description: `${teacherToDelete.firstName} ${teacherToDelete.lastName} has been removed from the system.`
       })
       
@@ -272,7 +272,7 @@ export function TeacherManagement() {
       setRefreshKey(prev => prev + 1)
     } catch (error) {
       console.error("❌ Error deleting teacher:", error)
-      toast.error("Failed to delete teacher", {
+      toastError("Failed to delete teacher", {
         description: "Please try again or contact support if the problem persists."
       })
     } finally {
@@ -779,7 +779,7 @@ export function TeacherManagement() {
               setShowExportForm(false)
               setSelectedTeacher(null)
               setSelectedTeachers([])
-              toast.success("Teacher data exported successfully!", {
+              toastSuccess("Teacher data exported successfully!", {
                 description: "The teacher data has been exported to your selected format."
               })
             }}

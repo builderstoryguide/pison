@@ -38,7 +38,7 @@ import {
 type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>
 
 export function Alerts(): JSX.Element {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
   const {
     alerts,
     parentGroups,
@@ -123,19 +123,15 @@ export function Alerts(): JSX.Element {
 
   const handleSendAlert = async () => {
     if (!alertTitle.trim() || !alertContent.trim()) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in both title and content",
-        variant: "destructive"
+      toastError("Validation Error", {
+        description: "Please fill in both title and content"
       })
       return
     }
 
     if (selectedGroups.length === 0) {
-      toast({
-        title: "Validation Error",
-        description: "Please select at least one parent group",
-        variant: "destructive"
+      toastError("Validation Error", {
+        description: "Please select at least one parent group"
       })
       return
     }
@@ -156,8 +152,7 @@ export function Alerts(): JSX.Element {
       })
 
       if (result.success) {
-        toast({
-          title: "Success",
+        toastSuccess("Success", {
           description: scheduledAt ? "Alert scheduled successfully" : "Alert sent successfully"
         })
         // Reset form
@@ -169,17 +164,13 @@ export function Alerts(): JSX.Element {
         setSelectedTab("history")
         await fetchAlerts()
       } else {
-        toast({
-          title: "Error",
-          description: result.error || "Failed to send alert",
-          variant: "destructive"
+        toastError("Error", {
+          description: result.error || "Failed to send alert"
         })
       }
     } catch (err: any) {
-      toast({
-        title: "Error",
-        description: err.message || "Failed to send alert",
-        variant: "destructive"
+      toastError("Error", {
+        description: err.message || "Failed to send alert"
       })
     } finally {
       setSending(false)
@@ -197,16 +188,13 @@ export function Alerts(): JSX.Element {
 
     const result = await deleteAlert(alertId)
     if (result.success) {
-      toast({
-        title: "Success",
+      toastSuccess("Success", {
         description: "Alert deleted successfully"
       })
       await fetchAlerts()
     } else {
-      toast({
-        title: "Error",
-        description: result.error || "Failed to delete alert",
-        variant: "destructive"
+      toastError("Error", {
+        description: result.error || "Failed to delete alert"
       })
     }
   }

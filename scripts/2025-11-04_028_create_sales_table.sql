@@ -9,8 +9,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- SALES TABLE
 -- ============================================
 CREATE TABLE IF NOT EXISTS public.sales (
-    id VARCHAR(20) PRIMARY KEY,
-    student_id VARCHAR(20) NOT NULL,
+    id VARCHAR(50) PRIMARY KEY,  -- Increased from 20 to 50 to accommodate UUID-based IDs
+    student_id VARCHAR(50) NOT NULL,  -- Increased from 20 to 50 for consistency
     student_name VARCHAR(255) NOT NULL,
     item_type VARCHAR(20) NOT NULL CHECK (item_type IN ('pullover', 'sport_wear', 'uniform', 't_shirt')),
     item_name VARCHAR(255) NOT NULL,

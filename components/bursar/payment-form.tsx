@@ -78,7 +78,7 @@ interface PaymentFormProps {
 }
 
 export function PaymentForm({ onSuccess, onCancel }: PaymentFormProps) {
-  const { toast } = useToast()
+  const { success: toastSuccess, error: toastError } = useToast()
   const globalAcademicYear = useGlobalAcademicYear()
   const [students, setStudents] = useState<Student[]>([])
   const [studentFees, setStudentFees] = useState<StudentFee[]>([])
@@ -114,7 +114,7 @@ export function PaymentForm({ onSuccess, onCancel }: PaymentFormProps) {
       }
     } catch (error) {
       console.error("Error loading initial data:", error)
-      toast.error("Failed to load form data")
+      toastError("Failed to load form data")
     } finally {
       setIsLoadingData(false)
     }
@@ -281,7 +281,7 @@ export function PaymentForm({ onSuccess, onCancel }: PaymentFormProps) {
       
       const userMessage = errorMessage || "Failed to load fee assignments. Please try again or contact support."
       
-      toast.error(userMessage)
+      toastError(userMessage)
       setAvailableStudentFees([])
       setFeeStructuresForClass([])
     }
@@ -348,14 +348,14 @@ export function PaymentForm({ onSuccess, onCancel }: PaymentFormProps) {
       const result = await response.json()
 
       if (response.ok && result.success) {
-        toast.success(`Payment recorded successfully. Receipt: ${result.receiptNumber}`)
+        toastSuccess(`Payment recorded successfully. Receipt: ${result.receiptNumber}`)
         onSuccess(result.paymentId)
       } else {
-        toast.error(result.error || "Failed to record payment")
+        toastError(result.error || "Failed to record payment")
       }
     } catch (error) {
       console.error("Error recording payment:", error)
-      toast.error("Failed to record payment")
+      toastError("Failed to record payment")
     } finally {
       setIsLoading(false)
     }
