@@ -83,14 +83,27 @@ export async function POST(request: NextRequest) {
       .single()
 
     // Check for database errors during existence check
-    if (checkError && checkError.code !== 'PGRST116') {
-      // PGRST116 is "not found" error, which is expected when level doesn't exist
-      // Any other error indicates a database problem
-      console.error('Error checking for existing level:', serializeSupabaseError(checkError))
-      return NextResponse.json(
-        { error: 'Failed to verify level existence. Please try again.' },
-        { status: 500 }
-      )
+    // PGRST116 is "not found" error, which is expected when level doesn't exist
+    // Any other error indicates a database problem
+    if (checkError) {
+      // Check if error has code property and it's not the expected "not found" error
+      if (checkError.code && checkError.code !== 'PGRST116') {
+        // Any other error code indicates a database problem
+        console.error('Error checking for existing level:', serializeSupabaseError(checkError))
+        return NextResponse.json(
+          { error: 'Failed to verify level existence. Please try again.' },
+          { status: 500 }
+        )
+      }
+      // If error exists but no code, or code is undefined, treat as database error
+      if (!checkError.code) {
+        console.error('Unknown error checking for existing level:', serializeSupabaseError(checkError))
+        return NextResponse.json(
+          { error: 'Failed to verify level existence. Please try again.' },
+          { status: 500 }
+        )
+      }
+      // If code is PGRST116, level doesn't exist (expected), continue
     }
 
     if (existingLevel) {

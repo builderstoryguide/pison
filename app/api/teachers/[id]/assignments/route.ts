@@ -557,29 +557,103 @@ export async function GET(
     
     console.log(`Student query results: ${studentsByClassId.length} by class ID, ${studentsByClassName.length} by class name, ${allActiveStudents.length} total active, ${classStudentsJunction.length} from junction table`)
 
-    // Batch fetch all subjects for all classes at once
-    const { data: allClassSubjectsData, error: allClassSubjectsError } = classIds.length > 0
-      ? await supabase
-          .from('class_subjects')
-          .select(`
-            id,
-            class_id,
-            subject_id,
-            is_trade_subject,
-            subjects (
-              id,
-              name,
-              code,
-              coefficient,
-              description,
-              is_active
-            )
-          `)
-          .in('class_id', classIds)
-      : { data: [], error: null }
+    // Batch fetch all subjects for all classes from teacher_branch_assignments
+    // This shows subjects that the teacher teaches in each class
+    let allTeacherAssignmentsData: any[] = []
+    let allTeacherAssignmentsError: any = null
 
-    if (allClassSubjectsError) {
-      console.error('Error batch loading subjects:', serializeSupabaseError(allClassSubjectsError))
+    if (classIds.length > 0 && teacherRecord) {
+      console.log(`🔍 Fetching subjects for teacher ${teacherRecord.id} in classes:`, classIds)
+      
+      // Fetch assignments with branch details first
+      // Then fetch subjects separately and join them
+      const { data: assignmentsData, error: assignmentsError } = await supabase
+        .from('teacher_branch_assignments')
+        .select(`
+          id,
+          class_id,
+          is_primary_teacher,
+          academic_year,
+          term,
+          branch_id,
+          subject_branches (
+            id,
+            branch_name,
+            branch_code,
+            subject_id
+          )
+        `)
+        .eq('teacher_id', teacherRecord.id)
+        .in('class_id', classIds)
+
+      const { data, error } = { data: assignmentsData, error: assignmentsError }
+
+      allTeacherAssignmentsData = data || []
+      allTeacherAssignmentsError = error
+
+      if (allTeacherAssignmentsError) {
+        console.error('❌ Error fetching assignments:', serializeSupabaseError(allTeacherAssignmentsError))
+        allTeacherAssignmentsData = []
+      } else if (data && data.length > 0) {
+        console.log(`✅ Found ${data.length} assignments, fetching subject details...`)
+        
+        // Extract unique subject IDs from branches
+        const subjectIds = data
+          .map(a => a.subject_branches?.subject_id)
+          .filter(Boolean)
+          .filter((v, i, a) => a.indexOf(v) === i) // unique
+
+        if (subjectIds.length > 0) {
+          // Fetch subjects separately
+          const { data: subjectsData, error: subjectsError } = await supabase
+            .from('subjects')
+            .select('id, subject_name, subject_code, coefficient, description')
+            .in('id', subjectIds)
+
+          if (subjectsError) {
+            console.error('❌ Error fetching subjects:', serializeSupabaseError(subjectsError))
+          } else {
+            // Create a map of subject_id -> subject
+            const subjectMap = new Map((subjectsData || []).map(s => [s.id, s]))
+            
+            // Join subjects back to assignments
+            allTeacherAssignmentsData = data.map(assignment => {
+              const subjectId = assignment.subject_branches?.subject_id
+              const subject = subjectId ? subjectMap.get(subjectId) : null
+              
+              return {
+                ...assignment,
+                subject_branches: assignment.subject_branches ? {
+                  ...assignment.subject_branches,
+                  subjects: subject || null
+                } : null
+              }
+            })
+            
+            console.log(`✅ Successfully loaded ${allTeacherAssignmentsData.length} assignments with subject data`)
+            if (allTeacherAssignmentsData.length > 0) {
+              console.log('📋 Sample assignment:', {
+                classId: allTeacherAssignmentsData[0].class_id,
+                branchName: allTeacherAssignmentsData[0].subject_branches?.branch_name,
+                subjectName: allTeacherAssignmentsData[0].subject_branches?.subjects?.subject_name
+              })
+            }
+          }
+        } else {
+          console.log('⚠️ No subject IDs found in branches')
+        }
+      } else {
+        console.log('ℹ️ No assignments found for this teacher and classes')
+        console.log('   Teacher ID:', teacherRecord.id)
+        console.log('   Class IDs:', classIds)
+      }
+    } else {
+      if (!teacherRecord) {
+        console.warn('⚠️ Cannot fetch subjects: teacherRecord not found')
+      }
+      if (classIds.length === 0) {
+        console.warn('⚠️ Cannot fetch subjects: no class IDs provided')
+      }
     }
 
     // Group students by class using multiple methods
@@ -789,29 +863,53 @@ export async function GET(
       console.log(`⚠️ ${unmatchedStudents.length} students could not be matched to any class:`, unmatchedStudents)
     }
 
-    // Group subjects by class
+    // Group subjects by class from teacher_branch_assignments
     const subjectsByClass = new Map<string, any[]>()
     paginatedClasses.forEach(cls => {
       subjectsByClass.set(cls.id, [])
     })
 
-    if (allClassSubjectsData) {
-      allClassSubjectsData.forEach((cs: any) => {
-        const classId = cs.class_id
+    if (allTeacherAssignmentsData && allTeacherAssignmentsData.length > 0) {
+      allTeacherAssignmentsData.forEach((assignment: any) => {
+        const classId = assignment.class_id
         if (subjectsByClass.has(classId)) {
-          const subject = cs.subjects
-          // Only include active subjects
-          if (subject && (subject.is_active !== false)) {
-            subjectsByClass.get(classId)!.push({
-              id: subject.id || cs.subject_id || `sub_${subject.name}`,
-              name: subject.name || 'Unknown Subject',
-              code: subject.code || subject.name?.substring(0, 4).toUpperCase() || 'N/A',
-              coefficient: subject.coefficient || 1,
-              description: subject.description || undefined,
+          const subjectData = assignment.subject_branches?.subjects
+          // Only include subjects that exist
+          if (subjectData && subjectData.subject_name) {
+            // Check if subject already exists in the class (avoid duplicates)
+            const existingSubjects = subjectsByClass.get(classId) || []
+            const subjectExists = existingSubjects.some(
+              (s: any) => s.id === subjectData.id || s.name === subjectData.subject_name
+            )
+            
+            if (!subjectExists) {
+              subjectsByClass.get(classId)!.push({
+                id: subjectData.id || `sub_${subjectData.subject_name}`,
+                name: subjectData.subject_name || 'Unknown Subject',
+                code: subjectData.subject_code || subjectData.subject_name?.substring(0, 4).toUpperCase() || 'N/A',
+                coefficient: subjectData.coefficient || 1,
+                description: subjectData.description || undefined,
+              })
+            }
+          } else {
+            console.warn('⚠️ Assignment found but subject data is missing:', {
+              assignmentId: assignment.id,
+              classId: assignment.class_id,
+              hasSubjectBranches: !!assignment.subject_branches,
+              hasSubjects: !!assignment.subject_branches?.subjects
             })
           }
         }
       })
+      
+      // Log summary of subjects loaded per class
+      subjectsByClass.forEach((subjects, classId) => {
+        if (subjects.length > 0) {
+          console.log(`📚 Class ${classId}: ${subjects.length} subjects loaded`)
+        }
+      })
+    } else {
+      console.log('ℹ️ No teacher assignments found for these classes')
     }
 
     // Transform classes with batched data

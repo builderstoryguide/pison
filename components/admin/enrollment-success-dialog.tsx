@@ -74,8 +74,10 @@ Pison Academy of Excellence
     window.URL.revokeObjectURL(url)
   }
 
-  // Removed automatic download - users should explicitly click the download button
-  // This prevents unwanted downloads and gives users control over when to download
+  // IMPORTANT: Download is ONLY triggered by explicit user action (button click)
+  // There is NO useEffect hook that automatically downloads files when the dialog opens
+  // This prevents unwanted downloads and gives users full control over when to download
+  // The generateWelcomeEmail function is only called via the "Download Letter" button onClick handler
 
   return (
     <div className="w-full max-w-lg mx-auto space-y-4 p-2">

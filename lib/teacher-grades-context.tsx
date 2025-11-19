@@ -752,12 +752,22 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
             // Check if assessment's class_id matches teacher's class levels (for assessments with level as class_id)
             let matchesClassIdAsLevel = false
             if (!matchesClassId && !matchesClassLevel && teacherClassLevels.length > 0 && assessmentClassId) {
-              matchesClassIdAsLevel = teacherClassLevels.some(level => {
-                const levelLower = level.toLowerCase().trim()
-                return levelLower === assessmentClassId ||
-                       levelLower.includes(assessmentClassId) ||
-                       assessmentClassId.includes(levelLower)
-              })
+              const assessmentIdStr = assessmentClassIdOriginal?.toString() || assessmentClassId
+              // Check if assessment class_id is not a UUID (might be a level string like "Form 1")
+              const isNotUuid = !assessmentIdStr.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+              
+              if (isNotUuid) {
+                const assessmentIdLower = assessmentIdStr.toLowerCase().trim()
+                matchesClassIdAsLevel = teacherClassLevels.some(level => {
+                  const levelLower = level.toLowerCase().trim()
+                  return levelLower === assessmentIdLower ||
+                         levelLower.includes(assessmentIdLower) ||
+                         assessmentIdLower.includes(levelLower) ||
+                         // Also check if both contain "form" and same number
+                         (levelLower.includes('form') && assessmentIdLower.includes('form') &&
+                          levelLower.match(/\d+/)?.[0] === assessmentIdLower.match(/\d+/)?.[0])
+                })
+              }
             }
             
             const matches = matchesClassId || matchesClassLevel || matchesClassName || 
@@ -1422,11 +1432,39 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
       }
       
       // Check if assessment's class level matches teacher's class levels
-      const matchesClassLevel = teacherClassLevels.length > 0 && 
-        assessment.classLevel && 
-        teacherClassLevels.includes(assessment.classLevel)
+      let matchesClassLevel = false
+      if (teacherClassLevels.length > 0 && assessment.classLevel) {
+        const assessmentLevelLower = assessment.classLevel.toLowerCase().trim()
+        matchesClassLevel = teacherClassLevels.some(level => {
+          const levelLower = level.toLowerCase().trim()
+          return levelLower === assessmentLevelLower ||
+                 levelLower.includes(assessmentLevelLower) ||
+                 assessmentLevelLower.includes(levelLower)
+        })
+      }
       
-      return matchesClassId || matchesClassLevel
+      // Check if assessment's class_id matches teacher's class levels (for assessments with level as class_id)
+      let matchesClassIdAsLevel = false
+      if (!matchesClassId && !matchesClassLevel && teacherClassLevels.length > 0 && assessmentClassId) {
+        const assessmentIdStr = assessmentClassIdOriginal?.toString() || assessmentClassId
+        // Check if assessment class_id is not a UUID (might be a level string like "Form 1")
+        const isNotUuid = !assessmentIdStr.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+        
+        if (isNotUuid) {
+          const assessmentIdLower = assessmentIdStr.toLowerCase().trim()
+          matchesClassIdAsLevel = teacherClassLevels.some(level => {
+            const levelLower = level.toLowerCase().trim()
+            return levelLower === assessmentIdLower ||
+                   levelLower.includes(assessmentIdLower) ||
+                   assessmentIdLower.includes(levelLower) ||
+                   // Also check if both contain "form" and same number
+                   (levelLower.includes('form') && assessmentIdLower.includes('form') &&
+                    levelLower.match(/\d+/)?.[0] === assessmentIdLower.match(/\d+/)?.[0])
+          })
+        }
+      }
+      
+      return matchesClassId || matchesClassLevel || matchesClassIdAsLevel
     })
     
     console.log('getAssessmentsForTeacher filtering:', {

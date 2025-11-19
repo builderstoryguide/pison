@@ -49,6 +49,20 @@ const relationships = [
   { value: 'other', label: 'Other' }
 ]
 
+const emergencyContactRelationships = [
+  { value: 'father', label: 'Father' },
+  { value: 'mother', label: 'Mother' },
+  { value: 'sibling', label: 'Sibling' },
+  { value: 'uncle', label: 'Uncle' },
+  { value: 'aunt', label: 'Aunt' },
+  { value: 'guardian', label: 'Guardian' },
+  { value: 'grandfather', label: 'Grandfather' },
+  { value: 'grandmother', label: 'Grandmother' },
+  { value: 'cousin', label: 'Cousin' },
+  { value: 'family_friend', label: 'Family Friend' },
+  { value: 'other', label: 'Other' }
+]
+
 interface StudentEnrollmentFormProps {
   onSuccess: (result: { 
     studentId: string; 
@@ -164,7 +178,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
       case 1:
         return !!(formData.firstName && formData.lastName && formData.dateOfBirth && formData.placeOfBirth)
       case 2:
-        return !!(formData.email && formData.address && formData.city && (!formData.phone || isValidPhoneFormat(formData.phone)))
+        return !!(formData.address && formData.city && (!formData.email || formData.email.includes('@')) && (!formData.phone || isValidPhoneFormat(formData.phone)))
       case 3:
         return !!(formData.class)
       case 4:
@@ -187,9 +201,9 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
         if (!formData.placeOfBirth) return "Place of birth is required"
         break
       case 2:
-        if (!formData.email) return "Email address is required"
         if (!formData.address) return "Home address is required"
         if (!formData.city) return "City is required"
+        if (formData.email && !formData.email.includes('@')) return "Please enter a valid email address"
         if (formData.phone && !isValidPhoneFormat(formData.phone)) return "Valid phone number is required (Format: +237 6XXXXXXXX)"
         break
       case 3:
@@ -413,7 +427,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                 <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="email">
-                      Email Address <span className="text-destructive">*</span>
+                      Email Address (Optional)
                     </Label>
                     <Input
                       id="email"
@@ -421,12 +435,11 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                       value={formData.email}
                       onChange={(e) => updateFormData('email', e.target.value)}
                       placeholder="student@example.com"
-                      required
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">
-                      Phone Number <span className="text-destructive">*</span>
+                      Phone Number (Optional)
                     </Label>
                     <Input
                       id="phone"
@@ -747,12 +760,19 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                   <Label htmlFor="emergencyContactRelationship">
                     Emergency Contact Relationship
                   </Label>
-                  <Input
-                    id="emergencyContactRelationship"
-                    value={formData.emergencyContactRelationship}
-                    onChange={(e) => updateFormData('emergencyContactRelationship', e.target.value)}
-                    placeholder="e.g., Uncle, Aunt, Family Friend"
-                  />
+                  <Select 
+                    value={formData.emergencyContactRelationship || ''} 
+                    onValueChange={(value) => updateFormData('emergencyContactRelationship', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select relationship" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {emergencyContactRelationships.map(rel => (
+                        <SelectItem key={rel.value} value={rel.value}>{rel.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <Separator />

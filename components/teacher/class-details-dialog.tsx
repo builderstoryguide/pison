@@ -250,79 +250,22 @@ export function ClassDetailsDialog({ classData, open, onOpenChange }: ClassDetai
                   <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Student</TableHead>
-                      <TableHead>Student ID</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Parent/Guardian</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Student Name</TableHead>
+                      <TableHead>Class</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredStudents.map((student) => (
                       <TableRow key={student.id}>
                           <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8">
-                                <AvatarImage src={student.photo || "/placeholder.svg"} />
-                                <AvatarFallback>
-                                  {student.firstName[0]}
-                                  {student.lastName[0]}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="font-medium">
-                                  {student.firstName} {student.lastName}
-                                </div>
-                                <div className="text-sm text-muted-foreground">{student.email}</div>
-                              </div>
+                            <div className="font-medium">
+                              {student.firstName} {student.lastName}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline">{student.studentId}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              {student.phone && (
-                                <div className="flex items-center gap-1 text-sm">
-                                  <Phone className="h-3 w-3" />
-                                  {student.phone}
-                                </div>
-                              )}
-                              <div className="flex items-center gap-1 text-sm">
-                                <Mail className="h-3 w-3" />
-                                {student.email}
-                              </div>
+                            <div className="text-muted-foreground">
+                              {classData.name}
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              {student.parentName && (
-                                <div className="flex items-center gap-1 text-sm">
-                                  <User className="h-3 w-3" />
-                                  {student.parentName}
-                                </div>
-                              )}
-                              {student.parentPhone && (
-                                <div className="flex items-center gap-1 text-sm">
-                                  <Phone className="h-3 w-3" />
-                                  {student.parentPhone}
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                student.enrollmentStatus === "enrolled"
-                                  ? "default"
-                                  : student.enrollmentStatus === "pending"
-                                    ? "secondary"
-                                    : "outline"
-                              }
-                              className="capitalize"
-                            >
-                              {student.enrollmentStatus}
-                            </Badge>
                           </TableCell>
                         </TableRow>
                       ))}

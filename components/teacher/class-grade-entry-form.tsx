@@ -191,6 +191,10 @@ export function ClassGradeEntryForm({ onSuccess, onCancel }: ClassGradeEntryForm
     // Extract base level from class name (e.g., "Form 2" from "Form 2 BC")
     const selectedClassLevelFromName = selectedClassName.split(/\s+/).slice(0, 2).join(' ').toLowerCase().trim()
     
+    // Also extract just the level part (e.g., "Form 1" from "Form 1 BC" or from level field)
+    const selectedLevelOnly = selectedClassLevel || selectedClassLevelFromName || ''
+    const selectedLevelOnlyLower = selectedLevelOnly.toLowerCase().trim()
+    
     console.log('🔍 Filtering assessments for class:', {
       selectedClassId: selectedClassIdStr,
       selectedClassIdOriginal,
@@ -260,35 +264,74 @@ export function ClassGradeEntryForm({ onSuccess, onCancel }: ClassGradeEntryForm
       // Match 4: Check if assessment's class level matches selected class level
       let matchesClassLevel = false
       if (selectedClassLevel && assessmentClassLevel) {
-        matchesClassLevel = assessmentClassLevel === selectedClassLevel
+        const selectedLevelLower = selectedClassLevel.toLowerCase().trim()
+        const assessmentLevelLower = assessmentClassLevel.toLowerCase().trim()
+        matchesClassLevel = selectedLevelLower === assessmentLevelLower ||
+                          selectedLevelLower.includes(assessmentLevelLower) ||
+                          assessmentLevelLower.includes(selectedLevelLower)
       }
       
       // Match 5: Check if assessment's class_id matches selected class level (for assessments created with level as class_id)
       let matchesClassIdAsLevel = false
       if (!matchesClassId && !matchesClassName && !matchesClassLevel && selectedClassLevel) {
-        matchesClassIdAsLevel = assessmentClassId === selectedClassLevel ||
-                               assessmentClassIdOriginal.toLowerCase().trim() === selectedClassLevel ||
-                               selectedClassLevel.includes(assessmentClassId) ||
-                               assessmentClassId.includes(selectedClassLevel)
+        const selectedLevelLower = selectedClassLevel.toLowerCase().trim()
+        matchesClassIdAsLevel = assessmentClassId === selectedLevelLower ||
+                               assessmentClassIdOriginal.toLowerCase().trim() === selectedLevelLower ||
+                               selectedLevelLower.includes(assessmentClassId) ||
+                               assessmentClassId.includes(selectedLevelLower) ||
+                               assessmentClassId === selectedClassLevel ||
+                               assessmentClassIdOriginal === selectedClassLevel
       }
       
       // Match 6: Check if assessment's class_name or class_id contains the base level (e.g., "Form 2" matches "Form 2 BC")
       let matchesPartialLevel = false
-      if (!matchesClassId && !matchesClassName && !matchesClassLevel && selectedClassLevelFromName) {
-        const assessmentClassIdContainsLevel = assessmentClassId.includes(selectedClassLevelFromName) ||
-                                              selectedClassLevelFromName.includes(assessmentClassId)
-        const assessmentClassNameContainsLevel = assessmentClassName.includes(selectedClassLevelFromName) ||
-                                                selectedClassLevelFromName.includes(assessmentClassName)
-        const assessmentLevelContainsLevel = assessmentClassLevel.includes(selectedClassLevelFromName) ||
-                                            selectedClassLevelFromName.includes(assessmentClassLevel)
+      if (!matchesClassId && !matchesClassName && !matchesClassLevel && !matchesClassIdAsLevel && selectedClassLevelFromName) {
+        const selectedLevelLower = selectedClassLevelFromName.toLowerCase().trim()
+        const assessmentClassIdContainsLevel = assessmentClassId.includes(selectedLevelLower) ||
+                                              selectedLevelLower.includes(assessmentClassId) ||
+                                              assessmentClassId === selectedLevelLower
+        const assessmentClassNameContainsLevel = assessmentClassName.includes(selectedLevelLower) ||
+                                                selectedLevelLower.includes(assessmentClassName) ||
+                                                assessmentClassName === selectedLevelLower
+        const assessmentLevelContainsLevel = assessmentClassLevel.includes(selectedLevelLower) ||
+                                            selectedLevelLower.includes(assessmentClassLevel) ||
+                                            assessmentClassLevel === selectedLevelLower
         
         matchesPartialLevel = assessmentClassIdContainsLevel || 
                             assessmentClassNameContainsLevel || 
                             assessmentLevelContainsLevel
       }
       
+      // Match 7: Check if assessment's class_id is "Form 1" and selected class level is "Form 1" (exact level match)
+      let matchesExactLevel = false
+      if (!matchesClassId && !matchesClassName && !matchesClassLevel && !matchesClassIdAsLevel && !matchesPartialLevel && selectedLevelOnlyLower) {
+        // Check if assessment class_id is exactly the level (e.g., "Form 1")
+        const levelPattern = /^(form|level|grade|class)\s*\d+/i
+        const assessmentIdStr = assessmentClassIdOriginal?.toString() || ''
+        
+        // Check if assessment class_id matches the level pattern
+        if (levelPattern.test(assessmentIdStr)) {
+          const assessmentLevel = assessmentIdStr.trim().toLowerCase()
+          matchesExactLevel = assessmentLevel === selectedLevelOnlyLower ||
+                            assessmentLevel.includes(selectedLevelOnlyLower) ||
+                            selectedLevelOnlyLower.includes(assessmentLevel) ||
+                            // Also check if assessment class_id contains "form 1" and selected level contains "form 1"
+                            (assessmentLevel.includes('form') && selectedLevelOnlyLower.includes('form') &&
+                             assessmentLevel.match(/\d+/)?.[0] === selectedLevelOnlyLower.match(/\d+/)?.[0])
+        }
+        
+        // Also check if assessment class_id is stored as just the level string
+        if (!matchesExactLevel && assessmentIdStr && !assessmentIdStr.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+          // If it's not a UUID, it might be a level string
+          const assessmentIdLower = assessmentIdStr.toLowerCase().trim()
+          matchesExactLevel = assessmentIdLower === selectedLevelOnlyLower ||
+                            assessmentIdLower.includes(selectedLevelOnlyLower) ||
+                            selectedLevelOnlyLower.includes(assessmentIdLower)
+        }
+      }
+      
       const matches = matchesClassId || matchesClassName || matchesClassIdAsName || 
-                     matchesClassLevel || matchesClassIdAsLevel || matchesPartialLevel
+                     matchesClassLevel || matchesClassIdAsLevel || matchesPartialLevel || matchesExactLevel
       
       if (matches) {
         console.log('✅ Assessment matched:', {
@@ -302,7 +345,8 @@ export function ClassGradeEntryForm({ onSuccess, onCancel }: ClassGradeEntryForm
           matchesClassIdAsName,
           matchesClassLevel,
           matchesClassIdAsLevel,
-          matchesPartialLevel
+          matchesPartialLevel,
+          matchesExactLevel
         })
       } else {
         console.log('❌ Assessment NOT matched:', {

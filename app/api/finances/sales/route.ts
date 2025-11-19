@@ -141,32 +141,6 @@ export async function POST(request: NextRequest) {
     // Calculate total amount
     const total_amount = quantityNum * unitPriceNum;
 
-    // Generate short sale ID: YYMMDD + 4 random hex = 10 characters max
-    // Format: 251119A3F2 (10 characters)
-    // Using 4 hex characters provides 65,536 unique combinations per day (16^4)
-    // This significantly reduces collision probability compared to 2 characters (256 combinations)
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2); // Last 2 digits of year
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const randomHex = crypto.randomUUID().replace(/-/g, '').substring(0, 4).toUpperCase();
-    const saleId = `${year}${month}${day}${randomHex}`;
-
-    const newSale = {
-      id: saleId,
-      student_id: student_id.trim(),
-      student_name,
-      item_type,
-      item_name,
-      quantity: quantityNum,
-      unit_price: unitPriceNum,
-      total_amount,
-      sale_date: new Date().toISOString().split('T')[0],
-      status: 'completed',
-      ...(notes && notes.trim() && { notes }),
-      created_by
-    };
-
     // Use service client to bypass RLS for API operations
     const supabase = createServiceClient();
 
@@ -181,6 +155,82 @@ export async function POST(request: NextRequest) {
         setupScript: '2025-11-04_028_create_sales_table.sql'
       }, { status: 503 }); // 503 Service Unavailable - indicates missing database setup
     }
+
+    // Generate sale ID with retry logic for collision handling
+    // Format: YYMMDD + 6 random hex = 12 characters
+    // Using 6 hex characters provides 16,777,216 unique combinations per day (16^6)
+    // This significantly reduces collision probability compared to 4 characters (65,536 combinations)
+    let saleId: string;
+    let attempts = 0;
+    const maxAttempts = 5;
+    let isUnique = false;
+
+    while (!isUnique && attempts < maxAttempts) {
+      const now = new Date();
+      const year = now.getFullYear().toString().slice(-2); // Last 2 digits of year
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const randomHex = crypto.randomUUID().replace(/-/g, '').substring(0, 6).toUpperCase();
+      saleId = `${year}${month}${day}${randomHex}`;
+      
+      // Check if ID already exists
+      const { data: existing, error: checkError } = await supabase
+        .from('sales')
+        .select('id')
+        .eq('id', saleId)
+        .single();
+      
+      // Handle database errors during uniqueness check
+      // PGRST116 is "not found" error, which is expected when ID doesn't exist
+      if (checkError) {
+        // Check if error has code property and it's not the expected "not found" error
+        if (checkError.code && checkError.code !== 'PGRST116') {
+          // Any other error code indicates a database problem
+          console.error(`Error checking sale ID uniqueness: ${saleId}`, checkError);
+          // Treat database errors as non-unique to trigger retry
+          isUnique = false;
+        } else if (!checkError.code) {
+          // If error exists but no code, treat as database error
+          console.error(`Unknown error checking sale ID uniqueness: ${saleId}`, checkError);
+          isUnique = false;
+        } else {
+          // PGRST116 means "not found", so ID is unique
+          isUnique = true;
+        }
+      } else {
+        // No error means ID was found, so it's not unique
+        isUnique = !existing;
+      }
+      
+      attempts++;
+      
+      if (!isUnique && attempts < maxAttempts) {
+        console.log(`Sale ID collision detected: ${saleId}. Retrying (attempt ${attempts}/${maxAttempts})...`);
+      }
+    }
+
+    if (!isUnique) {
+      console.error(`Failed to generate unique sale ID after ${maxAttempts} attempts`);
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to generate unique sale ID after multiple attempts. Please try again.'
+      }, { status: 500 });
+    }
+
+    const newSale = {
+      id: saleId!,
+      student_id: student_id.trim(),
+      student_name,
+      item_type,
+      item_name,
+      quantity: quantityNum,
+      unit_price: unitPriceNum,
+      total_amount,
+      sale_date: new Date().toISOString().split('T')[0],
+      status: 'completed',
+      ...(notes && notes.trim() && { notes }),
+      created_by
+    };
 
     // Insert into Supabase
     const { data, error } = await supabase

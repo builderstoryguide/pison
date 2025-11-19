@@ -1078,6 +1078,12 @@ export function StudentManagement() {
       {/* Enrollment Form Dialog */}
       <Dialog open={showEnrollmentForm} onOpenChange={setShowEnrollmentForm}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Enroll New Student</DialogTitle>
+            <DialogDescription>
+              Complete the enrollment form to add a new student to the system
+            </DialogDescription>
+          </DialogHeader>
           <StudentEnrollmentForm onSuccess={handleEnrollmentSuccess} onCancel={() => setShowEnrollmentForm(false)} />
         </DialogContent>
       </Dialog>
