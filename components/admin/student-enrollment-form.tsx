@@ -183,7 +183,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
         return !!(formData.class)
       case 4:
         const parentEmailValid = formData.parentEmail?.trim() && formData.parentEmail.includes('@')
-        return !!(formData.parentName && parentEmailValid && (!formData.parentPhone || isValidPhoneFormat(formData.parentPhone)))
+        return !!(formData.parentName && formData.parentEmail?.trim() && parentEmailValid && (!formData.parentPhone || isValidPhoneFormat(formData.parentPhone)))
       case 5:
         return !!(formData.emergencyContactName && (!formData.emergencyContactPhone || isValidPhoneFormat(formData.emergencyContactPhone)))
       case 6:

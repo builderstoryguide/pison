@@ -26,7 +26,7 @@ const createErrorResponse = (error: ApiError, status: number) => {
 const getDefaultConfiguration = () => ({
   id: null,
   school_name: process.env.NEXT_PUBLIC_SCHOOL_NAME || 'Pison Academy',
-  school_logo_url: process.env.NEXT_PUBLIC_SCHOOL_LOGO || '/pison-logo.png',
+  school_logo_url: process.env.NEXT_PUBLIC_SCHOOL_LOGO || '/pison.png',
   school_logo_alt_text: process.env.NEXT_PUBLIC_SCHOOL_LOGO_ALT || 'School Logo',
   school_address: process.env.NEXT_PUBLIC_SCHOOL_ADDRESS || '',
   school_phone: process.env.NEXT_PUBLIC_SCHOOL_PHONE || '',

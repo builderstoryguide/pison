@@ -9,7 +9,7 @@ interface UserAvatarProps {
   user: {
     name: string
     avatar?: string | null
-  }
+  } | null
   className?: string
   size?: "sm" | "md" | "lg" | "xl"
 }
@@ -29,6 +29,10 @@ const sizeValues = {
 }
 
 export function UserAvatar({ user, className, size = "md" }: UserAvatarProps) {
+  if (!user) {
+    return null
+  }
+  
   const isInitialsAvatar = user.avatar?.startsWith('initials:')
   const initials = isInitialsAvatar 
     ? user.avatar?.replace('initials:', '') 

@@ -619,10 +619,40 @@ export async function GET(
     
     // console.log(`Student query results: ${studentsByClassId.length} by class ID, ${studentsByClassName.length} by class name, ${allActiveStudents.length} total active, ${classStudentsJunction.length} from junction table`)
 
-    // Batch fetch parents for all students using utility function
-    const studentIds = allActiveStudents
-      .map(s => s.student_id)
-      .filter(Boolean)
+    // Batch fetch parents for all students from ALL sources
+    // Collect unique student IDs from all query methods to ensure complete parent data coverage
+    const allStudentIds = new Set<string>()
+    
+    // From class_students junction table
+    classStudentsJunction.forEach((junction: any) => {
+      if (junction.students?.student_id) {
+        allStudentIds.add(junction.students.student_id)
+      }
+    })
+    
+    // From students query by class_id
+    studentsByClassId.forEach((student: any) => {
+      if (student.student_id) {
+        allStudentIds.add(student.student_id)
+      }
+    })
+    
+    // From students query by class name
+    studentsByClassName.forEach((student: any) => {
+      if (student.student_id) {
+        allStudentIds.add(student.student_id)
+      }
+    })
+    
+    // From all active students
+    allActiveStudents.forEach((student: any) => {
+      if (student.student_id) {
+        allStudentIds.add(student.student_id)
+      }
+    })
+    
+    const studentIds = Array.from(allStudentIds).filter(Boolean)
+    console.log(`📊 Fetching parent data for ${studentIds.length} unique students from all sources`)
     
     const parentsByStudentId = await fetchParentsForStudents(supabase, studentIds)
 

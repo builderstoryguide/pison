@@ -24,7 +24,7 @@ export async function GET(_request: NextRequest) {
         const defaultConfig = {
           id: null,
           school_name: 'Pison Academy',
-          school_logo_url: '/pison-logo.png',
+          school_logo_url: '/pison.png',
           school_logo_alt_text: 'School Logo',
           school_address: '',
           school_phone: '',
@@ -58,7 +58,7 @@ export async function GET(_request: NextRequest) {
       const defaultConfig = {
         id: null,
         school_name: 'Pison Academy',
-        school_logo_url: '/pison-logo.png',
+        school_logo_url: '/pison.png',
         school_logo_alt_text: 'School Logo',
         school_address: '',
         school_phone: '',
@@ -256,7 +256,7 @@ export async function POST(request: NextRequest) {
         .from('app_configuration')
         .insert({
           school_name: 'Pison Academy',
-          school_logo_url: '/pison-logo.png',
+          school_logo_url: '/pison.png',
           school_logo_alt_text: 'School Logo',
           school_address: '',
           school_phone: '',

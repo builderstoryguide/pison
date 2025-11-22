@@ -5,13 +5,13 @@ import { useAuth } from "@/lib/auth-context"
 import { AuthPage } from "./auth/auth-page"
 import { UserManagementProvider } from "@/lib/user-management-context"
 import { StudentEnrollmentProvider } from "@/lib/student-enrollment-context"
-import { StudentManagementProvider } from "@/lib/student-management-context"
-import { TeacherManagementProvider } from "@/lib/teacher-management-context"
+import { StudentManagementProvider, useStudentManagement } from "@/lib/student-management-context"
+import { TeacherManagementProvider, useTeacherManagement } from "@/lib/teacher-management-context"
 import { EmployeeManagementProvider } from "@/lib/employee-management-context"
-import { ClassManagementProvider } from "@/lib/class-management-context"
+import { ClassManagementProvider, useClassManagement } from "@/lib/class-management-context"
 import { SubjectManagementProvider } from "@/lib/subject-management-context"
 import { ExaminationProvider } from "@/lib/examination-context"
-import { FinancialProvider } from "@/lib/financial-context"
+import { FinancialProvider, useFinancial } from "@/lib/financial-context"
 import { ProfileProvider } from "@/lib/profile-context"
 import { AlertsProvider } from "@/lib/alerts-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
@@ -20,12 +20,6 @@ import { TimetableProvider } from "@/lib/timetable-context"
 import { useNotifications } from "@/lib/notification-context"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useCurrencyFormatter } from "@/lib/app-configuration-context-v2"
-
-// Context hooks for data fetching
-import { useStudentManagement } from "@/lib/student-management-context"
-import { useTeacherManagement } from "@/lib/teacher-management-context"
-import { useClassManagement } from "@/lib/class-management-context"
-import { useFinancial } from "@/lib/financial-context"
 
 // Admin Components
 import { UserManagement } from "./admin/user-management"
@@ -48,8 +42,6 @@ import { FinancialReports as AdminFinancialReports } from "./admin/financial-rep
 import { AcademicReports } from "./admin/academic-reports"
 import { ProfileSettings } from "./profile/profile-settings"
 import { BursarProfile } from "./bursar/bursar-profile"
-import { RecentActivities } from "./admin/recent-activities"
-import { Dashboard01 } from "./dashboard-01"
 import { QuickActionsDashboard } from "./admin/quick-actions-dashboard"
 
 // Teacher Components
@@ -75,7 +67,6 @@ import { FinancialReports } from "./bursar/financial-reports"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Sidebar,
   SidebarContent,
@@ -84,14 +75,12 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarHeaderTitle,
-  SidebarHeaderDescription,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarTrigger,
   SidebarProvider,
   SidebarInset,
   useSidebar,
@@ -110,10 +99,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserAvatar } from "@/components/ui/user-avatar"
 import { SchoolBranding } from "@/components/ui/school-branding"
-import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 // Icons
@@ -130,11 +117,8 @@ import {
   LogOut,
   Home,
   ChevronUp,
-  UserPlus,
-  School,
   ClipboardList,
   CreditCard,
-  CalendarCheck,
   MessageSquare,
   Bell,
   User,
@@ -143,9 +127,7 @@ import {
   Clock,
   X,
   CalendarDays,
-  Download,
   Award,
-  RefreshCw,
   ChevronRight,
   Briefcase,
 } from "lucide-react"
@@ -181,8 +163,8 @@ type StudentView = "dashboard" | "grades" | "schedule" | "assignments" | "fees" 
 
 type BursarView = "dashboard" | "financial" | "sales" | "payment" | "expenditures" | "reports" | "profile"
 
-// Mock notifications data
-const mockNotifications = [
+// Mock notifications data (unused - kept for reference)
+const _mockNotifications = [
   {
     id: 1,
     title: "New Student Enrollment",
@@ -376,29 +358,29 @@ function DashboardHeader({
   )
 }
 
-interface QuickActionsDashboardProps {
+interface _QuickActionsDashboardProps {
   onNavigate?: (view: AdminView) => void
 }
 
-interface ParentDashboardProps {
+interface _ParentDashboardProps {
   onNavigate?: (view: ParentView) => void
 }
 
-interface StudentDashboardProps {
+interface _StudentDashboardProps {
   onNavigate?: (view: StudentView) => void
 }
 
-interface TeacherDashboardProps {
+interface _TeacherDashboardProps {
   onNavigate?: (view: TeacherView) => void
 }
 
-interface BursarDashboardProps {
+interface _BursarDashboardProps {
   onNavigate?: (view: BursarView) => void
 }
 
 export function Dashboard() {
   const { user, logout: originalLogout } = useAuth()
-  const { formatCurrency } = useCurrencyFormatter()
+  const { formatCurrency: _formatCurrency } = useCurrencyFormatter()
   
   // Custom logout function that clears localStorage
   const handleLogout = () => {
@@ -575,19 +557,19 @@ export function Dashboard() {
   // Sidebar state is now managed by SidebarProvider
   
   // Get data from contexts for Admin Dashboard
-  const { students, isLoading: studentsLoading, error: studentsError } = useStudentManagement()
-  const { teachers, isLoading: teachersLoading, error: teachersError } = useTeacherManagement()
-  const { classes, isLoading: classesLoading, error: classesError } = useClassManagement()
+  const { students: _students, isLoading: studentsLoading, error: studentsError } = useStudentManagement()
+  const { teachers: _teachers, isLoading: teachersLoading, error: teachersError } = useTeacherManagement()
+  const { classes: _classes, isLoading: classesLoading, error: classesError } = useClassManagement()
   const { payments, isLoading: paymentsLoading } = useFinancial()
   
   // Calculate total revenue from payments
-  const totalRevenue = payments.reduce((sum, payment) => sum + payment.amountPaid, 0)
+  const _totalRevenue = payments.reduce((sum, payment) => sum + payment.amountPaid, 0)
   
   // Check if any data is still loading
-  const isDataLoading = studentsLoading || teachersLoading || classesLoading || paymentsLoading
+  const _isDataLoading = studentsLoading || teachersLoading || classesLoading || paymentsLoading
   
   // Check if there are any errors
-  const hasErrors = studentsError || teachersError || classesError
+  const _hasErrors = studentsError || teachersError || classesError
 
   // Save view states to localStorage whenever they change
   useEffect(() => {
@@ -694,8 +676,8 @@ export function Dashboard() {
                     >
                       <UserAvatar user={user} size="sm" className="rounded-lg" />
                       <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-semibold">{user.name}</span>
-                        <span className="truncate text-xs">{user.email}</span>
+                        <span className="truncate font-semibold">{user?.name}</span>
+                        <span className="truncate text-xs">{user?.email}</span>
                       </div>
                       <ChevronUp className="ml-auto size-4" />
                     </SidebarMenuButton>
@@ -710,8 +692,8 @@ export function Dashboard() {
                       <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                         <UserAvatar user={user} size="sm" className="rounded-lg" />
                         <div className="grid flex-1 text-left text-sm leading-tight">
-                          <span className="truncate font-semibold">{user.name}</span>
-                          <span className="truncate text-xs">{user.email}</span>
+                          <span className="truncate font-semibold">{user?.name}</span>
+                          <span className="truncate text-xs">{user?.email}</span>
                         </div>
                       </div>
                     </DropdownMenuLabel>
@@ -839,8 +821,8 @@ export function Dashboard() {
                     >
                       <UserAvatar user={user} size="sm" className="rounded-lg" />
                       <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-semibold">{user.name}</span>
-                        <span className="truncate text-xs">{user.email}</span>
+                        <span className="truncate font-semibold">{user?.name}</span>
+                        <span className="truncate text-xs">{user?.email}</span>
                       </div>
                       <ChevronUp className="ml-auto size-4" />
                     </SidebarMenuButton>
@@ -855,8 +837,8 @@ export function Dashboard() {
                       <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                         <UserAvatar user={user} size="sm" className="rounded-lg" />
                         <div className="grid flex-1 text-left text-sm leading-tight">
-                          <span className="truncate font-semibold">{user.name}</span>
-                          <span className="truncate text-xs">{user.email}</span>
+                          <span className="truncate font-semibold">{user?.name}</span>
+                          <span className="truncate text-xs">{user?.email}</span>
                         </div>
                       </div>
                     </DropdownMenuLabel>
@@ -1146,8 +1128,8 @@ export function Dashboard() {
                     >
                       <UserAvatar user={user} size="sm" className="rounded-lg" />
                       <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-semibold">{user.name}</span>
-                        <span className="truncate text-xs">{user.email}</span>
+                        <span className="truncate font-semibold">{user?.name}</span>
+                        <span className="truncate text-xs">{user?.email}</span>
                       </div>
                       <ChevronUp className="ml-auto size-4" />
                     </SidebarMenuButton>
@@ -1162,8 +1144,8 @@ export function Dashboard() {
                       <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                         <UserAvatar user={user} size="sm" className="rounded-lg" />
                         <div className="grid flex-1 text-left text-sm leading-tight">
-                          <span className="truncate font-semibold">{user.name}</span>
-                          <span className="truncate text-xs">{user.email}</span>
+                          <span className="truncate font-semibold">{user?.name}</span>
+                          <span className="truncate text-xs">{user?.email}</span>
                         </div>
                       </div>
                     </DropdownMenuLabel>
@@ -1290,8 +1272,8 @@ export function Dashboard() {
                     >
                       <UserAvatar user={user} size="sm" className="rounded-lg" />
                       <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-semibold">{user.name}</span>
-                        <span className="truncate text-xs">{user.email}</span>
+                        <span className="truncate font-semibold">{user?.name}</span>
+                        <span className="truncate text-xs">{user?.email}</span>
                       </div>
                       <ChevronUp className="ml-auto size-4" />
                     </SidebarMenuButton>
@@ -1306,8 +1288,8 @@ export function Dashboard() {
                       <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                         <UserAvatar user={user} size="sm" className="rounded-lg" />
                         <div className="grid flex-1 text-left text-sm leading-tight">
-                          <span className="truncate font-semibold">{user.name}</span>
-                          <span className="truncate text-xs">{user.email}</span>
+                          <span className="truncate font-semibold">{user?.name}</span>
+                          <span className="truncate text-xs">{user?.email}</span>
                         </div>
                       </div>
                     </DropdownMenuLabel>
@@ -1510,8 +1492,8 @@ export function Dashboard() {
                     >
                       <UserAvatar user={user} size="sm" className="rounded-lg" />
                       <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-semibold">{user.name}</span>
-                        <span className="truncate text-xs">{user.email}</span>
+                        <span className="truncate font-semibold">{user?.name}</span>
+                        <span className="truncate text-xs">{user?.email}</span>
                       </div>
                       <ChevronUp className="ml-auto size-4" />
                     </SidebarMenuButton>
@@ -1526,8 +1508,8 @@ export function Dashboard() {
                       <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                         <UserAvatar user={user} size="sm" className="rounded-lg" />
                         <div className="grid flex-1 text-left text-sm leading-tight">
-                          <span className="truncate font-semibold">{user.name}</span>
-                          <span className="truncate text-xs">{user.email}</span>
+                          <span className="truncate font-semibold">{user?.name}</span>
+                          <span className="truncate text-xs">{user?.email}</span>
                         </div>
                       </div>
                     </DropdownMenuLabel>
