@@ -6,68 +6,137 @@ export async function GET(
   { params }: { params: Promise<{ classId: string }> }
 ) {
   try {
-    const supabase = await createClient()
-    if (!supabase) {
-      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
+    // Await params first to catch any errors early
+    const { classId } = await params
+    
+    if (!classId) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'Class ID is required',
+        subjects: []
+      }, { status: 400 })
     }
 
-    const { classId } = await params
+    const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'Database connection failed',
+        subjects: []
+      }, { status: 500 })
+    }
 
-    // Fetch subjects assigned to this class through teacher assignments
-    const { data: assignments, error } = await supabase
-      .from('teacher_branch_assignments')
+    // Try multiple methods to fetch subjects for this class
+    let subjects: any[] = []
+
+    // Method 1: Fetch from class_subjects junction table
+    const { data: classSubjects, error: classSubjectsError } = await supabase
+      .from('class_subjects')
       .select(`
         id,
-        is_primary_teacher,
-        subject_branches (
+        subject_id,
+        subjects!inner (
           id,
-          branch_name,
-          branch_code,
-          subjects (
-            id,
-            subject_name,
-            subject_code,
-            coefficient,
-            description
-          )
+          name,
+          code,
+          coefficient
         )
       `)
       .eq('class_id', classId)
-      .eq('academic_year', '2024-2025')
-      .eq('term', 'Term 1')
 
-    if (error) {
-      console.error('Error fetching class subjects:', error)
-      return NextResponse.json({ error: 'Failed to fetch subjects' }, { status: 500 })
+    if (!classSubjectsError && classSubjects && classSubjects.length > 0) {
+      subjects = classSubjects.map((cs: any) => ({
+        id: cs.subjects?.id || cs.subject_id,
+        name: cs.subjects?.name || 'Unknown Subject',
+        code: cs.subjects?.code || '',
+        coefficient: cs.subjects?.coefficient ? parseFloat(cs.subjects.coefficient) : 1.0
+      }))
     }
 
-    // Transform the data to match our interface
-    const transformedSubjects = assignments?.map((assignment: any) => ({
-      id: assignment.subject_branches?.subjects?.id,
-      name: assignment.subject_branches?.subjects?.subject_name,
-      code: assignment.subject_branches?.subjects?.subject_code,
-      coefficient: assignment.subject_branches?.subjects?.coefficient,
-      description: assignment.subject_branches?.subjects?.description,
-      branch: {
-        id: assignment.subject_branches?.id,
-        name: assignment.subject_branches?.branch_name,
-        code: assignment.subject_branches?.branch_code
-      },
-      isPrimary: assignment.is_primary_teacher
-    })) || []
+    // Method 2: If no subjects from class_subjects, try teacher_subject_assignments
+    if (subjects.length === 0) {
+      const { data: teacherAssignments, error: assignmentsError } = await supabase
+        .from('teacher_subject_assignments')
+        .select(`
+          id,
+          subject_id,
+          subjects:subject_id (
+            id,
+            subject_name,
+            subject_code,
+            coefficient
+          )
+        `)
+        .eq('class_id', classId)
 
-    // Remove duplicates based on subject ID
-    const uniqueSubjects = transformedSubjects.filter((subject, index, self) => 
-      index === self.findIndex(s => s.id === subject.id)
-    )
+      if (!assignmentsError && teacherAssignments && teacherAssignments.length > 0) {
+        const uniqueSubjectIds = new Set<string>()
+        subjects = teacherAssignments
+          .filter((ta: any) => {
+            const subjectId = ta.subjects?.id || ta.subject_id
+            if (!subjectId || uniqueSubjectIds.has(subjectId)) return false
+            uniqueSubjectIds.add(subjectId)
+            return true
+          })
+          .map((ta: any) => ({
+            id: ta.subjects?.id || ta.subject_id,
+            name: ta.subjects?.subject_name || 'Unknown Subject',
+            code: ta.subjects?.subject_code || '',
+            coefficient: ta.subjects?.coefficient ? parseFloat(ta.subjects.coefficient) : 1.0
+          }))
+      }
+    }
+
+    // Method 3: Fallback to teacher_branch_assignments (if table exists)
+    if (subjects.length === 0) {
+      try {
+        const { data: branchAssignments, error: branchError } = await supabase
+          .from('teacher_branch_assignments')
+          .select(`
+            id,
+            subject_branches (
+              subjects (
+                id,
+                subject_name,
+                subject_code,
+                coefficient
+              )
+            )
+          `)
+          .eq('class_id', classId)
+
+        if (!branchError && branchAssignments && branchAssignments.length > 0) {
+          const uniqueSubjectIds = new Set<string>()
+          subjects = branchAssignments
+            .map((ba: any) => ba.subject_branches?.subjects)
+            .filter((s: any) => s && s.id && !uniqueSubjectIds.has(s.id))
+            .map((s: any) => {
+              uniqueSubjectIds.add(s.id)
+              return {
+                id: s.id,
+                name: s.subject_name || 'Unknown Subject',
+                code: s.subject_code || '',
+                coefficient: s.coefficient ? parseFloat(s.coefficient) : 1.0
+              }
+            })
+        }
+      } catch (err) {
+        // Table doesn't exist, ignore this method
+        console.warn('teacher_branch_assignments table not available:', err)
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      subjects: uniqueSubjects
+      subjects: subjects
     })
 
   } catch (error) {
     console.error('Error in class subjects API:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ 
+      success: false,
+      error: error instanceof Error ? error.message : 'Internal server error',
+      subjects: []
+    }, { status: 500 })
   }
 }

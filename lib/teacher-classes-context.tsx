@@ -92,7 +92,9 @@ export function TeacherClassesProvider({ children }: { children: React.ReactNode
         throw new Error('User ID is required to fetch teacher classes')
       }
 
-      const apiUrl = `/api/teachers/${user.id}/assignments?includeDetails=true&page=1&limit=100`
+      // Add cache-busting parameter to ensure fresh data
+      const cacheBuster = new Date().getTime()
+      const apiUrl = `/api/teachers/${user.id}/assignments?includeDetails=true&page=1&limit=100&t=${cacheBuster}`
       console.log('Fetching teacher classes from:', apiUrl)
 
       // Fetch teacher assignments which includes classes with details (subjects and students)
@@ -100,7 +102,12 @@ export function TeacherClassesProvider({ children }: { children: React.ReactNode
       let data: any
 
       try {
-        response = await fetch(apiUrl)
+        response = await fetch(apiUrl, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+        })
         
         // Check if response is ok before trying to parse JSON
         if (!response.ok) {

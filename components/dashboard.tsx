@@ -14,7 +14,6 @@ import { ExaminationProvider } from "@/lib/examination-context"
 import { FinancialProvider } from "@/lib/financial-context"
 import { ProfileProvider } from "@/lib/profile-context"
 import { AlertsProvider } from "@/lib/alerts-context"
-import { TeacherClassesProvider } from "@/lib/teacher-classes-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 import { BursarProvider } from "@/lib/bursar-context"
 import { TimetableProvider } from "@/lib/timetable-context"
@@ -54,12 +53,8 @@ import { Dashboard01 } from "./dashboard-01"
 import { QuickActionsDashboard } from "./admin/quick-actions-dashboard"
 
 // Teacher Components
-import { TeacherDashboard } from "./teacher/teacher-dashboard"
-import { TeacherClassesView } from "./teacher/teacher-classes-view"
+import { TeacherDashboardNew as TeacherDashboard } from "./teacher/teacher-dashboard-new"
 import { GradesManagement } from "./teacher/grades-management"
-import { TeacherAssignmentManagement } from "./teacher/teacher-assignment-management"
-import { TeacherExaminationManagement } from "./teacher/examination-management"
-import { TeacherAssignmentsView } from "./teacher/teacher-assignments-view"
 
 // Parent Components
 import { ParentDashboard } from "./parent/parent-dashboard"
@@ -178,7 +173,7 @@ type AdminView =
   | "configuration"
   | "profile"
 
-type TeacherView = "dashboard" | "classes" | "grades" | "assignments" | "my-assignments" | "examinations" | "profile"
+type TeacherView = "dashboard" | "grades" | "examinations" | "profile"
 
 type ParentView = "dashboard" | "records" | "communication" | "alerts" | "profile"
 
@@ -915,7 +910,7 @@ export function Dashboard() {
       subItems?: Array<{ id: string; label: string }>
     }> = [
       { id: "quick-actions", label: "Dashboard", icon: Home },
-      { id: "users", label: "User Management", icon: Users },
+      { id: "users", label: "Manage Users", icon: Users },
       {
         id: "students",
         label: "Manage Students",
@@ -926,11 +921,11 @@ export function Dashboard() {
           { id: "report-cards", label: "Report cards" },
         ],
       },
-      { id: "teachers", label: "Teacher Management", icon: UserCheck },
+      { id: "teachers", label: "Manage Teachers", icon: UserCheck },
       { id: "employees", label: "Manage Employees", icon: Briefcase },
-      { id: "classes", label: "Class Management", icon: BookOpen },
+      { id: "classes", label: "Manage Classes", icon: BookOpen },
       { id: "subjects", label: "Manage Subjects", icon: BookOpen },
-      { id: "timetable", label: "Timetable Management", icon: CalendarDays },
+      { id: "timetable", label: "Manage Timetable", icon: CalendarDays },
       { id: "examinations", label: "Examinations", icon: FileText },
       {
         id: "financial",
@@ -1235,24 +1230,15 @@ export function Dashboard() {
   if (user.role === "teacher") {
     const teacherMenuItems = [
       { id: "dashboard", label: "Dashboard", icon: Home },
-      { id: "my-assignments", label: "My Assignments", icon: BookOpen },
-      { id: "classes", label: "My Classes", icon: Users },
       { id: "grades", label: "Grades", icon: ClipboardList },
-      { id: "assignments", label: "Assignments", icon: Award },
     ]
 
     const renderTeacherContent = () => {
       switch (teacherCurrentView) {
-        case "my-assignments":
-          return <TeacherAssignmentsView />
-        case "classes":
-          return <TeacherClassesView />
         case "grades":
           return <GradesManagement />
-        case "assignments":
-          return <TeacherAssignmentManagement />
         case "examinations":
-          return <TeacherExaminationManagement />
+          return <ExaminationManagement />
         case "profile":
           return <ProfileSettings />
         default:
@@ -1345,28 +1331,26 @@ export function Dashboard() {
     }
 
     return (
-      <TeacherClassesProvider>
-          <TeacherGradesProvider>
-            <ProfileProvider>
-              <SidebarProvider>
-                <Sidebar 
-                  collapsible="icon"
-                  className="border-r border-border/50"
-                >
-                  <TeacherSidebarContent />
-                </Sidebar>
-                <SidebarInset>
-                  <DashboardHeader
-                    user={user}
-                    onProfileClick={() => setTeacherCurrentView("profile")}
-                    onLogout={handleLogout}
-                  />
-                  <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderTeacherContent()}</div>
-                </SidebarInset>
-              </SidebarProvider>
-            </ProfileProvider>
-          </TeacherGradesProvider>
-        </TeacherClassesProvider>
+      <TeacherGradesProvider>
+        <ProfileProvider>
+          <SidebarProvider>
+            <Sidebar 
+              collapsible="icon"
+              className="border-r border-border/50"
+            >
+              <TeacherSidebarContent />
+            </Sidebar>
+            <SidebarInset>
+              <DashboardHeader
+                user={user}
+                onProfileClick={() => setTeacherCurrentView("profile")}
+                onLogout={handleLogout}
+              />
+              <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderTeacherContent()}</div>
+            </SidebarInset>
+          </SidebarProvider>
+        </ProfileProvider>
+      </TeacherGradesProvider>
     )
   }
 

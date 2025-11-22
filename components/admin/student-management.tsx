@@ -16,7 +16,6 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  RefreshCw,
   ChevronLeft,
   ChevronRight,
   CheckSquare,
@@ -481,13 +480,6 @@ export function StudentManagement() {
           <p className="text-muted-foreground">Manage student enrollment, records, and information</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => loadStudents()}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-          <Button variant="outline" onClick={() => console.log('Students state:', students)}>
-            Debug Log
-          </Button>
           <Button variant="outline" onClick={exportToCSV}>
             <Download className="h-4 w-4 mr-2" />
             Export CSV

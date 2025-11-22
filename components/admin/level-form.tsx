@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
@@ -80,7 +80,7 @@ export function LevelForm({ onSuccess, onCancel }: LevelFormProps) {
           } else if (errorData.message) {
             errorMessage = errorData.message
           }
-        } catch (parseError) {
+        } catch (_) {
           // If JSON parsing fails, use status text
           errorMessage = response.statusText || 'Failed to create level'
         }
@@ -91,7 +91,7 @@ export function LevelForm({ onSuccess, onCancel }: LevelFormProps) {
         return
       }
 
-      const result = await response.json()
+      await response.json()
       
       toastSuccess("Level created successfully!", {
         description: `Level "${data.name}" has been created for ${data.subsystem} subsystem and ${data.branch} branch.`
@@ -111,7 +111,7 @@ export function LevelForm({ onSuccess, onCancel }: LevelFormProps) {
       
       // Only log if it's not an API error (API errors are handled above)
       if (!errorMessage.includes('Level already exists') && !errorMessage.includes('Failed to create level')) {
-        console.error("Unexpected error creating level:", errorMessage, error)
+        // console.error("Unexpected error creating level:", errorMessage, error)
       }
       
       toastError("Failed to create level", {

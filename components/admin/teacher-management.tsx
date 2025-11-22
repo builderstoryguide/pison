@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState } from "react"
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Mail, Phone, Download, AlertCircle } from "lucide-react"
+import React, { useState, useEffect } from "react"
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Download, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -66,113 +66,43 @@ export function TeacherManagement() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [isSyncing, setIsSyncing] = useState(false)
+  const [subjectCodeMap, setSubjectCodeMap] = useState<Map<string, string>>(new Map())
+
+  // Fetch subjects to create name-to-code mapping
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const response = await fetch('/api/subjects?is_active=true')
+        if (response.ok) {
+          const data = await response.json()
+          const subjects = Array.isArray(data) ? data : (data.subjects || [])
+          
+          const codeMap = new Map<string, string>()
+          subjects.forEach((subject: any) => {
+            if (subject.name && subject.code) {
+              codeMap.set(subject.name, subject.code)
+            }
+          })
+          
+          setSubjectCodeMap(codeMap)
+        }
+      } catch (err) {
+        console.error('Error fetching subjects for code mapping:', err)
+      }
+    }
+    
+    fetchSubjects()
+  }, [])
+
+  // Helper function to get subject code from name
+  const getSubjectCode = (subjectName: string): string => {
+    return subjectCodeMap.get(subjectName) || subjectName.substring(0, 4).toUpperCase()
+  }
 
   // Debug effect for teacher enrollment success - placed after all state declarations
   React.useEffect(() => {
     console.log("🎯 Teacher enrollment success state changed:", teacherEnrollmentSuccess)
   }, [teacherEnrollmentSuccess])
-
-  // Test password generation
-  const testPasswordGeneration = () => {
-    try {
-      // Import the function dynamically
-      import('@/lib/password-utils').then(({ generateDefaultPassword }) => {
-        const testPassword = generateDefaultPassword('teacher')
-        console.log("🧪 Test password generation:", testPassword)
-        toastInfo("Password generation test", {
-          description: `Generated: ${testPassword}`
-        })
-      }).catch(err => {
-        console.error("Error importing password utils:", err)
-        toastError("Password generation test failed", {
-          description: "Could not import password utility function"
-        })
-      })
-    } catch (error) {
-      console.error("Error in test function:", error)
-      toastError("Password generation test failed", {
-        description: "Unexpected error occurred"
-      })
-    }
-  }
-
-  // Function to sync existing teachers with User Management system
-  const syncTeachersWithUserManagement = async () => {
-    setIsSyncing(true)
-    try {
-      // Get all teachers from Teacher Management
-      const teacherManagementTeachers = teachers
-      
-      // Get all users from User Management
-      const userManagementUsers = users.filter(user => user.role === 'teacher')
-      
-      // Find teachers that don't have corresponding user accounts
-      const teachersWithoutUserAccounts = teacherManagementTeachers.filter(teacher => {
-        return !userManagementUsers.some(user => 
-          user.teacherRegNo === teacher.teacherId || 
-          user.email === teacher.email
-        )
-      })
-      
-      if (teachersWithoutUserAccounts.length === 0) {
-        toastSuccess("All teachers are already synced!", {
-          description: "No teachers found without user accounts."
-        })
-        return
-      }
-      
-      // Create user accounts for teachers that don't have them
-      let successCount = 0
-      let errorCount = 0
-      
-      for (const teacher of teachersWithoutUserAccounts) {
-        try {
-          const userData = {
-            name: `${teacher.firstName} ${teacher.lastName}`,
-            email: teacher.email,
-            role: 'teacher' as const,
-            status: 'active' as const,
-            teacherRegNo: teacher.teacherId,
-            subsystem: teacher.subsystem,
-            phone: teacher.phone,
-            address: teacher.address,
-            dateOfBirth: teacher.dateOfBirth,
-            gender: teacher.gender as 'male' | 'female',
-            permissions: ['manage_classes', 'grade_students', 'communicate_parents']
-          }
-          
-          const userResult = await createUser(userData)
-          if (userResult.success) {
-            successCount++
-          } else {
-            errorCount++
-          }
-        } catch (error) {
-          console.error(`Error creating user account for teacher ${teacher.firstName} ${teacher.lastName}:`, error)
-          errorCount++
-        }
-      }
-      
-      if (successCount > 0) {
-        toastSuccess(`Sync completed!`, {
-          description: `Successfully created ${successCount} user account(s). ${errorCount > 0 ? `${errorCount} failed.` : ''}`
-        })
-      } else if (errorCount > 0) {
-        toastError("Sync failed", {
-          description: `Failed to create ${errorCount} user account(s). Please try again.`
-        })
-      }
-      
-    } catch (error) {
-      console.error("Error syncing teachers:", error)
-      toastError("Sync failed", {
-        description: "An error occurred while syncing teachers with User Management."
-      })
-    } finally {
-      setIsSyncing(false)
-    }
-  }
 
   // Filter teachers based on search term and filters
   const filteredTeachers = teachers.filter((teacher) => {
@@ -245,11 +175,16 @@ export function TeacherManagement() {
     setShowEditTeacherForm(true)
   }
 
-  const handleEditSuccess = () => {
+  const handleEditSuccess = async () => {
     setShowEditTeacherForm(false)
     setSelectedTeacher(null)
+    
+    // The updateTeacher function already calls loadTeachers(), but we can ensure
+    // the UI refreshes by updating the refresh key
+    setRefreshKey(prev => prev + 1)
+    
     toastSuccess("Teacher updated successfully!", {
-      description: "The teacher's information has been updated in the database."
+      description: "The teacher's information has been updated in the database and reflected in their account."
     })
   }
 
@@ -312,18 +247,6 @@ export function TeacherManagement() {
           <p className="text-muted-foreground">Manage teachers and their information</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button 
-            variant="outline" 
-            onClick={syncTeachersWithUserManagement}
-            disabled={isSyncing}
-          >
-            {isSyncing ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
-            ) : (
-              <AlertCircle className="h-4 w-4 mr-2" />
-            )}
-            {isSyncing ? 'Syncing...' : 'Sync with User Management'}
-          </Button>
           <Button variant="outline" onClick={() => setShowExportForm(true)}>
             <Download className="h-4 w-4 mr-2" />
             Export Data
@@ -332,33 +255,8 @@ export function TeacherManagement() {
             <Plus className="h-4 w-4 mr-2" />
             Add Teacher
           </Button>
-          <Button onClick={testPasswordGeneration} variant="outline">
-            🧪 Test Password
-          </Button>
         </div>
       </div>
-
-      {/* Data Consistency Alert */}
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Data Consistency:</strong> Teachers count from User Management: {users.filter(u => u.role === 'teacher').length} | 
-          Teachers count from Teacher Management: {teachers.length} | 
-          {users.filter(u => u.role === 'teacher').length === teachers.length ? '✅ Consistent' : '⚠️ Inconsistent'}
-        </AlertDescription>
-      </Alert>
-
-      {/* Debug Information */}
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Debug Info:</strong> Teachers: {teachers.length} | 
-          Filtered: {filteredTeachers.length} | 
-          Database: {teachers.length > 0 ? 'Connected' : 'No Data'} |
-          Success State: {teacherEnrollmentSuccess ? 'Set' : 'Not Set'} |
-          Success Password: {teacherEnrollmentSuccess?.password || 'None'}
-        </AlertDescription>
-      </Alert>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -474,14 +372,13 @@ export function TeacherManagement() {
                   <TableHead>Subsystem</TableHead>
                   <TableHead>Subjects</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Contact</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredTeachers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={6} className="text-center py-8">
                       No teachers found
                     </TableCell>
                   </TableRow>
@@ -512,8 +409,8 @@ export function TeacherManagement() {
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {teacher.subjects.slice(0, 2).map((subject: string) => (
-                            <Badge key={subject} variant="secondary" className="text-xs">
-                              {subject}
+                            <Badge key={subject} variant="secondary" className="text-xs" title={subject}>
+                              {getSubjectCode(subject)}
                             </Badge>
                           ))}
                           {teacher.subjects.length > 2 && (
@@ -524,16 +421,6 @@ export function TeacherManagement() {
                         </div>
                       </TableCell>
                       <TableCell>{getStatusBadge(teacher.status)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Button variant="ghost" size="sm">
-                            <Mail className="h-3 w-3" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Phone className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

@@ -3,6 +3,9 @@ const nextConfig = {
   // Enable strict mode for better development experience
   reactStrictMode: true,
   
+  // Enable standalone output for Docker deployment
+  output: 'standalone',
+  
   // Add this configuration to address the cross-origin warning
   experimental: {
     allowedDevOrigins: ['192.168.1.144'],

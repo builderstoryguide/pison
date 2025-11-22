@@ -63,7 +63,7 @@ const navigationItems = [
     title: "Teachers",
     href: "/teachers",
     icon: UserCheck,
-    description: "Teacher management",
+    description: "Manage Teachers",
     subItems: [
       { title: "All Teachers", href: "/teachers" },
       { title: "Add Teacher", href: "/teachers/add" },
@@ -75,7 +75,7 @@ const navigationItems = [
     title: "Classes",
     href: "/classes",
     icon: School,
-    description: "Class management",
+    description: "Manage Classes",
     subItems: [
       { title: "All Classes", href: "/classes" },
       { title: "Create Class", href: "/classes/create" },
@@ -124,7 +124,7 @@ const navigationItems = [
     title: "Users",
     href: "/users",
     icon: Users,
-    description: "User management",
+    description: "Manage Users",
     subItems: [
       { title: "All Users", href: "/users" },
       { title: "Add User", href: "/users/add" },

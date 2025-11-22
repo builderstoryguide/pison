@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { serializeSupabaseError } from '@/lib/safe-error'
+import { fetchParentsForStudents, getParentInfoForStudent } from '@/lib/utils/parent-data-fetcher'
 
 export const runtime = 'nodejs'
 
@@ -41,61 +42,16 @@ export async function GET(
       )
     }
 
-    // Get teacher's assigned subjects
-    const { data: teacherSubjects, error: subjectsError } = await supabase
-      .from('teacher_subjects')
-      .select(`
-        id,
-        teacher_id,
-        subject_id,
-        subject_name,
-        sub_branch_id,
-        assignment_type,
-        is_active,
-        created_at,
-        subjects (
-          id,
-          name,
-          code
-        ),
-        subject_sub_branches (
-          id,
-          name
-        )
-      `)
-      .eq('teacher_id', teacherId)
-      .eq('is_active', true)
-
-    if (subjectsError) {
-      console.error('Error loading teacher subjects:', serializeSupabaseError(subjectsError))
-    }
-
-    // Transform subjects data
-    const subjects = (teacherSubjects || []).map((ts: any) => ({
-      id: ts.id,
-      subjectId: ts.subject_id,
-      subjectName: ts.subject_name || ts.subjects?.name || 'Unknown',
-      subjectCode: ts.subjects?.code || null,
-      subBranchId: ts.sub_branch_id || null,
-      subBranchName: ts.subject_sub_branches?.name || null,
-      assignmentType: ts.assignment_type || 'main_subject',
-      isActive: ts.is_active,
-      createdAt: ts.created_at,
-    }))
-
     // First, find the teacher's record in the teachers table
     // The teachers table has a user_id column that links to users.id
     let { data: teacherRecord, error: teacherRecordError } = await supabase
       .from('teachers')
-      .select('id, user_id, teacher_id')
+      .select('id, user_id, teacher_id, subjects, classes')
       .eq('user_id', teacherId)
       .single()
 
     // Log for debugging
     if (teacherRecordError) {
-      console.error('Error finding teacher record:', serializeSupabaseError(teacherRecordError))
-      console.log('Looking for teacher with user_id:', teacherId)
-      
       // Try to find teacher by email as fallback
       const { data: userData } = await supabase
         .from('users')
@@ -103,25 +59,22 @@ export async function GET(
         .eq('id', teacherId)
         .single()
       
-      if (userData?.email) {
-        const { data: teacherByEmail } = await supabase
-          .from('teachers')
-          .select('id, user_id, teacher_id, email')
-          .eq('email', userData.email)
-          .single()
+        if (userData?.email) {
+          const { data: teacherByEmail } = await supabase
+            .from('teachers')
+            .select('id, user_id, teacher_id, email, subjects, classes')
+            .eq('email', userData.email)
+            .single()
         
         if (teacherByEmail) {
-          console.log('Found teacher by email, but user_id is not set:', teacherByEmail)
           // Auto-repair: Link the teacher to the user account
           if (!teacherByEmail.user_id) {
-            console.log(`🔧 Auto-repair: Linking teacher ${teacherByEmail.id} to user ${teacherId}`)
             const { error: linkError } = await supabase
               .from('teachers')
               .update({ user_id: teacherId })
               .eq('id', teacherByEmail.id)
             
             if (linkError) {
-              console.error('Failed to auto-link teacher to user:', serializeSupabaseError(linkError))
               return NextResponse.json({
                 ok: false,
                 error: 'Teacher record found but failed to link to user account. Please contact administrator.',
@@ -130,7 +83,6 @@ export async function GET(
               }, { status: 500 })
             }
             
-            console.log(`✅ Successfully auto-linked teacher ${teacherByEmail.id} to user ${teacherId}`)
             // Set teacherRecord to continue with normal flow
             teacherRecord = { ...teacherByEmail, user_id: teacherId }
             teacherRecordError = null
@@ -151,24 +103,20 @@ export async function GET(
           if (!profileError && userProfile?.role_specific_id) {
             const { data: teacherById, error: teacherByIdError } = await supabase
               .from('teachers')
-              .select('id, user_id, teacher_id, email')
+              .select('id, user_id, teacher_id, email, subjects, classes')
               .eq('teacher_id', userProfile.role_specific_id)
               .maybeSingle()
             
             if (!teacherByIdError && teacherById) {
               if (!teacherById.user_id) {
-                console.log(`🔧 Auto-repair: Linking teacher ${teacherById.id} (${teacherById.teacher_id}) to user ${teacherId}`)
                 const { error: linkError } = await supabase
                   .from('teachers')
                   .update({ user_id: teacherId })
                   .eq('id', teacherById.id)
                 
                 if (!linkError) {
-                  console.log(`✅ Successfully auto-linked teacher ${teacherById.id} to user ${teacherId}`)
                   teacherRecord = { ...teacherById, user_id: teacherId }
                   teacherRecordError = null
-                } else {
-                  console.error('Failed to auto-link teacher by teacher_id:', serializeSupabaseError(linkError))
                 }
               } else {
                 // Teacher already linked
@@ -179,8 +127,84 @@ export async function GET(
           }
         }
       }
-    } else if (teacherRecord) {
-      console.log('Found teacher record:', { id: teacherRecord.id, user_id: teacherRecord.user_id, teacher_id: teacherRecord.teacher_id })
+    }
+
+    // Get teacher's assigned subjects
+    let subjects: any[] = []
+
+    if (teacherRecord) {
+      const { data: teacherSubjects, error: subjectsError } = await supabase
+        .from('teacher_subjects')
+        .select(`
+          id,
+          teacher_id,
+          subject_id,
+          subject_name,
+          sub_branch_id,
+          assignment_type,
+          is_active,
+          created_at,
+          subjects (
+            id,
+            name,
+            code
+          ),
+          subject_sub_branches (
+            id,
+            name
+          )
+        `)
+        .eq('teacher_id', teacherRecord.id)
+        .eq('is_active', true)
+  
+      if (subjectsError) {
+        // console.error('Error loading teacher subjects:', serializeSupabaseError(subjectsError))
+      }
+  
+      // Transform subjects data
+      subjects = (teacherSubjects || []).map((ts: any) => ({
+        id: ts.id,
+        subjectId: ts.subject_id,
+        subjectName: ts.subject_name || ts.subjects?.name || 'Unknown',
+        subjectCode: ts.subjects?.code || null,
+        subBranchId: ts.sub_branch_id || null,
+        subBranchName: ts.subject_sub_branches?.name || null,
+        assignmentType: ts.assignment_type || 'main_subject',
+        isActive: ts.is_active,
+        createdAt: ts.created_at,
+      }))
+
+      // Also include subjects from teachers.subjects array (for admin-edited subjects)
+      if (teacherRecord.subjects && Array.isArray(teacherRecord.subjects) && teacherRecord.subjects.length > 0) {
+        // Fetch subject codes for subjects in the array
+        const subjectNames = teacherRecord.subjects
+        const { data: subjectsData } = await supabase
+          .from('subjects')
+          .select('id, name, code')
+          .in('name', subjectNames)
+
+        const subjectsMap = new Map((subjectsData || []).map((s: any) => [s.name, s]))
+
+        // Add subjects from teachers.subjects array that aren't already in the list
+        const existingSubjectNames = new Set(subjects.map(s => s.subjectName))
+        
+        teacherRecord.subjects.forEach((subjectName: string, index: number) => {
+          if (!existingSubjectNames.has(subjectName)) {
+            const subjectData = subjectsMap.get(subjectName)
+            subjects.push({
+              id: `teachers-table-${teacherRecord.id}-${index}`,
+              subjectId: subjectData?.id || null,
+              subjectName: subjectName,
+              subjectCode: subjectData?.code || null,
+              subBranchId: null,
+              subBranchName: null,
+              assignmentType: 'main_subject',
+              isActive: true,
+              createdAt: new Date().toISOString(),
+            })
+          }
+        })
+      }
     }
 
     // Get classes where teacher is the class teacher
@@ -204,7 +228,7 @@ export async function GET(
         .eq('status', 'active')
 
       if (classTeacherError) {
-        console.error('Error loading class teacher classes:', serializeSupabaseError(classTeacherError))
+        // console.error('Error loading class teacher classes:', serializeSupabaseError(classTeacherError))
       } else {
         classTeacherClasses = classes || []
       }
@@ -336,13 +360,13 @@ export async function GET(
         .eq('teacher_row_id', teacherRecord.id)
 
       if (classTeachersError) {
-        console.error('Error loading classes from class_teachers junction:', serializeSupabaseError(classTeachersError))
+        // console.error('Error loading classes from class_teachers junction:', serializeSupabaseError(classTeachersError))
       } else if (classTeachers) {
-        console.log(`Found ${classTeachers.length} classes from class_teachers junction table`)
+        // console.log(`Found ${classTeachers.length} classes from class_teachers junction table`)
         classesFromJunction = (classTeachers || []).map((ct: any) => {
           const cls = ct.classes
           if (!cls) {
-            console.warn('Class not found for class_teachers entry:', ct.class_id)
+            // console.warn('Class not found for class_teachers entry:', ct.class_id)
             return null
           }
           return {
@@ -359,14 +383,52 @@ export async function GET(
           }
         }).filter(Boolean)
       } else {
-        console.log('No classes found in class_teachers junction table for teacher:', teacherRecord.id)
+        // console.log('No classes found in class_teachers junction table for teacher:', teacherRecord.id)
       }
     } else {
-      console.warn('Cannot fetch classes from junction table - teacher record not found or error occurred')
+      // console.warn('Cannot fetch classes from junction table - teacher record not found or error occurred')
+    }
+
+    // Also include classes from teachers.classes array (for admin-edited classes)
+    let classesFromTeachersTable: any[] = []
+    if (teacherRecord && teacherRecord.classes && Array.isArray(teacherRecord.classes) && teacherRecord.classes.length > 0) {
+      const classNames = teacherRecord.classes
+      
+      // Fetch class details from classes table by name
+      const { data: classesData } = await supabase
+        .from('classes')
+        .select(`
+          id,
+          class_name,
+          class_level,
+          subsystem,
+          stream,
+          academic_year,
+          capacity,
+          current_enrollment,
+          status
+        `)
+        .in('class_name', classNames)
+        .eq('status', 'active')
+
+      if (classesData && classesData.length > 0) {
+        classesFromTeachersTable = classesData.map((cls: any) => ({
+          id: cls.id,
+          name: cls.class_name || 'Unknown',
+          level: cls.class_level || '',
+          subsystem: cls.subsystem || '',
+          branch: cls.stream || '',
+          academicYear: cls.academic_year || '',
+          capacity: cls.capacity || 0,
+          currentEnrollment: cls.current_enrollment || 0,
+          assignmentType: 'subject_teacher',
+          status: cls.status || 'active',
+        }))
+      }
     }
 
     // Combine all classes and remove duplicates
-    const allClasses = [...classesAsClassTeacher, ...classesFromTimetable, ...classesFromJunction]
+    const allClasses = [...classesAsClassTeacher, ...classesFromTimetable, ...classesFromJunction, ...classesFromTeachersTable]
     const uniqueClasses = Array.from(
       new Map(allClasses.map((cls) => [cls.id, cls])).values()
     )
@@ -541,21 +603,28 @@ export async function GET(
 
     // Log query results for debugging
     if (studentsByClassIdResult.error) {
-      console.error('Error fetching students by class ID:', serializeSupabaseError(studentsByClassIdResult.error))
+      // console.error('Error fetching students by class ID:', serializeSupabaseError(studentsByClassIdResult.error))
     }
     if (studentsByClassNameResult.error) {
-      console.error('Error fetching students by class name:', serializeSupabaseError(studentsByClassNameResult.error))
+      // console.error('Error fetching students by class name:', serializeSupabaseError(studentsByClassNameResult.error))
     }
     if (studentsByClassColumnResult.error) {
-      console.error('Error fetching all active students:', serializeSupabaseError(studentsByClassColumnResult.error))
+      // console.error('Error fetching all active students:', serializeSupabaseError(studentsByClassColumnResult.error))
     }
     if (classStudentsJunctionResult.error) {
       // It's okay if this table doesn't exist, just log it
-      const errorMsg = serializeSupabaseError(classStudentsJunctionResult.error)
-      console.log('Note: class_students junction table may not exist or be accessible:', errorMsg)
+      // const _errorMsg = serializeSupabaseError(classStudentsJunctionResult.error)
+      // console.log('Note: class_students junction table may not exist or be accessible:', _errorMsg)
     }
     
-    console.log(`Student query results: ${studentsByClassId.length} by class ID, ${studentsByClassName.length} by class name, ${allActiveStudents.length} total active, ${classStudentsJunction.length} from junction table`)
+    // console.log(`Student query results: ${studentsByClassId.length} by class ID, ${studentsByClassName.length} by class name, ${allActiveStudents.length} total active, ${classStudentsJunction.length} from junction table`)
+
+    // Batch fetch parents for all students using utility function
+    const studentIds = allActiveStudents
+      .map(s => s.student_id)
+      .filter(Boolean)
+    
+    const parentsByStudentId = await fetchParentsForStudents(supabase, studentIds)
 
     // Batch fetch all subjects for all classes from teacher_branch_assignments
     // This shows subjects that the teacher teaches in each class
@@ -563,7 +632,7 @@ export async function GET(
     let allTeacherAssignmentsError: any = null
 
     if (classIds.length > 0 && teacherRecord) {
-      console.log(`🔍 Fetching subjects for teacher ${teacherRecord.id} in classes:`, classIds)
+      // console.log(`🔍 Fetching subjects for teacher ${teacherRecord.id} in classes:`, classIds)
       
       // Fetch assignments with branch details first
       // Then fetch subjects separately and join them
@@ -592,14 +661,14 @@ export async function GET(
       allTeacherAssignmentsError = error
 
       if (allTeacherAssignmentsError) {
-        console.error('❌ Error fetching assignments:', serializeSupabaseError(allTeacherAssignmentsError))
+        // console.error('❌ Error fetching assignments:', serializeSupabaseError(allTeacherAssignmentsError))
         allTeacherAssignmentsData = []
       } else if (data && data.length > 0) {
-        console.log(`✅ Found ${data.length} assignments, fetching subject details...`)
+        // console.log(`✅ Found ${data.length} assignments, fetching subject details...`)
         
         // Extract unique subject IDs from branches
         const subjectIds = data
-          .map(a => a.subject_branches?.subject_id)
+          .map(a => (Array.isArray(a.subject_branches) ? a.subject_branches[0] : a.subject_branches)?.subject_id)
           .filter(Boolean)
           .filter((v, i, a) => a.indexOf(v) === i) // unique
 
@@ -611,14 +680,19 @@ export async function GET(
             .in('id', subjectIds)
 
           if (subjectsError) {
-            console.error('❌ Error fetching subjects:', serializeSupabaseError(subjectsError))
+            // console.error('❌ Error fetching subjects:', serializeSupabaseError(subjectsError))
           } else {
             // Create a map of subject_id -> subject
             const subjectMap = new Map((subjectsData || []).map(s => [s.id, s]))
             
             // Join subjects back to assignments
             allTeacherAssignmentsData = data.map(assignment => {
-              const subjectId = assignment.subject_branches?.subject_id
+              // subject_branches is returned as an array by Supabase when joined
+              const branches = assignment.subject_branches as any
+              const subjectId = Array.isArray(branches) 
+                ? branches[0]?.subject_id 
+                : branches?.subject_id
+              
               const subject = subjectId ? subjectMap.get(subjectId) : null
               
               return {
@@ -630,29 +704,57 @@ export async function GET(
               }
             })
             
-            console.log(`✅ Successfully loaded ${allTeacherAssignmentsData.length} assignments with subject data`)
+            // console.log(`✅ Successfully loaded ${allTeacherAssignmentsData.length} assignments with subject data`)
             if (allTeacherAssignmentsData.length > 0) {
-              console.log('📋 Sample assignment:', {
+              /* console.log('📋 Sample assignment:', {
                 classId: allTeacherAssignmentsData[0].class_id,
                 branchName: allTeacherAssignmentsData[0].subject_branches?.branch_name,
                 subjectName: allTeacherAssignmentsData[0].subject_branches?.subjects?.subject_name
-              })
+              }) */
             }
           }
         } else {
-          console.log('⚠️ No subject IDs found in branches')
+          // console.log('⚠️ No subject IDs found in branches')
         }
       } else {
-        console.log('ℹ️ No assignments found for this teacher and classes')
-        console.log('   Teacher ID:', teacherRecord.id)
-        console.log('   Class IDs:', classIds)
+        // console.log('ℹ️ No assignments found for this teacher and classes')
+        // console.log('   Teacher ID:', teacherRecord.id)
+        // console.log('   Class IDs:', classIds)
       }
     } else {
       if (!teacherRecord) {
-        console.warn('⚠️ Cannot fetch subjects: teacherRecord not found')
+        // console.warn('⚠️ Cannot fetch subjects: teacherRecord not found')
       }
       if (classIds.length === 0) {
-        console.warn('⚠️ Cannot fetch subjects: no class IDs provided')
+        // console.warn('⚠️ Cannot fetch subjects: no class IDs provided')
+      }
+    }
+
+    
+    // Fetch class_subjects for fallback subject matching
+    // This ensures we show subjects even if teacher_branch_assignments is empty
+    let classSubjectsData: any[] = []
+    if (classIds.length > 0) {
+      const { data, error } = await supabase
+        .from('class_subjects')
+        .select(`
+          class_id,
+          subject_id,
+          subjects (
+            id,
+            name,
+            code,
+            coefficient,
+            description
+          )
+        `)
+        .in('class_id', classIds)
+      
+      if (!error && data) {
+        classSubjectsData = data
+        // console.log(`✅ Fetched ${data.length} class_subjects for fallback matching`)
+      } else if (error) {
+        // console.error('Error fetching class_subjects:', serializeSupabaseError(error))
       }
     }
 
@@ -665,7 +767,7 @@ export async function GET(
     })
 
     // Helper function to add student to map if it doesn't already exist
-    const addStudentToMap = (student: any, classId: string, method: string = 'unknown') => {
+    const addStudentToMap = (student: any, classId: string, _method: string = 'unknown') => {
       const existing = allStudentsMap.get(classId) || []
       if (!existing.find((s: any) => s.id === student.id)) {
         existing.push({
@@ -673,18 +775,18 @@ export async function GET(
           enrollment_status: student.enrollment_status || 'enrolled'
         })
         allStudentsMap.set(classId, existing)
-        console.log(`✅ Student matched via ${method}:`, {
+        /* console.log(`✅ Student matched via ${method}:`, {
           studentId: student.id,
           studentName: `${student.first_name} ${student.last_name}`,
           classId,
           studentClass: student.class || student.class_id || student.class_name,
           enrollmentStatus: student.enrollment_status || 'enrolled'
-        })
+        }) */
       }
     }
 
     // Method 1: Group students from class_students junction table (if available)
-    console.log(`🔍 Matching students via junction table: ${classStudentsJunction.length} junctions`)
+    // console.log(`🔍 Matching students via junction table: ${classStudentsJunction.length} junctions`)
     classStudentsJunction.forEach((junction: any) => {
       const classId = junction.class_id
       const student = junction.students
@@ -692,27 +794,27 @@ export async function GET(
       if (student && allStudentsMap.has(classId)) {
         addStudentToMap(student, classId, 'junction_table')
       } else if (student && !allStudentsMap.has(classId)) {
-        console.log(`⚠️ Junction student found but classId not in map:`, {
+        /* console.log(`⚠️ Junction student found but classId not in map:`, {
           classId,
           studentId: student.id,
           studentName: `${student.first_name} ${student.last_name}`,
           availableClassIds: Array.from(allStudentsMap.keys())
-        })
+        }) */
       }
     })
 
     // Method 2: Group students by class column matching class IDs
-    console.log(`🔍 Matching students by class ID: ${studentsByClassId.length} students`)
+    // console.log(`🔍 Matching students by class ID: ${studentsByClassId.length} students`)
     studentsByClassId.forEach((student: any) => {
       const studentClassValue = student.class
       if (!studentClassValue) {
-        console.log(`⚠️ Student has no class value:`, {
+        /* console.log(`⚠️ Student has no class value:`, {
           studentId: student.id,
           studentName: `${student.first_name} ${student.last_name}`,
           class: student.class,
           class_id: student.class_id,
           class_name: student.class_name
-        })
+        }) */
         return
       }
       
@@ -729,18 +831,18 @@ export async function GET(
       if (matchingClass) {
         addStudentToMap(student, matchingClass.id, 'class_id_exact')
       } else {
-        console.log(`⚠️ Student class ID not matched:`, {
+        /* console.log(`⚠️ Student class ID not matched:`, {
           studentId: student.id,
           studentName: `${student.first_name} ${student.last_name}`,
           studentClassValue,
           availableClassIds: paginatedClasses.map(c => c.id),
           availableClassNames: paginatedClasses.map(c => c.name)
-        })
+        }) */
       }
     })
 
     // Method 3: Group students by class column matching class names
-    console.log(`🔍 Matching students by class name: ${studentsByClassName.length} students`)
+    // console.log(`🔍 Matching students by class name: ${studentsByClassName.length} students`)
     studentsByClassName.forEach((student: any) => {
       const studentClassValue = student.class
       if (!studentClassValue) return
@@ -762,19 +864,12 @@ export async function GET(
       
       if (matchingClass) {
         addStudentToMap(student, matchingClass.id, 'class_name_match')
-      } else {
-        console.log(`⚠️ Student class name not matched:`, {
-          studentId: student.id,
-          studentName: `${student.first_name} ${student.last_name}`,
-          studentClassValue,
-          availableClassNames: paginatedClasses.map(c => c.name)
-        })
       }
     })
 
     // Method 4: Fallback - Filter all active students by class (handles any type mismatches)
     // This catches students that weren't found by the above methods
-    console.log(`🔍 Fallback matching: checking ${allActiveStudents.length} active students`)
+    // console.log(`🔍 Fallback matching: checking ${allActiveStudents.length} active students`)
     const unmatchedStudents: any[] = []
     
     allActiveStudents.forEach((student: any) => {
@@ -860,7 +955,7 @@ export async function GET(
     
     // Log unmatched students for debugging
     if (unmatchedStudents.length > 0) {
-      console.log(`⚠️ ${unmatchedStudents.length} students could not be matched to any class:`, unmatchedStudents)
+      // console.log(`⚠️ ${unmatchedStudents.length} students could not be matched to any class:`, unmatchedStudents)
     }
 
     // Group subjects by class from teacher_branch_assignments
@@ -892,37 +987,65 @@ export async function GET(
               })
             }
           } else {
-            console.warn('⚠️ Assignment found but subject data is missing:', {
+            /* console.warn('⚠️ Assignment found but subject data is missing:', {
               assignmentId: assignment.id,
               classId: assignment.class_id,
               hasSubjectBranches: !!assignment.subject_branches,
               hasSubjects: !!assignment.subject_branches?.subjects
-            })
+            }) */
           }
         }
       })
       
       // Log summary of subjects loaded per class
-      subjectsByClass.forEach((subjects, classId) => {
+      subjectsByClass.forEach((subjects, _classId) => {
         if (subjects.length > 0) {
-          console.log(`📚 Class ${classId}: ${subjects.length} subjects loaded`)
+          // console.log(`📚 Class ${_classId}: ${subjects.length} subjects loaded`)
         }
       })
     } else {
-      console.log('ℹ️ No teacher assignments found for these classes')
+      // console.log('ℹ️ No teacher assignments found for these classes')
+    }
+
+    // Fallback: Match teacher subjects with class subjects
+    if (classSubjectsData.length > 0 && subjects.length > 0) {
+      // console.log('🔄 Running fallback subject matching...')
+      const teacherSubjectIds = new Set(subjects.map(s => s.subjectId))
+      
+      classSubjectsData.forEach((cs: any) => {
+        const classId = cs.class_id
+        const subject = cs.subjects
+        
+        if (classId && subject && teacherSubjectIds.has(subject.id)) {
+          if (subjectsByClass.has(classId)) {
+            const existingSubjects = subjectsByClass.get(classId) || []
+            const subjectExists = existingSubjects.some((s: any) => s.id === subject.id)
+            
+            if (!subjectExists) {
+              subjectsByClass.get(classId)!.push({
+                id: subject.id,
+                name: subject.name || 'Unknown Subject',
+                code: subject.code || 'N/A',
+                coefficient: subject.coefficient || 1,
+                description: subject.description || undefined,
+              })
+            }
+          }
+        }
+      })
     }
 
     // Transform classes with batched data
     const classesWithDetails = paginatedClasses.map((cls) => {
       // Get students for this class
-      let studentsData = allStudentsMap.get(cls.id) || []
+      const studentsData = allStudentsMap.get(cls.id) || []
       
       // Log for debugging
       if (studentsData.length > 0) {
-        console.log(`Found ${studentsData.length} students for class ${cls.name} (ID: ${cls.id})`)
+        // console.log(`Found ${studentsData.length} students for class ${cls.name} (ID: ${cls.id})`)
       } else {
-        console.log(`No students found for class ${cls.name} (ID: ${cls.id}). Available keys in map:`, Array.from(allStudentsMap.keys()))
-        console.log(`Students by class ID: ${studentsByClassId.length}, by class name: ${studentsByClassName.length}, total active: ${allActiveStudents.length}, from junction: ${classStudentsJunction.length}`)
+        /* console.log(`No students found for class ${cls.name} (ID: ${cls.id}). Available keys in map:`, Array.from(allStudentsMap.keys()))
+        console.log(`Students by class ID: ${studentsByClassId.length}, by class name: ${studentsByClassName.length}, total active: ${allActiveStudents.length}, from junction: ${classStudentsJunction.length}`) */
       }
       
       // Remove duplicates by student id (shouldn't happen, but just in case)
@@ -974,14 +1097,16 @@ export async function GET(
 
         // Log when enrollmentStatus is set to non-enrolled for debugging
         if (enrollmentStatus !== 'enrolled') {
-          console.log(`📋 Student enrollmentStatus set to '${enrollmentStatus}':`, {
+          /* console.log(`📋 Student enrollmentStatus set to '${enrollmentStatus}':`, {
             studentId: student.id,
             studentName: `${student.first_name} ${student.last_name}`,
             enrollment_status: student.enrollment_status,
             status: student.status,
             finalEnrollmentStatus: enrollmentStatus
-          })
+          }) */
         }
+
+        const parentInfo = getParentInfoForStudent(student.student_id, parentsByStudentId)
 
         return {
           id: student.id,
@@ -992,26 +1117,28 @@ export async function GET(
           phone: student.phone || undefined,
           // photo column doesn't exist in students table, so we don't include it
           enrollmentStatus,
-          // parent_name, parent_phone, parent_email don't exist in students table
-          // They are in the parents table, which would require a separate query
-          parentName: undefined,
-          parentPhone: undefined,
-          parentEmail: undefined,
+          parentName: parentInfo.parentName,
+          parentPhone: parentInfo.parentPhone,
+          parentEmail: parentInfo.parentEmail,
           dateOfBirth: student.date_of_birth || undefined,
           address: student.address || undefined,
         }
       })
       
-      // Log student enrollment status summary for this class
-      const enrolledCount = students.filter(s => s.enrollmentStatus === 'enrolled').length
-      const pendingCount = students.filter(s => s.enrollmentStatus === 'pending').length
-      const transferredCount = students.filter(s => s.enrollmentStatus === 'transferred').length
-      console.log(`📊 Student enrollment status for class ${cls.name} (${cls.id}):`, {
+      // Log enrollment status summary for debugging
+      // const _enrolledCount = students.filter(s => s.enrollmentStatus === 'enrolled').length
+      // const _pendingCount = students.filter(s => s.enrollmentStatus === 'pending').length
+      // const _transferredCount = students.filter(s => s.enrollmentStatus === 'transferred').length
+      /* console.log(`📊 Student enrollment status for class ${cls.name} (${cls.id}):`, {
         total: students.length,
-        enrolled: enrolledCount,
-        pending: pendingCount,
-        transferred: transferredCount
-      })
+        enrolled: _enrolledCount,
+        pending: _pendingCount,
+        transferred: _transferredCount
+      }) */
+
+      // Log parent data coverage
+      // const _parentCoverage = calculateParentCoverage(students)
+      // console.log(`👪 Parent data summary for class ${cls.name}:`, _parentCoverage)
 
       // Get subjects for this class
       let finalSubjects = subjectsByClass.get(cls.id) || []

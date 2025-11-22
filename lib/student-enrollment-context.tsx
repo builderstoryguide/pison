@@ -212,13 +212,19 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
       }
 
       // Validate required parent information
-      if (!studentData.parentName || !studentData.parentEmail || !studentData.parentPhone) {
-        throw new Error("Parent information is required: name, email, and phone number must be provided.")
+      if (!studentData.parentName || !studentData.parentPhone) {
+        throw new Error("Parent information is required: name and phone number must be provided.")
+      }
+
+      // Trim and validate parent email
+      const parentEmail = studentData.parentEmail?.trim() || ""
+      if (!parentEmail) {
+        throw new Error("Parent email address is required.")
       }
 
       // Validate parent email format
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(studentData.parentEmail)) {
+      if (!emailRegex.test(parentEmail)) {
         throw new Error("Please provide a valid parent email address.")
       }
 
@@ -319,7 +325,7 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
       const { error: parentError } = await supabase.from("parents").insert({
         parent_code: parentCode,
         name: studentData.parentName,
-        email: studentData.parentEmail,
+        email: parentEmail,
         phone: studentData.parentPhone,
         address: studentData.parentAddress,
         occupation: studentData.parentOccupation,
@@ -394,13 +400,13 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
 
       // Create user account for parent
       let parentUser = null
-      if (studentData.parentEmail) {
+      if (parentEmail) {
         const parentInitials = generateInitials(studentData.parentName)
         
         const { data: parentUserData, error: parentUserError } = await supabase
           .from('users')
           .insert({
-            email: studentData.parentEmail,
+            email: parentEmail,
             password_hash: await bcrypt.hash(parentPassword, 12),
             name: studentData.parentName,
             role: 'parent',

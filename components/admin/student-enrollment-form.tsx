@@ -182,7 +182,8 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
       case 3:
         return !!(formData.class)
       case 4:
-        return !!(formData.parentName && (!formData.parentPhone || isValidPhoneFormat(formData.parentPhone)))
+        const parentEmailValid = formData.parentEmail?.trim() && formData.parentEmail.includes('@')
+        return !!(formData.parentName && parentEmailValid && (!formData.parentPhone || isValidPhoneFormat(formData.parentPhone)))
       case 5:
         return !!(formData.emergencyContactName && (!formData.emergencyContactPhone || isValidPhoneFormat(formData.emergencyContactPhone)))
       case 6:
@@ -211,6 +212,8 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
         break
       case 4:
         if (!formData.parentName) return "Parent/guardian name is required"
+        if (!formData.parentEmail?.trim()) return "Parent email address is required"
+        if (formData.parentEmail && !formData.parentEmail.includes('@')) return "Please enter a valid parent email address"
         if (formData.parentPhone && !isValidPhoneFormat(formData.parentPhone)) return "Valid parent phone number is required (Format: +237 6XXXXXXXX)"
         break
       case 5:
@@ -251,16 +254,6 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-3xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 bg-primary rounded-full mb-4">
-            <User className="h-6 w-6 md:h-8 md:w-8 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-            Student Enrollment
-          </h1>
-        </div>
-
         {/* Progress Section */}
         <div className="space-y-4">
           <div className="flex justify-between items-center">
@@ -669,7 +662,9 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                       type="email"
                       value={formData.parentEmail}
                       onChange={(e) => updateFormData('parentEmail', e.target.value)}
+                      onBlur={(e) => updateFormData('parentEmail', e.target.value.trim())}
                       placeholder="parent@example.com"
+                      required
                     />
                   </div>
                   <div className="space-y-2">

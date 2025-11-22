@@ -363,8 +363,17 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
     setError(null)
 
     try {
-      // Update in database
-      const { error } = await supabase
+      // Get the current teacher to find associated user
+      const { data: currentTeacher, error: fetchError } = await supabase
+        .from("teachers")
+        .select("id, teacher_id, email, user_id")
+        .eq("id", id)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      // Update teachers table
+      const { error: teacherError } = await supabase
         .from("teachers")
         .update({
           title: teacherData.title,
@@ -395,8 +404,88 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
         })
         .eq("id", id)
 
-      if (error) throw error
+      if (teacherError) throw teacherError
 
+      // Update user account if it exists
+      if (currentTeacher) {
+        let userId: string | null = null
+
+        // Try to find user by user_id if available
+        if (currentTeacher.user_id) {
+          userId = currentTeacher.user_id
+        } else {
+          // Try to find user by email
+          const { data: userByEmail } = await supabase
+            .from("users")
+            .select("id")
+            .eq("email", teacherData.email || currentTeacher.email)
+            .eq("role", "teacher")
+            .single()
+
+          if (userByEmail) {
+            userId = userByEmail.id
+          } else if (currentTeacher.teacher_id) {
+            // Try to find user by teacher_id in user_profiles
+            const { data: profile } = await supabase
+              .from("user_profiles")
+              .select("user_id")
+              .eq("role_specific_id", currentTeacher.teacher_id)
+              .single()
+
+            if (profile) {
+              userId = profile.user_id
+            }
+          }
+        }
+
+        // Update user account if found
+        if (userId) {
+          const fullName = `${teacherData.firstName || ""} ${teacherData.lastName || ""}`.trim()
+          
+          const { error: userError } = await supabase
+            .from("users")
+            .update({
+              name: fullName || undefined,
+              email: teacherData.email || undefined,
+              phone: teacherData.phone || undefined,
+              status: teacherData.status || undefined,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", userId)
+
+          if (userError) {
+            console.warn("⚠️ Failed to update user account:", userError)
+            // Don't throw error - teacher was updated successfully
+          }
+
+          // Update user profile if it exists
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("id")
+            .eq("user_id", userId)
+            .single()
+
+          if (profile) {
+            const { error: profileError } = await supabase
+              .from("user_profiles")
+              .update({
+                subsystem: teacherData.subsystem || undefined,
+                emergency_contact_name: teacherData.emergencyContact?.name || undefined,
+                emergency_contact_phone: teacherData.emergencyContact?.phone || undefined,
+                emergency_contact_relationship: teacherData.emergencyContact?.relationship || undefined,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", profile.id)
+
+            if (profileError) {
+              console.warn("⚠️ Failed to update user profile:", profileError)
+              // Don't throw error - teacher was updated successfully
+            }
+          }
+        }
+      }
+
+      // Reload teachers to reflect changes
       await loadTeachers()
     } catch (err) {
       console.error("Error updating teacher:", err)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,8 @@ import { User, Mail, GraduationCap, Briefcase, X, Plus, AlertCircle } from "luci
 import { useTeacherManagement, type TeacherFormData, type Teacher } from "@/lib/teacher-management-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
+import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover"
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command"
 
 interface EditTeacherFormProps {
   teacher: Teacher
@@ -39,6 +41,14 @@ export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFor
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [availableSubjects, setAvailableSubjects] = useState<{ id: number; name: string; code: string }[]>([])
+  const [subjectSearchQuery, setSubjectSearchQuery] = useState("")
+  const [isSubjectPopoverOpen, setIsSubjectPopoverOpen] = useState(false)
+  const subjectInputRef = useRef<HTMLInputElement>(null)
+  const [availableClasses, setAvailableClasses] = useState<{ id: number; name: string; level?: string; subsystem?: string }[]>([])
+  const [classSearchQuery, setClassSearchQuery] = useState("")
+  const [isClassPopoverOpen, setIsClassPopoverOpen] = useState(false)
+  const classInputRef = useRef<HTMLInputElement>(null)
   const [formData, setFormData] = useState<TeacherFormData>({
     title: "",
     firstName: "",
@@ -67,6 +77,75 @@ export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFor
     },
     status: "active",
   })
+
+  // Fetch available subjects
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const response = await fetch('/api/subjects?is_active=true')
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || 'Failed to fetch subjects')
+        }
+        
+        const data = await response.json()
+        // API returns an array directly, or an object with success/subjects
+        let subjectsArray: any[] = []
+        
+        if (Array.isArray(data)) {
+          // Direct array response
+          subjectsArray = data
+        } else if (data.success && Array.isArray(data.subjects)) {
+          // Object with success/subjects
+          subjectsArray = data.subjects
+        } else if (Array.isArray(data.subjects)) {
+          // Object with subjects array
+          subjectsArray = data.subjects
+        }
+        
+        // Filter and transform subjects
+        const activeSubjects = subjectsArray
+          .filter((s: any) => s.is_active !== false)
+          .map((s: any) => ({
+            id: s.id,
+            name: s.name || '',
+            code: s.code || ''
+          }))
+        
+        setAvailableSubjects(activeSubjects)
+      } catch (err) {
+        console.error('Error fetching subjects:', err)
+        // Set empty array on error so the component doesn't break
+        setAvailableSubjects([])
+      }
+    }
+    
+    fetchSubjects()
+  }, [])
+
+  // Fetch available classes
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const response = await fetch('/api/classes?status=active')
+        if (!response.ok) throw new Error('Failed to fetch classes')
+        
+        const classes = await response.json()
+        if (Array.isArray(classes)) {
+          setAvailableClasses(classes.map((c: any) => ({
+            id: c.id,
+            name: c.name || c.class_name || '',
+            level: c.level || c.class_level || '',
+            subsystem: c.subsystem || ''
+          })))
+        }
+      } catch (err) {
+        console.error('Error fetching classes:', err)
+      }
+    }
+    
+    fetchClasses()
+  }, [])
 
   // Initialize form data with teacher data
   useEffect(() => {
@@ -504,30 +583,115 @@ export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFor
               <Label>Subjects Taught *</Label>
               <div className="space-y-2">
                 <div className="flex space-x-2">
-                  <Input
-                    placeholder="Add a subject"
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        const input = e.target as HTMLInputElement
-                        addToArray("subjects", input.value)
-                        input.value = ""
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      const input = document.querySelector('input[placeholder="Add a subject"]') as HTMLInputElement
-                      if (input && input.value) {
-                        addToArray("subjects", input.value)
-                        input.value = ""
-                      }
-                    }}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                  <Popover open={isSubjectPopoverOpen} onOpenChange={setIsSubjectPopoverOpen}>
+                    <PopoverAnchor asChild>
+                      <div className="flex-1">
+                        <Input
+                          ref={subjectInputRef}
+                          placeholder="Type subject name or code..."
+                          value={subjectSearchQuery}
+                          onChange={(e) => {
+                            setSubjectSearchQuery(e.target.value)
+                            setIsSubjectPopoverOpen(true)
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (availableSubjects.length > 0) {
+                              setIsSubjectPopoverOpen(true)
+                            }
+                          }}
+                          onFocus={() => {
+                            if (availableSubjects.length > 0) {
+                              setIsSubjectPopoverOpen(true)
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Escape") {
+                              setIsSubjectPopoverOpen(false)
+                            }
+                          }}
+                        />
+                      </div>
+                    </PopoverAnchor>
+                    <PopoverContent 
+                      className="w-[400px] p-0" 
+                      align="start"
+                      onOpenAutoFocus={(e) => e.preventDefault()}
+                      onInteractOutside={(e) => {
+                        // Prevent closing when clicking inside the input, command, or popover content
+                        const target = e.target as HTMLElement
+                        const inputElement = subjectInputRef.current
+                        const commandElement = target.closest('[cmdk-root]')
+                        const popoverContent = target.closest('[data-slot="popover-content"]')
+                        
+                        if (inputElement?.contains(target) || commandElement || popoverContent) {
+                          e.preventDefault()
+                        }
+                      }}
+                      onPointerDownOutside={(e) => {
+                        // Prevent closing when clicking on the input field
+                        const target = e.target as HTMLElement
+                        if (subjectInputRef.current?.contains(target)) {
+                          e.preventDefault()
+                        }
+                      }}
+                      onEscapeKeyDown={(e) => {
+                        setIsSubjectPopoverOpen(false)
+                      }}
+                    >
+                        <Command shouldFilter={false}>
+                          <CommandInput 
+                            placeholder="Search subject by name or code..." 
+                            value={subjectSearchQuery}
+                            onValueChange={setSubjectSearchQuery}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No subject found.</CommandEmpty>
+                            <CommandGroup>
+                              {availableSubjects
+                                .filter((subject) => {
+                                  if (!subjectSearchQuery.trim()) return true
+                                  const query = subjectSearchQuery.toLowerCase()
+                                  return (
+                                    subject.name.toLowerCase().includes(query) ||
+                                    subject.code.toLowerCase().includes(query)
+                                  )
+                                })
+                                .filter((subject) => !formData.subjects.includes(subject.name))
+                                .map((subject) => (
+                                  <CommandItem
+                                    key={subject.id}
+                                    value={`${subject.name} ${subject.code}`}
+                                    onSelect={(currentValue) => {
+                                      // Ensure the subject is added
+                                      const selectedSubject = availableSubjects.find(s => 
+                                        `${s.name} ${s.code}` === currentValue
+                                      )
+                                      if (selectedSubject && !formData.subjects.includes(selectedSubject.name)) {
+                                        addToArray("subjects", selectedSubject.name)
+                                        setSubjectSearchQuery("")
+                                        setIsSubjectPopoverOpen(false)
+                                        if (subjectInputRef.current) {
+                                          subjectInputRef.current.focus()
+                                        }
+                                      }
+                                    }}
+                                    className="cursor-pointer"
+                                    style={{ pointerEvents: 'auto' }}
+                                  >
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{subject.name}</span>
+                                      {subject.code && (
+                                        <span className="text-xs text-muted-foreground">Code: {subject.code}</span>
+                                      )}
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {formData.subjects.map((subject) => (
@@ -551,30 +715,122 @@ export function EditTeacherForm({ teacher, onSuccess, onCancel }: EditTeacherFor
               <Label>Classes Assigned *</Label>
               <div className="space-y-2">
                 <div className="flex space-x-2">
-                  <Input
-                    placeholder="Add a class"
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        const input = e.target as HTMLInputElement
-                        addToArray("classes", input.value)
-                        input.value = ""
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      const input = document.querySelector('input[placeholder="Add a class"]') as HTMLInputElement
-                      if (input && input.value) {
-                        addToArray("classes", input.value)
-                        input.value = ""
-                      }
-                    }}
+                  <Popover 
+                    open={isClassPopoverOpen} 
+                    onOpenChange={setIsClassPopoverOpen}
                   >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                    <PopoverAnchor asChild>
+                      <div className="flex-1">
+                        <Input
+                          ref={classInputRef}
+                          placeholder="Type class name to search..."
+                          value={classSearchQuery}
+                          onChange={(e) => {
+                            setClassSearchQuery(e.target.value)
+                            setIsClassPopoverOpen(true)
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (availableClasses.length > 0) {
+                              setIsClassPopoverOpen(true)
+                            }
+                          }}
+                          onFocus={() => {
+                            if (availableClasses.length > 0) {
+                              setIsClassPopoverOpen(true)
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Escape") {
+                              setIsClassPopoverOpen(false)
+                            }
+                          }}
+                        />
+                      </div>
+                    </PopoverAnchor>
+                    <PopoverContent 
+                      className="w-[400px] p-0" 
+                      align="start"
+                      onOpenAutoFocus={(e) => e.preventDefault()}
+                      onInteractOutside={(e) => {
+                        // Prevent closing when clicking inside the input, command, or popover content
+                        const target = e.target as HTMLElement
+                        const inputElement = classInputRef.current
+                        const commandElement = target.closest('[cmdk-root]')
+                        const popoverContent = target.closest('[data-slot="popover-content"]')
+                        
+                        if (inputElement?.contains(target) || commandElement || popoverContent) {
+                          e.preventDefault()
+                        }
+                      }}
+                      onPointerDownOutside={(e) => {
+                        // Prevent closing when clicking on the input field
+                        const target = e.target as HTMLElement
+                        if (classInputRef.current?.contains(target)) {
+                          e.preventDefault()
+                        }
+                      }}
+                      onEscapeKeyDown={(e) => {
+                        setIsClassPopoverOpen(false)
+                      }}
+                    >
+                      <Command shouldFilter={false}>
+                        <CommandInput 
+                          placeholder="Search class by name..." 
+                          value={classSearchQuery}
+                          onValueChange={setClassSearchQuery}
+                        />
+                        <CommandList>
+                          <CommandEmpty>No class found.</CommandEmpty>
+                          <CommandGroup>
+                            {availableClasses
+                              .filter((cls) => {
+                                if (!classSearchQuery.trim()) return true
+                                const query = classSearchQuery.toLowerCase()
+                                return (
+                                  cls.name.toLowerCase().includes(query) ||
+                                  (cls.level && cls.level.toLowerCase().includes(query))
+                                )
+                              })
+                              .filter((cls) => !formData.classes.includes(cls.name))
+                              .map((cls) => (
+                                <CommandItem
+                                  key={cls.id}
+                                  value={`${cls.name} ${cls.level || ''}`}
+                                  onSelect={(currentValue) => {
+                                    // Ensure the class is added
+                                    const selectedClass = availableClasses.find(c => 
+                                      `${c.name} ${c.level || ''}` === currentValue
+                                    )
+                                    if (selectedClass && !formData.classes.includes(selectedClass.name)) {
+                                      addToArray("classes", selectedClass.name)
+                                      setClassSearchQuery("")
+                                      setIsClassPopoverOpen(false)
+                                      if (classInputRef.current) {
+                                        classInputRef.current.focus()
+                                      }
+                                    }
+                                  }}
+                                  className="cursor-pointer"
+                                  style={{ pointerEvents: 'auto' }}
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{cls.name}</span>
+                                    {(cls.level || cls.subsystem) && (
+                                      <span className="text-xs text-muted-foreground">
+                                        {cls.level && `${cls.level}`}
+                                        {cls.level && cls.subsystem && ' • '}
+                                        {cls.subsystem && `${cls.subsystem}`}
+                                      </span>
+                                    )}
+                                  </div>
+                                </CommandItem>
+                              ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {formData.classes.map((classItem) => (

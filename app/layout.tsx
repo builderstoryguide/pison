@@ -13,11 +13,11 @@ export const metadata: Metadata = {
   title: "Pison School Management System",
   description: "Comprehensive school management system for Pison Academy of Excellence",
     generator: 'Cyrille Kuete',
-    icons: {
-      icon: '/pison-logo.png',
-      shortcut: '/pison-logo.png',
-      apple: '/pison-logo.png'
-    }
+  icons: {
+    icon: '/pison.png',
+    shortcut: '/pison.png',
+    apple: '/pison.png'
+  }
 }
 
 export default function RootLayout({

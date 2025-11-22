@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  # ================================
+  # PostgreSQL Database
+  # ================================
+  db:
+    image: postgres:16-alpine
+    container_name: pison-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: pison_user
+      POSTGRES_PASSWORD: pison_dev_password
+      POSTGRES_DB: pison_db
+      # Performance tuning for development
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
+    volumes:
+      # Persist database data
+      - postgres_data:/var/lib/postgresql/data
+      # Optional: Mount init scripts
+      - ./scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pison_user -d pison_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pison-network
+
+  # ================================
+  # pgAdmin (Database Management UI)
+  # ================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pison-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pison.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - db
+    networks:
+      - pison-network
+
+  # ================================
+  # Next.js Application (Development)
+  # ================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: pison-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Node environment
+      NODE_ENV: development
+      
+      # Database connection (for direct PostgreSQL)
+      DATABASE_URL: postgresql://pison_user:pison_dev_password@db:5432/pison_db
+      
+      # Supabase Configuration
+      # NOTE: If using Supabase cloud, replace with your actual values
+      # If using local Supabase, use the supabase service below
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-http://localhost:54321}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-your-anon-key}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-your-service-role-key}
+      
+      # Next.js
+      NEXT_TELEMETRY_DISABLED: 1
+      
+      # App-specific variables (add your own from .env.local)
+      # Copy these from your .env.local file
+    volumes:
+      # Mount source code for hot reload
+      - .:/app
+      # Prevent overwriting node_modules
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - pison-network
+    command: npm run dev
+
+  # ================================
+  # Supabase Local (Optional)
+  # Uncomment if you want to run Supabase locally
+  # ================================
+  # supabase:
+  #   image: supabase/postgres:15.1.0.117
+  #   container_name: pison-supabase
+  #   restart: unless-stopped
+  #   ports:
+  #     - "54322:5432"
+  #   environment:
+  #     POSTGRES_PASSWORD: your-super-secret-password
+  #     POSTGRES_DB: postgres
+  #   volumes:
+  #     - supabase_data:/var/lib/postgresql/data
+  #   networks:
+  #     - pison-network
+
+# ================================
+# Volumes (Persist Data)
+# ================================
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  # supabase_data:
+  #   driver: local
+
+# ================================
+# Networks
+# ================================
+networks:
+  pison-network:
+    driver: bridge

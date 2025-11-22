@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { AuthPage } from "./auth/auth-page"
 import { QuickActionsDashboard } from "./admin/quick-actions-dashboard"
@@ -12,10 +12,8 @@ import { ExaminationManagement } from "./admin/examination-management"
 import { TimetableManagement } from "./admin/timetable-management"
 import { FinancialManagement } from "./admin/financial-management"
 import { ProfileSettings } from "./profile/profile-settings"
-import { TeacherDashboard } from "./teacher/teacher-dashboard"
-import { TeacherClassesView } from "./teacher/teacher-classes-view"
-import { GradesManagement } from "./teacher/grades-management"
-import { TeacherAssignmentManagement } from "./teacher/teacher-assignment-management"
+import { TeacherDashboardNew } from "./teacher/teacher-dashboard-new"
+import { TeacherGradesEntry } from "./teacher/teacher-grades-entry"
 import { ParentDashboard } from "./parent/parent-dashboard"
 import { ParentCommunication } from "./parent/parent-communication"
 import { ParentChildRecords } from "./parent/parent-child-records"
@@ -101,7 +99,7 @@ type AdminView =
   | "financial"
   | "profile"
 
-type TeacherView = "dashboard" | "classes" | "grades" | "assignments" | "profile"
+type TeacherView = "dashboard" | "grades" | "profile"
 type ParentView = "dashboard" | "records" | "communication" | "profile"
 type StudentView = "dashboard" | "grades" | "schedule" | "assignments" | "fees" | "profile"
 type BursarView = "dashboard" | "financial" | "reports" | "profile"
@@ -204,20 +202,18 @@ function AppSidebar({
       case "admin":
         return [
           { id: "quick-actions", label: "Dashboard", icon: Home },
-          { id: "users", label: "User Management", icon: Users },
+          { id: "users", label: "Manage Users", icon: Users },
           { id: "students", label: "Student Management", icon: GraduationCap },
-          { id: "teachers", label: "Teacher Management", icon: UserCheck },
-          { id: "classes", label: "Class Management", icon: BookOpen },
-          { id: "timetable", label: "Timetable Management", icon: CalendarDays },
+          { id: "teachers", label: "Manage Teachers", icon: UserCheck },
+          { id: "classes", label: "Manage Classes", icon: BookOpen },
+          { id: "timetable", label: "Manage Timetable", icon: CalendarDays },
           { id: "examinations", label: "Examinations", icon: FileText },
           { id: "financial", label: "Financial Management", icon: DollarSign },
         ]
       case "teacher":
         return [
           { id: "dashboard", label: "Dashboard", icon: Home },
-          { id: "classes", label: "My Classes", icon: BookOpen },
           { id: "grades", label: "Grades", icon: ClipboardList },
-          { id: "assignments", label: "Assignments", icon: Award },
         ]
       case "student":
         return [
@@ -491,16 +487,12 @@ export function SchoolDashboard() {
 
       case "teacher":
         switch (currentView) {
-          case "classes":
-            return <TeacherClassesView />
           case "grades":
-            return <GradesManagement />
-          case "assignments":
-            return <TeacherAssignmentManagement />
+            return <TeacherGradesEntry />
           case "profile":
             return <ProfileSettings />
           default:
-            return <TeacherDashboard onNavigate={(view: string) => setTeacherCurrentView(view as TeacherView)} />
+            return <TeacherDashboardNew onNavigate={(view: string) => setTeacherCurrentView(view as TeacherView)} />
         }
 
       case "parent":

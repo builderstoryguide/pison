@@ -168,20 +168,66 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
 
     setIsLoadingLogs(true)
     try {
-      // Try optimized endpoint first, fallback to simple if it fails
-      let response = await fetch('/api/activity-logs/optimized?limit=50')
+      // Helper to create a fetch with timeout
+      const fetchWithTimeout = async (url: string, timeoutMs = 10000): Promise<Response | null> => {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+        
+        try {
+          const response = await fetch(url, {
+            signal: controller.signal
+          })
+          clearTimeout(timeoutId)
+          return response
+        } catch (error) {
+          clearTimeout(timeoutId)
+          if (error instanceof Error && error.name === 'AbortError') {
+            throw new Error('Request timed out')
+          }
+          throw error
+        }
+      }
       
-      if (!response.ok) {
-        console.log('Optimized endpoint failed, trying simple endpoint...')
-        response = await fetch('/api/activity-logs/simple?limit=50')
+      // Try optimized endpoint first, fallback to simple if it fails
+      let response: Response | null = null
+      
+      try {
+        response = await fetchWithTimeout('/api/activity-logs/optimized?limit=50', 10000)
+      } catch (fetchError) {
+        // Network error or timeout - try simple endpoint
+        console.log('Optimized endpoint network error, trying simple endpoint...', fetchError)
+        try {
+          response = await fetchWithTimeout('/api/activity-logs/simple?limit=50', 10000)
+        } catch (simpleError) {
+          // Both endpoints failed at network level
+          console.warn('Failed to fetch activity logs (network error):', simpleError)
+          setActivityLogs([])
+          return
+        }
+      }
+      
+      if (!response) {
+        setActivityLogs([])
+        return
       }
       
       if (!response.ok) {
+        console.log('Optimized endpoint failed with status, trying simple endpoint...')
+        try {
+          response = await fetchWithTimeout('/api/activity-logs/simple?limit=50', 10000)
+        } catch (simpleError) {
+          console.warn('Simple endpoint also failed (network error):', simpleError)
+          setActivityLogs([])
+          return
+        }
+      }
+      
+      if (!response || !response.ok) {
         let errorData: any
         try {
           errorData = await response.json()
         } catch (e) {
-          errorData = { message: `HTTP ${response.status}: ${response.statusText}` }
+          errorData = { message: `HTTP ${response?.status}: ${response?.statusText || 'Unknown error'}` }
         }
         
         // Handle database setup errors with actionable messages
@@ -198,7 +244,7 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
           return
         }
         
-        console.warn('Failed to load activity logs:', errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`)
+        console.warn('Failed to load activity logs:', errorData.message || errorData.error || `HTTP ${response?.status}: ${response?.statusText}`)
         // Don't throw - just log and continue with empty logs
         setActivityLogs([])
         return
@@ -208,14 +254,21 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       setActivityLogs(result.logs || [])
       setLastFetchTime(prev => ({ ...prev, logs: now }))
     } catch (error) {
+      // Handle any unexpected errors
       console.error('Failed to load activity logs:', error)
       // Keep empty array if API fails, but don't set error state for activity logs
       // as it's not critical for the main functionality
       setActivityLogs([])
       
       // Log schema errors for debugging
-      if (error instanceof Error && (error.message.includes('schema cache') || error.message.includes('does not exist'))) {
-        console.warn('Activity logs database schema error. Ensure user_activity_logs table exists.')
+      if (error instanceof Error) {
+        if (error.message.includes('schema cache') || error.message.includes('does not exist')) {
+          console.warn('Activity logs database schema error. Ensure user_activity_logs table exists.')
+        } else if (error.name === 'AbortError' || error.message.includes('timeout') || error.message.includes('timed out')) {
+          console.warn('Activity logs request timed out. The server may be slow or unresponsive.')
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+          console.warn('Activity logs network error. Check if the server is running and accessible.')
+        }
       }
     } finally {
       setIsLoadingLogs(false)

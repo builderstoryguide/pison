@@ -440,7 +440,14 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
     }
 
     try {
-      const response = await fetch(`/api/teachers/${user.id}/assignments?includeDetails=true&page=1&limit=100`)
+      // Add cache-busting parameter to ensure fresh data
+      const cacheBuster = new Date().getTime()
+      const response = await fetch(`/api/teachers/${user.id}/assignments?includeDetails=true&page=1&limit=100&t=${cacheBuster}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      })
       const data = await response.json()
 
       if (response.ok && data.ok && data.classes) {

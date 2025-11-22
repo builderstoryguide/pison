@@ -5,6 +5,7 @@ A comprehensive school management system built with Next.js, TypeScript, and Tai
 ## Features
 
 ### Student Management
+
 - **Student Enrollment**: Complete multi-step enrollment process for new students
 - **Student Records**: Comprehensive student information management
 - **Parent Information**: Store and manage parent/guardian details
@@ -13,11 +14,13 @@ A comprehensive school management system built with Next.js, TypeScript, and Tai
 - **Fee Management**: Track student fees and payment status
 
 ### Database Support
+
 - **Supabase Integration**: Full database support with PostgreSQL
 - **Database-Only Storage**: All student data is stored in the database
 - **Automatic Sync**: Seamless data synchronization between local and remote storage
 
 ### User Interface
+
 - **Modern Design**: Clean, responsive interface built with Tailwind CSS
 - **Multi-step Forms**: Intuitive enrollment process with progress tracking
 - **Real-time Validation**: Form validation with helpful error messages
@@ -27,19 +30,21 @@ A comprehensive school management system built with Next.js, TypeScript, and Tai
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or pnpm
 - Supabase account (optional, for database functionality)
 
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd school-management-app
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 # or
@@ -47,17 +52,20 @@ pnpm install
 ```
 
 3. Set up environment variables (optional for database):
+
 ```bash
 cp .env.example .env.local
 ```
 
 Add your Supabase credentials:
+
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 4. Run the development server:
+
 ```bash
 npm run dev
 # or
@@ -65,6 +73,38 @@ pnpm dev
 ```
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### 🐳 Docker Setup (Recommended for Teams)
+
+For a consistent development environment across all team members:
+
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop)
+2. Copy environment template:
+   ```bash
+   cp env.docker.example .env.docker
+   ```
+3. Update `.env.docker` with your Supabase credentials
+4. Start all services:
+   ```bash
+   docker-compose up -d
+   ```
+
+**Services available:**
+
+- **App**: http://localhost:3000 (with hot reload)
+- **PostgreSQL**: localhost:5432 (local database for testing)
+- **pgAdmin**: http://localhost:5050 (database management UI)
+
+📚 **See [DOCKER-README.md](./DOCKER-README.md) for complete Docker setup guide**  
+⚡ **Quick reference: [DOCKER-QUICKREF.md](./DOCKER-QUICKREF.md)**
+
+**Why Docker?**
+
+- ✅ Same environment for entire team
+- ✅ No "works on my machine" issues
+- ✅ Includes local PostgreSQL for testing
+- ✅ Easy database management with pgAdmin
+- ✅ One command to start everything
 
 ## Database Setup
 

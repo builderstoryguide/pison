@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { AuthPage } from "./auth/auth-page"
 import { SubjectManagementProvider } from "@/lib/subject-management-context"
@@ -208,12 +208,12 @@ function AppSidebar({
       case "admin":
         return [
           { id: "quick-actions", label: "Dashboard", icon: Home },
-          { id: "users", label: "User Management", icon: Users },
+          { id: "users", label: "Manage Users", icon: Users },
           { id: "students", label: "Student Management", icon: GraduationCap },
-          { id: "teachers", label: "Teacher Management", icon: UserCheck },
-          { id: "classes", label: "Class Management", icon: BookOpen },
+          { id: "teachers", label: "Manage Teachers", icon: UserCheck },
+          { id: "classes", label: "Manage Classes", icon: BookOpen },
           { id: "subjects", label: "Manage Subjects", icon: BookOpen },
-          { id: "timetable", label: "Timetable Management", icon: CalendarDays },
+          { id: "timetable", label: "Manage Timetable", icon: CalendarDays },
           { id: "examinations", label: "Examinations", icon: FileText },
           { id: "financial", label: "Financial Management", icon: DollarSign },
         ]

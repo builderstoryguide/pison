@@ -230,7 +230,19 @@ export function ClassManagement() {
 
   const handleDeleteClass = async (classId: string) => {
     if (confirm("Are you sure you want to delete this class? This action cannot be undone.")) {
-      await deleteClass(classId)
+      const result = await deleteClass(classId)
+      
+      if (result.success) {
+        toastSuccess("Success", {
+          description: "Class deleted successfully"
+        })
+        // Reload the paginated classes to reflect the deletion
+        await loadPaginatedClasses()
+      } else {
+        toastError("Error", {
+          description: result.error || "Failed to delete class"
+        })
+      }
     }
   }
 
