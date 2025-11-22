@@ -211,9 +211,11 @@ export async function GET(
               })
             }
             const entry = classSubjectMap.get(key)
-            const subjectName = subjectInfo.subject_name || 'Unknown'
-            if (!entry.subjects.includes(subjectName)) {
-              entry.subjects.push(subjectName)
+            if (entry) {
+              const subjectName = subjectInfo.subject_name || 'Unknown'
+              if (!entry.subjects.includes(subjectName)) {
+                entry.subjects.push(subjectName)
+              }
             }
           }
         })
@@ -631,13 +633,13 @@ export async function GET(
             firstName: student.first_name || '',
             lastName: student.last_name || '',
             email: student.email || '',
-            phone: student.phone,
+            phone: student.phone || undefined,
             enrollmentStatus,
             parentName: parentInfo.parentName,
             parentPhone: parentInfo.parentPhone,
             parentEmail: parentInfo.parentEmail,
-            dateOfBirth: student.date_of_birth,
-            address: student.address
+            dateOfBirth: student.date_of_birth || undefined,
+            address: student.address || undefined
          }
       })
 
