@@ -10,11 +10,9 @@ import { TeacherManagementProvider, useTeacherManagement } from "@/lib/teacher-m
 import { EmployeeManagementProvider } from "@/lib/employee-management-context"
 import { ClassManagementProvider, useClassManagement } from "@/lib/class-management-context"
 import { SubjectManagementProvider } from "@/lib/subject-management-context"
-import { ExaminationProvider } from "@/lib/examination-context"
 import { FinancialProvider, useFinancial } from "@/lib/financial-context"
 import { ProfileProvider } from "@/lib/profile-context"
 import { AlertsProvider } from "@/lib/alerts-context"
-import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 import { BursarProvider } from "@/lib/bursar-context"
 import { TimetableProvider } from "@/lib/timetable-context"
 import { useNotifications } from "@/lib/notification-context"
@@ -30,7 +28,6 @@ import { TeacherManagement } from "./admin/teacher-management"
 import { EmployeeManagement } from "./admin/employee-management"
 import { ClassManagement } from "./admin/class-management"
 import { SubjectManagement } from "./admin/subject-management"
-import { ExaminationManagement } from "./admin/examination-management"
 import { TimetableManagement } from "./admin/timetable-management"
 import { FinancialManagement } from "./admin/financial-management"
 import { SalesManagement } from "./admin/sales-management"
@@ -46,7 +43,8 @@ import { QuickActionsDashboard } from "./admin/quick-actions-dashboard"
 
 // Teacher Components
 import { TeacherDashboardNew as TeacherDashboard } from "./teacher/teacher-dashboard-new"
-import { GradesManagement } from "./teacher/grades-management"
+import { ClassGradeEntry } from "./teacher/class-grade-entry"
+import { GradesHistory } from "./teacher/grades-history"
 
 // Parent Components
 import { ParentDashboard } from "./parent/parent-dashboard"
@@ -117,7 +115,6 @@ import {
   LogOut,
   Home,
   ChevronUp,
-  ClipboardList,
   CreditCard,
   MessageSquare,
   Bell,
@@ -130,6 +127,7 @@ import {
   Award,
   ChevronRight,
   Briefcase,
+  ClipboardList,
 } from "lucide-react"
 
 type AdminView =
@@ -144,7 +142,6 @@ type AdminView =
   | "classes"
   | "subjects"
   | "timetable"
-  | "examinations"
   | "financial"
   | "sales"
   | "payment"
@@ -155,7 +152,7 @@ type AdminView =
   | "configuration"
   | "profile"
 
-type TeacherView = "dashboard" | "grades" | "examinations" | "profile"
+type TeacherView = "dashboard" | "class-grades" | "grades-history" | "profile"
 
 type ParentView = "dashboard" | "records" | "communication" | "alerts" | "profile"
 
@@ -390,6 +387,7 @@ export function Dashboard() {
     localStorage.removeItem('parentCurrentView')
     localStorage.removeItem('studentCurrentView')
     localStorage.removeItem('bursarCurrentView')
+    localStorage.removeItem('selectedClassId') // Clear selected class on logout
     
     // Call the original logout function
     originalLogout()
@@ -535,6 +533,14 @@ export function Dashboard() {
 
   // Track if user manually closed the bursar finances menu
   const [bursarFinancesMenuManuallyClosed, setBursarFinancesMenuManuallyClosed] = useState(false)
+
+  // Initialize selected class ID state for teacher view
+  const [selectedClassId, setSelectedClassId] = useState<string | undefined>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('selectedClassId') || undefined
+    }
+    return undefined
+  })
 
   // Update bursar finances menu open state when view changes
   useEffect(() => {
@@ -908,7 +914,6 @@ export function Dashboard() {
       { id: "classes", label: "Manage Classes", icon: BookOpen },
       { id: "subjects", label: "Manage Subjects", icon: BookOpen },
       { id: "timetable", label: "Manage Timetable", icon: CalendarDays },
-      { id: "examinations", label: "Examinations", icon: FileText },
       {
         id: "financial",
         label: "Finances",
@@ -967,12 +972,6 @@ export function Dashboard() {
             <TimetableProvider>
               <TimetableManagement />
             </TimetableProvider>
-          )
-        case "examinations":
-          return (
-            <ExaminationProvider>
-              <ExaminationManagement />
-            </ExaminationProvider>
           )
         case "financial":
           return <FinancialManagement />
@@ -1175,30 +1174,28 @@ export function Dashboard() {
             <TeacherManagementProvider>
               <ClassManagementProvider>
                 <SubjectManagementProvider>
-                  <ExaminationProvider>
-                    <FinancialProvider>
-                      <ProfileProvider>
-                        <AlertsProvider>
-                          <SidebarProvider>
-                          <Sidebar 
-                            collapsible="icon"
-                            className="border-r border-border/50"
-                          >
-                            <AdminSidebarContent />
-                          </Sidebar>
-                          <SidebarInset>
-                            <DashboardHeader
-                              user={user}
-                              onProfileClick={() => setAdminCurrentView("profile")}
-                              onLogout={handleLogout}
-                            />
-                            <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderAdminContent()}</div>
-                          </SidebarInset>
-                        </SidebarProvider>
-                        </AlertsProvider>
-                      </ProfileProvider>
-                    </FinancialProvider>
-                  </ExaminationProvider>
+                  <FinancialProvider>
+                    <ProfileProvider>
+                      <AlertsProvider>
+                        <SidebarProvider>
+                        <Sidebar 
+                          collapsible="icon"
+                          className="border-r border-border/50"
+                        >
+                          <AdminSidebarContent />
+                        </Sidebar>
+                        <SidebarInset>
+                          <DashboardHeader
+                            user={user}
+                            onProfileClick={() => setAdminCurrentView("profile")}
+                            onLogout={handleLogout}
+                          />
+                          <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderAdminContent()}</div>
+                        </SidebarInset>
+                      </SidebarProvider>
+                      </AlertsProvider>
+                    </ProfileProvider>
+                  </FinancialProvider>
                 </SubjectManagementProvider>
               </ClassManagementProvider>
             </TeacherManagementProvider>
@@ -1212,19 +1209,32 @@ export function Dashboard() {
   if (user.role === "teacher") {
     const teacherMenuItems = [
       { id: "dashboard", label: "Dashboard", icon: Home },
-      { id: "grades", label: "Grades", icon: ClipboardList },
+      { id: "grades-history", label: "Grades", icon: ClipboardList },
     ]
+
+    const handleTeacherNavigation = (view: string, classId?: string) => {
+      if (view === "grades") {
+        setTeacherCurrentView("class-grades")
+      } else {
+        setTeacherCurrentView(view as TeacherView)
+      }
+      
+      if (classId) {
+        setSelectedClassId(classId)
+        localStorage.setItem('selectedClassId', classId)
+      }
+    }
 
     const renderTeacherContent = () => {
       switch (teacherCurrentView) {
-        case "grades":
-          return <GradesManagement />
-        case "examinations":
-          return <ExaminationManagement />
+        case "class-grades":
+          return <ClassGradeEntry classId={selectedClassId || ""} onBack={() => setTeacherCurrentView("dashboard")} />
+        case "grades-history":
+          return <GradesHistory />
         case "profile":
           return <ProfileSettings />
         default:
-          return <TeacherDashboard onNavigate={(view: string) => setTeacherCurrentView(view as TeacherView)} />
+          return <TeacherDashboard onNavigate={handleTeacherNavigation} />
       }
     }
 
@@ -1313,7 +1323,6 @@ export function Dashboard() {
     }
 
     return (
-      <TeacherGradesProvider>
         <ProfileProvider>
           <SidebarProvider>
             <Sidebar 
@@ -1332,7 +1341,6 @@ export function Dashboard() {
             </SidebarInset>
           </SidebarProvider>
         </ProfileProvider>
-      </TeacherGradesProvider>
     )
   }
 

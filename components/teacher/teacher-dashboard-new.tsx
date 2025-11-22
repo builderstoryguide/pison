@@ -32,7 +32,7 @@ interface ClassAssignment {
 }
 
 interface TeacherDashboardNewProps {
-  onNavigate?: (view: string) => void
+  onNavigate?: (view: string, classId?: string) => void
 }
 
 export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
@@ -63,7 +63,7 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
         const data = await response.json()
         setClasses(data.classes || [])
       } catch (err) {
-        console.error('Error fetching teacher assignments:', err)
+        // Error fetching teacher assignments
         setError(err instanceof Error ? err.message : 'Failed to load assignments')
       } finally {
         setLoading(false)
@@ -140,7 +140,7 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
         <div>
           <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
           <p className="text-muted-foreground">
-            Welcome back, {user?.name?.split(" ")[0]}! Here's an overview of your teaching assignments.
+            Welcome back, {user?.name?.split(" ")[0]}! Here&apos;s an overview of your teaching assignments.
           </p>
         </div>
       </div>
@@ -196,9 +196,9 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
               variant="outline" 
               size="sm" 
               className="w-full"
-              onClick={() => onNavigate?.("grades")}
+              onClick={() => onNavigate?.("grades-history")}
             >
-              Enter Grades
+              View Grade History
             </Button>
           </CardContent>
         </Card>
@@ -221,7 +221,7 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
               <BookOpen className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
               <h3 className="text-lg font-medium mb-2">No Classes Assigned</h3>
               <p className="text-sm text-muted-foreground text-center max-w-md">
-                You don't have any classes assigned yet. Please contact your administrator.
+                You don&apos;t have any classes assigned yet. Please contact your administrator.
               </p>
             </CardContent>
           </Card>
@@ -244,10 +244,6 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Class Info */}
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Class Code:</span>
-                    <Badge variant="secondary">{classItem.code}</Badge>
-                  </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Students:</span>
                     <span className="font-medium">{classItem.studentCount || 0}</span>
@@ -289,7 +285,7 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
                     variant="outline" 
                     size="sm" 
                     className="w-full mt-2"
-                    onClick={() => onNavigate?.("grades")}
+                    onClick={() => onNavigate?.("class-grades", classItem.id.toString())}
                   >
                     <FileText className="h-4 w-4 mr-2" />
                     Enter Grades

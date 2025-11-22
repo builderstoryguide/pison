@@ -8,7 +8,6 @@ import { UserManagement } from "./admin/user-management"
 import { StudentManagement } from "./admin/student-management"
 import { TeacherManagement } from "./admin/teacher-management"
 import { ClassManagement } from "./admin/class-management"
-import { ExaminationManagement } from "./admin/examination-management"
 import { TimetableManagement } from "./admin/timetable-management"
 import { FinancialManagement } from "./admin/financial-management"
 import { ProfileSettings } from "./profile/profile-settings"
@@ -95,7 +94,6 @@ type AdminView =
   | "teachers"
   | "classes"
   | "timetable"
-  | "examinations"
   | "financial"
   | "profile"
 
@@ -207,7 +205,6 @@ function AppSidebar({
           { id: "teachers", label: "Manage Teachers", icon: UserCheck },
           { id: "classes", label: "Manage Classes", icon: BookOpen },
           { id: "timetable", label: "Manage Timetable", icon: CalendarDays },
-          { id: "examinations", label: "Examinations", icon: FileText },
           { id: "financial", label: "Financial Management", icon: DollarSign },
         ]
       case "teacher":
@@ -475,8 +472,6 @@ export function SchoolDashboard() {
             return <ClassManagement />
           case "timetable":
             return <TimetableManagement />
-          case "examinations":
-            return <ExaminationManagement />
           case "financial":
             return <FinancialManagement />
           case "profile":
@@ -488,11 +483,17 @@ export function SchoolDashboard() {
       case "teacher":
         switch (currentView) {
           case "grades":
-            return <TeacherGradesEntry />
+            const selectedClassId = typeof window !== 'undefined' ? localStorage.getItem('selectedClassId') || undefined : undefined
+            return <TeacherGradesEntry preSelectedClassId={selectedClassId} />
           case "profile":
             return <ProfileSettings />
           default:
-            return <TeacherDashboardNew onNavigate={(view: string) => setTeacherCurrentView(view as TeacherView)} />
+            return <TeacherDashboardNew onNavigate={(view: string, classId?: string) => {
+              setTeacherCurrentView(view as TeacherView)
+              if (classId && typeof window !== 'undefined') {
+                localStorage.setItem('selectedClassId', classId)
+              }
+            }} />
         }
 
       case "parent":

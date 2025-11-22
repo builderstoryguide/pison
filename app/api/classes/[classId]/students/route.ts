@@ -72,31 +72,9 @@ export async function GET(
         .eq('class_id', classId)
     ])
     
-    // Method 4: Try student_branch_enrollments (if table exists) - handle separately to avoid errors
-    let branchEnrollmentsResult: { data: any[] | null; error: any } = { data: null, error: null }
-    try {
-      const result = await supabase
-        .from('student_branch_enrollments')
-        .select(`
-          id,
-          enrollment_status,
-          enrolled_at,
-          students (
-            id,
-            student_id,
-            first_name,
-            last_name,
-            email,
-            phone
-          )
-        `)
-        .eq('class_id', classId)
-        .eq('enrollment_status', 'enrolled')
-      branchEnrollmentsResult = result
-    } catch (error: any) {
-      // Table doesn't exist or other error, ignore this method
-      branchEnrollmentsResult = { data: null, error: error?.message || 'Table not found' }
-    }
+    // Method 4: Removed student_branch_enrollments query
+    // This table is not present in the current schema and was causing warnings
+    // If needed in the future, it can be added back when the table exists
 
     // Collect all unique students from different sources
     const studentMap = new Map<string, any>()
@@ -153,24 +131,6 @@ export async function GET(
       })
     }
 
-    // Process Method 4: student_branch_enrollments (if table exists)
-    if (branchEnrollmentsResult.data) {
-      branchEnrollmentsResult.data.forEach((enrollment: any) => {
-        const student = enrollment.students
-        if (student?.id && !studentMap.has(student.id)) {
-          studentMap.set(student.id, {
-            id: student.id,
-            studentId: student.student_id,
-            firstName: student.first_name,
-            lastName: student.last_name,
-            email: student.email,
-            phone: student.phone,
-            enrollmentStatus: enrollment.enrollment_status === 'enrolled' ? 'enrolled' : enrollment.enrollment_status
-          })
-        }
-      })
-    }
-
     // Convert map to array
     let transformedStudents = Array.from(studentMap.values())
 
@@ -200,10 +160,6 @@ export async function GET(
     }
     if (classStudentsJunctionResult.error) {
       console.warn('Warning: Error fetching students from junction table:', classStudentsJunctionResult.error.message)
-    }
-    // Only log branch enrollments error if we attempted the query (not if it was skipped)
-    if (branchEnrollmentsResult && branchEnrollmentsResult.error) {
-      console.warn('Warning: Error fetching students from branch enrollments:', branchEnrollmentsResult.error.message)
     }
 
     // If no students found from any method, return empty array (not an error)

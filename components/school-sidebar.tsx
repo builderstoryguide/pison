@@ -89,17 +89,6 @@ const navigationItems = [
     description: "Subject management"
   },
   {
-    title: "Examinations",
-    href: "/examinations",
-    icon: ClipboardList,
-    description: "Exam management",
-    subItems: [
-      { title: "All Exams", href: "/examinations" },
-      { title: "Create Exam", href: "/examinations/create" },
-      { title: "Results", href: "/examinations/results" },
-    ]
-  },
-  {
     title: "Reports",
     href: "/reports",
     icon: BarChart3,

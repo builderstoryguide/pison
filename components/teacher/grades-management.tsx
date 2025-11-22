@@ -2,7 +2,11 @@
 
 import { TeacherGradesEntry } from "./teacher-grades-entry"
 
-export function GradesManagement() {
-  return <TeacherGradesEntry />
+interface GradesManagementProps {
+  preSelectedClassId?: string
+}
+
+export function GradesManagement({ preSelectedClassId }: GradesManagementProps = {}) {
+  return <TeacherGradesEntry preSelectedClassId={preSelectedClassId} />
 }
 

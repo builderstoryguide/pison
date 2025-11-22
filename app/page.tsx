@@ -6,11 +6,9 @@ import { StudentEnrollmentProvider } from "@/lib/student-enrollment-context"
 import { StudentManagementProvider } from "@/lib/student-management-context"
 import { TeacherManagementProvider } from "@/lib/teacher-management-context"
 import { ClassManagementProvider } from "@/lib/class-management-context"
-import { ExaminationProvider } from "@/lib/examination-context"
 import { FinancialProvider } from "@/lib/financial-context"
 import { ProfileProvider } from "@/lib/profile-context"
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
-import { TeacherExaminationProvider } from "@/lib/teacher-examination-context"
 import { TeacherExamMarksProvider } from "@/lib/teacher-exam-marks-context"
 import { NotificationProvider } from "@/lib/notification-context"
 import { ReactQueryProvider } from "@/lib/react-query-setup"
@@ -39,19 +37,15 @@ function AppContent() {
             <StudentManagementProvider>
               <TeacherManagementProvider>
                 <ClassManagementProvider>
-                  <ExaminationProvider>
-                    <FinancialProvider>
-                      <TeacherGradesProvider>
-                        <TeacherExaminationProvider>
-                          <TeacherExamMarksProvider>
-                            <ProfileProvider>
-                              <Dashboard />
-                            </ProfileProvider>
-                          </TeacherExamMarksProvider>
-                        </TeacherExaminationProvider>
-                      </TeacherGradesProvider>
-                    </FinancialProvider>
-                  </ExaminationProvider>
+                  <FinancialProvider>
+                    <TeacherGradesProvider>
+                      <TeacherExamMarksProvider>
+                        <ProfileProvider>
+                          <Dashboard />
+                        </ProfileProvider>
+                      </TeacherExamMarksProvider>
+                    </TeacherGradesProvider>
+                  </FinancialProvider>
                 </ClassManagementProvider>
               </TeacherManagementProvider>
             </StudentManagementProvider>

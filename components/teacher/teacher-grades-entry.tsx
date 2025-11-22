@@ -66,7 +66,11 @@ interface GradeEntry {
   remarks: string        // Auto-generated remarks based on grade
 }
 
-export function TeacherGradesEntry() {
+interface TeacherGradesEntryProps {
+  preSelectedClassId?: string
+}
+
+export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryProps = {}) {
   const { user } = useAuth()
   const { toast } = useToast()
   
@@ -94,8 +98,30 @@ export function TeacherGradesEntry() {
     { id: '6th-sequence', name: '6th Sequence' }
   ]
 
+  // Auto-select class if pre-selected from dashboard
+  useEffect(() => {
+    if (preSelectedClassId && classes.length > 0 && !selectedClass) {
+      console.log(`[Teacher Grades] Auto-selecting pre-selected class: ${preSelectedClassId}`)
+      setSelectedClass(preSelectedClassId)
+    }
+  }, [preSelectedClassId, classes]) // Removed selectedClass from deps to prevent infinite loop
+
   // Fetch teacher's classes with comprehensive error handling and retry logic
   useEffect(() => {
+    // PERMANENT FIX: If class is pre-selected from dashboard, skip the expensive fetch
+    if (preSelectedClassId) {
+      console.log('[Teacher Grades] Class pre-selected, skipping full class fetch for instant load')
+      setClasses([{
+        id: parseInt(preSelectedClassId),
+        name: 'Selected Class', // Will be populated when students load
+        code: '',
+        subjects: []
+      }])
+      setLoadingClasses(false)
+      return
+    }
+
+    // Only fetch all classes if NOT pre-selected (direct navigation scenario)
     const fetchClasses = async () => {
       if (!user?.id) return
 
@@ -116,21 +142,21 @@ export function TeacherGradesEntry() {
         try {
           console.log(`[Teacher Grades] Attempting to fetch classes from endpoint ${i + 1}/${endpoints.length}: ${endpoint}`)
           
-          // Use shorter timeout for lightweight endpoint
-          const timeout = i === 0 ? 8000 : 15000
+          // Use progressively longer timeouts for each endpoint attempt
+          const timeout = i === 0 ? 30000 : i === 1 ? 45000 : 60000
           const controller = new AbortController()
           const timeoutId = setTimeout(() => controller.abort(), timeout)
           
           let response: Response
           try {
-            const cacheBuster = new Date().getTime()
+        const cacheBuster = new Date().getTime()
             const url = `${endpoint}${endpoint.includes('?') ? '&' : '?'}t=${cacheBuster}`
             
             response = await fetch(url, {
-              cache: 'no-store',
-              headers: {
-                'Cache-Control': 'no-cache',
-              },
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
               signal: controller.signal
             })
             clearTimeout(timeoutId)
@@ -161,46 +187,46 @@ export function TeacherGradesEntry() {
             
             throw new Error(errorMessage)
           }
-          
-          const data = await response.json()
+        
+        const data = await response.json()
           
           if (!data.ok) {
             throw new Error(data.error || 'Failed to fetch classes')
           }
-          
+
           classesData = data.classes || []
-          console.log(`[Teacher Grades] Successfully fetched ${classesData.length} classes from endpoint ${i + 1}`)
-          
+          console.log(`[Teacher Grades] Successfully fetched ${classesData.length} classes from endpoint ${i + 1}${data.timing ? ` (${data.timing.totalMs}ms)` : ''}`)
+
           // Success - break out of loop
           break
-        } catch (err) {
+      } catch (err) {
           lastError = err instanceof Error ? err : new Error(String(err))
           console.error(`[Teacher Grades] Endpoint ${i + 1} failed:`, lastError.message)
-          
+
           // If this is the last endpoint, we'll show error below
           if (i === endpoints.length - 1) {
             break
           }
-          
+
           // Try next endpoint
           console.log(`[Teacher Grades] Trying next endpoint...`)
         }
       }
-      
+
       // Set classes if we got any data, otherwise show error
       if (classesData.length > 0) {
         setClasses(classesData)
       } else if (lastError) {
         // All endpoints failed - show comprehensive error message
         const error = lastError
-        
+
         if (error.message.includes('timeout') || error.message.includes('timed out')) {
           console.error('[Teacher Grades] All endpoints timed out:', error)
-          toast({
+        toast({
             title: "Request Timeout",
-            description: "All attempts to fetch classes have timed out. The server may be experiencing high load. Please refresh the page or try again later.",
+            description: "The server is taking longer than expected to respond. This could be due to:\n\n• Database performance issues\n• Missing database indexes\n• Large amount of data to process\n\nPlease check the server logs for detailed timing information, or contact support if this persists.",
             variant: "destructive",
-            duration: 10000
+            duration: 15000
           })
         } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
           console.error('[Teacher Grades] Network error:', error)
@@ -214,9 +240,9 @@ export function TeacherGradesEntry() {
           toast({
             title: "Error Loading Classes",
             description: error.message || "Failed to load classes. Please refresh the page or contact support if the issue persists.",
-            variant: "destructive"
-          })
-        }
+          variant: "destructive"
+        })
+      }
         
         // Set empty array so UI doesn't break
         setClasses([])
@@ -230,7 +256,10 @@ export function TeacherGradesEntry() {
     // Refresh data when page becomes visible (when user switches back to tab)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        fetchClasses()
+        // Don't refresh if pre-selected (shouldn't reach here due to early return above)
+        if (!preSelectedClassId) {
+          fetchClasses()
+        }
       }
     }
 
@@ -239,7 +268,7 @@ export function TeacherGradesEntry() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [user?.id, toast])
+  }, [user?.id, toast, preSelectedClassId])
 
   // Fetch subjects when class is selected
   useEffect(() => {
@@ -742,37 +771,23 @@ export function TeacherGradesEntry() {
       <div>
         <h1 className="text-3xl font-bold">Enter Grades</h1>
         <p className="text-muted-foreground">
-          Enter student grades for examinations and assessments
+          {preSelectedClassId && selectedClass 
+            ? `Entering grades for ${classes.find(c => c.id.toString() === selectedClass)?.name || 'selected class'}`
+            : 'Enter student grades for examinations and assessments'
+          }
         </p>
       </div>
 
       {/* Selection Form */}
       <Card>
         <CardHeader>
-          <CardTitle>Select Class, Subject, and Examination</CardTitle>
+          <CardTitle>Select Subject and Examination</CardTitle>
           <CardDescription>
-            Choose the class, subject, and examination to enter grades for
+            Choose the subject and examination to enter grades for
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            {/* Class Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="class">Class</Label>
-              <Select value={selectedClass} onValueChange={setSelectedClass}>
-                <SelectTrigger id="class">
-                  <SelectValue placeholder="Select a class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classes.map((cls, index) => (
-                    <SelectItem key={`class-${cls.id}-${index}`} value={cls.id.toString()}>
-                      {cls.name} ({cls.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
+          <div className="grid gap-4 md:grid-cols-2">
             {/* Subject Selection */}
             <div className="space-y-2">
               <Label htmlFor="subject">Subject</Label>
@@ -839,12 +854,8 @@ export function TeacherGradesEntry() {
                 Ready to enter grades for{" "}
                 <strong>
                   {availableSubjects.find(s => s.id.toString() === selectedSubject)?.name}
-                </strong>{" "}
-                in{" "}
-                <strong>
-                  {classes.find(c => c.id.toString() === selectedClass)?.name}
-                </strong>{" "}
-                for{" "}
+                </strong>
+                {" "}for{" "}
                 <strong>
                   {examinationSequences.find(e => e.id === selectedExam)?.name}
                 </strong>
