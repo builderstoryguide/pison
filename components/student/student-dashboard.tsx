@@ -2,36 +2,26 @@
 
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { StudentAssignmentsView } from "./student-assignments-view"
 import {
-  BookOpen,
-  Calendar,
-  TrendingUp,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  GraduationCap,
-  FileText,
-  Phone,
-  Mail,
-  User,
-  Award,
-  BarChart3,
-  CalendarDays,
-  BookMarked,
-  CreditCard,
-} from "lucide-react"
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { BookOpen } from "lucide-react"
 
 interface StudentDashboardProps {
   onNavigate?: (view: string) => void
 }
 
 export function StudentDashboard({ onNavigate }: StudentDashboardProps) {
+  const [activeTab, setActiveTab] = useState("all")
+
   // Mock data for student
   const studentData = {
     id: "STU2024001",
@@ -41,69 +31,122 @@ export function StudentDashboard({ onNavigate }: StudentDashboardProps) {
     branch: "Grammar",
     subsystem: "English",
     avatar: "/placeholder.svg",
-    overallGrade: "A",
-    attendance: 95,
-    feesStatus: "paid",
-    nextExam: "Mathematics - March 15, 2024",
-    recentGrades: [
-      { subject: "Mathematics", grade: "A", score: 85 },
-      { subject: "English", grade: "A", score: 88 },
-      { subject: "Physics", grade: "B+", score: 82 },
-      { subject: "Chemistry", grade: "A-", score: 87 },
-    ],
-    upcomingAssignments: [
-      { subject: "Mathematics", title: "Calculus Assignment", dueDate: "2024-03-10" },
-      { subject: "English", title: "Essay Writing", dueDate: "2024-03-12" },
-      { subject: "Physics", title: "Lab Report", dueDate: "2024-03-15" },
-    ],
-    schedule: [
-      { day: "Monday", subjects: ["Mathematics", "English", "Physics", "Chemistry"] },
-      { day: "Tuesday", subjects: ["Biology", "Mathematics", "English", "History"] },
-      { day: "Wednesday", subjects: ["Physics", "Chemistry", "Mathematics", "English"] },
-      { day: "Thursday", subjects: ["English", "Biology", "Mathematics", "Physics"] },
-      { day: "Friday", subjects: ["Chemistry", "Mathematics", "English", "Biology"] },
-    ],
-    fees: {
-      total: 75000,
-      paid: 75000,
-      balance: 0,
-      status: "paid",
-    },
   }
+
+  // Mock subjects data with teacher info and sequences
+  const subjects = [
+    {
+      id: 1,
+      name: "Mathematics",
+      code: "MATH501",
+      teacher: "Mr. John Kamga",
+      coefficient: 5,
+      sequences: {
+        seq1: { marks: 85, maxMarks: 100, grade: "A" },
+        seq2: { marks: 88, maxMarks: 100, grade: "A" },
+        seq3: { marks: 82, maxMarks: 100, grade: "B+" },
+        seq4: { marks: 90, maxMarks: 100, grade: "A+" },
+        seq5: { marks: 87, maxMarks: 100, grade: "A" },
+        seq6: { marks: 89, maxMarks: 100, grade: "A" },
+      }
+    },
+    {
+      id: 2,
+      name: "English Language",
+      code: "ENG501",
+      teacher: "Mrs. Grace Ndip",
+      coefficient: 4,
+      sequences: {
+        seq1: { marks: 78, maxMarks: 100, grade: "B+" },
+        seq2: { marks: 82, maxMarks: 100, grade: "B+" },
+        seq3: { marks: 85, maxMarks: 100, grade: "A" },
+        seq4: { marks: 80, maxMarks: 100, grade: "B+" },
+        seq5: { marks: 83, maxMarks: 100, grade: "B+" },
+        seq6: { marks: 86, maxMarks: 100, grade: "A" },
+      }
+    },
+    {
+      id: 3,
+      name: "Physics",
+      code: "PHY501",
+      teacher: "Dr. Paul Mbah",
+      coefficient: 5,
+      sequences: {
+        seq1: { marks: 82, maxMarks: 100, grade: "B+" },
+        seq2: { marks: 85, maxMarks: 100, grade: "A" },
+        seq3: { marks: 80, maxMarks: 100, grade: "B+" },
+        seq4: { marks: 87, maxMarks: 100, grade: "A" },
+        seq5: { marks: 84, maxMarks: 100, grade: "B+" },
+        seq6: { marks: 88, maxMarks: 100, grade: "A" },
+      }
+    },
+    {
+      id: 4,
+      name: "Chemistry",
+      code: "CHEM501",
+      teacher: "Mrs. Sarah Fon",
+      coefficient: 5,
+      sequences: {
+        seq1: { marks: 87, maxMarks: 100, grade: "A" },
+        seq2: { marks: 84, maxMarks: 100, grade: "B+" },
+        seq3: { marks: 86, maxMarks: 100, grade: "A" },
+        seq4: { marks: 89, maxMarks: 100, grade: "A" },
+        seq5: { marks: 85, maxMarks: 100, grade: "A" },
+        seq6: { marks: 90, maxMarks: 100, grade: "A+" },
+      }
+    },
+    {
+      id: 5,
+      name: "Biology",
+      code: "BIO501",
+      teacher: "Mr. Thomas Njie",
+      coefficient: 4,
+      sequences: {
+        seq1: { marks: 80, maxMarks: 100, grade: "B+" },
+        seq2: { marks: 83, maxMarks: 100, grade: "B+" },
+        seq3: { marks: 81, maxMarks: 100, grade: "B+" },
+        seq4: { marks: 85, maxMarks: 100, grade: "A" },
+        seq5: { marks: 82, maxMarks: 100, grade: "B+" },
+        seq6: { marks: 84, maxMarks: 100, grade: "B+" },
+      }
+    },
+  ]
 
   const getGradeColor = (grade: string) => {
     switch (grade) {
-      case "A":
       case "A+":
-        return "text-green-600"
-      case "B":
+      case "A":
+        return "text-green-600 bg-green-50"
       case "B+":
-        return "text-blue-600"
-      case "C":
+      case "B":
+        return "text-blue-600 bg-blue-50"
       case "C+":
-        return "text-yellow-600"
+      case "C":
+        return "text-yellow-600 bg-yellow-50"
       case "D":
-      case "F":
-        return "text-red-600"
+      case "U":
+        return "text-red-600 bg-red-50"
       default:
-        return "text-gray-600"
+        return "text-gray-600 bg-gray-50"
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "paid":
-        return "text-green-600"
-      case "partial":
-        return "text-yellow-600"
-      case "pending":
-        return "text-blue-600"
-      case "overdue":
-        return "text-red-600"
-      default:
-        return "text-gray-600"
-    }
+  const renderSequenceColumn = (subject: any, sequenceKey: string) => {
+    const sequence = subject.sequences[sequenceKey]
+    if (!sequence) return <TableCell className="text-center text-muted-foreground">-</TableCell>
+    
+    return (
+      <TableCell className="text-center">
+        <div className="flex flex-col items-center gap-1">
+          <span className="font-medium">{sequence.marks}/{sequence.maxMarks}</span>
+          <Badge variant="outline" className={getGradeColor(sequence.grade)}>
+            {sequence.grade}
+          </Badge>
+        </div>
+      </TableCell>
+    )
   }
+
 
   return (
     <div className="space-y-6">
@@ -135,227 +178,257 @@ export function StudentDashboard({ onNavigate }: StudentDashboardProps) {
               </CardDescription>
               <div className="flex items-center gap-4 mt-2">
                 <Badge variant="secondary">Student ID: {studentData.id}</Badge>
-                <Badge variant="outline" className={getGradeColor(studentData.overallGrade)}>
-                  Overall Grade: {studentData.overallGrade}
-                </Badge>
               </div>
             </div>
           </div>
         </CardHeader>
       </Card>
 
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Attendance</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{studentData.attendance}%</div>
-            <p className="text-xs text-muted-foreground">This semester</p>
-          </CardContent>
-        </Card>
+      {/* Subjects and Marks Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5" />
+            My Subjects & Marks
+          </CardTitle>
+          <CardDescription>View your subjects and marks across all sequences</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <TabsList className="grid w-full grid-cols-7">
+              <TabsTrigger value="all">All Subjects</TabsTrigger>
+              <TabsTrigger value="seq1">1st Sequence</TabsTrigger>
+              <TabsTrigger value="seq2">2nd Sequence</TabsTrigger>
+              <TabsTrigger value="seq3">3rd Sequence</TabsTrigger>
+              <TabsTrigger value="seq4">4th Sequence</TabsTrigger>
+              <TabsTrigger value="seq5">5th Sequence</TabsTrigger>
+              <TabsTrigger value="seq6">6th Sequence</TabsTrigger>
+            </TabsList>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Fees Status</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold capitalize">{studentData.feesStatus}</div>
-            <p className="text-xs text-muted-foreground">Payment status</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Next Exam</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm font-medium">Mathematics</div>
-            <p className="text-xs text-muted-foreground">March 15, 2024</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Assignments</CardTitle>
-            <BookMarked className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{studentData.upcomingAssignments.length}</div>
-            <p className="text-xs text-muted-foreground">Due this week</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="grades">Grades</TabsTrigger>
-          <TabsTrigger value="schedule">Schedule</TabsTrigger>
-          <TabsTrigger value="assignments">Assignments</TabsTrigger>
-          <TabsTrigger value="fees">Fees</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Recent Grades */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Award className="h-5 w-5" />
-                  Recent Grades
-                </CardTitle>
-                <CardDescription>Your latest academic performance</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {studentData.recentGrades.map((grade, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{grade.subject}</p>
-                        <p className="text-sm text-muted-foreground">Score: {grade.score}%</p>
-                      </div>
-                      <Badge variant="outline" className={getGradeColor(grade.grade)}>
-                        {grade.grade}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Upcoming Assignments */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookMarked className="h-5 w-5" />
-                  Upcoming Assignments
-                </CardTitle>
-                <CardDescription>Deadlines to keep track of</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {studentData.upcomingAssignments.map((assignment, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{assignment.title}</p>
-                        <p className="text-sm text-muted-foreground">{assignment.subject}</p>
-                      </div>
-                      <Badge variant="secondary">{assignment.dueDate}</Badge>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="grades" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Academic Performance
-              </CardTitle>
-              <CardDescription>Detailed view of your grades and progress</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {studentData.recentGrades.map((grade, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium">{grade.subject}</h4>
-                        <Badge variant="outline" className={getGradeColor(grade.grade)}>
-                          {grade.grade}
-                        </Badge>
-                      </div>
-                      <Progress value={grade.score} className="h-2" />
-                      <p className="text-sm text-muted-foreground mt-1">Score: {grade.score}%</p>
-                    </div>
-                  </div>
-                ))}
+            {/* All Subjects Tab */}
+            <TabsContent value="all" className="space-y-4">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Subject Name</TableHead>
+                      <TableHead>Subject Code</TableHead>
+                      <TableHead>Teacher</TableHead>
+                      <TableHead className="text-center">Coefficient</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subjects.map((subject) => (
+                      <TableRow key={subject.id}>
+                        <TableCell className="font-medium">{subject.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{subject.code}</Badge>
+                        </TableCell>
+                        <TableCell>{subject.teacher}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline">{subject.coefficient}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </TabsContent>
 
-        <TabsContent value="schedule" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarDays className="h-5 w-5" />
-                Weekly Schedule
-              </CardTitle>
-              <CardDescription>Your class timetable for the week</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {studentData.schedule.map((day, index) => (
-                  <div key={index} className="p-4 border rounded-lg">
-                    <h4 className="font-medium mb-2">{day.day}</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      {day.subjects.map((subject, subjectIndex) => (
-                        <Badge key={subjectIndex} variant="secondary" className="text-center">
-                          {subject}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+            {/* First Sequence Tab */}
+            <TabsContent value="seq1" className="space-y-4">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Subject Name</TableHead>
+                      <TableHead>Subject Code</TableHead>
+                      <TableHead>Teacher</TableHead>
+                      <TableHead className="text-center">Coefficient</TableHead>
+                      <TableHead className="text-center">Marks</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subjects.map((subject) => (
+                      <TableRow key={subject.id}>
+                        <TableCell className="font-medium">{subject.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{subject.code}</Badge>
+                        </TableCell>
+                        <TableCell>{subject.teacher}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline">{subject.coefficient}</Badge>
+                        </TableCell>
+                        {renderSequenceColumn(subject, 'seq1')}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </TabsContent>
 
-        <TabsContent value="assignments" className="space-y-4">
-          <StudentAssignmentsView />
-        </TabsContent>
-
-        <TabsContent value="fees" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Fee Information
-              </CardTitle>
-              <CardDescription>Your current fee status and payment history</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-4 border rounded-lg">
-                    <p className="text-2xl font-bold">{studentData.fees.total.toLocaleString()} FCFA</p>
-                    <p className="text-sm text-muted-foreground">Total Fees</p>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <p className="text-2xl font-bold">{studentData.fees.paid.toLocaleString()} FCFA</p>
-                    <p className="text-sm text-muted-foreground">Amount Paid</p>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <p className="text-2xl font-bold">{studentData.fees.balance.toLocaleString()} FCFA</p>
-                    <p className="text-sm text-muted-foreground">Balance</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
-                    <h4 className="font-medium">Payment Status</h4>
-                    <p className="text-sm text-muted-foreground">Current term fees</p>
-                  </div>
-                  <Badge variant="outline" className={getStatusColor(studentData.fees.status)}>
-                    {studentData.fees.status.toUpperCase()}
-                  </Badge>
-                </div>
+            {/* Second Sequence Tab */}
+            <TabsContent value="seq2" className="space-y-4">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Subject Name</TableHead>
+                      <TableHead>Subject Code</TableHead>
+                      <TableHead>Teacher</TableHead>
+                      <TableHead className="text-center">Coefficient</TableHead>
+                      <TableHead className="text-center">Marks</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subjects.map((subject) => (
+                      <TableRow key={subject.id}>
+                        <TableCell className="font-medium">{subject.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{subject.code}</Badge>
+                        </TableCell>
+                        <TableCell>{subject.teacher}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline">{subject.coefficient}</Badge>
+                        </TableCell>
+                        {renderSequenceColumn(subject, 'seq2')}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </TabsContent>
+
+            {/* Third Sequence Tab */}
+            <TabsContent value="seq3" className="space-y-4">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Subject Name</TableHead>
+                      <TableHead>Subject Code</TableHead>
+                      <TableHead>Teacher</TableHead>
+                      <TableHead className="text-center">Coefficient</TableHead>
+                      <TableHead className="text-center">Marks</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subjects.map((subject) => (
+                      <TableRow key={subject.id}>
+                        <TableCell className="font-medium">{subject.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{subject.code}</Badge>
+                        </TableCell>
+                        <TableCell>{subject.teacher}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline">{subject.coefficient}</Badge>
+                        </TableCell>
+                        {renderSequenceColumn(subject, 'seq3')}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+
+            {/* Fourth Sequence Tab */}
+            <TabsContent value="seq4" className="space-y-4">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Subject Name</TableHead>
+                      <TableHead>Subject Code</TableHead>
+                      <TableHead>Teacher</TableHead>
+                      <TableHead className="text-center">Coefficient</TableHead>
+                      <TableHead className="text-center">Marks</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subjects.map((subject) => (
+                      <TableRow key={subject.id}>
+                        <TableCell className="font-medium">{subject.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{subject.code}</Badge>
+                        </TableCell>
+                        <TableCell>{subject.teacher}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline">{subject.coefficient}</Badge>
+                        </TableCell>
+                        {renderSequenceColumn(subject, 'seq4')}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+
+            {/* Fifth Sequence Tab */}
+            <TabsContent value="seq5" className="space-y-4">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Subject Name</TableHead>
+                      <TableHead>Subject Code</TableHead>
+                      <TableHead>Teacher</TableHead>
+                      <TableHead className="text-center">Coefficient</TableHead>
+                      <TableHead className="text-center">Marks</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subjects.map((subject) => (
+                      <TableRow key={subject.id}>
+                        <TableCell className="font-medium">{subject.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{subject.code}</Badge>
+                        </TableCell>
+                        <TableCell>{subject.teacher}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline">{subject.coefficient}</Badge>
+                        </TableCell>
+                        {renderSequenceColumn(subject, 'seq5')}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+
+            {/* Sixth Sequence Tab */}
+            <TabsContent value="seq6" className="space-y-4">
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Subject Name</TableHead>
+                      <TableHead>Subject Code</TableHead>
+                      <TableHead>Teacher</TableHead>
+                      <TableHead className="text-center">Coefficient</TableHead>
+                      <TableHead className="text-center">Marks</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {subjects.map((subject) => (
+                      <TableRow key={subject.id}>
+                        <TableCell className="font-medium">{subject.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{subject.code}</Badge>
+                        </TableCell>
+                        <TableCell>{subject.teacher}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline">{subject.coefficient}</Badge>
+                        </TableCell>
+                        {renderSequenceColumn(subject, 'seq6')}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   )
 }

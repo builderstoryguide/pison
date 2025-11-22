@@ -46,34 +46,77 @@ export function UserCreationSuccessDialog({
 
   const handleDownloadEmail = (showToast = true) => {
     const lines: string[] = []
+    
+    // Personalized welcome message
+    lines.push('═══════════════════════════════════════════════════════')
+    lines.push(`WELCOME TO THE SCHOOL MANAGEMENT SYSTEM`)
+    lines.push('═══════════════════════════════════════════════════════')
+    lines.push('')
+    lines.push(`Dear ${userData.name},`)
+    lines.push('')
+    lines.push(`Congratulations! Your account has been successfully created.`)
+    lines.push(`You have been registered as a ${getRoleDisplayName(userData.role)}.`)
+    lines.push('')
+    lines.push('───────────────────────────────────────────────────────')
+    lines.push('YOUR LOGIN CREDENTIALS')
+    lines.push('───────────────────────────────────────────────────────')
+    lines.push('')
     lines.push(`Name: ${userData.name}`)
-    lines.push(`Role: ${userData.role}`)
+    lines.push(`Role: ${getRoleDisplayName(userData.role)}`)
     if (userData.userId) lines.push(`User ID/Code: ${userData.userId}`)
     lines.push(`Email: ${userData.email}`)
     if (userData.className) lines.push(`Class: ${userData.className}`)
     lines.push(`Temporary Password: ${userData.password}`)
-    if (userData.parentName) lines.push(`Parent: ${userData.parentName}`)
-    if (userData.parentEmail) lines.push(`Parent Email: ${userData.parentEmail}`)
-    if (userData.parentCode) lines.push(`Parent Code: ${userData.parentCode}`)
-    if (userData.parentPassword) lines.push(`Parent Password: ${userData.parentPassword}`)
     lines.push('')
-    lines.push('Important: Change the password on first login. Password expires in 30 days.')
+    if (userData.parentName) {
+      lines.push('───────────────────────────────────────────────────────')
+      lines.push('PARENT/GUARDIAN INFORMATION')
+      lines.push('───────────────────────────────────────────────────────')
+      lines.push('')
+      lines.push(`Parent Name: ${userData.parentName}`)
+      if (userData.parentEmail) lines.push(`Parent Email: ${userData.parentEmail}`)
+      if (userData.parentCode) lines.push(`Parent Code: ${userData.parentCode}`)
+      if (userData.parentPassword) lines.push(`Parent Password: ${userData.parentPassword}`)
+      lines.push('')
+    }
+    lines.push('═══════════════════════════════════════════════════════')
+    lines.push('IMPORTANT SECURITY INFORMATION')
+    lines.push('═══════════════════════════════════════════════════════')
+    lines.push('')
+    lines.push('⚠ Please change your password immediately after your first login.')
+    lines.push('⚠ This temporary password will expire in 30 days.')
+    lines.push('⚠ Keep your credentials confidential and do not share them.')
+    lines.push('⚠ If you suspect unauthorized access, contact the administrator.')
+    lines.push('')
+    lines.push('───────────────────────────────────────────────────────')
+    lines.push('NEXT STEPS')
+    lines.push('───────────────────────────────────────────────────────')
+    lines.push('')
+    lines.push('1. Log in to the system using your email and temporary password')
+    lines.push('2. Change your password to a secure password of your choice')
+    lines.push('3. Complete your profile information')
+    lines.push('4. Explore the system features available to your role')
+    lines.push('')
+    lines.push('───────────────────────────────────────────────────────')
+    lines.push('')
+    lines.push('Thank you for joining our school management system!')
+    lines.push('')
+    lines.push(`Generated on: ${new Date().toLocaleString()}`)
+    lines.push('═══════════════════════════════════════════════════════')
 
     const content = lines.join('\n')
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    const nameSafeRole = userData.role.toLowerCase()
-    const idPart = userData.userId ? `-${userData.userId}` : ''
     a.href = url
-    a.download = `credentials-${nameSafeRole}${idPart}.txt`
+    a.download = `welcome-${userData.name}.txt`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
 
     if (showToast) {
-      toastSuccess('Credentials downloaded')
+      toastSuccess('Welcome message downloaded')
     }
   }
 
@@ -84,27 +127,70 @@ export function UserCreationSuccessDialog({
       const timer = setTimeout(() => {
         // Inline download logic to avoid dependency issues
         const lines: string[] = []
+        
+        // Personalized welcome message
+        lines.push('═══════════════════════════════════════════════════════')
+        lines.push(`WELCOME TO THE SCHOOL MANAGEMENT SYSTEM`)
+        lines.push('═══════════════════════════════════════════════════════')
+        lines.push('')
+        lines.push(`Dear ${userData.name},`)
+        lines.push('')
+        lines.push(`Congratulations! Your account has been successfully created.`)
+        lines.push(`You have been registered as a ${getRoleDisplayName(userData.role)}.`)
+        lines.push('')
+        lines.push('───────────────────────────────────────────────────────')
+        lines.push('YOUR LOGIN CREDENTIALS')
+        lines.push('───────────────────────────────────────────────────────')
+        lines.push('')
         lines.push(`Name: ${userData.name}`)
-        lines.push(`Role: ${userData.role}`)
+        lines.push(`Role: ${getRoleDisplayName(userData.role)}`)
         if (userData.userId) lines.push(`User ID/Code: ${userData.userId}`)
         lines.push(`Email: ${userData.email}`)
         if (userData.className) lines.push(`Class: ${userData.className}`)
         lines.push(`Temporary Password: ${userData.password}`)
-        if (userData.parentName) lines.push(`Parent: ${userData.parentName}`)
-        if (userData.parentEmail) lines.push(`Parent Email: ${userData.parentEmail}`)
-        if (userData.parentCode) lines.push(`Parent Code: ${userData.parentCode}`)
-        if (userData.parentPassword) lines.push(`Parent Password: ${userData.parentPassword}`)
         lines.push('')
-        lines.push('Important: Change the password on first login. Password expires in 30 days.')
+        if (userData.parentName) {
+          lines.push('───────────────────────────────────────────────────────')
+          lines.push('PARENT/GUARDIAN INFORMATION')
+          lines.push('───────────────────────────────────────────────────────')
+          lines.push('')
+          lines.push(`Parent Name: ${userData.parentName}`)
+          if (userData.parentEmail) lines.push(`Parent Email: ${userData.parentEmail}`)
+          if (userData.parentCode) lines.push(`Parent Code: ${userData.parentCode}`)
+          if (userData.parentPassword) lines.push(`Parent Password: ${userData.parentPassword}`)
+          lines.push('')
+        }
+        lines.push('═══════════════════════════════════════════════════════')
+        lines.push('IMPORTANT SECURITY INFORMATION')
+        lines.push('═══════════════════════════════════════════════════════')
+        lines.push('')
+        lines.push('⚠ Please change your password immediately after your first login.')
+        lines.push('⚠ This temporary password will expire in 30 days.')
+        lines.push('⚠ Keep your credentials confidential and do not share them.')
+        lines.push('⚠ If you suspect unauthorized access, contact the administrator.')
+        lines.push('')
+        lines.push('───────────────────────────────────────────────────────')
+        lines.push('NEXT STEPS')
+        lines.push('───────────────────────────────────────────────────────')
+        lines.push('')
+        lines.push('1. Log in to the system using your email and temporary password')
+        lines.push('2. Change your password to a secure password of your choice')
+        lines.push('3. Complete your profile information')
+        lines.push('4. Explore the system features available to your role')
+        lines.push('')
+        lines.push('───────────────────────────────────────────────────────')
+        lines.push('')
+        lines.push('Thank you for joining our school management system!')
+        lines.push('')
+        lines.push(`Generated on: ${new Date().toLocaleString()}`)
+        lines.push('═══════════════════════════════════════════════════════')
 
         const content = lines.join('\n')
         const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
-        const nameSafeRole = userData.role.toLowerCase()
-        const idPart = userData.userId ? `-${userData.userId}` : ''
         a.href = url
-        a.download = `credentials-${nameSafeRole}${idPart}.txt`
+        a.download = `welcome-${userData.name}.txt`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
@@ -327,7 +413,7 @@ export function UserCreationSuccessDialog({
         <div className="flex flex-col gap-2 w-full">
           <Button variant="outline" onClick={handleDownloadEmail} className="w-full">
             <Download className="h-4 w-4 mr-2" />
-            Download Credentials
+            Download Welcome Message
           </Button>
         </div>
         <div className="flex gap-2 w-full">

@@ -21,9 +21,6 @@ import { ParentDashboard } from "./parent/parent-dashboard"
 import { ParentCommunication } from "./parent/parent-communication"
 import { ParentChildRecords } from "./parent/parent-child-records"
 import { StudentDashboard } from "./student/student-dashboard"
-import { StudentGradesView } from "./student/student-grades-view"
-import { StudentScheduleView } from "./student/student-schedule-view"
-import { StudentAssignmentsView } from "./student/student-assignments-view"
 import { BursarDashboard } from "./bursar/bursar-dashboard"
 import { FinancialReports } from "./bursar/financial-reports"
 import { BursarProfile } from "./bursar/bursar-profile"
@@ -105,7 +102,7 @@ type AdminView =
 
 type TeacherView = "dashboard" | "classes" | "grades" | "assignments" | "profile"
 type ParentView = "dashboard" | "records" | "communication" | "profile"
-type StudentView = "dashboard" | "grades" | "schedule" | "assignments" | "fees" | "profile"
+type StudentView = "dashboard" | "profile"
 type BursarView = "dashboard" | "financial" | "reports" | "profile"
 
 // Site Header Component
@@ -525,24 +522,6 @@ export function SchoolDashboard() {
 
       case "student":
         switch (currentView) {
-          case "grades":
-            return <StudentGradesView />
-          case "schedule":
-            return <StudentScheduleView />
-          case "assignments":
-            return <StudentAssignmentsView />
-          case "fees":
-            return <div className="space-y-6">
-              <div>
-                <h1 className="text-3xl font-bold">Fees</h1>
-                <p className="text-muted-foreground">View your fee information and payment history</p>
-              </div>
-              <Card>
-                <CardContent className="p-6">
-                  <p className="text-muted-foreground">Fee management coming soon...</p>
-                </CardContent>
-              </Card>
-            </div>
           case "profile":
             return <ProfileSettings />
           default:

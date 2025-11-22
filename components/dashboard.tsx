@@ -54,9 +54,6 @@ import { ParentAlerts } from "./parent/parent-alerts"
 
 // Student Components
 import { StudentDashboard } from "./student/student-dashboard"
-import { StudentGradesView } from "./student/student-grades-view"
-import { StudentScheduleView } from "./student/student-schedule-view"
-import { StudentAssignmentsView } from "./student/student-assignments-view"
 
 // Bursar Components
 import { BursarDashboard } from "./bursar/bursar-dashboard"
@@ -115,7 +112,6 @@ import {
   LogOut,
   Home,
   ChevronUp,
-  CreditCard,
   MessageSquare,
   Bell,
   User,
@@ -156,7 +152,7 @@ type TeacherView = "dashboard" | "class-grades" | "grades-history" | "profile"
 
 type ParentView = "dashboard" | "records" | "communication" | "alerts" | "profile"
 
-type StudentView = "dashboard" | "grades" | "schedule" | "assignments" | "fees" | "profile"
+type StudentView = "dashboard" | "profile"
 
 type BursarView = "dashboard" | "financial" | "sales" | "payment" | "expenditures" | "reports" | "profile"
 
@@ -750,32 +746,10 @@ export function Dashboard() {
   if (user.role === "student") {
     const studentMenuItems = [
       { id: "dashboard", label: "Dashboard", icon: Home },
-      { id: "grades", label: "Grades", icon: Award },
-      { id: "schedule", label: "Schedule", icon: Calendar },
-      { id: "assignments", label: "Assignments", icon: BookOpen },
-      { id: "fees", label: "Fees", icon: CreditCard },
     ]
 
     const renderStudentContent = () => {
       switch (studentCurrentView) {
-        case "grades":
-          return <StudentGradesView />
-        case "schedule":
-          return <StudentScheduleView />
-        case "assignments":
-          return <StudentAssignmentsView />
-        case "fees":
-          return <div className="space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold">Fees</h1>
-              <p className="text-muted-foreground">View your fee information and payment history</p>
-            </div>
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-muted-foreground">Fee management coming soon...</p>
-              </CardContent>
-            </Card>
-          </div>
         case "profile":
           return <ProfileSettings />
         default:
