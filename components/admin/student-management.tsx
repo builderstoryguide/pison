@@ -20,6 +20,7 @@ import {
   ChevronRight,
   CheckSquare,
   Square,
+  RotateCcw,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -32,7 +33,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserAvatar } from "@/components/ui/user-avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Pagination } from "@/components/ui/pagination"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -90,6 +91,7 @@ export function StudentManagement() {
     getNewStudents,
     getStudentStats,
     updateStudentStatus,
+    resetStudentPassword,
     testDatabaseConnection,
   } = useStudentManagement()
 
@@ -114,6 +116,13 @@ export function StudentManagement() {
   const [showEditForm, setShowEditForm] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
   const [studentToDelete, setStudentToDelete] = useState<{ id: string; name: string } | null>(null)
+  
+  // Password reset state
+  const [resetPasswordDialog, setResetPasswordDialog] = useState<{ 
+    open: boolean; 
+    password?: string; 
+    studentName?: string 
+  }>({ open: false })
   
   // Bulk selection state
   const [selectedStudents, setSelectedStudents] = useState<string[]>([])
@@ -257,6 +266,18 @@ export function StudentManagement() {
     } else {
       showError("Failed to update student", "There was an error updating the student's information. Please try again.")
       return false
+    }
+  }
+
+  const handleResetPassword = async (studentId: string) => {
+    const result = await resetStudentPassword(studentId)
+    if (result.success && result.password) {
+      const student = students.find(s => s.id === studentId)
+      setResetPasswordDialog({ 
+        open: true, 
+        password: result.password, 
+        studentName: student ? `${student.first_name} ${student.last_name}` : undefined
+      })
     }
   }
 
@@ -1022,6 +1043,14 @@ export function StudentManagement() {
                               >
                                 <DollarSign className="h-4 w-4" />
                               </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleResetPassword(student.id)}
+                                title="Reset Password"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
                               {student.enrollment_status === "pending" && (
                                 <Button
                                   variant="ghost"
@@ -1237,7 +1266,56 @@ export function StudentManagement() {
              </AlertDialogAction>
            </AlertDialogFooter>
          </AlertDialogContent>
-       </AlertDialog>
-     </div>
-   )
- }
+        </AlertDialog>
+
+      {/* Password Reset Dialog */}
+      <Dialog open={resetPasswordDialog.open} onOpenChange={(open) => setResetPasswordDialog({ open })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Password Reset Successful</DialogTitle>
+            <DialogDescription>
+              A new temporary password has been generated for {resetPasswordDialog.studentName}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-password">New Temporary Password</Label>
+              <div className="flex items-center space-x-2">
+                <Input
+                  id="reset-password"
+                  type="text"
+                  value={resetPasswordDialog.password || ''}
+                  readOnly
+                  className="font-mono"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (resetPasswordDialog.password) {
+                      navigator.clipboard.writeText(resetPasswordDialog.password)
+                      success("Password copied", "The temporary password has been copied to your clipboard.")
+                    }
+                  }}
+                >
+                  Copy
+                </Button>
+              </div>
+            </div>
+            <Alert>
+              <AlertDescription>
+                <strong>Important:</strong> This temporary password will expire in 7 days. The student should change their password upon next login.
+              </AlertDescription>
+            </Alert>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setResetPasswordDialog({ open: false })}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      </div>
+    )
+  }

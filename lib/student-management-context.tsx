@@ -74,6 +74,7 @@ interface StudentManagementContextType {
   getNewStudents: () => Student[]
   getStudentStats: () => StudentStats
   updateStudentStatus: (id: string, status: string) => Promise<boolean>
+  resetStudentPassword: (studentId: string) => Promise<{ success: boolean; password?: string }>
   testDatabaseConnection: () => Promise<boolean>
 }
 
@@ -434,6 +435,47 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
     return await updateStudent(id, { enrollment_status: status as any })
   }
 
+  const resetStudentPassword = async (studentId: string): Promise<{ success: boolean; password?: string }> => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      // Call the API endpoint to reset password
+      const response = await fetch('/api/users/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: studentId,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to reset password')
+      }
+
+      if (result.success) {
+        // Refresh students from database
+        await loadStudents()
+
+        const student = students.find(s => s.id === studentId)
+        console.log(`Password reset for ${student?.first_name} ${student?.last_name}`)
+        return { success: true, password: result.password }
+      } else {
+        throw new Error(result.error || 'Failed to reset password')
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to reset password'
+      setError(errorMessage)
+      return { success: false }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const clearFilters = () => {
     setFilters({
       search: "",
@@ -493,6 +535,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
     getNewStudents,
     getStudentStats,
     updateStudentStatus,
+    resetStudentPassword,
     testDatabaseConnection,
   }
 
