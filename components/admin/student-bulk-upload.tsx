@@ -1,18 +1,18 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { Upload, FileSpreadsheet, FileText, X, CheckCircle, AlertCircle, Download, Eye, Trash2 } from "lucide-react"
+import { Upload, FileSpreadsheet, FileText, X, AlertCircle, Download, Eye } from "lucide-react"
 import * as XLSX from "xlsx"
 import Papa from "papaparse"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -111,7 +111,7 @@ const FIELD_MAPPING = {
   'Blood Group': 'bloodGroup'
 }
 
-export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProps) {
+export function StudentBulkUpload({ onSuccess, onCancel: _onCancel }: StudentBulkUploadProps) {
   const { enrollStudent, isLoading } = useStudentEnrollment()
   const { addNotification } = useNotifications()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -129,12 +129,12 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
   const [processingStatus, setProcessingStatus] = useState<string>('')
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('File select event triggered:', event)
+
     event.preventDefault() // Prevent any form submission
     const selectedFile = event.target.files?.[0]
-    console.log('Selected file:', selectedFile)
+
     if (!selectedFile) {
-      console.log('No file selected')
+
       return
     }
 
@@ -182,7 +182,7 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
             header: true,
             skipEmptyLines: true,
             complete: (results) => {
-              console.log('CSV parsing results:', results)
+
               data = results.data as any[]
               processParsedData(data)
             },
@@ -201,7 +201,7 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
           const sheetName = workbook.SheetNames[0]
           const worksheet = workbook.Sheets[sheetName]
           data = XLSX.utils.sheet_to_json(worksheet)
-          console.log('Excel parsing results:', data)
+
           processParsedData(data)
         }
       } catch (error) {
@@ -218,7 +218,7 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
   }
 
   const processParsedData = (data: any[]) => {
-    console.log('Processing data:', data)
+
     const processedData: StudentUploadData[] = []
     const errors: ValidationError[] = []
 
@@ -227,7 +227,7 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
       return Object.values(row).some(value => value && value.toString().trim() !== '')
     })
 
-    console.log('Valid rows after filtering:', validRows)
+
 
     validRows.forEach((row, index) => {
       const processedRow: any = {}
@@ -240,7 +240,7 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
         }
       })
 
-      console.log('Processed row:', processedRow)
+
 
       // Validate required fields
       REQUIRED_FIELDS.forEach(field => {
@@ -303,8 +303,8 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
       processedData.push(processedRow as StudentUploadData)
     })
 
-    console.log('Final processed data:', processedData)
-    console.log('Validation errors:', errors)
+
+
 
     setParsedData(processedData)
     setValidationErrors(errors)
@@ -349,7 +349,7 @@ export function StudentBulkUpload({ onSuccess, onCancel }: StudentBulkUploadProp
           passportPhoto: false
         }
 
-        console.log('Enrolling student:', enrollmentData)
+
         const result = await enrollStudent(enrollmentData)
         results.push(result)
         

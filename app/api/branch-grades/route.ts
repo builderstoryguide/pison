@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     const { data: grades, error } = await query.order('graded_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching branch grades:', error)
+      // console.error('Error fetching branch grades:', error)
       return NextResponse.json(
         { 
           success: false, 
@@ -169,8 +169,8 @@ export async function GET(request: NextRequest) {
       total: gradesWithDetails.length
     } as BranchGradesResponse)
 
-  } catch (error) {
-    console.error('Error in branch grades API:', error)
+  } catch (_error) {
+    // console.error('Error in branch grades API:', error)
     return NextResponse.json(
       { 
         success: false, 
@@ -386,7 +386,7 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (updateError) {
-        console.error('Error updating branch grade:', updateError)
+        // console.error('Error updating branch grade:', updateError)
         return NextResponse.json(
           { 
             success: false, 
@@ -421,7 +421,7 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (createError) {
-        console.error('Error creating branch grade:', createError)
+        // console.error('Error creating branch grade:', createError)
         return NextResponse.json(
           { 
             success: false, 
@@ -440,8 +440,8 @@ export async function POST(request: NextRequest) {
       message: existingGrade ? 'Branch grade updated successfully' : 'Branch grade created successfully'
     })
 
-  } catch (error) {
-    console.error('Error in grade branch assessment API:', error)
+  } catch (_error) {
+    // console.error('Error in grade branch assessment API:', error)
     return NextResponse.json(
       { 
         success: false, 

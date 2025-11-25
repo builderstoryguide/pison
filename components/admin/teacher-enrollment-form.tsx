@@ -80,7 +80,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
 
   // Load subjects from subject management on mount
   useEffect(() => {
-    console.log('Teacher form: Loading subjects with is_active filter')
+    // console.log('Teacher form: Loading subjects with is_active filter')
     loadSubjects({ is_active: true })
   }, [loadSubjects])
 
@@ -91,31 +91,29 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
 
   // Debug logging
   useEffect(() => {
-    console.log('Teacher form: Subjects state:', {
-      allSubjectsCount: allSubjects.length,
-      availableSubjectsCount: availableSubjects.length,
-      subjectsLoading,
-      subjectsError: allSubjects.find(s => !s.is_active) ? 'Found inactive subjects' : null
-    })
+    // console.log('Teacher form: Subjects state:', {
+    //   allSubjectsCount: allSubjects.length,
+    //   availableSubjectsCount: availableSubjects.length,
+    //   subjectsLoading,
+    //   subjectsError: allSubjects.find(s => !s.is_active) ? 'Found inactive subjects' : null
   }, [allSubjects, availableSubjects, subjectsLoading])
 
-  const updateFormData = (field: string, value: any) => {
+  const updateFormData = (field: string, value: unknown) => {
     // Special handling for phone numbers
     if (field === "phone" || field === "emergencyContact.phone") {
       // Ensure phone number starts with +237 6 for Cameroon
-      let formattedPhone = value
-      if (!formattedPhone.startsWith("+237 6")) {
-        formattedPhone = "+237 6"
+      const phoneValue = value as string
+      let formattedPhone = phoneValue
+      if (phoneValue && !phoneValue.startsWith("+237")) {
+        formattedPhone = `+237 ${phoneValue.replace(/\D/g, '')}`
       }
-      // Remove any invalid characters and ensure proper format
-      formattedPhone = formattedPhone.replace(/[^0-9\s\+\-\(\)]/g, "")
       
-    if (field.includes(".")) {
+      if (field.includes(".")) {
         const [parent, child] = field.split(".")
         setFormData((prev) => ({
           ...prev,
           [parent]: {
-            ...(prev[parent as keyof typeof prev] as any),
+            ...(prev[parent as keyof typeof prev] as Record<string, unknown>),
             [child]: formattedPhone,
           },
         }))
@@ -127,7 +125,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
       setFormData((prev) => ({
         ...prev,
         [parent]: {
-          ...(prev[parent as keyof typeof prev] as any),
+          ...(prev[parent as keyof typeof prev] as Record<string, unknown>),
           [child]: value,
         },
       }))
@@ -175,7 +173,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
   // Helper function to format phone number for database
   const formatPhoneForDatabase = (phone: string): string => {
     // Remove all non-numeric characters except + and spaces
-    let formatted = phone.replace(/[^0-9\s\+]/g, "")
+    let formatted = phone.replace(/[^0-9\s+]/g, "")
     
     // Ensure it starts with +237
     if (!formatted.startsWith("+237")) {
@@ -236,12 +234,12 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
   }
 
   const handleSubmit = async () => {
-    console.log("🚀 Starting form submission...")
-    console.log("📋 Current step:", currentStep)
-    console.log("✅ Step validation:", validateStep(currentStep))
+    // console.log("🚀 Starting form submission...")
+    // console.log("📋 Current step:", currentStep)
+    // console.log("✅ Step validation:", validateStep(currentStep))
     
     if (!validateStep(currentStep)) {
-      console.log("❌ Step validation failed")
+      // console.log("❌ Step validation failed")
       toastError("Form validation failed", {
         description: "Please fill in all required fields before proceeding."
       })
@@ -257,7 +255,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
     })
 
     try {
-      console.log("📤 Submitting teacher data...")
+      // console.log("📤 Submitting teacher data...")
       
       // Format phone numbers for database submission
       const formattedFormData = {
@@ -269,13 +267,13 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
         }
       }
       
-      console.log("📊 Original form data:", formData)
-      console.log("📊 Formatted form data:", formattedFormData)
+      // console.log("📊 Original form data:", formData)
+      // console.log("📊 Formatted form data:", formattedFormData)
       
       const result = await addTeacher(formattedFormData)
-      console.log("✅ Teacher added successfully with ID:", result.teacherId)
-      console.log("🔑 Password received:", result.password)
-      console.log("📊 Full result:", result)
+      // console.log("✅ Teacher added successfully with ID:", result.teacherId)
+      // console.log("🔑 Password received:", result.password)
+      // console.log("📊 Full result:", result)
       
       // Show success toast
       toastSuccess("Teacher enrolled successfully!", {
@@ -288,7 +286,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
         password: result.password
       })
     } catch (err) {
-      console.error("❌ Error in form submission:", err)
+      // console.error("❌ Error in form submission:", err)
       const errorMessage = err instanceof Error ? err.message : 
         typeof err === 'string' ? err : 
         err && typeof err === 'object' && 'message' in err ? String(err.message) :
@@ -300,7 +298,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
       })
       
       setError(errorMessage)
-      console.error("Error enrolling teacher:", err)
+      // console.error("Error enrolling teacher:", err)
     } finally {
       setIsSubmitting(false)
     }
@@ -542,7 +540,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
           </div>
         )
 
-      case 4:
+      case 4: {
         // Filter classes from class management system based on subsystem (if selected)
         const availableClasses = allClasses
           .filter(cls => 
@@ -771,6 +769,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
           </div>
         )
 
+      }
       default:
         return null
     }

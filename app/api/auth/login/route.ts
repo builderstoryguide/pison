@@ -21,10 +21,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Helper function to check if error is a "not found" error
-    const isNotFoundError = (error: any) => {
-      return error?.code === 'PGRST116' || 
-             error?.message?.includes('The result contains 0 rows') ||
-             error?.message?.includes('Cannot coerce the result to a single JSON object');
+    // Helper function to check if error is a "not found" error
+    const isNotFoundError = (error: unknown) => {
+      const err = error as any;
+      return err?.code === 'PGRST116' || 
+             err?.message?.includes('The result contains 0 rows') ||
+             err?.message?.includes('Cannot coerce the result to a single JSON object');
     };
 
     // Helper function to query user by email
@@ -106,16 +108,17 @@ export async function POST(request: NextRequest) {
     // Query based on role and identifier type
     switch (role) {
       case 'admin':
-      case 'bursar':
+      case 'bursar': {
         // For admin/bursar, identifier should be email
         const adminResult = await queryUserByEmail(identifier, role);
         user = adminResult.data;
         userError = adminResult.error;
         break;
+      }
 
       case 'teacher':
       case 'student':
-      case 'parent':
+      case 'parent': {
         // For teachers/students/parents, identifier can be email or role-specific ID
         // First try email
         const emailResult = await queryUserByEmail(identifier, role);
@@ -129,6 +132,7 @@ export async function POST(request: NextRequest) {
           userError = roleIdResult.error;
         }
         break;
+      }
 
       default:
         return NextResponse.json(
@@ -139,7 +143,7 @@ export async function POST(request: NextRequest) {
 
     // If there's a real error (not a "not found" error), return it
     if (userError) {
-      console.error('Error querying user:', userError);
+      // console.error('Error querying user:', userError);
       return NextResponse.json(
         { error: 'Internal server error' },
         { status: 500 }
@@ -165,7 +169,7 @@ export async function POST(request: NextRequest) {
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
-      console.error('Invalid password for user:', user.email);
+      // console.error('Invalid password for user:', user.email);
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
@@ -215,8 +219,8 @@ export async function POST(request: NextRequest) {
         p_ip_address: request.headers.get('x-forwarded-for') || '',
         p_user_agent: request.headers.get('user-agent')
       });
-    } catch (logError) {
-      console.error('Failed to log login activity:', logError);
+    } catch (_logError) {
+      // console.error('Failed to log login activity:', logError);
       // Don't fail the login if logging fails
     }
 
@@ -226,8 +230,8 @@ export async function POST(request: NextRequest) {
       message: 'Login successful'
     });
 
-  } catch (error) {
-    console.error('Login error:', error);
+  } catch (_error) {
+    // console.error('Login error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

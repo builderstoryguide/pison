@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from 'react'
-import { Plus, Search, Filter, MoreHorizontal, Edit, Trash2, UserX, UserCheck, RotateCcw, Eye, Download, Users, UserPlus, Activity, RefreshCw, AlertCircle, Users2, CheckSquare, Square, Trash2 as TrashIcon } from 'lucide-react'
+import { Plus, Search, MoreHorizontal, Edit, Trash2, UserX, UserCheck, RotateCcw, Eye, Download, Users, UserPlus, Activity, RefreshCw, AlertCircle, Users2, Trash2 as TrashIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -65,7 +65,7 @@ import { DynamicUserForm } from './dynamic-user-form'
 import { EditUserForm } from './edit-user-form'
 import { UserDetailsDialog } from './user-details-dialog'
 import { ActivityLogsView } from './activity-logs-view'
-import { ShimmerDataTable, ShimmerList } from '@/components/ui/shimmer-loading'
+import { ShimmerDataTable } from '@/components/ui/shimmer-loading'
 
 const roleColors = {
   admin: 'bg-red-100 text-red-800',

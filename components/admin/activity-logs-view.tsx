@@ -130,6 +130,7 @@ export function ActivityLogsView() {
             <div className="text-2xl font-bold">{activityLogs.length}</div>
             <p className="text-xs text-muted-foreground">
               All recorded activities
+              <span className="text-muted-foreground">No specific details recorded for this activity.</span>
             </p>
           </CardContent>
         </Card>

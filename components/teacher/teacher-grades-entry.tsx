@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
-import { apiCall } from "@/lib/utils/api-client"
+// import { apiCall } from "@/lib/utils/api-client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -85,7 +85,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [loadingSubjects, setLoadingSubjects] = useState(false)
-  const [loadingClasses, setLoadingClasses] = useState(false)
+  const [_loadingClasses, setLoadingClasses] = useState(false)
   const [selectedSubjectCoefficient, setSelectedSubjectCoefficient] = useState<number>(1.0)
   
   // Static examination sequences
@@ -101,16 +101,16 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
   // Auto-select class if pre-selected from dashboard
   useEffect(() => {
     if (preSelectedClassId && classes.length > 0 && !selectedClass) {
-      console.log(`[Teacher Grades] Auto-selecting pre-selected class: ${preSelectedClassId}`)
+      // console.log(`[Teacher Grades] Auto-selecting pre-selected class: ${preSelectedClassId}`)
       setSelectedClass(preSelectedClassId)
     }
-  }, [preSelectedClassId, classes]) // Removed selectedClass from deps to prevent infinite loop
+  }, [preSelectedClassId, classes, selectedClass])
 
   // Fetch teacher's classes with comprehensive error handling and retry logic
   useEffect(() => {
     // PERMANENT FIX: If class is pre-selected from dashboard, skip the expensive fetch
     if (preSelectedClassId) {
-      console.log('[Teacher Grades] Class pre-selected, skipping full class fetch for instant load')
+      // console.log('[Teacher Grades] Class pre-selected, skipping full class fetch for instant load')
       setClasses([{
         id: parseInt(preSelectedClassId),
         name: 'Selected Class', // Will be populated when students load
@@ -140,7 +140,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
       for (let i = 0; i < endpoints.length; i++) {
         const endpoint = endpoints[i]
         try {
-          console.log(`[Teacher Grades] Attempting to fetch classes from endpoint ${i + 1}/${endpoints.length}: ${endpoint}`)
+          // console.log(`[Teacher Grades] Attempting to fetch classes from endpoint ${i + 1}/${endpoints.length}: ${endpoint}`)
           
           // Use progressively longer timeouts for each endpoint attempt
           const timeout = i === 0 ? 30000 : i === 1 ? 45000 : 60000
@@ -180,7 +180,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
             
             // If it's a 404 on lightweight endpoint, try next endpoint
             if (response.status === 404 && i < endpoints.length - 1) {
-              console.warn(`[Teacher Grades] Endpoint ${i + 1} returned 404, trying next endpoint...`)
+              // console.warn(`[Teacher Grades] Endpoint ${i + 1} returned 404, trying next endpoint...`)
               lastError = new Error(errorMessage)
               continue
             }
@@ -195,13 +195,13 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
           }
 
           classesData = data.classes || []
-          console.log(`[Teacher Grades] Successfully fetched ${classesData.length} classes from endpoint ${i + 1}${data.timing ? ` (${data.timing.totalMs}ms)` : ''}`)
+          // console.log(`[Teacher Grades] Successfully fetched ${classesData.length} classes from endpoint ${i + 1}${data.timing ? ` (${data.timing.totalMs}ms)` : ''}`)
 
           // Success - break out of loop
           break
       } catch (err) {
           lastError = err instanceof Error ? err : new Error(String(err))
-          console.error(`[Teacher Grades] Endpoint ${i + 1} failed:`, lastError.message)
+          // console.error(`[Teacher Grades] Endpoint ${i + 1} failed:`, lastError.message)
 
           // If this is the last endpoint, we'll show error below
           if (i === endpoints.length - 1) {
@@ -209,7 +209,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
           }
 
           // Try next endpoint
-          console.log(`[Teacher Grades] Trying next endpoint...`)
+          // console.log(`[Teacher Grades] Trying next endpoint...`)
         }
       }
 
@@ -221,22 +221,22 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
         const error = lastError
 
         if (error.message.includes('timeout') || error.message.includes('timed out')) {
-          console.error('[Teacher Grades] All endpoints timed out:', error)
+          // console.error('[Teacher Grades] All endpoints timed out:', error)
         toast({
             title: "Request Timeout",
             description: "The server is taking longer than expected to respond. This could be due to:\n\n• Database performance issues\n• Missing database indexes\n• Large amount of data to process\n\nPlease check the server logs for detailed timing information, or contact support if this persists.",
             variant: "destructive",
-            duration: 15000
+            // duration: 15000
           })
         } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-          console.error('[Teacher Grades] Network error:', error)
+          // console.error('[Teacher Grades] Network error:', error)
           toast({
             title: "Network Error",
             description: "Unable to connect to the server. Please check your internet connection and try again.",
             variant: "destructive"
           })
         } else {
-          console.error('[Teacher Grades] Error fetching classes:', error)
+          // console.error('[Teacher Grades] Error fetching classes:', error)
           toast({
             title: "Error Loading Classes",
             description: error.message || "Failed to load classes. Please refresh the page or contact support if the issue persists.",
@@ -299,12 +299,12 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
           }
           
           const errorMessage = errorData.error || 'Failed to fetch subjects'
-          console.error('Error fetching subjects:', {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorData,
-            classId: selectedClass
-          })
+          // console.error('Error fetching subjects:', {
+          //   status: response.status,
+          //   statusText: response.statusText,
+          //   error: errorData,
+          //   classId: selectedClass
+          // })
           
           // If API fails, try to use subjects from already-fetched classes data as fallback
           const fallbackClass = classes.find(c => {
@@ -313,12 +313,12 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
           })
           
           if (fallbackClass?.subjects && fallbackClass.subjects.length > 0) {
-            console.log('Using fallback subjects from classes data')
-            const transformedSubjects: Subject[] = fallbackClass.subjects.map((subject: any) => ({
-              id: typeof subject.id === 'number' ? subject.id : parseInt(subject.id) || 0,
+            // console.log('Using fallback subjects from classes data')
+            const transformedSubjects: Subject[] = fallbackClass.subjects.map((subject: { id: number | string, name?: string, subject_name?: string, code?: string, subject_code?: string, coefficient?: number | string }) => ({
+              id: typeof subject.id === 'number' ? subject.id : parseInt(String(subject.id)) || 0,
               name: subject.name || subject.subject_name || 'Unknown Subject',
               code: subject.code || subject.subject_code || '',
-              coefficient: subject.coefficient ? parseFloat(subject.coefficient) : 1.0
+              coefficient: subject.coefficient ? (typeof subject.coefficient === 'number' ? subject.coefficient : parseFloat(String(subject.coefficient))) : 1.0
             }))
             setAvailableSubjects(transformedSubjects)
           } else {
@@ -344,12 +344,12 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
           })
           
           if (fallbackClass?.subjects && fallbackClass.subjects.length > 0) {
-            console.log('No subjects from API, using fallback from classes data')
-            const transformedSubjects: Subject[] = fallbackClass.subjects.map((subject: any) => ({
-              id: typeof subject.id === 'number' ? subject.id : parseInt(subject.id) || 0,
+            // console.log('No subjects from API, using fallback from classes data')
+            const transformedSubjects: Subject[] = fallbackClass.subjects.map((subject: { id: number | string, name?: string, subject_name?: string, code?: string, subject_code?: string, coefficient?: number | string }) => ({
+              id: typeof subject.id === 'number' ? subject.id : parseInt(String(subject.id)) || 0,
               name: subject.name || subject.subject_name || 'Unknown Subject',
               code: subject.code || subject.subject_code || '',
-              coefficient: subject.coefficient ? parseFloat(subject.coefficient) : 1.0
+              coefficient: subject.coefficient ? (typeof subject.coefficient === 'number' ? subject.coefficient : parseFloat(String(subject.coefficient))) : 1.0
             }))
             setAvailableSubjects(transformedSubjects)
             setSelectedSubject("")
@@ -360,12 +360,12 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
         
         // Transform to match our Subject interface
         const transformedSubjects: Subject[] = subjectsList
-          .filter((subject: any) => subject.id) // Filter out subjects without IDs
-          .map((subject: any) => ({
-            id: typeof subject.id === 'number' ? subject.id : parseInt(subject.id) || 0,
+          .filter((subject: { id: number }) => subject.id) // Filter out subjects without IDs
+          .map((subject: { id: number | string, name?: string, subject_name?: string, code?: string, subject_code?: string, coefficient?: number | string }) => ({
+            id: typeof subject.id === 'number' ? subject.id : parseInt(String(subject.id)) || 0,
             name: subject.name || subject.subject_name || 'Unknown Subject',
             code: subject.code || subject.subject_code || '',
-            coefficient: subject.coefficient ? parseFloat(subject.coefficient) : 1.0
+            coefficient: subject.coefficient ? (typeof subject.coefficient === 'number' ? subject.coefficient : parseFloat(String(subject.coefficient))) : 1.0
           }))
         
         setAvailableSubjects(transformedSubjects)
@@ -374,7 +374,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
         setSelectedSubject("")
         setSelectedSubjectCoefficient(1.0)
       } catch (err) {
-        console.error('Error fetching subjects:', err)
+        // console.error('Error fetching subjects:', err)
         const errorMessage = err instanceof Error ? err.message : "Failed to load subjects"
         
         // Last resort: try to use subjects from classes data
@@ -384,12 +384,12 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
         })
         
         if (fallbackClass?.subjects && fallbackClass.subjects.length > 0) {
-          console.log('Error occurred, using fallback subjects from classes data')
-          const transformedSubjects: Subject[] = fallbackClass.subjects.map((subject: any) => ({
-            id: typeof subject.id === 'number' ? subject.id : parseInt(subject.id) || 0,
+          // console.log('Error occurred, using fallback subjects from classes data')
+          const transformedSubjects: Subject[] = fallbackClass.subjects.map((subject: { id: number | string, name?: string, subject_name?: string, code?: string, subject_code?: string, coefficient?: number | string }) => ({
+            id: typeof subject.id === 'number' ? subject.id : parseInt(String(subject.id)) || 0,
             name: subject.name || subject.subject_name || 'Unknown Subject',
             code: subject.code || subject.subject_code || '',
-            coefficient: subject.coefficient ? parseFloat(subject.coefficient) : 1.0
+            coefficient: subject.coefficient ? (typeof subject.coefficient === 'number' ? subject.coefficient : parseFloat(String(subject.coefficient))) : 1.0
           }))
           setAvailableSubjects(transformedSubjects)
         } else {
@@ -406,7 +406,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
     }
 
     fetchSubjects()
-  }, [selectedClass])
+  }, [selectedClass, classes, toast])
 
   // Helper function to calculate grade based on mark (0-20)
   const calculateGrade = (mark: number): string => {
@@ -516,15 +516,16 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
             })
           }
           
-          return updatedGrades
+      return updatedGrades
         })
-      } catch (err) {
-        console.error('Error fetching subject coefficient:', err)
+      } catch (_err) {
+        // console.error('Error fetching subject coefficient:', err)
         setSelectedSubjectCoefficient(1.0)
       }
     }
 
     fetchSubjectCoefficient()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSubject, availableSubjects])
 
   // Fetch students when class is selected
@@ -542,12 +543,12 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
           const errorMessage = errorData.error || errorData.details || 'Failed to fetch students'
-          console.error('Error fetching students:', {
-            status: response.status,
-            statusText: response.statusText,
-            error: errorData,
-            classId: selectedClass
-          })
+          // console.error('Error fetching students:', {
+          //   status: response.status,
+          //   statusText: response.statusText,
+          //   error: errorData,
+          //   classId: selectedClass
+          // })
           throw new Error(errorMessage)
         }
         
@@ -575,7 +576,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
         })
         setGrades(initialGrades)
       } catch (err) {
-        console.error('Error fetching students:', err)
+        // console.error('Error fetching students:', err)
         const errorMessage = err instanceof Error ? err.message : "Failed to load students"
         toast({
           title: "Error",
@@ -588,13 +589,13 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
     }
 
     fetchStudents()
-  }, [selectedClass])
+  }, [selectedClass, selectedSubjectCoefficient, toast])
 
-  const handleGradeChange = (studentId: number, field: 'mark', value: string) => {
+  const handleGradeChange = (studentId: number, _field: 'mark', value: string) => {
     const numValue = value === '' ? '' : parseFloat(value)
     
     // Validate mark is between 0 and 20
-    if (value !== '' && (isNaN(numValue as number) || numValue < 0 || numValue > 20)) {
+    if (value !== '' && (isNaN(numValue as number) || (numValue as number) < 0 || (numValue as number) > 20)) {
       return
     }
 
@@ -735,7 +736,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
       // Clear grades after successful submission
       handleClearAll()
     } catch (err) {
-      console.error('Error submitting grades:', err)
+      // console.error('Error submitting grades:', err)
       toast({
         title: "Error",
         description: err instanceof Error ? err.message : "Failed to submit grades",

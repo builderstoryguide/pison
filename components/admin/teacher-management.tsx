@@ -1,12 +1,12 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Download, AlertCircle } from "lucide-react"
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
@@ -30,7 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useTeacherManagement } from "@/lib/teacher-management-context"
-import { useUserManagement } from "@/lib/user-management-context"
+
 import { useToast } from "@/hooks/use-toast"
 import { TeacherEnrollmentForm } from "./teacher-enrollment-form"
 import { TeacherEnrollmentSuccessDialog } from "./teacher-enrollment-success-dialog"
@@ -39,8 +39,7 @@ import { TeacherExportForm } from "./teacher-export-form"
 
 export function TeacherManagement() {
   const { teachers, isLoading, deleteTeacher } = useTeacherManagement()
-  const { users, createUser } = useUserManagement()
-  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast()
  
 
   const [searchTerm, setSearchTerm] = useState("")
@@ -86,8 +85,8 @@ export function TeacherManagement() {
           
           setSubjectCodeMap(codeMap)
         }
-      } catch (err) {
-        console.error('Error fetching subjects for code mapping:', err)
+      } catch (_err) {
+        // Ignore error
       }
     }
     
@@ -99,10 +98,7 @@ export function TeacherManagement() {
     return subjectCodeMap.get(subjectName) || subjectName.substring(0, 4).toUpperCase()
   }
 
-  // Debug effect for teacher enrollment success - placed after all state declarations
-  React.useEffect(() => {
-    console.log("🎯 Teacher enrollment success state changed:", teacherEnrollmentSuccess)
-  }, [teacherEnrollmentSuccess])
+
 
   // Filter teachers based on search term and filters
   const filteredTeachers = teachers.filter((teacher) => {
@@ -125,7 +121,7 @@ export function TeacherManagement() {
     userAccountCreated?: boolean;
     userAccountError?: string;
   }) => {
-    console.log("🎉 Teacher enrollment success handler called with:", result)
+
     
     // The API route now handles user account creation, so we don't need to create it again
     // The API returns userAccountCreated and userAccountError to indicate the status
@@ -205,8 +201,8 @@ export function TeacherManagement() {
       
       // Force a re-render by updating the refresh key
       setRefreshKey(prev => prev + 1)
-    } catch (error) {
-      console.error("❌ Error deleting teacher:", error)
+    } catch (_error) {
+
       toastError("Failed to delete teacher", {
         description: "Please try again or contact support if the problem persists."
       })

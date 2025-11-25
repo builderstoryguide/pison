@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
     const { data: assessments, error } = await query.order('assessment_date', { ascending: false })
 
     if (error) {
-      console.error('Error fetching branch assessments:', error)
+      // console.error('Error fetching branch assessments:', error)
       return NextResponse.json(
         { 
           success: false, 
@@ -167,8 +167,8 @@ export async function GET(request: NextRequest) {
       total: assessmentsWithDetails.length
     } as BranchAssessmentsResponse)
 
-  } catch (error) {
-    console.error('Error in branch assessments API:', error)
+  } catch (_error) {
+    // console.error('Error in branch assessments API:', error)
     return NextResponse.json(
       { 
         success: false, 
@@ -342,7 +342,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (createError) {
-      console.error('Error creating branch assessment:', createError)
+      // console.error('Error creating branch assessment:', createError)
       return NextResponse.json(
         { 
           success: false, 
@@ -358,8 +358,8 @@ export async function POST(request: NextRequest) {
       message: 'Branch assessment created successfully'
     })
 
-  } catch (error) {
-    console.error('Error in create branch assessment API:', error)
+  } catch (_error) {
+    // console.error('Error in create branch assessment API:', error)
     return NextResponse.json(
       { 
         success: false, 

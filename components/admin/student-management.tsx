@@ -16,10 +16,6 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  CheckSquare,
-  Square,
   RotateCcw,
 } from "lucide-react"
 
@@ -30,7 +26,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+
 import { UserAvatar } from "@/components/ui/user-avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -46,7 +42,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
 import { useStudentManagement, type Student, type StudentFilters } from "@/lib/student-management-context"
@@ -95,7 +90,7 @@ export function StudentManagement() {
     testDatabaseConnection,
   } = useStudentManagement()
 
-  const { users } = useUserManagement()
+  const { users: _users } = useUserManagement()
   const { success, error: showError } = useToast()
 
   const [showEnrollmentForm, setShowEnrollmentForm] = useState(false)
@@ -232,7 +227,7 @@ export function StudentManagement() {
       } else {
         showError("Failed to delete student", "There was an error deleting the student. Please try again.")
       }
-    } catch (err) {
+    } catch (_err) {
       showError("Error deleting student", "An unexpected error occurred while deleting the student.")
     } finally {
       setStudentToDelete(null)
@@ -314,7 +309,7 @@ export function StudentManagement() {
       } else {
         showError("Bulk delete failed", result.errors.join(", "))
       }
-    } catch (err) {
+    } catch (_err) {
       showError("Error during bulk delete", "An unexpected error occurred while deleting the students.")
     } finally {
       setIsBulkDeleting(false)
@@ -422,7 +417,7 @@ export function StudentManagement() {
 
   useEffect(() => {
     testDatabaseConnection()
-  }, [])
+  }, [testDatabaseConnection])
 
   // Global keyboard shortcut for search
   useEffect(() => {
@@ -485,7 +480,7 @@ export function StudentManagement() {
             <CardDescription>View and manage all students in the system</CardDescription>
           </CardHeader>
           <CardContent>
-            <ShimmerDataTable rows={10} columns={8} />
+            <ShimmerDataTable />
           </CardContent>
         </Card>
       </div>
@@ -829,7 +824,7 @@ export function StudentManagement() {
                 {tabStudents.length} student{tabStudents.length !== 1 ? "s" : ""} found
                 {filters.search && (
                   <span className="ml-2 text-blue-600">
-                    • Searching for "{filters.search}"
+                    • Searching for &quot;{filters.search}&quot;
                   </span>
                 )}
               </CardDescription>
@@ -885,7 +880,7 @@ export function StudentManagement() {
                   <p className="font-medium mb-1">Active Filters:</p>
                   <div className="flex flex-wrap gap-2">
                     {filters.search && (
-                      <Badge variant="secondary">Search: "{filters.search}"</Badge>
+                      <Badge variant="secondary">Search: &quot;{filters.search}&quot;</Badge>
                     )}
                     {filters.subsystem !== "all" && (
                       <Badge variant="secondary">System: {filters.subsystem}</Badge>

@@ -6,7 +6,7 @@ import { requireRole } from '@/lib/auth/server'
 interface ApiError {
   code: string
   message: string
-  details?: any
+  details?: unknown
   timestamp: string
 }
 
@@ -66,7 +66,7 @@ export async function GET(_request: NextRequest) {
       if (error) {
         // Handle specific database errors
         if (error.code === 'PGRST116' || error.message.includes('relation "app_configuration" does not exist')) {
-          console.log('Configuration table does not exist, returning default configuration')
+          // console.log('Configuration table does not exist, returning default configuration')
           return NextResponse.json({
             success: true,
             configuration: getDefaultConfiguration(),
@@ -77,7 +77,7 @@ export async function GET(_request: NextRequest) {
         }
         
         if (error.code === 'PGRST301') {
-          console.log('No configuration found, returning default configuration')
+          // console.log('No configuration found, returning default configuration')
           return NextResponse.json({
             success: true,
             configuration: getDefaultConfiguration(),
@@ -99,8 +99,8 @@ export async function GET(_request: NextRequest) {
           responseTime: Date.now() - startTime
         })
       }
-    } catch (dbError) {
-      console.warn('Database fetch failed, using default configuration:', dbError)
+    } catch (_dbError) {
+      // console.warn('Database fetch failed, using default configuration:', dbError)
     }
 
     // Strategy 3: Return default configuration
@@ -113,7 +113,7 @@ export async function GET(_request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Unexpected error in GET /api/configuration-v2:', error)
+    // console.error('Unexpected error in GET /api/configuration-v2:', error)
     
     return createErrorResponse({
       code: 'UNEXPECTED_ERROR',
@@ -273,7 +273,7 @@ export async function PUT(request: NextRequest) {
           .single()
 
         if (error) {
-          console.error('Error updating configuration:', error)
+          // console.error('Error updating configuration:', error)
           throw error
         }
         if (!data) {
@@ -292,7 +292,7 @@ export async function PUT(request: NextRequest) {
           .single()
 
         if (error) {
-          console.error('Error creating configuration:', error)
+          // console.error('Error creating configuration:', error)
           throw error
         }
         if (!data) {
@@ -313,8 +313,8 @@ export async function PUT(request: NextRequest) {
         responseTime: Date.now() - startTime
       })
 
-    } catch (dbError) {
-      console.error('Database operation failed:', dbError)
+    } catch (_dbError) {
+      // console.error('Database operation failed:', dbError)
       
       // If database operation fails, return the configuration that would have been saved
       const fallbackConfig = {
@@ -339,7 +339,7 @@ export async function PUT(request: NextRequest) {
       return error
     }
     
-    console.error('Unexpected error in PUT /api/configuration-v2:', error)
+    // console.error('Unexpected error in PUT /api/configuration-v2:', error)
     
     return createErrorResponse({
       code: 'UNEXPECTED_ERROR',
@@ -361,7 +361,7 @@ export async function POST(request: NextRequest) {
     let body
     try {
       body = await request.json()
-    } catch (parseError) {
+    } catch (_parseError) {
       return createErrorResponse({
         code: 'INVALID_JSON',
         message: 'Invalid JSON in request body',
@@ -411,8 +411,8 @@ export async function POST(request: NextRequest) {
           responseTime: Date.now() - startTime
         })
 
-      } catch (dbError) {
-        console.error('Database reset failed:', dbError)
+      } catch (_dbError) {
+        // console.error('Database reset failed:', dbError)
         
         return NextResponse.json({
           success: true,
@@ -438,7 +438,7 @@ export async function POST(request: NextRequest) {
       return error
     }
     
-    console.error('Unexpected error in POST /api/configuration-v2:', error)
+    // console.error('Unexpected error in POST /api/configuration-v2:', error)
     
     return createErrorResponse({
       code: 'UNEXPECTED_ERROR',

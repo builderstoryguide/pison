@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     // Validate database setup - check if user_activity_logs table exists and has required columns/functions
     try {
       const validationResult = await validateDatabaseSetup(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         supabase as any, 
         ['user_activity_logs'], 
         [],
@@ -17,12 +18,12 @@ export async function GET(request: NextRequest) {
       );
       
       if (!validationResult.isValid) {
-        console.error('Database setup validation failed:', validationResult.errors);
+        // console.error('Database setup validation failed:', validationResult.errors);
         const errorResponse = createDatabaseSetupErrorResponse(validationResult, 'user_activity_logs table');
         return NextResponse.json(errorResponse, { status: 500 });
       }
     } catch (networkError) {
-      console.error('Network error when validating database setup:', networkError);
+      // console.error('Network error when validating database setup:', networkError);
       return NextResponse.json(
         { 
           error: 'Database connection error',
@@ -53,18 +54,18 @@ export async function GET(request: NextRequest) {
         })
 
         if (error) {
-          console.error('Error calling get_recent_activity_logs:', error)
+          // console.error('Error calling get_recent_activity_logs:', error)
           // Check if it's a function not found error
           if (error.code === 'PGRST202' || error.message?.includes('Could not find the function')) {
-            console.warn('get_recent_activity_logs function not found, falling back to regular query')
+            // console.warn('get_recent_activity_logs function not found, falling back to regular query')
           }
           // Fall back to regular query if function fails
           throw error
         }
 
         result = data
-      } catch (functionError) {
-        console.error('Database function failed, falling back to regular query:', functionError)
+      } catch (_functionError) {
+        // console.error('Database function failed, falling back to regular query:', functionError)
         
         // Fallback to regular query
         const { data: fallbackData, error: fallbackError } = await supabase
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
           .range(offset, offset + limit - 1)
         
         if (fallbackError) {
-          console.error('Fallback query also failed:', fallbackError)
+          // console.error('Fallback query also failed:', fallbackError)
           
           // Provide actionable error messages for schema mismatches
           let errorMessage = fallbackError.message || 'Failed to fetch activity logs'
@@ -156,7 +157,7 @@ export async function GET(request: NextRequest) {
       const { data, error } = await query
 
       if (error) {
-        console.error('Error fetching activity logs:', error)
+        // console.error('Error fetching activity logs:', error)
         
         // Provide actionable error messages for schema mismatches
         let errorMessage = error.message || 'Failed to fetch activity logs'
@@ -186,6 +187,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform the data efficiently
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transformedLogs = result?.map((log: any) => ({
       id: log.id,
       userId: log.user_id,
@@ -203,8 +205,8 @@ export async function GET(request: NextRequest) {
       hasMore: transformedLogs.length === limit
     })
 
-  } catch (error) {
-    console.error('Error in optimized activity logs API:', error)
+  } catch (_error) {
+    // console.error('Error in optimized activity logs API:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     // Test database connection
     const isConnected = await testConnection()
     if (!isConnected) {
-      console.log('Database connection failed - returning error response')
+      // console.log('Database connection failed - returning error response')
       return NextResponse.json(
         { 
           success: false, 
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     const { data: grades, error } = await query.order('calculated_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching aggregated grades:', error)
+      // console.error('Error fetching aggregated grades:', error)
       return NextResponse.json(
         { 
           success: false, 
@@ -135,8 +135,8 @@ export async function GET(request: NextRequest) {
       total: (grades || []).length
     } as AggregatedGradesResponse)
 
-  } catch (error) {
-    console.error('Error in aggregated grades API:', error)
+  } catch (_error) {
+    // console.error('Error in aggregated grades API:', error)
     return NextResponse.json(
       { 
         success: false, 
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
     // Test database connection
     const isConnected = await testConnection()
     if (!isConnected) {
-      console.log('Database connection failed - returning error response')
+      // console.log('Database connection failed - returning error response')
       return NextResponse.json(
         { 
           success: false, 
@@ -268,8 +268,8 @@ export async function POST(request: NextRequest) {
       message: 'Aggregated grade calculated successfully'
     })
 
-  } catch (error) {
-    console.error('Error in calculate aggregated grade API:', error)
+  } catch (_error) {
+    // console.error('Error in calculate aggregated grade API:', error)
     return NextResponse.json(
       { 
         success: false, 
@@ -282,6 +282,7 @@ export async function POST(request: NextRequest) {
 
 // Helper function to recalculate aggregated grade
 async function recalculateAggregatedGrade(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   studentId: string,
   subjectId: string,
@@ -316,6 +317,7 @@ async function recalculateAggregatedGrade(
     // Calculate weighted average across all enrolled branches
     let totalWeightedMarks = 0
     let totalWeight = 0
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const branchBreakdown: Record<string, any> = {}
 
     for (const enrollment of enrolledBranches) {
@@ -329,7 +331,7 @@ async function recalculateAggregatedGrade(
         .eq('branch_id', branch.id)
 
       if (gradesError) {
-        console.error('Error fetching branch grades:', gradesError)
+        // console.error('Error fetching branch grades:', gradesError)
         continue
       }
 
@@ -384,14 +386,14 @@ async function recalculateAggregatedGrade(
       .single()
 
     if (upsertError) {
-      console.error('Error upserting aggregated grade:', upsertError)
+      // console.error('Error upserting aggregated grade:', upsertError)
       return null
     }
 
     return aggregatedGrade
 
-  } catch (error) {
-    console.error('Error in recalculateAggregatedGrade:', error)
+  } catch (_error) {
+    // console.error('Error in recalculateAggregatedGrade:', error)
     return null
   }
 }

@@ -1,6 +1,5 @@
 "use client"
 
-import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { supabase, testConnection } from "./supabase"
 
@@ -159,7 +158,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
       setIsUsingDatabase(dbConnected)
 
       if (!dbConnected) {
-        console.log("⚠️ Database not connected, using mock data")
+
         // Load mock data instead of throwing error
         setStudents(mockStudents)
         return
@@ -169,7 +168,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
       const response = await fetch("/api/students")
       
       if (!response.ok) {
-        console.log("⚠️ Failed to load from API, using mock data")
+
         setStudents(mockStudents)
         return
       }
@@ -213,9 +212,9 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
       }))
 
       setStudents(transformedData)
-      console.log("Loaded students from API:", transformedData.length)
+
     } catch (err) {
-      console.log("⚠️ Error loading students, using mock data:", err)
+
       setStudents(mockStudents)
     } finally {
       setIsLoading(false)
@@ -231,7 +230,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
       const dbConnected = await testConnection()
 
       if (!dbConnected) {
-        console.log("⚠️ Database not connected, updating mock data only")
+
         // Update local state only
         setStudents((prev) =>
           prev.map((student) =>
@@ -243,7 +242,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
 
       // Update in Supabase
       if (!supabase) {
-        console.log("⚠️ Supabase client not available, updating mock data only")
+
         // Update local state only
         setStudents((prev) =>
           prev.map((student) =>
@@ -262,7 +261,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
         .eq("id", id)
 
       if (updateError) {
-        console.log("⚠️ Failed to update in database, updating mock data only:", updateError.message)
+
         // Update local state only
         setStudents((prev) =>
           prev.map((student) =>
@@ -281,7 +280,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
 
       return true
     } catch (err) {
-      console.log("⚠️ Error updating student, updating mock data only:", err)
+
       // Update local state only
       setStudents((prev) =>
         prev.map((student) =>
@@ -302,7 +301,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
 
       // Delete from Supabase
       if (!supabase) {
-        console.log("⚠️ Supabase client not available, deleting mock data only")
+
         // Delete local state only
         setStudents((prev) => prev.filter((student) => student.id !== id))
         return true
@@ -334,7 +333,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
 
       // Delete from Supabase
       if (!supabase) {
-        console.log("⚠️ Supabase client not available, deleting mock data only")
+
         // Delete local state only
         setStudents((prev) => prev.filter((student) => !ids.includes(student.id)))
         return { success: true, deletedCount: ids.length, errors: [] }
@@ -462,7 +461,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
         await loadStudents()
 
         const student = students.find(s => s.id === studentId)
-        console.log(`Password reset for ${student?.first_name} ${student?.last_name}`)
+
         return { success: true, password: result.password }
       } else {
         throw new Error(result.error || 'Failed to reset password')
@@ -493,7 +492,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
     
     // Listen for student creation events from user management
     const handleStudentCreated = () => {
-      console.log('Student created event received, refreshing student data...')
+
       loadStudents() // Force refresh
     }
     
@@ -507,7 +506,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
   // Listen for student enrollment events and refresh the list
   useEffect(() => {
     const handleStudentEnrolled = () => {
-      console.log("Student enrolled event received, refreshing student list...")
+
       loadStudents()
     }
 

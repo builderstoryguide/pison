@@ -10,11 +10,11 @@ import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
+
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
@@ -81,211 +81,172 @@ export function PaymentForm({ onSuccess, onCancel }: PaymentFormProps) {
   const { success: toastSuccess, error: toastError } = useToast()
   const globalAcademicYear = useGlobalAcademicYear()
   const [students, setStudents] = useState<Student[]>([])
-  const [studentFees, setStudentFees] = useState<StudentFee[]>([])
+  const [_studentFees, setStudentFees] = useState<StudentFee[]>([])
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [selectedStudentId, setSelectedStudentId] = useState<string>("")
   const [selectedStudentClassId, setSelectedStudentClassId] = useState<string>("")
   const [availableStudentFees, setAvailableStudentFees] = useState<StudentFee[]>([])
-  const [feeStructuresForClass, setFeeStructuresForClass] = useState<FeeStructure[]>([])
+  const [_feeStructuresForClass, setFeeStructuresForClass] = useState<FeeStructure[]>([])
 
   // Load initial data
   useEffect(() => {
-    loadInitialData()
-  }, [])
+    const loadInitialData = async () => {
+      try {
+        setIsLoadingData(true)
+        
+        // Load students
+        const studentsResponse = await fetch("/api/students")
+        if (studentsResponse.ok) {
+          const studentsData = await studentsResponse.json()
+          setStudents(studentsData)
+        }
+  
+        // Load payment methods
+        const methodsResponse = await fetch("/api/bursar/payment-methods?isActive=true")
+        if (methodsResponse.ok) {
+          const methodsData = await methodsResponse.json()
+          setPaymentMethods(methodsData)
+        }
+      } catch (_error) {
 
-  const loadInitialData = async () => {
-    try {
-      setIsLoadingData(true)
-      
-      // Load students
-      const studentsResponse = await fetch("/api/students")
-      if (studentsResponse.ok) {
-        const studentsData = await studentsResponse.json()
-        setStudents(studentsData)
+        toastError("Failed to load form data")
+      } finally {
+        setIsLoadingData(false)
       }
-
-      // Load payment methods
-      const methodsResponse = await fetch("/api/bursar/payment-methods?isActive=true")
-      if (methodsResponse.ok) {
-        const methodsData = await methodsResponse.json()
-        setPaymentMethods(methodsData)
-      }
-    } catch (error) {
-      console.error("Error loading initial data:", error)
-      toastError("Failed to load form data")
-    } finally {
-      setIsLoadingData(false)
     }
-  }
+
+    loadInitialData()
+  }, [toastError])
 
   // Load student fees and fee structures when student is selected
   useEffect(() => {
+    const loadStudentFeesAndFeeStructures = async (studentId: string, classId: string) => {
+      try {
+        // Validate studentId
+        if (!studentId) {
+
+          setAvailableStudentFees([])
+          return
+        }
+  
+        
+        // Load student fees for this student
+        let feesResponse: Response
+        try {
+          feesResponse = await fetch(`/api/bursar/student-fees?studentId=${studentId}`)
+        } catch (fetchError) {
+          // Network error or fetch failed
+
+          throw new Error(`Network error: ${fetchError instanceof Error ? fetchError.message : 'Failed to connect to server'}`)
+        }
+        
+        if (!feesResponse.ok) {
+          // Try to get error message from response
+          let errorMessage = `HTTP ${feesResponse.status}: ${feesResponse.statusText}`
+          try {
+            const errorData = await feesResponse.json()
+            // Handle new API response format: { success: false, error: "...", details: "..." }
+            if (errorData.success === false) {
+              errorMessage = errorData.error || errorMessage
+            } else {
+              errorMessage = errorData.error || errorMessage
+            }
+          } catch (_parseError) {
+            // Response is not JSON, use status text
+
+          }
+          // Log error details (use console.warn to avoid triggering error boundaries)
+
+          throw new Error(errorMessage)
+        }
+        
+        // let feesData: any
+        let feesData: StudentFee[] | null = null
+        try {
+          const responseData = await feesResponse.json()
+          // Handle new API response format: { success: true, data: [...] }
+          feesData = responseData.success ? responseData.data : responseData
+        } catch (_parseError) {
+
+          throw new Error("Invalid response format from server")
+        }
+        
+
+        setStudentFees(feesData || [])
+  
+        // If no class ID, show all student fees (fallback behavior)
+        if (!classId) {
+
+          setAvailableStudentFees(feesData || [])
+          setFeeStructuresForClass([])
+          return
+        }
+  
+        // Load fee structures assigned to this class
+        let feeStructuresResponse: Response
+        try {
+          feeStructuresResponse = await fetch(`/api/bursar/fee-structures?classId=${classId}&isActive=true`)
+        } catch (_fetchError) {
+          // Network error, but continue with all student fees as fallback
+
+          setAvailableStudentFees(feesData || [])
+          setFeeStructuresForClass([])
+          return
+        }
+        
+        if (!feeStructuresResponse.ok) {
+          // If fee structures can't be loaded, show all student fees as fallback
+
+
+          setAvailableStudentFees(feesData || [])
+          setFeeStructuresForClass([])
+          return
+        }
+        
+        // let feeStructuresData: any
+        let feeStructuresData: FeeStructure[] | null = null
+        try {
+          const responseData = await feeStructuresResponse.json()
+          // Handle new API response format: { success: true, data: [...] }
+          feeStructuresData = responseData.success ? responseData.data : responseData
+        } catch (_parseError) {
+
+          setAvailableStudentFees(feesData || [])
+          setFeeStructuresForClass([])
+          return
+        }
+        
+  
+        setFeeStructuresForClass(feeStructuresData || [])
+  
+        // Filter student fees to only show those where the fee structure is assigned to the student's class
+        const classFeeStructureIds = new Set((feeStructuresData || []).map((fs: FeeStructure) => fs.id))
+        const filteredFees = (feesData || []).filter((fee: StudentFee) => 
+          classFeeStructureIds.has(fee.feeStructureId)
+        )
+
+        setAvailableStudentFees(filteredFees)
+      } catch (error) {
+        // Extract error details manually to avoid serialization issues
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        
+        const userMessage = errorMessage || "Failed to load fee assignments. Please try again or contact support."
+        
+        toastError(userMessage)
+        setAvailableStudentFees([])
+        setFeeStructuresForClass([])
+      }
+    }
+
     if (selectedStudentId && selectedStudentClassId) {
       loadStudentFeesAndFeeStructures(selectedStudentId, selectedStudentClassId)
     } else {
       setAvailableStudentFees([])
       setFeeStructuresForClass([])
     }
-  }, [selectedStudentId, selectedStudentClassId])
-
-  const loadStudentFeesAndFeeStructures = async (studentId: string, classId: string) => {
-    try {
-      // Validate studentId
-      if (!studentId) {
-        console.error("No student ID provided")
-        setAvailableStudentFees([])
-        return
-      }
-
-      console.log("Loading student fees for student:", studentId, "class:", classId)
-      
-      // Load student fees for this student
-      let feesResponse: Response
-      try {
-        feesResponse = await fetch(`/api/bursar/student-fees?studentId=${studentId}`)
-      } catch (fetchError) {
-        // Network error or fetch failed
-        console.error("Network error fetching student fees:", fetchError)
-        throw new Error(`Network error: ${fetchError instanceof Error ? fetchError.message : 'Failed to connect to server'}`)
-      }
-      
-      if (!feesResponse.ok) {
-        // Try to get error message from response
-        let errorMessage = `HTTP ${feesResponse.status}: ${feesResponse.statusText}`
-        let errorDetails: any = null
-        try {
-          const errorData = await feesResponse.json()
-          // Handle new API response format: { success: false, error: "...", details: "..." }
-          if (errorData.success === false) {
-            errorMessage = errorData.error || errorMessage
-            errorDetails = errorData.details || errorData.code
-          } else {
-            errorMessage = errorData.error || errorMessage
-          }
-        } catch (parseError) {
-          // Response is not JSON, use status text
-          console.warn("Could not parse error response as JSON:", parseError)
-        }
-        // Log error details (use console.warn to avoid triggering error boundaries)
-        console.warn("Error loading student fees:", {
-          status: feesResponse.status,
-          statusText: feesResponse.statusText,
-          studentId,
-          errorMessage,
-          errorDetails,
-          url: feesResponse.url
-        })
-        throw new Error(errorMessage)
-      }
-      
-      let feesData: any
-      try {
-        const responseData = await feesResponse.json()
-        // Handle new API response format: { success: true, data: [...] }
-        feesData = responseData.success ? responseData.data : responseData
-      } catch (parseError) {
-        console.warn("Failed to parse student fees response as JSON:", parseError)
-        throw new Error("Invalid response format from server")
-      }
-      
-      console.log("Student fees loaded:", feesData?.length || 0, "records")
-      setStudentFees(feesData || [])
-
-      // If no class ID, show all student fees (fallback behavior)
-      if (!classId) {
-        console.warn("No class ID for student, showing all student fees")
-        setAvailableStudentFees(feesData || [])
-        setFeeStructuresForClass([])
-        return
-      }
-
-      // Load fee structures assigned to this class
-      let feeStructuresResponse: Response
-      try {
-        feeStructuresResponse = await fetch(`/api/bursar/fee-structures?classId=${classId}&isActive=true`)
-      } catch (fetchError) {
-        // Network error, but continue with all student fees as fallback
-        console.warn("Network error fetching fee structures, showing all student fees:", fetchError)
-        setAvailableStudentFees(feesData || [])
-        setFeeStructuresForClass([])
-        return
-      }
-      
-      if (!feeStructuresResponse.ok) {
-        // If fee structures can't be loaded, show all student fees as fallback
-        let errorMessage = `HTTP ${feeStructuresResponse.status}: ${feeStructuresResponse.statusText}`
-        try {
-          const errorData = await feeStructuresResponse.json()
-          // Handle new API response format: { success: false, error: "..." }
-          if (errorData.success === false) {
-            errorMessage = errorData.error || errorMessage
-          } else {
-            errorMessage = errorData.error || errorMessage
-          }
-        } catch {
-          // Response is not JSON, use status text
-        }
-        console.warn("Failed to load fee structures for class, showing all student fees:", {
-          status: feeStructuresResponse.status,
-          classId,
-          errorMessage
-        })
-        setAvailableStudentFees(feesData || [])
-        setFeeStructuresForClass([])
-        return
-      }
-      
-      let feeStructuresData: any
-      try {
-        const responseData = await feeStructuresResponse.json()
-        // Handle new API response format: { success: true, data: [...] }
-        feeStructuresData = responseData.success ? responseData.data : responseData
-      } catch (parseError) {
-        console.warn("Failed to parse fee structures response, showing all student fees:", parseError)
-        setAvailableStudentFees(feesData || [])
-        setFeeStructuresForClass([])
-        return
-      }
-      
-      console.log("Fee structures loaded for class:", feeStructuresData?.length || 0, "records")
-      setFeeStructuresForClass(feeStructuresData || [])
-
-      // Filter student fees to only show those where the fee structure is assigned to the student's class
-      const classFeeStructureIds = new Set((feeStructuresData || []).map((fs: FeeStructure) => fs.id))
-      const filteredFees = (feesData || []).filter((fee: StudentFee) => 
-        classFeeStructureIds.has(fee.feeStructureId)
-      )
-      console.log("Filtered student fees:", filteredFees.length, "records match class fee structures")
-      setAvailableStudentFees(filteredFees)
-    } catch (error) {
-      // Extract error details manually to avoid serialization issues
-      const errorType = error?.constructor?.name || typeof error
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      const errorStack = error instanceof Error ? error.stack : undefined
-      
-      // Log error details separately
-      // Use console.warn instead of console.error to avoid triggering Next.js error boundaries
-      console.warn("Error loading student fees and fee structures:", {
-        errorType,
-        errorMessage,
-        studentId,
-        classId,
-        error: error instanceof Error ? {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        } : error
-      })
-      
-      const userMessage = errorMessage || "Failed to load fee assignments. Please try again or contact support."
-      
-      toastError(userMessage)
-      setAvailableStudentFees([])
-      setFeeStructuresForClass([])
-    }
-  }
+  }, [selectedStudentId, selectedStudentClassId, toastError])
 
   const form = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
@@ -353,8 +314,8 @@ export function PaymentForm({ onSuccess, onCancel }: PaymentFormProps) {
       } else {
         toastError(result.error || "Failed to record payment")
       }
-    } catch (error) {
-      console.error("Error recording payment:", error)
+    } catch (_error) {
+
       toastError("Failed to record payment")
     } finally {
       setIsLoading(false)

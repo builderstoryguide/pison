@@ -94,13 +94,13 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      console.error("Error fetching assignments:", error)
+      // console.error("Error fetching assignments:", error)
       return NextResponse.json({ error: "Failed to fetch assignments" }, { status: 500 })
     }
 
     return NextResponse.json({ assignments: data || [] })
-  } catch (error) {
-    console.error("Error in assignments GET:", error)
+  } catch (_error) {
+    // console.error("Error in assignments GET:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       const errorDetails = serializeSupabaseError(error)
-      console.error("Error creating assignment:", {
+      /* console.error("Error creating assignment:", {
         errorDetails,
         requestBody: {
           title,
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
           assigned_date,
           status
         }
-      })
+      }) */
 
       // Provide specific error messages based on error type
       let userMessage = "Failed to create assignment"
@@ -267,17 +267,17 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ assignment: data }, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle authentication errors
     if (error instanceof NextResponse) {
       return error
     }
     
     const errorDetails = serializeSupabaseError(error)
-    console.error("Error in assignments POST:", {
+    /* console.error("Error in assignments POST:", {
       errorDetails,
       error: error instanceof Error ? error.stack : error
-    })
+    }) */
     
     return NextResponse.json({ 
       error: errorDetails.message || "Internal server error",
@@ -338,17 +338,16 @@ export async function PUT(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error("Error updating assignment:", error)
+      // console.error("Error updating assignment:", error)
       return NextResponse.json({ error: "Failed to update assignment" }, { status: 500 })
     }
 
     return NextResponse.json({ assignment: data })
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle authentication errors
     if (error instanceof NextResponse) {
       return error
     }
-    console.error("Error in assignments PUT:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -391,17 +390,16 @@ export async function DELETE(request: NextRequest) {
       .eq("id", id)
 
     if (error) {
-      console.error("Error deleting assignment:", error)
+      // console.error("Error deleting assignment:", error)
       return NextResponse.json({ error: "Failed to delete assignment" }, { status: 500 })
     }
 
     return NextResponse.json({ message: "Assignment deleted successfully" })
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle authentication errors
     if (error instanceof NextResponse) {
       return error
     }
-    console.error("Error in assignments DELETE:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

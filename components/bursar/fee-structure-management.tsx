@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Eye, MoreHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -29,39 +29,39 @@ export function FeeStructureManagement() {
   const [searchTerm, setSearchTerm] = useState("")
 
   useEffect(() => {
-    loadFeeStructures()
-  }, [])
+    const loadFeeStructures = async () => {
+      try {
+        const response = await fetch('/api/bursar/fee-structures')
+        const data = await response.json()
+        
+        // Check if the response contains an error
+        if (data.error) {
 
-  const loadFeeStructures = async () => {
-    try {
-      const response = await fetch('/api/bursar/fee-structures')
-      const data = await response.json()
-      
-      // Check if the response contains an error
-      if (data.error) {
-        console.error('API Error:', data.error)
-        toastError(data.error || "Failed to load fee structures")
+          toastError(data.error || "Failed to load fee structures")
+          setFeeStructures([])
+          return
+        }
+        
+        // Ensure data is an array
+        if (Array.isArray(data)) {
+
+          setFeeStructures(data)
+        } else {
+
+          toastError("Invalid data format received")
+          setFeeStructures([])
+        }
+      } catch (_error) {
+
+        toastError("Failed to load fee structures")
         setFeeStructures([])
-        return
+      } finally {
+        setIsLoading(false)
       }
-      
-      // Ensure data is an array
-      if (Array.isArray(data)) {
-        console.log('Fee structures loaded:', data.length, 'items')
-        setFeeStructures(data)
-      } else {
-        console.error('Unexpected data format:', data)
-        toastError("Invalid data format received")
-        setFeeStructures([])
-      }
-    } catch (error) {
-      console.error('Fetch error:', error)
-      toastError("Failed to load fee structures")
-      setFeeStructures([])
-    } finally {
-      setIsLoading(false)
     }
-  }
+
+    loadFeeStructures()
+  }, [toastError])
 
 
   if (isLoading) {

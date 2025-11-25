@@ -82,13 +82,13 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      console.error("Error fetching submissions:", error)
+      // console.error("Error fetching submissions:", error)
       return NextResponse.json({ error: "Failed to fetch submissions" }, { status: 500 })
     }
 
     return NextResponse.json({ submissions: data || [] })
-  } catch (error) {
-    console.error("Error in submissions GET:", error)
+  } catch (_error) {
+    // console.error("Error in submissions GET:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -216,17 +216,17 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error("Error creating submission:", error)
+      // console.error("Error creating submission:", error)
       return NextResponse.json({ error: "Failed to create submission" }, { status: 500 })
     }
 
     return NextResponse.json({ submission: data }, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle authentication errors
     if (error instanceof NextResponse) {
       return error
     }
-    console.error("Error in submissions POST:", error)
+    // console.error("Error in submissions POST:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -265,6 +265,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Submission not found" }, { status: 404 })
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const assignment = existingSubmission.assignments as any
 
     // Authorization checks
@@ -342,17 +343,17 @@ export async function PUT(request: NextRequest) {
       .single()
 
     if (error) {
-      console.error("Error updating submission:", error)
+      // console.error("Error updating submission:", error)
       return NextResponse.json({ error: "Failed to update submission" }, { status: 500 })
     }
 
     return NextResponse.json({ submission: data })
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle authentication errors
     if (error instanceof NextResponse) {
       return error
     }
-    console.error("Error in submissions PUT:", error)
+    // console.error("Error in submissions PUT:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -381,6 +382,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Submission not found" }, { status: 404 })
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const assignment = existingSubmission.assignments as any
 
     // Authorization: Teachers can only delete submissions for their assignments (unless admin)
@@ -397,17 +399,17 @@ export async function DELETE(request: NextRequest) {
       .eq("id", id)
 
     if (error) {
-      console.error("Error deleting submission:", error)
+      // console.error("Error deleting submission:", error)
       return NextResponse.json({ error: "Failed to delete submission" }, { status: 500 })
     }
 
     return NextResponse.json({ message: "Submission deleted successfully" })
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle authentication errors
     if (error instanceof NextResponse) {
       return error
     }
-    console.error("Error in submissions DELETE:", error)
+    // console.error("Error in submissions DELETE:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
     const { action, data } = await request.json()
 
     switch (action) {
-      case 'generate-default':
+      case 'generate-default': {
         const { role, year } = data
         const defaultPassword = generateDefaultPassword(role, year)
         return NextResponse.json({ 
@@ -14,8 +14,9 @@ export async function POST(request: NextRequest) {
           password: defaultPassword,
           expiresIn: '30 days'
         })
+      }
 
-      case 'generate-temporary':
+      case 'generate-temporary': {
         const { year: tempYear } = data
         const tempPassword = generateTemporaryPassword(tempYear)
         return NextResponse.json({ 
@@ -23,8 +24,9 @@ export async function POST(request: NextRequest) {
           password: tempPassword,
           expiresIn: '7 days'
         })
+      }
 
-      case 'validate':
+      case 'validate': {
         const { password } = data
         const validation = validatePassword(password)
         return NextResponse.json({ 
@@ -32,6 +34,7 @@ export async function POST(request: NextRequest) {
           isValid: validation.isValid,
           error: validation.error
         })
+      }
 
       default:
         return NextResponse.json(
@@ -39,8 +42,8 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
     }
-  } catch (error) {
-    console.error('Password API error:', error)
+  } catch (_error) {
+    // console.error('Password API error:', error)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

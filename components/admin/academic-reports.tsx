@@ -112,8 +112,8 @@ export function AcademicReports() {
     { value: "grade-12", label: "Grade 12" }
   ]
 
-  const generateReport = (reportType: string) => {
-    console.log(`Generating ${reportType} report for period: ${selectedPeriod}, class: ${selectedClass}`)
+  const generateReport = (_reportType: string) => {
+
     // TODO: Implement actual report generation logic
   }
 
@@ -270,7 +270,7 @@ export function AcademicReports() {
                   <div className="text-center py-8 text-muted-foreground">
                     <section.icon className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>Detailed {section.title} will be displayed here</p>
-                    <p className="text-sm">Click "View Report" to generate detailed analysis</p>
+                    <p className="text-sm">Click &quot;View Report&quot; to generate detailed analysis</p>
                   </div>
                 </CardContent>
               </Card>

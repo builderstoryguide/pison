@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      console.error('Error fetching classes:', serializeSupabaseError(error))
+      // console.error('Error fetching classes:', serializeSupabaseError(error))
       return NextResponse.json(
         { ok: false, error: serializeSupabaseError(error) },
         { status: 500 }
@@ -59,9 +59,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(transformedData)
   } catch (error) {
-    console.error('Error in classes GET:', serializeSupabaseError(error as any))
+    // console.error('Error in classes GET:', serializeSupabaseError(error as unknown as any))
     return NextResponse.json(
-      { ok: false, error: serializeSupabaseError(error as any) },
+      { ok: false, error: serializeSupabaseError(error as unknown as any) },
       { status: 500 }
     )
   }

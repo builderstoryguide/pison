@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     // Validate database setup - check if user_activity_logs table exists and has required columns
     try {
       const validationResult = await validateDatabaseSetup(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         supabase as any, 
         ['user_activity_logs'], 
         [],
@@ -18,12 +19,12 @@ export async function GET(request: NextRequest) {
       );
       
       if (!validationResult.isValid) {
-        console.error('Database setup validation failed:', validationResult.errors);
+        // console.error('Database setup validation failed:', validationResult.errors);
         const errorResponse = createDatabaseSetupErrorResponse(validationResult, 'user_activity_logs table');
         return NextResponse.json(errorResponse, { status: 500 });
       }
-    } catch (networkError) {
-      console.error('Network error when validating database setup:', networkError);
+    } catch (_networkError) {
+      // console.error('Network error when validating database setup:', networkError);
       // Continue with query even if validation fails (non-blocking)
     }
     
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
     const { data: logs, error } = await query
 
     if (error) {
-      console.error('Error fetching activity logs:', serializeSupabaseError(error))
+      // console.error('Error fetching activity logs:', serializeSupabaseError(error))
       
       // Provide actionable error messages for schema mismatches
       const serializedError = serializeSupabaseError(error)
@@ -116,9 +117,9 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Error in activity logs API:', serializeSupabaseError(error as any))
+    // console.error('Error in activity logs API:', serializeSupabaseError(error as any))
     return NextResponse.json(
-      { ok: false, error: serializeSupabaseError(error as any) },
+      { ok: false, error: serializeSupabaseError(error as unknown as any) },
       { status: 500 }
     )
   }

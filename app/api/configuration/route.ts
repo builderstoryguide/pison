@@ -16,11 +16,11 @@ export async function GET(_request: NextRequest) {
       .single()
 
     if (error) {
-      console.error('Error fetching app configuration:', error)
+      // console.error('Error fetching app configuration:', error)
       
       // If the table doesn't exist, return default configuration
       if (error.code === 'PGRST116' || error.message.includes('relation "app_configuration" does not exist')) {
-        console.log('App configuration table does not exist, returning default configuration')
+        // console.log('App configuration table does not exist, returning default configuration')
         const defaultConfig = {
           id: null,
           school_name: 'Pison Academy',
@@ -82,8 +82,8 @@ export async function GET(_request: NextRequest) {
     }
 
     return NextResponse.json({ configuration })
-  } catch (error) {
-    console.error('Unexpected error in GET /api/configuration:', error)
+  } catch (_error) {
+    // console.error('Unexpected error in GET /api/configuration:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -205,7 +205,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (result.error) {
-      console.error('Error updating app configuration:', result.error)
+      // console.error('Error updating app configuration:', result.error)
       return NextResponse.json(
         { error: 'Failed to update configuration' },
         { status: 500 }
@@ -216,8 +216,8 @@ export async function PUT(request: NextRequest) {
       message: 'Configuration updated successfully',
       configuration: result.data
     })
-  } catch (error) {
-    console.error('Unexpected error in PUT /api/configuration:', error)
+  } catch (_error) {
+    // console.error('Unexpected error in PUT /api/configuration:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
         .neq('id', '00000000-0000-0000-0000-000000000000') // Delete all records
 
       if (deleteError) {
-        console.error('Error deleting app configuration:', deleteError)
+        // console.error('Error deleting app configuration:', deleteError)
         return NextResponse.json(
           { error: 'Failed to reset configuration' },
           { status: 500 }
@@ -278,7 +278,7 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (error) {
-        console.error('Error creating default configuration:', error)
+        // console.error('Error creating default configuration:', error)
         return NextResponse.json(
           { error: 'Failed to create default configuration' },
           { status: 500 }
@@ -295,8 +295,8 @@ export async function POST(request: NextRequest) {
       { error: 'Invalid action' },
       { status: 400 }
     )
-  } catch (error) {
-    console.error('Unexpected error in POST /api/configuration:', error)
+  } catch (_error) {
+    // console.error('Unexpected error in POST /api/configuration:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

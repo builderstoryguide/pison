@@ -90,7 +90,7 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
 
     const userResult = await createUser(userData)
     if (userResult.success) {
-      console.log('Student enrollment success:', { userResult, result })
+
       setGeneratedPassword(userResult.password || null)
       setUserData({
         name: result.studentName,
@@ -127,7 +127,7 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
 
     const userResult = await createUser(userData)
     if (userResult.success) {
-      console.log('Teacher enrollment success:', { userResult, result })
+
       setGeneratedPassword(userResult.password || null)
       setUserData({
         name: `${result.teacherData.firstName} ${result.teacherData.lastName}`,
@@ -145,7 +145,7 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
   const handleAdminBursarParentSuccess = async (formData: any) => {
     const userResult = await createUser(formData)
     if (userResult.success) {
-      console.log('Admin/Bursar/Parent creation success:', { userResult, formData })
+
       setGeneratedPassword(userResult.password || null)
       setUserData({
         name: formData.name,
@@ -305,7 +305,7 @@ function AdminBursarParentForm({
       formattedPhone = '+237 6'
     }
     // Remove any invalid characters and ensure proper format
-    formattedPhone = formattedPhone.replace(/[^0-9\s\+\-\(\)]/g, '')
+    formattedPhone = formattedPhone.replace(/[^0-9\s+\-()]/g, '')
     setFormData(prev => ({ ...prev, phone: formattedPhone }))
   }
 
