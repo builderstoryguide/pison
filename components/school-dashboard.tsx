@@ -10,7 +10,7 @@ import { StudentManagement } from "./admin/student-management"
 import { TeacherManagement } from "./admin/teacher-management"
 import { ClassManagement } from "./admin/class-management"
 import { SubjectManagement } from "./admin/subject-management"
-import { TimetableManagement } from "./admin/timetable-management"
+
 import { FinancialManagement } from "./admin/financial-management"
 import { ProfileSettings } from "./profile/profile-settings"
 import { TeacherDashboard } from "./teacher/teacher-dashboard"
@@ -41,9 +41,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
+
   SidebarProvider,
 } from "@/components/ui/sidebar-08"
 import {
@@ -73,16 +71,16 @@ import {
   Home,
   ChevronUp,
   ChevronLeft,
-  School,
+
   ClipboardList,
   CreditCard,
-  CalendarCheck,
+
   MessageSquare,
   Bell,
   User,
-  Clock,
-  CalendarDays,
-  Download,
+
+
+
   Award,
   Sun,
   Moon,
@@ -96,7 +94,7 @@ type AdminView =
   | "teachers"
   | "classes"
   | "subjects"
-  | "timetable"
+
   | "financial"
   | "profile"
 
@@ -208,7 +206,7 @@ function AppSidebar({
           { id: "teachers", label: "Manage Teachers", icon: UserCheck },
           { id: "classes", label: "Manage Classes", icon: BookOpen },
           { id: "subjects", label: "Manage Subjects", icon: BookOpen },
-          { id: "timetable", label: "Manage Timetable", icon: CalendarDays },
+
           { id: "financial", label: "Financial Management", icon: DollarSign },
         ]
       case "teacher":
@@ -478,8 +476,7 @@ export function SchoolDashboard() {
                 <SubjectManagement />
               </SubjectManagementProvider>
             )
-          case "timetable":
-            return <TimetableManagement />
+
           case "financial":
             return <FinancialManagement />
           case "profile":
@@ -492,9 +489,10 @@ export function SchoolDashboard() {
         switch (currentView) {
           case "classes":
             return <TeacherClassesView />
-          case "grades":
+          case "grades": {
             const selectedClassId = typeof window !== 'undefined' ? localStorage.getItem('selectedClassId') || undefined : undefined
             return <GradesManagement preSelectedClassId={selectedClassId} />
+          }
           case "assignments":
             return <TeacherAssignmentManagement />
           case "profile":

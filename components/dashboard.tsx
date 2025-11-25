@@ -14,7 +14,7 @@ import { FinancialProvider, useFinancial } from "@/lib/financial-context"
 import { ProfileProvider } from "@/lib/profile-context"
 import { AlertsProvider } from "@/lib/alerts-context"
 import { BursarProvider } from "@/lib/bursar-context"
-import { TimetableProvider } from "@/lib/timetable-context"
+
 import { useNotifications } from "@/lib/notification-context"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useCurrencyFormatter } from "@/lib/app-configuration-context-v2"
@@ -28,7 +28,7 @@ import { TeacherManagement } from "./admin/teacher-management"
 import { EmployeeManagement } from "./admin/employee-management"
 import { ClassManagement } from "./admin/class-management"
 import { SubjectManagement } from "./admin/subject-management"
-import { TimetableManagement } from "./admin/timetable-management"
+
 import { FinancialManagement } from "./admin/financial-management"
 import { SalesManagement } from "./admin/sales-management"
 import { ExpenditureManagement } from "./admin/expenditure-management"
@@ -137,7 +137,7 @@ type AdminView =
   | "employees"
   | "classes"
   | "subjects"
-  | "timetable"
+
   | "financial"
   | "sales"
   | "payment"
@@ -887,7 +887,7 @@ export function Dashboard() {
       { id: "employees", label: "Manage Employees", icon: Briefcase },
       { id: "classes", label: "Manage Classes", icon: BookOpen },
       { id: "subjects", label: "Manage Subjects", icon: BookOpen },
-      { id: "timetable", label: "Manage Timetable", icon: CalendarDays },
+
       {
         id: "financial",
         label: "Finances",
@@ -941,12 +941,7 @@ export function Dashboard() {
               <SubjectManagement />
             </SubjectManagementProvider>
           )
-        case "timetable":
-          return (
-            <TimetableProvider>
-              <TimetableManagement />
-            </TimetableProvider>
-          )
+
         case "financial":
           return <FinancialManagement />
         case "sales":

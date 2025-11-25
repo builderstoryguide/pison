@@ -166,61 +166,8 @@ export async function GET(
         `)
         .eq('teacher_row_id', teacherRecordId) : Promise.resolve({ data: [], error: null }),
 
-      // 4. Get classes from timetable
-      // Need to get timetable_teacher first, then periods. 
-      // We do this as a sub-chain to keep it parallel with other fetches
-      (async () => {
-        if (!teacherRecordId) return { classes: [] }
-        
-        const { data: tt } = await supabase
-          .from('timetable_teachers')
-          .select('id')
-          .eq('teacher_id', teacherRecordId)
-          .single()
-          
-        if (!tt) return { classes: [] }
-
-        const { data: periods } = await supabase
-          .from('timetable_periods')
-          .select(`
-            id, class_id, subject_id,
-            timetable_classes (id, class_id, name, level, subsystem, branch),
-            timetable_subjects (id, subject_name)
-          `)
-          .eq('teacher_id', tt.id)
-          
-        if (!periods) return { classes: [] }
-
-        // Process periods into classes
-        const classSubjectMap = new Map<string, any>()
-        periods.forEach((period: any) => {
-          const classInfo = period.timetable_classes
-          const subjectInfo = period.timetable_subjects
-
-          if (classInfo && subjectInfo) {
-            const key = `${classInfo.id}_${classInfo.class_id || ''}`
-            if (!classSubjectMap.has(key)) {
-              classSubjectMap.set(key, {
-                id: classInfo.id,
-                name: classInfo.name || 'Unknown',
-                level: classInfo.level || '',
-                subsystem: classInfo.subsystem || '',
-                branch: classInfo.branch || '',
-                subjects: [],
-                assignmentType: 'subject_teacher'
-              })
-            }
-            const entry = classSubjectMap.get(key)
-            if (entry) {
-              const subjectName = subjectInfo.subject_name || 'Unknown'
-              if (!entry.subjects.includes(subjectName)) {
-                entry.subjects.push(subjectName)
-              }
-            }
-          }
-        })
-        return { classes: Array.from(classSubjectMap.values()) }
-      })(),
+      // 4. Get classes from timetable - REMOVED
+      Promise.resolve({ classes: [] }),
 
       // 5. Get named classes from teachers table array
       (teacherRecordClasses && teacherRecordClasses.length > 0) ? supabase

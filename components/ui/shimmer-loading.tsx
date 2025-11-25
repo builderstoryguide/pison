@@ -165,47 +165,6 @@ export function ShimmerDataTable() {
   )
 }
 
-export function ShimmerTimetableGrid() {
-  return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-10 w-32" />
-      </div>
-      
-      {/* Timetable grid */}
-      <div className="border rounded-lg overflow-hidden">
-        <div className="grid grid-cols-8 gap-0">
-          {/* Time slots header */}
-          <div className="bg-muted/50 p-2 border-r">
-            <Skeleton className="h-4 w-16 mx-auto" />
-          </div>
-          {Array.from({ length: 7 }).map((_, index) => (
-            <div key={index} className="bg-muted/50 p-2 border-r text-center">
-              <Skeleton className="h-4 w-12 mx-auto" />
-            </div>
-          ))}
-          
-          {/* Time slots and periods */}
-          {Array.from({ length: 8 }).map((_, rowIndex) => (
-            <>
-              <div key={`time-${rowIndex}`} className="p-2 border-r border-t bg-muted/30">
-                <Skeleton className="h-4 w-16 mx-auto" />
-              </div>
-              {Array.from({ length: 7 }).map((_, colIndex) => (
-                <div key={`cell-${rowIndex}-${colIndex}`} className="p-2 border-r border-t">
-                  <Skeleton className="h-16 w-full" />
-                </div>
-              ))}
-            </>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export function ShimmerSubjectBranchAssignment() {
   return (
     <div className="space-y-4">

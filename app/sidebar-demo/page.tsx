@@ -104,10 +104,7 @@ export default function SidebarDemoPage() {
                   <School className="h-4 w-4 text-orange-500" />
                   <span>Classes & Subjects</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-red-500" />
-                  <span>Timetable</span>
-                </div>
+
                 <div className="flex items-center gap-2">
                   <ClipboardList className="h-4 w-4 text-indigo-500" />
                   <span>Examinations</span>
@@ -145,10 +142,7 @@ export default function SidebarDemoPage() {
                   <GraduationCap className="h-4 w-4 mr-2" />
                   Enroll New Student
                 </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Generate Timetable
-                </Button>
+
                 <Button variant="outline" size="sm" className="w-full justify-start">
                   <BarChart3 className="h-4 w-4 mr-2" />
                   View Reports

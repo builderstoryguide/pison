@@ -8,7 +8,7 @@ import { UserManagement } from "./admin/user-management"
 import { StudentManagement } from "./admin/student-management"
 import { TeacherManagement } from "./admin/teacher-management"
 import { ClassManagement } from "./admin/class-management"
-import { TimetableManagement } from "./admin/timetable-management"
+
 import { FinancialManagement } from "./admin/financial-management"
 import { ProfileSettings } from "./profile/profile-settings"
 import { TeacherDashboardNew } from "./teacher/teacher-dashboard-new"
@@ -37,9 +37,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
+
   SidebarProvider,
 } from "@/components/ui/sidebar-08"
 import {
@@ -69,15 +67,16 @@ import {
   ChevronUp,
   ChevronLeft,
   School,
+
   ClipboardList,
   CreditCard,
-  CalendarCheck,
+
   MessageSquare,
   Bell,
   User,
-  Clock,
-  CalendarDays,
-  Download,
+
+
+
   Award,
   Sun,
   Moon,
@@ -90,7 +89,7 @@ type AdminView =
   | "students"
   | "teachers"
   | "classes"
-  | "timetable"
+
   | "financial"
   | "profile"
 
@@ -201,7 +200,7 @@ function AppSidebar({
           { id: "students", label: "Student Management", icon: GraduationCap },
           { id: "teachers", label: "Manage Teachers", icon: UserCheck },
           { id: "classes", label: "Manage Classes", icon: BookOpen },
-          { id: "timetable", label: "Manage Timetable", icon: CalendarDays },
+
           { id: "financial", label: "Financial Management", icon: DollarSign },
         ]
       case "teacher":
@@ -467,8 +466,7 @@ export function SchoolDashboard() {
             return <TeacherManagement />
           case "classes":
             return <ClassManagement />
-          case "timetable":
-            return <TimetableManagement />
+
           case "financial":
             return <FinancialManagement />
           case "profile":
