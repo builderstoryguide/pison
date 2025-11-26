@@ -29,7 +29,7 @@ import { EmployeeManagement } from "./admin/employee-management"
 import { ClassManagement } from "./admin/class-management"
 import { SubjectManagement } from "./admin/subject-management"
 
-import { FinancialManagement } from "./admin/financial-management"
+
 import { SalesManagement } from "./admin/sales-management"
 import { ExpenditureManagement } from "./admin/expenditure-management"
 import { PaymentManagement } from "./admin/payment-management"
@@ -138,7 +138,7 @@ type AdminView =
   | "classes"
   | "subjects"
 
-  | "financial"
+
   | "sales"
   | "payment"
   | "expenditures"
@@ -893,7 +893,7 @@ export function Dashboard() {
         label: "Finances",
         icon: DollarSign,
         subItems: [
-          { id: "financial", label: "Fee Management" },
+
           { id: "sales", label: "Sales" },
           { id: "payment", label: "Fees Payment" },
           { id: "expenditures", label: "Expenditures" },
@@ -942,8 +942,7 @@ export function Dashboard() {
             </SubjectManagementProvider>
           )
 
-        case "financial":
-          return <FinancialManagement />
+
         case "sales":
           return <SalesManagement />
         case "payment":

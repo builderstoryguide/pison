@@ -54,12 +54,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useBursar } from '@/lib/bursar-context'
-import { FeeStructureManagement } from './fee-structure-management'
+
 import { PaymentRecording } from './payment-recording'
 import { PaymentDetailsDialog } from './payment-details-dialog'
 import { PaymentForm } from './payment-form'
 import { CollectionReport } from './reports/collection-report'
-import { OutstandingReport } from './reports/outstanding-report'
+
 import { RevenueReport } from './reports/revenue-report'
 import { useCurrencyFormatter } from '@/lib/app-configuration-context-v2'
 import { useToast } from '@/hooks/use-toast'
@@ -333,11 +333,11 @@ export function BursarDashboard({ onNavigate }: BursarDashboardProps = {}) {
       <Tabs value={selectedView} onValueChange={setSelectedView} className="space-y-4">
                  <TabsList>
            <TabsTrigger value="overview">Overview</TabsTrigger>
-           <TabsTrigger value="fee-structures">Fee Structures</TabsTrigger>
+
            <TabsTrigger value="payments">Payment Recording</TabsTrigger>
            <TabsTrigger value="reports">Reports</TabsTrigger>
            <TabsTrigger value="collection-report">Collection Report</TabsTrigger>
-           <TabsTrigger value="outstanding-report">Outstanding Report</TabsTrigger>
+
            <TabsTrigger value="revenue-report">Revenue Report</TabsTrigger>
          </TabsList>
 
@@ -345,36 +345,7 @@ export function BursarDashboard({ onNavigate }: BursarDashboardProps = {}) {
         <TabsContent value="overview" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             {/* Fee Structures */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  Fee Structures
-                  <Button size="sm" onClick={() => handleNavigation("fee-structures")}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add New
-                  </Button>
-                </CardTitle>
-                <CardDescription>Current fee structures by class</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {feeStructures.slice(0, 5).map((structure) => (
-                    <div key={structure.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <div className="font-medium">{structure.className}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {structure.subsystem} • {structure.academicYear}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium">{formatCurrency(structure.totalAmount)}</div>
-                        <div className="text-sm text-muted-foreground">{structure.term}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+
 
             {/* Recent Payments */}
             <Card>
@@ -664,10 +635,7 @@ export function BursarDashboard({ onNavigate }: BursarDashboardProps = {}) {
           </Card>
         </TabsContent>
 
-        {/* Fee Structures Tab */}
-        <TabsContent value="fee-structures" className="space-y-4">
-          <FeeStructureManagement />
-        </TabsContent>
+
 
         {/* Payment Recording Tab */}
         <TabsContent value="payments" className="space-y-4">
@@ -684,10 +652,7 @@ export function BursarDashboard({ onNavigate }: BursarDashboardProps = {}) {
           <CollectionReport />
         </TabsContent>
 
-        {/* Outstanding Report Tab */}
-        <TabsContent value="outstanding-report" className="space-y-4">
-          <OutstandingReport />
-        </TabsContent>
+
 
         {/* Revenue Report Tab */}
         <TabsContent value="revenue-report" className="space-y-4">

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,9 +23,13 @@ import {
   X,
   Calendar,
   User,
-  Building
+  Building,
+  Loader2
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { StudentSearch } from '@/components/ui/student-search'
+import { useAuth } from '@/lib/auth-context'
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-utils'
 
 interface Payment {
   id: string
@@ -37,43 +41,19 @@ interface Payment {
   date: string
   status: 'completed' | 'pending' | 'failed'
   reference?: string
+  installment?: string
 }
 
-const mockPayments: Payment[] = [
-  {
-    id: 'PAY001',
-    amount: 50000,
-    paymentMethod: 'cash',
-    payerName: 'John Doe',
-    payerType: 'student',
-    description: 'Tuition fee payment',
-    date: '2024-01-15',
-    status: 'completed',
-    reference: 'REF-001'
-  },
-  {
-    id: 'PAY002',
-    amount: 25000,
-    paymentMethod: 'bank_transfer',
-    payerName: 'Jane Smith',
-    payerType: 'parent',
-    description: 'Library fee',
-    date: '2024-01-16',
-    status: 'completed',
-    reference: 'REF-002'
-  },
-  {
-    id: 'PAY003',
-    amount: 15000,
-    paymentMethod: 'mobile_money',
-    payerName: 'Mike Johnson',
-    payerType: 'external',
-    description: 'Event registration',
-    date: '2024-01-17',
-    status: 'pending',
-    reference: 'REF-003'
-  }
-]
+interface SelectedStudent {
+  id: string
+  studentId: string
+  fullName: string
+  firstName: string
+  lastName: string
+  email?: string
+  className?: string
+  enrollmentStatus?: string
+}
 
 const getPaymentMethodBadge = (method: Payment['paymentMethod']) => {
   const methods = {
@@ -82,7 +62,7 @@ const getPaymentMethodBadge = (method: Payment['paymentMethod']) => {
     mobile_money: { label: 'Mobile Money', variant: 'outline' as const },
     cheque: { label: 'Cheque', variant: 'outline' as const }
   }
-  return methods[method]
+  return methods[method] || { label: method, variant: 'outline' as const }
 }
 
 const getStatusBadge = (status: Payment['status']) => {
@@ -91,11 +71,12 @@ const getStatusBadge = (status: Payment['status']) => {
     pending: { label: 'Pending', variant: 'secondary' as const, icon: Clock },
     failed: { label: 'Failed', variant: 'destructive' as const, icon: X }
   }
-  return statuses[status]
+  return statuses[status] || { label: status, variant: 'secondary' as const, icon: Clock }
 }
 
 export function PaymentManagement() {
-  const [payments, setPayments] = useState<Payment[]>(mockPayments)
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isAddPaymentOpen, setIsAddPaymentOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | Payment['status']>('all')
@@ -106,9 +87,46 @@ export function PaymentManagement() {
     payerType: 'student',
     description: '',
     date: new Date().toISOString().split('T')[0],
-    status: 'pending'
+    status: 'pending',
+    installment: ''
   })
-  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
+  const [selectedStudent, setSelectedStudent] = useState<SelectedStudent | null>(null)
+  const [viewPayment, setViewPayment] = useState<Payment | null>(null)
+  const [isViewPaymentOpen, setIsViewPaymentOpen] = useState(false)
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
+  const [isEditPaymentOpen, setIsEditPaymentOpen] = useState(false)
+  const { toast } = useToast()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+
+  const fetchPayments = async () => {
+    setIsLoading(true)
+    try {
+      const result = await apiGet<{ payments: Payment[] }>('/api/finances/payments')
+      if (result.success && result.data) {
+        setPayments(result.data.payments)
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to fetch payments",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching payments:', error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchPayments()
+  }, [])
 
   const filteredPayments = payments.filter(payment => {
     const matchesSearch = payment.payerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -121,8 +139,8 @@ export function PaymentManagement() {
   const totalAmount = filteredPayments.reduce((sum, payment) => sum + payment.amount, 0)
   const completedPayments = filteredPayments.filter(p => p.status === 'completed').length
 
-  const handleAddPayment = () => {
-    if (!newPayment.amount || !newPayment.payerName || !newPayment.description) {
+  const handleAddPayment = async () => {
+    if (!newPayment.amount || !newPayment.payerName || !newPayment.installment) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields",
@@ -131,33 +149,93 @@ export function PaymentManagement() {
       return
     }
 
-    const payment: Payment = {
-      id: `PAY${String(payments.length + 1).padStart(3, '0')}`,
-      amount: newPayment.amount!,
-      paymentMethod: newPayment.paymentMethod!,
-      payerName: newPayment.payerName!,
-      payerType: newPayment.payerType!,
-      description: newPayment.description!,
+    const paymentData = {
+      amount: newPayment.amount,
+      paymentMethod: newPayment.paymentMethod,
+      payerName: newPayment.payerName,
+      payerType: newPayment.payerType,
+      description: newPayment.description,
       date: newPayment.date || new Date().toISOString().split('T')[0],
       status: newPayment.status || 'pending',
-      reference: newPayment.reference
+      reference: newPayment.reference,
+      studentId: selectedStudent?.id,
+      installment: newPayment.installment
     }
 
-    setPayments([...payments, payment])
-    setIsAddPaymentOpen(false)
-    setNewPayment({
-      amount: 0,
-      paymentMethod: 'cash',
-      payerName: '',
-      payerType: 'student',
-      description: '',
-      date: new Date().toISOString().split('T')[0],
-      status: 'pending'
-    })
-    toast({
-      title: "Payment Recorded",
-      description: `Payment of ${newPayment.amount?.toLocaleString()} has been recorded successfully`,
-    })
+    try {
+      const result = await apiPost<{ payment: Payment }>('/api/finances/payments', paymentData)
+      
+      if (result.success) {
+        setIsAddPaymentOpen(false)
+        setNewPayment({
+          amount: 0,
+          paymentMethod: 'cash',
+          payerName: '',
+          payerType: 'student',
+          description: '',
+          date: new Date().toISOString().split('T')[0],
+          status: 'pending',
+          installment: ''
+        })
+        setSelectedStudent(null)
+        fetchPayments() // Refresh list
+        toast({
+          title: "Payment Recorded",
+          description: `Payment of ${newPayment.amount?.toLocaleString()} has been recorded successfully`,
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to record payment",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error recording payment:', error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleUpdatePayment = async () => {
+    if (!editingPayment || !editingPayment.amount || !editingPayment.payerName) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      const result = await apiPut<{ payment: Payment }>('/api/finances/payments', editingPayment)
+      
+      if (result.success) {
+        setIsEditPaymentOpen(false)
+        setEditingPayment(null)
+        fetchPayments() // Refresh list
+        toast({
+          title: "Payment Updated",
+          description: "Payment details have been updated successfully",
+        })
+      } else {
+        toast({
+          title: "Error",
+          description: result.error || "Failed to update payment",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('Error updating payment:', error)
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive"
+      })
+    }
   }
 
   const formatCurrency = (amount: number) => {
@@ -171,7 +249,7 @@ export function PaymentManagement() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Payment Management</h1>
+        <h1 className="text-3xl font-bold">Fees Payment</h1>
         <p className="text-muted-foreground">Record and manage all payments in the system</p>
       </div>
 
@@ -248,14 +326,56 @@ export function PaymentManagement() {
                   Record Payment
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Record New Payment</DialogTitle>
+                  <DialogTitle>Pay School Fees</DialogTitle>
                   <DialogDescription>
                     Record a new payment transaction in the system
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
+                  {/* Student Search */}
+                  <div className="space-y-2">
+                    <Label>Student *</Label>
+                    <StudentSearch
+                      onSelect={(student) => {
+                        setSelectedStudent(student)
+                        if (student) {
+                          setNewPayment(prev => ({
+                            ...prev,
+                            payerName: student.fullName,
+                            payerType: 'student'
+                          }))
+                        }
+                      }}
+                      placeholder="Search for student..."
+                    />
+                    {selectedStudent && (
+                      <div className="text-sm text-muted-foreground">
+                        Selected: {selectedStudent.fullName} ({selectedStudent.studentId})
+                        {selectedStudent.className && ` - ${selectedStudent.className}`}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Installment Type - Full Width */}
+                  <div className="space-y-2">
+                    <Label htmlFor="installment">Installment Type *</Label>
+                    <Select
+                      value={newPayment.installment || ''}
+                      onValueChange={(value) => setNewPayment({ ...newPayment, installment: value })}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select installment" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="First Installment">First Installment</SelectItem>
+                        <SelectItem value="Second Installment">Second Installment</SelectItem>
+                        <SelectItem value="Third Installment">Third Installment</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="amount">Amount *</Label>
@@ -333,7 +453,7 @@ export function PaymentManagement() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="description">Description *</Label>
+                    <Label htmlFor="description">Description</Label>
                     <Textarea
                       id="description"
                       placeholder="Enter payment description"
@@ -360,7 +480,7 @@ export function PaymentManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
+
                   <TableHead>Payer</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Method</TableHead>
@@ -371,9 +491,18 @@ export function PaymentManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPayments.length === 0 ? (
+                {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading payments...
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredPayments.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No payments found
                     </TableCell>
                   </TableRow>
@@ -385,7 +514,7 @@ export function PaymentManagement() {
 
                     return (
                       <TableRow key={payment.id}>
-                        <TableCell className="font-medium">{payment.id}</TableCell>
+
                         <TableCell>
                           <div>
                             <div className="font-medium">{payment.payerName}</div>
@@ -406,12 +535,65 @@ export function PaymentManagement() {
                         <TableCell className="max-w-xs truncate">{payment.description}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon">
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => {
+                                setViewPayment(payment)
+                                setIsViewPaymentOpen(true)
+                              }}
+                            >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon">
-                              <Edit className="h-4 w-4" />
-                            </Button>
+
+                            {isAdmin && (
+                              <>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => {
+                                    setEditingPayment(payment)
+                                    setIsEditPaymentOpen(true)
+                                  }}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={async () => {
+                                    if (confirm('Are you sure you want to delete this payment?')) {
+                                      try {
+                                        const result = await apiDelete(`/api/finances/payments?id=${payment.id}`)
+                                        if (result.success) {
+                                          fetchPayments() // Refresh list
+                                          toast({
+                                            title: "Payment Deleted",
+                                            description: "Payment has been deleted successfully",
+                                          })
+                                        } else {
+                                          toast({
+                                            title: "Error",
+                                            description: result.error || "Failed to delete payment",
+                                            variant: "destructive"
+                                          })
+                                        }
+                                      } catch (error) {
+                                        console.error('Error deleting payment:', error)
+                                        toast({
+                                          title: "Error",
+                                          description: "An unexpected error occurred",
+                                          variant: "destructive"
+                                        })
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -423,6 +605,187 @@ export function PaymentManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* View Payment Dialog */}
+      <Dialog open={isViewPaymentOpen} onOpenChange={setIsViewPaymentOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Payment Details</DialogTitle>
+            <DialogDescription>View payment information</DialogDescription>
+          </DialogHeader>
+          {viewPayment && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Payment ID</Label>
+                  <div className="font-medium">{viewPayment.id}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Date</Label>
+                  <div className="font-medium">{new Date(viewPayment.date).toLocaleDateString()}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Amount</Label>
+                  <div className="font-medium">{formatCurrency(viewPayment.amount)}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <div className="capitalize">{viewPayment.status}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Payer</Label>
+                  <div className="font-medium">{viewPayment.payerName}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Type</Label>
+                  <div className="capitalize">{viewPayment.payerType}</div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Method</Label>
+                  <div className="capitalize">{viewPayment.paymentMethod.replace('_', ' ')}</div>
+                </div>
+                {viewPayment.installment && (
+                  <div>
+                    <Label className="text-muted-foreground">Installment</Label>
+                    <div className="font-medium">{viewPayment.installment}</div>
+                  </div>
+                )}
+              </div>
+              {viewPayment.description && (
+                <div>
+                  <Label className="text-muted-foreground">Description</Label>
+                  <div className="mt-1">{viewPayment.description}</div>
+                </div>
+              )}
+              {viewPayment.reference && (
+                <div>
+                  <Label className="text-muted-foreground">Reference</Label>
+                  <div className="mt-1 font-mono text-sm">{viewPayment.reference}</div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Payment Dialog */}
+      <Dialog open={isEditPaymentOpen} onOpenChange={setIsEditPaymentOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Payment</DialogTitle>
+            <DialogDescription>Update payment details</DialogDescription>
+          </DialogHeader>
+          
+          {editingPayment && (
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label>Payer Name</Label>
+                <Input 
+                  value={editingPayment.payerName} 
+                  onChange={(e) => setEditingPayment({...editingPayment, payerName: e.target.value})}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Installment Type *</Label>
+                <Select
+                  value={editingPayment.installment || ''}
+                  onValueChange={(value) => setEditingPayment({ ...editingPayment, installment: value })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select installment" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="First Installment">First Installment</SelectItem>
+                    <SelectItem value="Second Installment">Second Installment</SelectItem>
+                    <SelectItem value="Third Installment">Third Installment</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Amount *</Label>
+                  <Input
+                    type="number"
+                    value={editingPayment.amount}
+                    onChange={(e) => setEditingPayment({ ...editingPayment, amount: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Date *</Label>
+                  <Input
+                    type="date"
+                    value={editingPayment.date}
+                    onChange={(e) => setEditingPayment({ ...editingPayment, date: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Payment Method *</Label>
+                  <Select
+                    value={editingPayment.paymentMethod}
+                    onValueChange={(value) => setEditingPayment({ ...editingPayment, paymentMethod: value as Payment['paymentMethod'] })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                      <SelectItem value="cheque">Cheque</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Reference</Label>
+                  <Input
+                    value={editingPayment.reference || ''}
+                    onChange={(e) => setEditingPayment({ ...editingPayment, reference: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  value={editingPayment.description}
+                  onChange={(e) => setEditingPayment({ ...editingPayment, description: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={editingPayment.status}
+                  onValueChange={(value) => setEditingPayment({ ...editingPayment, status: value as Payment['status'] })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditPaymentOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdatePayment}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

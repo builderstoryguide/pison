@@ -36,6 +36,8 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useCurrencyFormatter, useGlobalCurrency } from '@/lib/app-configuration-context-v2'
+import { useAuth } from '@/lib/auth-context'
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-utils'
 import type { 
   Expenditure, 
   ExpenditureFormData,
@@ -52,100 +54,7 @@ import {
   EXPENDITURE_STATUSES
 } from '@/lib/expenditure-types'
 
-// Mock data for development
-const mockExpenditures: Expenditure[] = [
-  {
-    id: 'EXP001',
-    title: 'Classroom Furniture Purchase',
-    description: 'Purchase of 30 new desks and chairs for Form 5A classroom',
-    category: 'equipment',
-    amount: 450000,
-    currency: 'XOF',
-    payment_method: 'bank_transfer',
-    payment_date: '2024-09-15',
-    vendor: 'Office Supplies Ltd',
-    vendor_contact: '+237 123 456 789',
-    receipt_number: 'RCP-EXP-001',
-    invoice_number: 'INV-2024-001',
-    status: 'paid',
-    approved_by: 'admin',
-    approved_at: '2024-09-10T10:00:00Z',
-    academic_year: '2024-2025',
-    term: 'Term 1',
-    department: 'Academic',
-    budget_category: 'capital',
-    notes: 'Urgent replacement needed for damaged furniture',
-    created_by: 'admin',
-    created_at: '2024-09-01T10:00:00Z',
-    updated_at: '2024-09-15T10:00:00Z'
-  },
-  {
-    id: 'EXP002',
-    title: 'Monthly Electricity Bill',
-    description: 'September 2024 electricity bill for school premises',
-    category: 'utilities',
-    amount: 125000,
-    currency: 'XOF',
-    payment_method: 'bank_transfer',
-    payment_date: '2024-09-20',
-    vendor: 'ENEO Cameroon',
-    vendor_contact: '+237 800 123 456',
-    receipt_number: 'RCP-EXP-002',
-    status: 'paid',
-    approved_by: 'admin',
-    approved_at: '2024-09-18T10:00:00Z',
-    academic_year: '2024-2025',
-    term: 'Term 1',
-    department: 'Administrative',
-    budget_category: 'operational',
-    created_by: 'admin',
-    created_at: '2024-09-15T10:00:00Z',
-    updated_at: '2024-09-20T10:00:00Z'
-  },
-  {
-    id: 'EXP003',
-    title: 'Teacher Training Workshop',
-    description: 'Professional development workshop for mathematics teachers',
-    category: 'training',
-    amount: 200000,
-    currency: 'XOF',
-    payment_method: 'cash',
-    payment_date: '2024-09-25',
-    vendor: 'Education Excellence Center',
-    vendor_contact: '+237 987 654 321',
-    receipt_number: 'RCP-EXP-003',
-    status: 'approved',
-    approved_by: 'admin',
-    approved_at: '2024-09-22T10:00:00Z',
-    academic_year: '2024-2025',
-    term: 'Term 1',
-    department: 'Academic',
-    budget_category: 'development',
-    notes: 'Two-day intensive training program',
-    created_by: 'admin',
-    created_at: '2024-09-20T10:00:00Z',
-    updated_at: '2024-09-22T10:00:00Z'
-  }
-]
 
-const mockStats: ExpenditureStats = {
-  total_expenditures: 3,
-  total_amount: 775000,
-  pending_expenditures: 0,
-  approved_expenditures: 1,
-  paid_expenditures: 2,
-  rejected_expenditures: 0,
-  monthly_expenditure: 775000,
-  category_breakdown: [
-    { category: 'equipment', count: 1, amount: 450000, percentage: 58.1 },
-    { category: 'utilities', count: 1, amount: 125000, percentage: 16.1 },
-    { category: 'training', count: 1, amount: 200000, percentage: 25.8 }
-  ],
-  department_breakdown: [
-    { department: 'Academic', count: 2, amount: 650000, percentage: 83.9 },
-    { department: 'Administrative', count: 1, amount: 125000, percentage: 16.1 }
-  ]
-}
 
 // Helper function to get today's date in YYYY-MM-DD format
 const getTodayDate = () => {
@@ -201,8 +110,22 @@ export function ExpenditureManagement() {
   const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
   const { formatCurrency } = useCurrencyFormatter()
   const globalCurrency = useGlobalCurrency()
-  const [expenditures, setExpenditures] = useState<Expenditure[]>(mockExpenditures)
-  const [stats] = useState<ExpenditureStats>(mockStats)
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+  
+  const [expenditures, setExpenditures] = useState<Expenditure[]>([])
+  const [stats, setStats] = useState<ExpenditureStats>({
+    total_expenditures: 0,
+    total_amount: 0,
+    pending_expenditures: 0,
+    approved_expenditures: 0,
+    paid_expenditures: 0,
+    rejected_expenditures: 0,
+    monthly_expenditure: 0,
+    category_breakdown: [],
+    department_breakdown: []
+  })
+  const [isLoading, setIsLoading] = useState(true)
   const [isAddExpenditureOpen, setIsAddExpenditureOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filters, setFilters] = useState<ExpenditureFilters>({
@@ -214,6 +137,39 @@ export function ExpenditureManagement() {
     budget_category: 'all',
     date_range: 'all'
   })
+
+  const fetchExpenditures = async () => {
+    setIsLoading(true)
+    try {
+      const result = await apiGet<{ expenditures: Expenditure[] }>('/api/finances/expenditures')
+      if (result.success && result.data) {
+        setExpenditures(result.data.expenditures)
+        // Calculate stats locally for now
+        const exps = result.data.expenditures
+        const totalAmount = exps.reduce((sum, e) => sum + e.amount, 0)
+        setStats({
+          total_expenditures: exps.length,
+          total_amount: totalAmount,
+          pending_expenditures: exps.filter(e => e.status === 'pending').length,
+          approved_expenditures: exps.filter(e => e.status === 'approved').length,
+          paid_expenditures: exps.filter(e => e.status === 'paid').length,
+          rejected_expenditures: exps.filter(e => e.status === 'rejected').length,
+          monthly_expenditure: totalAmount, // Simplified
+          category_breakdown: [],
+          department_breakdown: []
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching expenditures:', error)
+      toastError("Failed to fetch expenditures")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  React.useEffect(() => {
+    fetchExpenditures()
+  }, [])
 
   // Form state for new expenditure
   const [newExpenditure, setNewExpenditure] = useState<ExpenditureFormData>({
@@ -238,7 +194,7 @@ export function ExpenditureManagement() {
   // Quick actions state
   const [selectedExpenditure, setSelectedExpenditure] = useState<Expenditure | null>(null)
   const [showViewDialog, setShowViewDialog] = useState(false)
-  const [, setShowEditDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [expenditureToDelete, setExpenditureToDelete] = useState<Expenditure | null>(null)
 
@@ -268,41 +224,40 @@ export function ExpenditureManagement() {
     }
 
     try {
-      const newExp: Expenditure = {
-        id: `EXP${String(Date.now()).slice(-6)}`,
-        ...newExpenditure,
-        status: 'pending',
-        created_by: 'admin',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
+      const result = await apiPost('/api/finances/expenditures', newExpenditure)
 
-      setExpenditures(prev => [newExp, ...prev])
-      setIsAddExpenditureOpen(false)
-      
-      toastSuccess("Expenditure Created Successfully! 🎉", {
-        description: `Expenditure "${newExpenditure.title}" has been created`,
-      })
-      
-      // Reset form
-      setNewExpenditure({
-        title: '',
-        description: '',
-        category: 'other',
-        amount: 0,
-        currency: 'XOF',
-        payment_method: 'cash',
-        payment_date: getTodayDate(),
-        vendor: '',
-        vendor_contact: '',
-        receipt_number: '',
-        invoice_number: '',
-        academic_year: '2024-2025',
-        term: 'Term 1',
-        department: '',
-        budget_category: 'operational',
-        notes: ''
-      })
+      if (result.success) {
+        fetchExpenditures()
+        setIsAddExpenditureOpen(false)
+        
+        toastSuccess("Expenditure Created Successfully! 🎉", {
+          description: `Expenditure "${newExpenditure.title}" has been created`,
+        })
+        
+        // Reset form
+        setNewExpenditure({
+          title: '',
+          description: '',
+          category: 'other',
+          amount: 0,
+          currency: 'XOF',
+          payment_method: 'cash',
+          payment_date: getTodayDate(),
+          vendor: '',
+          vendor_contact: '',
+          receipt_number: '',
+          invoice_number: '',
+          academic_year: '2024-2025',
+          term: 'Term 1',
+          department: '',
+          budget_category: 'operational',
+          notes: ''
+        })
+      } else {
+        toastError("Failed to create expenditure", {
+          description: result.error || "Unknown error"
+        })
+      }
     } catch (error) {
       console.error('Error creating expenditure:', error)
       toastError("Failed to create expenditure", {
@@ -329,30 +284,78 @@ export function ExpenditureManagement() {
 
   const confirmDeleteExpenditure = async () => {
     if (expenditureToDelete) {
-      setExpenditures(prev => prev.filter(exp => exp.id !== expenditureToDelete.id))
-      setShowDeleteDialog(false)
-      setExpenditureToDelete(null)
-      
-      toastSuccess("Expenditure Deleted", {
-        description: `Expenditure "${expenditureToDelete.title}" has been successfully deleted.`,
-      })
+      try {
+        const result = await apiDelete(`/api/finances/expenditures?id=${expenditureToDelete.id}`)
+        
+        if (result.success) {
+          fetchExpenditures()
+          setShowDeleteDialog(false)
+          setExpenditureToDelete(null)
+          
+          toastSuccess("Expenditure Deleted", {
+            description: `Expenditure "${expenditureToDelete.title}" has been successfully deleted.`,
+          })
+        } else {
+          toastError("Failed to delete expenditure", {
+            description: result.error || "Unknown error"
+          })
+        }
+      } catch (error) {
+        console.error('Error deleting expenditure:', error)
+        toastError("Failed to delete expenditure")
+      }
     }
   }
 
-  const handleStatusChange = (expenditure: Expenditure, newStatus: Expenditure['status']) => {
-    const updatedExpenditure = {
-      ...expenditure,
-      status: newStatus,
-      approved_by: newStatus === 'approved' || newStatus === 'paid' ? 'admin' : undefined,
-      approved_at: newStatus === 'approved' || newStatus === 'paid' ? new Date().toISOString() : undefined,
-      updated_at: new Date().toISOString()
+  const handleUpdateExpenditure = async () => {
+    if (!selectedExpenditure || !selectedExpenditure.title || !selectedExpenditure.vendor || selectedExpenditure.amount <= 0) {
+      toastError("Validation Error", {
+        description: "Please fill in all required fields with valid values"
+      })
+      return
     }
 
-    setExpenditures(prev => prev.map(exp => exp.id === expenditure.id ? updatedExpenditure : exp))
-    
-    toastSuccess("Status Updated", {
-      description: `Expenditure status has been updated to ${newStatus}`,
-    })
+    try {
+      const result = await apiPut('/api/finances/expenditures', selectedExpenditure)
+
+      if (result.success) {
+        fetchExpenditures()
+        setShowEditDialog(false)
+        setSelectedExpenditure(null)
+        
+        toastSuccess("Expenditure Updated", {
+          description: `Expenditure "${selectedExpenditure.title}" has been updated successfully`,
+        })
+      } else {
+        toastError("Failed to update expenditure", {
+          description: result.error || "Unknown error"
+        })
+      }
+    } catch (error) {
+      console.error('Error updating expenditure:', error)
+      toastError("Failed to update expenditure")
+    }
+  }
+
+  const handleStatusChange = async (expenditure: Expenditure, newStatus: Expenditure['status']) => {
+    try {
+      const result = await apiPut('/api/finances/expenditures', {
+        id: expenditure.id,
+        status: newStatus
+      })
+
+      if (result.success) {
+        fetchExpenditures()
+        toastSuccess("Status Updated", {
+          description: `Expenditure status has been updated to ${newStatus}`,
+        })
+      } else {
+        toastError("Failed to update status")
+      }
+    } catch (error) {
+      console.error('Error updating status:', error)
+      toastError("Failed to update status")
+    }
   }
 
   return (
@@ -718,7 +721,7 @@ export function ExpenditureManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
+
                   <TableHead>Title</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Vendor</TableHead>
@@ -731,7 +734,7 @@ export function ExpenditureManagement() {
               <TableBody>
                 {filteredExpenditures.map((expenditure) => (
                   <TableRow key={expenditure.id}>
-                    <TableCell className="font-medium">{expenditure.id}</TableCell>
+
                     <TableCell>
                       <div>
                         <div className="font-medium">{expenditure.title}</div>
@@ -762,45 +765,49 @@ export function ExpenditureManagement() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleEditExpenditure(expenditure)}
-                          title="Edit Expenditure"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        {expenditure.status === 'pending' && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleStatusChange(expenditure, 'approved')}
-                            title="Approve"
-                            className="text-green-600 hover:text-green-700"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
+                        {isAdmin && (
+                          <>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleEditExpenditure(expenditure)}
+                              title="Edit Expenditure"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            {expenditure.status === 'pending' && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleStatusChange(expenditure, 'approved')}
+                                title="Approve"
+                                className="text-green-600 hover:text-green-700"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {expenditure.status === 'approved' && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleStatusChange(expenditure, 'paid')}
+                                title="Mark as Paid"
+                                className="text-blue-600 hover:text-blue-700"
+                              >
+                                <DollarSign className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleDeleteExpenditure(expenditure)}
+                              title="Delete Expenditure"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
                         )}
-                        {expenditure.status === 'approved' && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => handleStatusChange(expenditure, 'paid')}
-                            title="Mark as Paid"
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            <DollarSign className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleDeleteExpenditure(expenditure)}
-                          title="Delete Expenditure"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -952,6 +959,255 @@ export function ExpenditureManagement() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowViewDialog(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Expenditure Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Edit Expenditure</DialogTitle>
+            <DialogDescription>
+              Update expenditure details
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedExpenditure && (
+            <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <div className="grid gap-4 py-4">
+                {/* Basic Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Basic Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-title">Title *</Label>
+                      <Input
+                        id="edit-title"
+                        value={selectedExpenditure.title}
+                        onChange={(e) => setSelectedExpenditure({...selectedExpenditure, title: e.target.value})}
+                        placeholder="Enter expenditure title"
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-category">Category *</Label>
+                      <Select value={selectedExpenditure.category} onValueChange={(value) => setSelectedExpenditure({...selectedExpenditure, category: value as ExpenditureCategory})}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EXPENDITURE_CATEGORIES.map((category) => (
+                            <SelectItem key={category.value} value={category.value}>
+                              {category.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-description">Description</Label>
+                    <Textarea
+                      id="edit-description"
+                      value={selectedExpenditure.description}
+                      onChange={(e) => setSelectedExpenditure({...selectedExpenditure, description: e.target.value})}
+                      placeholder="Enter expenditure description"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+
+                {/* Financial Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Financial Information</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-amount">Amount *</Label>
+                      <Input
+                        id="edit-amount"
+                        type="number"
+                        min="0"
+                        value={selectedExpenditure.amount}
+                        onChange={(e) => setSelectedExpenditure({...selectedExpenditure, amount: parseFloat(e.target.value) || 0})}
+                        placeholder="0"
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-paymentMethod">Payment Method</Label>
+                      <Select value={selectedExpenditure.payment_method} onValueChange={(value) => setSelectedExpenditure({...selectedExpenditure, payment_method: value as Expenditure['payment_method']})}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select payment method" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_METHODS.map((method) => (
+                            <SelectItem key={method.value} value={method.value}>
+                              {method.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-status">Status</Label>
+                      <Select value={selectedExpenditure.status} onValueChange={(value) => setSelectedExpenditure({...selectedExpenditure, status: value as Expenditure['status']})}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EXPENDITURE_STATUSES.map((status) => (
+                            <SelectItem key={status.value} value={status.value}>
+                              {status.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-paymentDate">Payment Date *</Label>
+                      <Input
+                        id="edit-paymentDate"
+                        type="date"
+                        value={selectedExpenditure.payment_date.split('T')[0]}
+                        onChange={(e) => setSelectedExpenditure({...selectedExpenditure, payment_date: e.target.value})}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-budgetCategory">Budget Category</Label>
+                      <Select value={selectedExpenditure.budget_category} onValueChange={(value) => setSelectedExpenditure({...selectedExpenditure, budget_category: value as BudgetCategory})}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select budget category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {BUDGET_CATEGORIES.map((category) => (
+                            <SelectItem key={category.value} value={category.value}>
+                              {category.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vendor Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Vendor Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-vendor">Vendor *</Label>
+                      <Input
+                        id="edit-vendor"
+                        value={selectedExpenditure.vendor}
+                        onChange={(e) => setSelectedExpenditure({...selectedExpenditure, vendor: e.target.value})}
+                        placeholder="Enter vendor name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-vendorContact">Vendor Contact</Label>
+                      <Input
+                        id="edit-vendorContact"
+                        value={selectedExpenditure.vendor_contact || ''}
+                        onChange={(e) => setSelectedExpenditure({...selectedExpenditure, vendor_contact: e.target.value})}
+                        placeholder="Enter vendor contact"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-receiptNumber">Receipt Number</Label>
+                      <Input
+                        id="edit-receiptNumber"
+                        value={selectedExpenditure.receipt_number || ''}
+                        onChange={(e) => setSelectedExpenditure({...selectedExpenditure, receipt_number: e.target.value})}
+                        placeholder="Enter receipt number"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-invoiceNumber">Invoice Number</Label>
+                      <Input
+                        id="edit-invoiceNumber"
+                        value={selectedExpenditure.invoice_number || ''}
+                        onChange={(e) => setSelectedExpenditure({...selectedExpenditure, invoice_number: e.target.value})}
+                        placeholder="Enter invoice number"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Academic Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Academic Information</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-academicYear">Academic Year</Label>
+                      <Select value={selectedExpenditure.academic_year} onValueChange={(value) => setSelectedExpenditure({...selectedExpenditure, academic_year: value})}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select academic year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="2024-2025">2024-2025</SelectItem>
+                          <SelectItem value="2025-2026">2025-2026</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-term">Term</Label>
+                      <Select value={selectedExpenditure.term} onValueChange={(value) => setSelectedExpenditure({...selectedExpenditure, term: value})}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select term" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Term 1">Term 1</SelectItem>
+                          <SelectItem value="Term 2">Term 2</SelectItem>
+                          <SelectItem value="Term 3">Term 3</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-department">Department</Label>
+                      <Input
+                        id="edit-department"
+                        value={selectedExpenditure.department || ''}
+                        onChange={(e) => setSelectedExpenditure({...selectedExpenditure, department: e.target.value})}
+                        placeholder="Enter department"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Additional Information</h3>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-notes">Notes</Label>
+                    <Textarea
+                      id="edit-notes"
+                      value={selectedExpenditure.notes || ''}
+                      onChange={(e) => setSelectedExpenditure({...selectedExpenditure, notes: e.target.value})}
+                      placeholder="Enter any additional notes"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="flex-shrink-0">
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateExpenditure}>
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

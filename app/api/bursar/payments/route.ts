@@ -20,9 +20,9 @@ export async function GET(request: NextRequest) {
       .select(`
         *,
         students (first_name, last_name, student_id),
-        student_fees (fee_structures (name)),
+        fee_structures (name),
         payment_methods (name, code),
-        users!payments_collected_by_fkey (first_name, last_name)
+        users!payments_received_by_fkey (first_name, last_name)
       `)
       .order('created_at', { ascending: false })
 
@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
+      // eslint-disable-next-line no-console
       console.error('Error fetching payments:', error)
       return NextResponse.json(
         { error: 'Failed to fetch payments' },
@@ -62,8 +63,7 @@ export async function GET(request: NextRequest) {
       studentId: payment.student_id,
       studentName: `${payment.students?.first_name || ''} ${payment.students?.last_name || ''}`.trim(),
       studentNumber: payment.students?.student_id,
-      studentFeeId: payment.student_fee_id,
-      feeStructureName: payment.student_fees?.fee_structures?.name,
+      feeStructureName: payment.fee_structures?.name,
       receiptNumber: payment.receipt_number,
       amount: parseFloat(payment.amount || 0),
       paymentMethodId: payment.payment_method_id,
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
       term: payment.term,
       description: payment.description,
       referenceNumber: payment.reference_number,
-      collectedBy: payment.collected_by,
+      collectedBy: payment.received_by,
       collectorName: `${payment.users?.first_name || ''} ${payment.users?.last_name || ''}`.trim(),
       status: payment.status,
       notes: payment.notes,
@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(transformedData)
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Error in payments GET:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     const {
       studentId,
-      studentFeeId,
+      feeStructureId, // Changed from studentFeeId
       amount,
       paymentMethodId,
       paymentDate,
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validate required fields
-    if (!studentId || !studentFeeId || !amount || !paymentMethodId || !paymentDate || !academicYear || !term) {
+    if (!studentId || !amount || !paymentMethodId || !paymentDate || !academicYear || !term) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
       .from('payments')
       .insert({
         student_id: studentId,
-        student_fee_id: studentFeeId,
+        fee_structure_id: feeStructureId,
         receipt_number: receiptNumber,
         amount: amount,
         payment_method_id: paymentMethodId,
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
         term: term,
         description: description,
         reference_number: referenceNumber,
-        collected_by: user.id,
+        received_by: user.id, // Changed from collected_by
         status: 'completed',
         notes: notes
       })
@@ -154,6 +155,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (paymentError) {
+      // eslint-disable-next-line no-console
       console.error('Error creating payment:', paymentError)
       return NextResponse.json(
         { error: 'Failed to create payment' },
@@ -161,56 +163,49 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Update student fee record
-    const { data: studentFee, error: feeError } = await supabase
-      .from('student_fees')
-      .select('paid_amount, total_amount, balance_amount')
-      .eq('id', studentFeeId)
-      .single()
+    // Attempt to update student fee assignment if it exists
+    // We search for a matching assignment based on student, year, and term
+    // If feeStructureId is provided, we can be more specific
+    let feeQuery = supabase
+      .from('student_fee_assignments')
+      .select('id, paid_amount, total_amount, balance_amount')
+      .eq('student_id', studentId)
+      .eq('academic_year', academicYear)
+      .eq('term', term)
+    
+    if (feeStructureId) {
+      feeQuery = feeQuery.eq('fee_structure_id', feeStructureId)
+    }
+
+    const { data: studentFees, error: feeError } = await feeQuery
 
     if (feeError) {
-      console.error('Error fetching student fee:', feeError)
-      return NextResponse.json(
-        { error: 'Failed to fetch student fee record' },
-        { status: 500 }
-      )
-    }
+      // eslint-disable-next-line no-console
+      console.warn('Error fetching student fee assignment:', feeError)
+      // We don't fail the payment if fee assignment update fails, just log it
+    } else if (studentFees && studentFees.length > 0) {
+      const studentFee = studentFees[0]
+      const newPaidAmount = parseFloat(studentFee.paid_amount || 0) + amount
+      const newBalanceAmount = parseFloat(studentFee.total_amount || 0) - newPaidAmount
 
-    const newPaidAmount = parseFloat(studentFee.paid_amount || 0) + amount
-    const newBalanceAmount = parseFloat(studentFee.total_amount || 0) - newPaidAmount
+      // Determine new status
+      let newStatus = 'pending'
+      if (newPaidAmount >= parseFloat(studentFee.total_amount || 0)) {
+        newStatus = 'paid'
+      } else if (newPaidAmount > 0) {
+        newStatus = 'partial'
+      }
 
-    // Determine new status
-    let newStatus = 'pending'
-    if (newPaidAmount >= parseFloat(studentFee.total_amount || 0)) {
-      newStatus = 'paid'
-    } else if (newPaidAmount > 0) {
-      newStatus = 'partial'
-    }
-
-    // Update student fee
-    const { error: updateFeeError } = await supabase
-      .from('student_fees')
-      .update({
-        paid_amount: newPaidAmount,
-        balance_amount: newBalanceAmount,
-        status: newStatus,
-        last_payment_date: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', studentFeeId)
-
-    if (updateFeeError) {
-      console.error('Error updating student fee:', updateFeeError)
-      // Rollback payment creation
+      // Update student fee assignment
       await supabase
-        .from('payments')
-        .delete()
-        .eq('id', payment.id)
-      
-      return NextResponse.json(
-        { error: 'Failed to update student fee record' },
-        { status: 500 }
-      )
+        .from('student_fee_assignments')
+        .update({
+          paid_amount: newPaidAmount,
+          balance_amount: newBalanceAmount,
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', studentFee.id)
     }
 
     return NextResponse.json(
@@ -223,6 +218,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Error in payments POST:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
