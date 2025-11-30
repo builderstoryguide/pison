@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -14,6 +14,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { BookOpen } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { supabase } from "@/lib/supabase"
 
 interface SequenceData {
   marks: number
@@ -22,7 +24,7 @@ interface SequenceData {
 }
 
 interface SubjectData {
-  id: number
+  id: string | number
   name: string
   code: string
   teacher: string
@@ -35,97 +37,155 @@ interface StudentDashboardProps {
 }
 
 export function StudentDashboard(_: StudentDashboardProps) {
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState("all")
+  const [subjects, setSubjects] = useState<SubjectData[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Mock data for student
+  useEffect(() => {
+    const fetchStudentData = async () => {
+      console.log("Fetching student data...", { userClass: user?.class, userId: user?.id, studentId: user?.studentId })
+      
+      if (!user?.studentId && !user?.class) {
+        console.warn("User studentId and class are missing, skipping fetch")
+        setLoading(false)
+        return
+      }
+
+      try {
+        if (!supabase) {
+            console.error("Supabase client is not initialized")
+            setLoading(false)
+            return
+        }
+
+        let classId: string | null = null
+
+        // 1. Try to get class ID from class_students table (most reliable)
+        if (user?.studentId) {
+            // First get the student's UUID from the students table
+            const { data: studentData, error: _ } = await supabase
+                .from('students')
+                .select('id')
+                .eq('student_id', user.studentId)
+                .single()
+            
+            if (studentData) {
+                const { data: enrollmentData, error: __ } = await supabase
+                    .from('class_students')
+                    .select('class_id')
+                    .eq('student_id', studentData.id)
+                    .single()
+                
+                if (enrollmentData) {
+                    classId = enrollmentData.class_id
+                    console.log("Found class ID via enrollment:", classId)
+                }
+            }
+        }
+
+        // 2. Fallback: Get class ID by name if not found via enrollment
+        if (!classId && user?.class) {
+            // Check if user.class is a UUID
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.class)
+            
+            if (isUuid) {
+                console.log("User class is a UUID, using directly:", user.class)
+                classId = user.class
+            } else {
+                console.log("Looking up class by name:", user.class)
+                const { data: classData, error: classError } = await supabase
+                .from('classes')
+                .select('id')
+                .eq('name', user.class)
+                .maybeSingle()
+
+                if (classData) {
+                    classId = classData.id
+                    console.log("Found class ID by name:", classId)
+                } else if (classError) {
+                    console.error("Error finding class by name:", classError.message || classError)
+                } else {
+                    console.warn("Class not found by name:", user.class)
+                }
+            }
+        }
+
+        if (!classId) {
+            console.error("Class ID could not be determined. User details:", { 
+                studentId: user?.studentId, 
+                className: user?.class 
+            })
+            // Don't throw, just set empty subjects and return to avoid crashing the UI
+            setSubjects([])
+            setLoading(false)
+            return
+        }
+
+        // 3. Get subjects for this class
+        const { data: classSubjects, error: subjectsError } = await supabase
+          .from('class_subjects')
+          .select(`
+            subject_id,
+            subjects (
+              id,
+              name,
+              code
+            )
+          `)
+          .eq('class_id', classId)
+
+        if (subjectsError) {
+            console.error("Error fetching class subjects:", subjectsError.message || subjectsError)
+            throw subjectsError
+        }
+        
+        console.log("Found class subjects:", classSubjects)
+
+        // 4. Transform to component format
+        interface RawSubjectData {
+          subject_id: string
+          subjects: {
+            id: string
+            name: string
+            code: string
+          }
+        }
+
+        const formattedSubjects: SubjectData[] = (classSubjects as unknown as RawSubjectData[]).map((item) => ({
+          id: item.subjects.id,
+          name: item.subjects.name,
+          code: item.subjects.code || item.subjects.name.substring(0, 3).toUpperCase(),
+          teacher: "TBA", // Placeholder as teacher assignment is in a different table
+          coefficient: 1, // Default coefficient
+          sequences: {} // Initialize with empty sequences
+        }))
+
+        setSubjects(formattedSubjects)
+      } catch (error: any) {
+        console.error('Error fetching student subjects:', error)
+        console.error('Error message:', error.message)
+        if (error.stack) {
+            console.error('Error stack:', error.stack)
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStudentData()
+  }, [user])
+
+  // Mock data for student display (fallback to user data)
   const studentData = {
-    id: "STU2024001",
-    name: "Amina Fru",
-    email: "amina.fru@student.pisonacademy.cm",
-    class: "Form 5A",
-    branch: "Grammar",
-    subsystem: "English",
-    avatar: "/placeholder.svg",
+    id: user?.studentId || "STU2024001",
+    name: user?.name || "Student Name",
+    email: user?.email || "student@school.com",
+    class: user?.class || "Form 5A",
+    branch: user?.branch || "General",
+    subsystem: user?.subsystem || "English",
+    avatar: user?.avatar || "/placeholder.svg",
   }
-
-  // Mock subjects data with teacher info and sequences
-  const subjects = [
-    {
-      id: 1,
-      name: "Mathematics",
-      code: "MATH501",
-      teacher: "Mr. John Kamga",
-      coefficient: 5,
-      sequences: {
-        seq1: { marks: 85, maxMarks: 100, grade: "A" },
-        seq2: { marks: 88, maxMarks: 100, grade: "A" },
-        seq3: { marks: 82, maxMarks: 100, grade: "B+" },
-        seq4: { marks: 90, maxMarks: 100, grade: "A+" },
-        seq5: { marks: 87, maxMarks: 100, grade: "A" },
-        seq6: { marks: 89, maxMarks: 100, grade: "A" },
-      }
-    },
-    {
-      id: 2,
-      name: "English Language",
-      code: "ENG501",
-      teacher: "Mrs. Grace Ndip",
-      coefficient: 4,
-      sequences: {
-        seq1: { marks: 78, maxMarks: 100, grade: "B+" },
-        seq2: { marks: 82, maxMarks: 100, grade: "B+" },
-        seq3: { marks: 85, maxMarks: 100, grade: "A" },
-        seq4: { marks: 80, maxMarks: 100, grade: "B+" },
-        seq5: { marks: 83, maxMarks: 100, grade: "B+" },
-        seq6: { marks: 86, maxMarks: 100, grade: "A" },
-      }
-    },
-    {
-      id: 3,
-      name: "Physics",
-      code: "PHY501",
-      teacher: "Dr. Paul Mbah",
-      coefficient: 5,
-      sequences: {
-        seq1: { marks: 82, maxMarks: 100, grade: "B+" },
-        seq2: { marks: 85, maxMarks: 100, grade: "A" },
-        seq3: { marks: 80, maxMarks: 100, grade: "B+" },
-        seq4: { marks: 87, maxMarks: 100, grade: "A" },
-        seq5: { marks: 84, maxMarks: 100, grade: "B+" },
-        seq6: { marks: 88, maxMarks: 100, grade: "A" },
-      }
-    },
-    {
-      id: 4,
-      name: "Chemistry",
-      code: "CHEM501",
-      teacher: "Mrs. Sarah Fon",
-      coefficient: 5,
-      sequences: {
-        seq1: { marks: 87, maxMarks: 100, grade: "A" },
-        seq2: { marks: 84, maxMarks: 100, grade: "B+" },
-        seq3: { marks: 86, maxMarks: 100, grade: "A" },
-        seq4: { marks: 89, maxMarks: 100, grade: "A" },
-        seq5: { marks: 85, maxMarks: 100, grade: "A" },
-        seq6: { marks: 90, maxMarks: 100, grade: "A+" },
-      }
-    },
-    {
-      id: 5,
-      name: "Biology",
-      code: "BIO501",
-      teacher: "Mr. Thomas Njie",
-      coefficient: 4,
-      sequences: {
-        seq1: { marks: 80, maxMarks: 100, grade: "B+" },
-        seq2: { marks: 83, maxMarks: 100, grade: "B+" },
-        seq3: { marks: 81, maxMarks: 100, grade: "B+" },
-        seq4: { marks: 85, maxMarks: 100, grade: "A" },
-        seq5: { marks: 82, maxMarks: 100, grade: "B+" },
-        seq6: { marks: 84, maxMarks: 100, grade: "B+" },
-      }
-    },
-  ]
 
   const getGradeColor = (grade: string) => {
     switch (grade) {
@@ -233,214 +293,76 @@ export function StudentDashboard(_: StudentDashboardProps) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {subjects.map((subject) => (
-                      <TableRow key={subject.id}>
-                        <TableCell className="font-medium">{subject.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{subject.code}</Badge>
-                        </TableCell>
-                        <TableCell>{subject.teacher}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline">{subject.coefficient}</Badge>
-                        </TableCell>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-4">Loading subjects...</TableCell>
                       </TableRow>
-                    ))}
+                    ) : subjects.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-4">No subjects found for your class.</TableCell>
+                      </TableRow>
+                    ) : (
+                      subjects.map((subject) => (
+                        <TableRow key={subject.id}>
+                          <TableCell className="font-medium">{subject.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{subject.code}</Badge>
+                          </TableCell>
+                          <TableCell>{subject.teacher}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline">{subject.coefficient}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
             </TabsContent>
 
-            {/* First Sequence Tab */}
-            <TabsContent value="seq1" className="space-y-4">
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Subject Name</TableHead>
-                      <TableHead>Subject Code</TableHead>
-                      <TableHead>Teacher</TableHead>
-                      <TableHead className="text-center">Coefficient</TableHead>
-                      <TableHead className="text-center">Marks</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {subjects.map((subject) => (
-                      <TableRow key={subject.id}>
-                        <TableCell className="font-medium">{subject.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{subject.code}</Badge>
-                        </TableCell>
-                        <TableCell>{subject.teacher}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline">{subject.coefficient}</Badge>
-                        </TableCell>
-                        {renderSequenceColumn(subject, 'seq1')}
+            {/* Sequence Tabs */}
+            {['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'].map((seq) => (
+              <TabsContent key={seq} value={seq} className="space-y-4">
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Subject Name</TableHead>
+                        <TableHead>Subject Code</TableHead>
+                        <TableHead>Teacher</TableHead>
+                        <TableHead className="text-center">Coefficient</TableHead>
+                        <TableHead className="text-center">Marks</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-
-            {/* Second Sequence Tab */}
-            <TabsContent value="seq2" className="space-y-4">
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Subject Name</TableHead>
-                      <TableHead>Subject Code</TableHead>
-                      <TableHead>Teacher</TableHead>
-                      <TableHead className="text-center">Coefficient</TableHead>
-                      <TableHead className="text-center">Marks</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {subjects.map((subject) => (
-                      <TableRow key={subject.id}>
-                        <TableCell className="font-medium">{subject.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{subject.code}</Badge>
-                        </TableCell>
-                        <TableCell>{subject.teacher}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline">{subject.coefficient}</Badge>
-                        </TableCell>
-                        {renderSequenceColumn(subject, 'seq2')}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-
-            {/* Third Sequence Tab */}
-            <TabsContent value="seq3" className="space-y-4">
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Subject Name</TableHead>
-                      <TableHead>Subject Code</TableHead>
-                      <TableHead>Teacher</TableHead>
-                      <TableHead className="text-center">Coefficient</TableHead>
-                      <TableHead className="text-center">Marks</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {subjects.map((subject) => (
-                      <TableRow key={subject.id}>
-                        <TableCell className="font-medium">{subject.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{subject.code}</Badge>
-                        </TableCell>
-                        <TableCell>{subject.teacher}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline">{subject.coefficient}</Badge>
-                        </TableCell>
-                        {renderSequenceColumn(subject, 'seq3')}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-
-            {/* Fourth Sequence Tab */}
-            <TabsContent value="seq4" className="space-y-4">
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Subject Name</TableHead>
-                      <TableHead>Subject Code</TableHead>
-                      <TableHead>Teacher</TableHead>
-                      <TableHead className="text-center">Coefficient</TableHead>
-                      <TableHead className="text-center">Marks</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {subjects.map((subject) => (
-                      <TableRow key={subject.id}>
-                        <TableCell className="font-medium">{subject.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{subject.code}</Badge>
-                        </TableCell>
-                        <TableCell>{subject.teacher}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline">{subject.coefficient}</Badge>
-                        </TableCell>
-                        {renderSequenceColumn(subject, 'seq4')}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-
-            {/* Fifth Sequence Tab */}
-            <TabsContent value="seq5" className="space-y-4">
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Subject Name</TableHead>
-                      <TableHead>Subject Code</TableHead>
-                      <TableHead>Teacher</TableHead>
-                      <TableHead className="text-center">Coefficient</TableHead>
-                      <TableHead className="text-center">Marks</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {subjects.map((subject) => (
-                      <TableRow key={subject.id}>
-                        <TableCell className="font-medium">{subject.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{subject.code}</Badge>
-                        </TableCell>
-                        <TableCell>{subject.teacher}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline">{subject.coefficient}</Badge>
-                        </TableCell>
-                        {renderSequenceColumn(subject, 'seq5')}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-
-            {/* Sixth Sequence Tab */}
-            <TabsContent value="seq6" className="space-y-4">
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Subject Name</TableHead>
-                      <TableHead>Subject Code</TableHead>
-                      <TableHead>Teacher</TableHead>
-                      <TableHead className="text-center">Coefficient</TableHead>
-                      <TableHead className="text-center">Marks</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {subjects.map((subject) => (
-                      <TableRow key={subject.id}>
-                        <TableCell className="font-medium">{subject.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{subject.code}</Badge>
-                        </TableCell>
-                        <TableCell>{subject.teacher}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline">{subject.coefficient}</Badge>
-                        </TableCell>
-                        {renderSequenceColumn(subject, 'seq6')}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-4">Loading subjects...</TableCell>
+                        </TableRow>
+                      ) : subjects.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-4">No subjects found for your class.</TableCell>
+                        </TableRow>
+                      ) : (
+                        subjects.map((subject) => (
+                          <TableRow key={subject.id}>
+                            <TableCell className="font-medium">{subject.name}</TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{subject.code}</Badge>
+                            </TableCell>
+                            <TableCell>{subject.teacher}</TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="outline">{subject.coefficient}</Badge>
+                            </TableCell>
+                            {renderSequenceColumn(subject, seq)}
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+            ))}
           </Tabs>
         </CardContent>
       </Card>
