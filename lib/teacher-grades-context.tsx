@@ -1551,7 +1551,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
         if (existingGrade) {
           // Get assessment to calculate percentage and grade
           const assessment = assessments.find(a => a.id === gradeData.assessmentId)
-          const totalMarks = assessment?.totalMarks || 100
+          const totalMarks = assessment?.totalMarks || 20
           const percentage = (gradeData.marks / totalMarks) * 100
           const grade = calculateGrade(gradeData.marks, totalMarks)
 
@@ -1681,7 +1681,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
             if (existingGradeForUpdate) {
               // Update existing grade
               const assessment = assessments.find(a => a.id === gradeData.assessmentId)
-              const totalMarks = assessment?.totalMarks || 100
+              const totalMarks = assessment?.totalMarks || 20
               const percentage = (gradeData.marks / totalMarks) * 100
               const grade = calculateGrade(gradeData.marks, totalMarks)
 

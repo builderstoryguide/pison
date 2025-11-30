@@ -109,7 +109,7 @@ export function UserCreationSuccessDialog({
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `welcome-${userData.name}.txt`
+    a.download = `Welcome - ${userData.name}.txt`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -190,7 +190,7 @@ export function UserCreationSuccessDialog({
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `welcome-${userData.name}.txt`
+        a.download = `Welcome - ${userData.name}.txt`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)

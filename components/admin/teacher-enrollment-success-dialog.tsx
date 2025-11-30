@@ -81,7 +81,7 @@ Pison Academy of Excellence
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `welcome-email-${teacherId}.txt`
+    a.download = `Welcome - ${teacherName}.txt`
     a.click()
     window.URL.revokeObjectURL(url)
   }

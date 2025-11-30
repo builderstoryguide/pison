@@ -395,7 +395,7 @@ export function TeacherGradesDatabaseProvider({ children }: { children: ReactNod
 
       // Get assessment to get total marks
       const assessment = assessments.find(a => a.id === gradeData.assessmentId)
-      const totalMarks = assessment?.totalMarks || 100
+      const totalMarks = assessment?.totalMarks || 20
       
       // Calculate grade letter and point
       const gradeLetter = calculateGrade(gradeData.marksObtained, totalMarks)
@@ -520,7 +520,7 @@ export function TeacherGradesDatabaseProvider({ children }: { children: ReactNod
 
           // Get assessment to get total marks
           const assessment = assessments.find(a => a.id === gradeData.assessmentId)
-          const totalMarks = assessment?.totalMarks || 100
+          const totalMarks = assessment?.totalMarks || 20
           
           // Calculate grade letter and point
           const gradeLetter = calculateGrade(gradeData.marksObtained, totalMarks)

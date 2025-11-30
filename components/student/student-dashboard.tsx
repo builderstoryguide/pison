@@ -15,11 +15,26 @@ import {
 } from "@/components/ui/table"
 import { BookOpen } from "lucide-react"
 
+interface SequenceData {
+  marks: number
+  maxMarks: number
+  grade: string
+}
+
+interface SubjectData {
+  id: number
+  name: string
+  code: string
+  teacher: string
+  coefficient: number
+  sequences: Record<string, SequenceData>
+}
+
 interface StudentDashboardProps {
   onNavigate?: (view: string) => void
 }
 
-export function StudentDashboard({ onNavigate }: StudentDashboardProps) {
+export function StudentDashboard(_: StudentDashboardProps) {
   const [activeTab, setActiveTab] = useState("all")
 
   // Mock data for student
@@ -131,7 +146,7 @@ export function StudentDashboard({ onNavigate }: StudentDashboardProps) {
     }
   }
 
-  const renderSequenceColumn = (subject: any, sequenceKey: string) => {
+  const renderSequenceColumn = (subject: SubjectData, sequenceKey: string) => {
     const sequence = subject.sequences[sequenceKey]
     if (!sequence) return <TableCell className="text-center text-muted-foreground">-</TableCell>
     
@@ -154,7 +169,7 @@ export function StudentDashboard({ onNavigate }: StudentDashboardProps) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Student Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's your academic overview</p>
+          <p className="text-muted-foreground">Welcome back! Here&apos;s your academic overview</p>
         </div>
       </div>
 

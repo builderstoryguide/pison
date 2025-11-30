@@ -1,7 +1,7 @@
 "use client"
 
 import { Check, Copy, Download, User } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -29,6 +29,7 @@ export function EnrollmentSuccessDialog({
   onClose 
 }: EnrollmentSuccessDialogProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const hasDownloadedRef = useRef(false)
 
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text)
@@ -69,15 +70,22 @@ Pison Academy of Excellence
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `welcome-email-${studentId}.txt`
+    a.download = `Welcome - ${studentName}.txt`
     a.click()
     window.URL.revokeObjectURL(url)
   }
 
-  // IMPORTANT: Download is ONLY triggered by explicit user action (button click)
-  // There is NO useEffect hook that automatically downloads files when the dialog opens
-  // This prevents unwanted downloads and gives users full control over when to download
-  // The generateWelcomeEmail function is only called via the "Download Letter" button onClick handler
+  // Automatically download credentials when dialog opens
+  useEffect(() => {
+    if (!hasDownloadedRef.current && studentId) {
+      // Small delay to ensure dialog is fully rendered
+      const timer = setTimeout(() => {
+        generateWelcomeEmail()
+        hasDownloadedRef.current = true
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [studentId])
 
   return (
     <div className="w-full max-w-lg mx-auto space-y-4 p-2">
