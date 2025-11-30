@@ -10,7 +10,7 @@ import { TeacherManagementProvider, useTeacherManagement } from "@/lib/teacher-m
 import { EmployeeManagementProvider } from "@/lib/employee-management-context"
 import { ClassManagementProvider, useClassManagement } from "@/lib/class-management-context"
 import { SubjectManagementProvider } from "@/lib/subject-management-context"
-import { FinancialProvider, useFinancial } from "@/lib/financial-context"
+import { FinancialProvider } from "@/lib/financial-context"
 import { ProfileProvider } from "@/lib/profile-context"
 import { AlertsProvider } from "@/lib/alerts-context"
 import { BursarProvider } from "@/lib/bursar-context"
@@ -106,7 +106,6 @@ import {
   BookOpen,
   FileText,
   DollarSign,
-  Calendar,
   BarChart3,
   Settings,
   LogOut,
@@ -119,8 +118,6 @@ import {
   AlertCircle,
   Clock,
   X,
-  CalendarDays,
-  Award,
   ChevronRight,
   Briefcase,
   ClipboardList,
@@ -156,41 +153,7 @@ type StudentView = "dashboard" | "profile"
 
 type BursarView = "dashboard" | "financial" | "sales" | "payment" | "expenditures" | "reports" | "profile"
 
-// Mock notifications data (unused - kept for reference)
-const _mockNotifications = [
-  {
-    id: 1,
-    title: "New Student Enrollment",
-    message: "John Doe has been enrolled in Form 5A",
-    type: "info" as const,
-    time: "2 minutes ago",
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Payment Received",
-            message: "School fees payment of XOF 150,000 received from Marie Ngozi",
-    type: "success" as const,
-    time: "1 hour ago",
-    read: false,
-  },
-  {
-    id: 4,
-    title: "Exam Schedule Updated",
-    message: "First term examination dates have been modified",
-    type: "info" as const,
-    time: "1 day ago",
-    read: true,
-  },
-  {
-    id: 5,
-    title: "System Maintenance",
-    message: "Scheduled maintenance completed successfully",
-    type: "success" as const,
-    time: "2 days ago",
-    read: true,
-  },
-]
+
 
 // Notification Component
 function NotificationDropdown() {
@@ -351,25 +314,7 @@ function DashboardHeader({
   )
 }
 
-interface _QuickActionsDashboardProps {
-  onNavigate?: (view: AdminView) => void
-}
 
-interface _ParentDashboardProps {
-  onNavigate?: (view: ParentView) => void
-}
-
-interface _StudentDashboardProps {
-  onNavigate?: (view: StudentView) => void
-}
-
-interface _TeacherDashboardProps {
-  onNavigate?: (view: TeacherView) => void
-}
-
-interface _BursarDashboardProps {
-  onNavigate?: (view: BursarView) => void
-}
 
 export function Dashboard() {
   const { user, logout: originalLogout } = useAuth()
@@ -457,8 +402,7 @@ export function Dashboard() {
     if (user?.role === "admin") {
       const isSubItemActive = adminCurrentView === "sales" || 
                              adminCurrentView === "payment" || 
-                             adminCurrentView === "expenditures" || 
-                             adminCurrentView === "financial"
+                             adminCurrentView === "expenditures"
       // Only auto-open if a sub-item is active and menu wasn't manually closed
       if (isSubItemActive && !financesMenuManuallyClosed) {
         setFinancesMenuOpen(true)
@@ -559,19 +503,9 @@ export function Dashboard() {
   // Sidebar state is now managed by SidebarProvider
   
   // Get data from contexts for Admin Dashboard
-  const { students: _students, isLoading: studentsLoading, error: studentsError } = useStudentManagement()
-  const { teachers: _teachers, isLoading: teachersLoading, error: teachersError } = useTeacherManagement()
-  const { classes: _classes, isLoading: classesLoading, error: classesError } = useClassManagement()
-  const { payments, isLoading: paymentsLoading } = useFinancial()
-  
-  // Calculate total revenue from payments
-  const _totalRevenue = payments.reduce((sum, payment) => sum + payment.amountPaid, 0)
-  
-  // Check if any data is still loading
-  const _isDataLoading = studentsLoading || teachersLoading || classesLoading || paymentsLoading
-  
-  // Check if there are any errors
-  const _hasErrors = studentsError || teachersError || classesError
+  const { isLoading: _studentsLoading, error: _studentsError } = useStudentManagement()
+  const { isLoading: _teachersLoading, error: _teachersError } = useTeacherManagement()
+  const { isLoading: _classesLoading, error: _classesError } = useClassManagement()
 
   // Save view states to localStorage whenever they change
   useEffect(() => {
