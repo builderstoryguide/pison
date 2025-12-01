@@ -111,6 +111,18 @@ async function generateTeacherId(): Promise<string> {
   return teacherId!
 }
 
+// Helper function to get current academic year
+function getCurrentAcademicYear(): string {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = date.getMonth() // 0-11
+  if (month >= 7) { // August or later
+    return `${year}-${year + 1}`
+  } else {
+    return `${year - 1}-${year}`
+  }
+}
+
 // POST - Create a new teacher
 export async function POST(
   request: NextRequest
@@ -119,7 +131,7 @@ export async function POST(
     let body: TeacherRequestBody
     try {
       body = await request.json()
-    } catch (parseError) {
+    } catch (_parseError) {
       return NextResponse.json(
         { error: 'Invalid JSON in request body', details: 'Request body must be valid JSON' },
         { status: 400 }
@@ -134,17 +146,12 @@ export async function POST(
       )
     }
     
-    // Destructure with type safety
+    // Destructure with type safety - split into const (immutable) and let (mutable/sanitized)
     const {
       title,
-      firstName,
-      lastName,
-      email,
-      phone,
       dateOfBirth,
       gender,
       nationality,
-      idNumber,
       address,
       city,
       region,
@@ -161,6 +168,21 @@ export async function POST(
       createdBy
     } = body
 
+    let {
+      firstName,
+      lastName,
+      email,
+      phone,
+      idNumber
+    } = body
+
+    // Sanitize inputs
+    firstName = firstName?.trim()
+    lastName = lastName?.trim()
+    email = email?.trim()
+    phone = phone?.trim()
+    idNumber = idNumber?.trim()
+
     // Validate required fields with clear error messages
     const missingFields: string[] = []
     if (!firstName || typeof firstName !== 'string' || firstName.trim().length === 0) {
@@ -169,9 +191,7 @@ export async function POST(
     if (!lastName || typeof lastName !== 'string' || lastName.trim().length === 0) {
       missingFields.push('lastName')
     }
-    if (!email || typeof email !== 'string' || email.trim().length === 0) {
-      missingFields.push('email')
-    }
+    // Email is no longer required
     if (!subsystem || typeof subsystem !== 'string') {
       missingFields.push('subsystem')
     }
@@ -190,9 +210,9 @@ export async function POST(
       )
     }
 
-    // Validate email format
+    // Validate email format if provided
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
+    if (email && !emailRegex.test(email)) {
       return NextResponse.json(
         { error: 'Invalid email format', details: 'Please provide a valid email address' },
         { status: 400 }
@@ -215,22 +235,28 @@ export async function POST(
       )
     }
 
-    // Check if teacher with this email already exists
-    const { data: existingTeacher } = await supabase
-      .from('teachers')
-      .select('id')
-      .eq('email', email)
-      .single()
+    // Check if teacher with this email already exists (only if email is provided)
+    if (email) {
+      const { data: existingTeacher } = await supabase
+        .from('teachers')
+        .select('id')
+        .eq('email', email)
+        .single()
 
-    if (existingTeacher) {
-      return NextResponse.json(
-        { error: 'A teacher with this email already exists' },
-        { status: 409 }
-      )
+      if (existingTeacher) {
+        return NextResponse.json(
+          { error: 'A teacher with this email already exists' },
+          { status: 409 }
+        )
+      }
     }
 
     // Generate unique teacher ID
     const teacherId = await generateTeacherId()
+    
+    // Determine email to use for user account (use placeholder if not provided)
+    // We use a placeholder domain that won't conflict with real emails
+    const userEmail = email || `${teacherId.toLowerCase()}@placeholder.pison.app`
 
     // Generate password for teacher
     const teacherPassword = generateDefaultPassword('teacher')
@@ -241,7 +267,7 @@ export async function POST(
       title: title || null,
       first_name: firstName,
       last_name: lastName,
-      email: email,
+      email: userEmail, // Use the determined email (real or placeholder)
       phone: phone || null,
       date_of_birth: dateOfBirth || null,
       gender: gender || null,
@@ -353,11 +379,11 @@ export async function POST(
     const { data: existingUser } = await supabase
       .from('users')
       .select('id, email, name, role')
-      .eq('email', email)
+      .eq('email', userEmail)
       .single()
 
     if (existingUser) {
-      console.warn(`⚠️ User account already exists for email: ${email}`)
+      console.warn(`⚠️ User account already exists for email: ${userEmail}`)
       userAccountError = 'User account already exists for this email'
       // Link teacher to existing user account
       teacherUser = existingUser
@@ -382,7 +408,7 @@ export async function POST(
         const { data: createdUser, error: userError } = await supabase
           .from('users')
           .insert({
-            email: email,
+            email: userEmail,
             password_hash: await bcrypt.hash(teacherPassword, 12),
             name: teacherName,
             role: 'teacher',
@@ -507,41 +533,123 @@ export async function POST(
       }
     }
 
-    // Create teacher_subjects records if subjects are provided
+    // Create teacher_subjects records and teacher_branch_assignments
     // Add null check before using teacherUser
     if (subjects && Array.isArray(subjects) && subjects.length > 0 && teacherUser && teacherUser.id) {
       try {
-        // Get subject IDs from subject names
-        const { data: subjectRecords } = await supabase
-          .from('subjects')
-          .select('id, name')
-          .in('name', subjects)
-          .eq('is_active', true)
+        // 1. Parse subjects to separate main subjects and sub-branches
+        const subjectsToAssign = new Set<string>()
+        const subBranchAssignments: { subjectName: string, branchName: string }[] = []
 
-        if (subjectRecords && subjectRecords.length > 0 && teacherUser) {
-          // Create teacher_subjects records
-          // Additional null check for teacherUser (TypeScript guard)
-          const teacherSubjectsData = subjectRecords.map((subject) => ({
-            teacher_id: teacherUser!.id, // Non-null assertion safe due to check above
-            subject_id: subject.id,
-            subject_name: subject.name,
-            assignment_type: 'main_subject',
-            is_active: true,
-          }))
-
-          const { error: teacherSubjectsError } = await supabase
-            .from('teacher_subjects')
-            .insert(teacherSubjectsData)
-
-          if (teacherSubjectsError) {
-            console.warn('Failed to create teacher_subjects records:', teacherSubjectsError.message)
-            // Continue even if teacher_subjects creation fails
+        subjects.forEach(s => {
+          if (s.includes(' - ')) {
+            const [subjectName, branchName] = s.split(' - ')
+            if (subjectName && branchName) {
+              subBranchAssignments.push({ subjectName: subjectName.trim(), branchName: branchName.trim() })
+              subjectsToAssign.add(subjectName.trim()) // Add parent subject
+            }
           } else {
-            console.log(`Created ${teacherSubjectsData.length} teacher_subjects records for teacher ${teacherId}`)
+            subjectsToAssign.add(s.trim())
           }
-        } else {
-          console.warn('No matching subjects found in database for provided subject names:', subjects)
+        })
+
+        const uniqueSubjects = Array.from(subjectsToAssign)
+
+        // 2. Create teacher_subjects records (Main Subjects)
+        if (uniqueSubjects.length > 0) {
+          // Get subject IDs from subject names
+          const { data: subjectRecords } = await supabase
+            .from('subjects')
+            .select('id, name')
+            .in('name', uniqueSubjects)
+            .eq('is_active', true)
+
+          if (subjectRecords && subjectRecords.length > 0) {
+            // Create teacher_subjects records
+            const teacherSubjectsData = subjectRecords.map((subject) => ({
+              teacher_id: teacherUser!.id, // Non-null assertion safe due to check above
+              subject_id: subject.id,
+              subject_name: subject.name,
+              assignment_type: 'main_subject',
+              is_active: true,
+            }))
+
+            const { error: teacherSubjectsError } = await supabase
+              .from('teacher_subjects')
+              .insert(teacherSubjectsData)
+
+            if (teacherSubjectsError) {
+              console.warn('Failed to create teacher_subjects records:', teacherSubjectsError.message)
+            } else {
+              console.log(`Created ${teacherSubjectsData.length} teacher_subjects records for teacher ${teacherId}`)
+            }
+          } else {
+            console.warn('No matching subjects found in database for provided subject names:', uniqueSubjects)
+          }
         }
+
+        // 3. Create teacher_branch_assignments (Sub-branches)
+        if (subBranchAssignments.length > 0 && classes && classes.length > 0 && insertedTeacher) {
+          // Resolve classes first
+          const { data: classRecords } = await supabase
+            .from('classes')
+            .select('id, class_name, name')
+            .in('class_name', classes)
+            .eq('status', 'active')
+
+          let classesToAssign = classRecords || []
+          if (!classRecords || classRecords.length === 0) {
+            const { data: classRecordsByName } = await supabase
+              .from('classes')
+              .select('id, class_name, name')
+              .in('name', classes)
+              .eq('status', 'active')
+            
+            if (classRecordsByName) {
+              classesToAssign = classRecordsByName
+            }
+          }
+
+          if (classesToAssign.length > 0) {
+            const academicYear = getCurrentAcademicYear()
+            
+            // Process each sub-branch assignment
+            for (const assignment of subBranchAssignments) {
+              // Find the branch
+              const { data: branch } = await supabase
+                .from('subject_branches')
+                .select('id, subject_id, subjects!inner(name)')
+                .eq('branch_name', assignment.branchName)
+                .eq('subjects.name', assignment.subjectName)
+                .single()
+
+              if (branch) {
+                // Create assignments for all classes
+                const branchAssignmentsData = classesToAssign.map(cls => ({
+                  teacher_id: insertedTeacher.id,
+                  branch_id: branch.id,
+                  class_id: cls.id,
+                  academic_year: academicYear,
+                  term: 'Annual', // Default term
+                  is_primary_teacher: false,
+                  status: 'active'
+                }))
+
+                const { error: branchAssignError } = await supabase
+                  .from('teacher_branch_assignments')
+                  .insert(branchAssignmentsData)
+                  .ignoreDuplicates() // Prevent unique constraint violations
+
+                if (branchAssignError) {
+                  console.warn(`Failed to assign branch ${assignment.branchName} to teacher:`, branchAssignError.message)
+                } else {
+                  console.log(`Assigned branch ${assignment.branchName} to teacher for ${classesToAssign.length} classes`)
+                }
+              }
+            }
+          }
+        }
+
       } catch (subjectsError) {
         console.warn('Error creating teacher_subjects records:', subjectsError)
         // Continue even if teacher_subjects creation fails

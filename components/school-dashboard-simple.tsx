@@ -12,7 +12,7 @@ import { ClassManagement } from "./admin/class-management"
 import { FinancialManagement } from "./admin/financial-management"
 import { ProfileSettings } from "./profile/profile-settings"
 import { TeacherDashboardNew } from "./teacher/teacher-dashboard-new"
-import { TeacherGradesEntry } from "./teacher/teacher-grades-entry"
+import { TeacherGradesEntryRefactored } from "./teacher/teacher-grades-entry-refactored"
 import { ParentDashboard } from "./parent/parent-dashboard"
 import { ParentCommunication } from "./parent/parent-communication"
 import { ParentChildRecords } from "./parent/parent-child-records"
@@ -477,16 +477,23 @@ export function SchoolDashboard() {
 
       case "teacher":
         switch (currentView) {
-          case "grades":
+          case "grades": {
             const selectedClassId = typeof window !== 'undefined' ? localStorage.getItem('selectedClassId') || undefined : undefined
-            return <TeacherGradesEntry preSelectedClassId={selectedClassId} />
+            const selectedSubjectId = typeof window !== 'undefined' ? localStorage.getItem('selectedSubjectId') || undefined : undefined
+            return <TeacherGradesEntryRefactored preSelectedClassId={selectedClassId} preSelectedSubjectId={selectedSubjectId} />
+          }
           case "profile":
             return <ProfileSettings />
           default:
-            return <TeacherDashboardNew onNavigate={(view: string, classId?: string) => {
+            return <TeacherDashboardNew onNavigate={(view: string, classId?: string, subjectId?: string) => {
               setTeacherCurrentView(view as TeacherView)
               if (classId && typeof window !== 'undefined') {
                 localStorage.setItem('selectedClassId', classId)
+              }
+              if (subjectId && typeof window !== 'undefined') {
+                localStorage.setItem('selectedSubjectId', subjectId)
+              } else if (typeof window !== 'undefined') {
+                localStorage.removeItem('selectedSubjectId')
               }
             }} />
         }

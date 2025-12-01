@@ -195,12 +195,20 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
     return phoneRegex.test(phone.replace(/\s/g, ''))
   }
 
+  // Helper function to validate email format
+  const isValidEmailFormat = (email: string): boolean => {
+    if (!email || email.trim() === '') return true // Allow empty email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email.trim())
+  }
+
   const validateStep = (step: number): boolean => {
     switch (step) {
       case 1:
         return !!(formData.title && formData.firstName && formData.lastName && formData.dateOfBirth && formData.gender)
       case 2:
-        return !!(formData.email && formData.phone && isValidPhoneFormat(formData.phone))
+        // Email is now optional, but if provided must be valid
+        return !!(isValidEmailFormat(formData.email) && formData.phone && isValidPhoneFormat(formData.phone))
       case 3:
         return !!(formData.address && formData.city && formData.region && formData.qualifications.length > 0)
       case 4:
@@ -260,6 +268,9 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
       // Format phone numbers for database submission
       const formattedFormData = {
         ...formData,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email ? formData.email.trim() : "",
         phone: formatPhoneForDatabase(formData.phone),
         emergencyContact: {
           ...formData.emergencyContact,
@@ -400,7 +411,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="email">Email Address *</Label>
+                <Label htmlFor="email">Email Address</Label>
                 <Input
                   id="email"
                   type="email"
@@ -603,26 +614,35 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select subjects" />
                         </SelectTrigger>
-                        <SelectContent>
-                          {availableSubjects.map((subject) => (
-                            <SelectItem key={subject.id} value={subject.name}>
-                              {subject.name}
-                              {subject.has_sub_branches && subject.sub_branches && subject.sub_branches.length > 0 && (
-                                <span className="text-xs text-muted-foreground ml-2">
-                                  ({subject.sub_branches.length} sub-branch{subject.sub_branches.length !== 1 ? 'es' : ''})
-                                </span>
-                              )}
-                            </SelectItem>
-                          ))}
+                        <SelectContent className="max-h-60">
+                          {availableSubjects.flatMap((subject) => {
+                            const items = [
+                              <SelectItem key={subject.id} value={subject.name}>
+                                {subject.name}
+                                {subject.has_sub_branches && subject.sub_branches && subject.sub_branches.length > 0 && (
+                                  <span className="text-xs text-muted-foreground ml-2">
+                                    (Main Subject)
+                                  </span>
+                                )}
+                              </SelectItem>
+                            ]
+                            
+                            if (subject.has_sub_branches && subject.sub_branches) {
+                              subject.sub_branches.forEach(branch => {
+                                items.push(
+                                  <SelectItem key={`${subject.id}-${branch.id}`} value={`${subject.name} - ${branch.name}`} className="pl-8">
+                                    {subject.name} - {branch.name}
+                                  </SelectItem>
+                                )
+                              })
+                            }
+                            
+                            return items
+                          })}
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Subjects are loaded from Manage Subjects. Select the main subject name.
-                        {availableSubjects.some(s => s.has_sub_branches) && (
-                          <span className="block mt-1">
-                            Note: Subjects with sub-branches will be assigned to the main subject. You can assign specific sub-branches later in Manage Subjects.
-                          </span>
-                        )}
+                        Select subjects or specific sub-branches to assign to the teacher.
                       </p>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {formData.subjects.map((subject, index) => (
@@ -667,7 +687,7 @@ export function TeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollment
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select classes" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-60">
                           {availableClasses.map((cls) => (
                             <SelectItem key={cls.id} value={cls.name}>
                               {cls.name}

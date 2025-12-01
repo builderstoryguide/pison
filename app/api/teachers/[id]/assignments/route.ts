@@ -324,19 +324,7 @@ export async function GET(
       })
     }
 
-    if (!includeDetails) {
-      return NextResponse.json({
-        ok: true,
-        teacher: { id: user.id, name: user.name },
-        subjects,
-        classes: paginatedClasses.map(cls => ({
-          ...cls,
-          students: [],
-          subjects: [],
-        })),
-        pagination: { page, limit, total: totalClasses, hasMore },
-      })
-    }
+
 
     // DETAILED FETCH (Students & Subjects per Class)
     // Optimized batch queries for students and subjects
@@ -381,7 +369,12 @@ export async function GET(
     allActiveStudents.forEach((s: any) => s.student_id && allStudentIds.add(s.student_id))
     
     const studentIds = Array.from(allStudentIds).filter(Boolean)
-    const parentsByStudentId = await fetchParentsForStudents(supabase, studentIds)
+    
+    // Only fetch parents if details are requested
+    let parentsByStudentId: any = new Map()
+    if (includeDetails) {
+      parentsByStudentId = await fetchParentsForStudents(supabase, studentIds)
+    }
 
     // Fetch assignments for class subjects
     let allTeacherAssignmentsData: any[] = []
@@ -534,10 +527,9 @@ export async function GET(
                 // 2. If NO specific assignments exist (length === 0), add ALL class subjects (so teacher sees what subjects the class has)
                 // 3. OR if teacherSubjectIds has it, add it (covers mixed cases)
                 
-                const hasSpecificAssignments = existing.length > 0
                 const isAssignedToTeacher = teacherSubjectIds.has(cs.subjects.id)
                 
-                if (!hasSpecificAssignments || isAssignedToTeacher) {
+                if (isAssignedToTeacher) {
                    if (!existing.some((s: any) => s.id === cs.subjects.id)) {
                       subjectsByClass.get(cs.class_id)!.push({
                          id: cs.subjects.id,
@@ -602,7 +594,8 @@ export async function GET(
 
       return {
         ...cls,
-        students,
+        students: includeDetails ? students : [],
+        studentCount: students.length,
         subjects: finalSubjects
       }
     })

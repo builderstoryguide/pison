@@ -1,12 +1,12 @@
 "use client"
 
-import { TeacherGradesEntry } from "./teacher-grades-entry"
+import { TeacherGradesEntryRefactored } from "./teacher-grades-entry-refactored"
 
 interface GradesManagementProps {
   preSelectedClassId?: string
 }
 
 export function GradesManagement({ preSelectedClassId }: GradesManagementProps = {}) {
-  return <TeacherGradesEntry preSelectedClassId={preSelectedClassId} />
+  return <TeacherGradesEntryRefactored preSelectedClassId={preSelectedClassId} />
 }
 

@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ classId: string }> }
 ) {
   try {
     // Await params first to catch any errors early
     const { classId } = await params
+    
+    // Get teacherId from query params
+    const searchParams = request.nextUrl.searchParams
+    const teacherId = searchParams.get('teacherId')
     
     if (!classId) {
       return NextResponse.json({ 
@@ -26,10 +30,9 @@ export async function GET(
       }, { status: 500 })
     }
 
-    // Try multiple methods to fetch subjects for this class
-    let subjects: any[] = []
+    const allSubjectsMap = new Map<string, any>()
 
-    // Method 1: Fetch from class_subjects junction table
+    // 1. Fetch ALL subjects for this class (Base set)
     const { data: classSubjects, error: classSubjectsError } = await supabase
       .from('class_subjects')
       .select(`
@@ -44,87 +47,99 @@ export async function GET(
       `)
       .eq('class_id', classId)
 
-    if (!classSubjectsError && classSubjects && classSubjects.length > 0) {
-      subjects = classSubjects.map((cs: any) => ({
-        id: cs.subjects?.id || cs.subject_id,
-        name: cs.subjects?.name || 'Unknown Subject',
-        code: cs.subjects?.code || '',
-        coefficient: cs.subjects?.coefficient ? parseFloat(cs.subjects.coefficient) : 1.0
-      }))
+    if (classSubjectsError) {
+      throw new Error(`Failed to fetch class subjects: ${classSubjectsError.message}`)
     }
 
-    // Method 2: If no subjects from class_subjects, try teacher_subject_assignments
-    if (subjects.length === 0) {
-      const { data: teacherAssignments, error: assignmentsError } = await supabase
-        .from('teacher_subject_assignments')
+    // Process class subjects into a map
+    const classSubjectsMap = new Map<string, any>()
+    if (classSubjects) {
+      classSubjects.forEach((cs: any) => {
+        if (cs.subjects) {
+          classSubjectsMap.set(cs.subjects.id, {
+            id: cs.subjects.id,
+            name: cs.subjects.name || 'Unknown Subject',
+            code: cs.subjects.code || '',
+            coefficient: cs.subjects.coefficient ? parseFloat(cs.subjects.coefficient) : 1.0
+          })
+        }
+      })
+    }
+
+    // 2. If NO teacherId (Admin view), return all class subjects
+    if (!teacherId) {
+      return NextResponse.json({
+        success: true,
+        subjects: Array.from(classSubjectsMap.values())
+      })
+    }
+
+    // 3. If teacherId IS present, fetch teacher's assigned subjects (Global assignment)
+    const { data: teacherSubjects, error: teacherSubjectsError } = await supabase
+      .from('teacher_subjects')
+      .select('subject_id')
+      .eq('teacher_id', teacherId)
+      .eq('is_active', true)
+
+    if (teacherSubjectsError) {
+      throw new Error(`Failed to fetch teacher subjects: ${teacherSubjectsError.message}`)
+    }
+
+    // Create set of allowed subject IDs
+    const allowedSubjectIds = new Set(teacherSubjects?.map(ts => ts.subject_id) || [])
+
+    // 4. Intersect: Add class subjects ONLY if they are in allowedSubjectIds
+    classSubjectsMap.forEach((subject, subjectId) => {
+      if (allowedSubjectIds.has(subjectId)) {
+        allSubjectsMap.set(subjectId, subject)
+      }
+    })
+
+    // 5. Fetch Branch Assignments (Explicitly assigned to this teacher for this class)
+    // These are added regardless of the intersection above (union)
+    try {
+      const { data: branchAssignments, error: branchError } = await supabase
+        .from('teacher_branch_assignments')
         .select(`
           id,
-          subject_id,
-          subjects:subject_id (
+          branch_id,
+          subject_branches (
             id,
-            subject_name,
-            subject_code,
-            coefficient
+            branch_name,
+            branch_code,
+            weight_percentage,
+            subjects (
+              id,
+              subject_name,
+              subject_code,
+              coefficient
+            )
           )
         `)
         .eq('class_id', classId)
+        .eq('teacher_id', teacherId)
 
-      if (!assignmentsError && teacherAssignments && teacherAssignments.length > 0) {
-        const uniqueSubjectIds = new Set<string>()
-        subjects = teacherAssignments
-          .filter((ta: any) => {
-            const subjectId = ta.subjects?.id || ta.subject_id
-            if (!subjectId || uniqueSubjectIds.has(subjectId)) return false
-            uniqueSubjectIds.add(subjectId)
-            return true
-          })
-          .map((ta: any) => ({
-            id: ta.subjects?.id || ta.subject_id,
-            name: ta.subjects?.subject_name || 'Unknown Subject',
-            code: ta.subjects?.subject_code || '',
-            coefficient: ta.subjects?.coefficient ? parseFloat(ta.subjects.coefficient) : 1.0
-          }))
-      }
-    }
-
-    // Method 3: Fallback to teacher_branch_assignments (if table exists)
-    if (subjects.length === 0) {
-      try {
-        const { data: branchAssignments, error: branchError } = await supabase
-          .from('teacher_branch_assignments')
-          .select(`
-            id,
-            subject_branches (
-              subjects (
-                id,
-                subject_name,
-                subject_code,
-                coefficient
-              )
-            )
-          `)
-          .eq('class_id', classId)
-
-        if (!branchError && branchAssignments && branchAssignments.length > 0) {
-          const uniqueSubjectIds = new Set<string>()
-          subjects = branchAssignments
-            .map((ba: any) => ba.subject_branches?.subjects)
-            .filter((s: any) => s && s.id && !uniqueSubjectIds.has(s.id))
-            .map((s: any) => {
-              uniqueSubjectIds.add(s.id)
-              return {
-                id: s.id,
-                name: s.subject_name || 'Unknown Subject',
-                code: s.subject_code || '',
-                coefficient: s.coefficient ? parseFloat(s.coefficient) : 1.0
-              }
+      if (!branchError && branchAssignments) {
+        branchAssignments.forEach((ba: any) => {
+          const branch = ba.subject_branches
+          if (branch) {
+            allSubjectsMap.set(branch.id, {
+              id: branch.id,
+              name: `${branch.subjects?.subject_name} - ${branch.branch_name}`,
+              code: branch.branch_code || branch.subjects?.subject_code || '',
+              coefficient: branch.subjects?.coefficient ? parseFloat(branch.subjects.coefficient) : 1.0,
+              type: 'branch',
+              maxMarks: 10, // Sub-branches are marked out of 10
+              parentId: branch.subjects?.id
             })
-        }
-      } catch (err) {
-        // Table doesn't exist, ignore this method
-        console.warn('teacher_branch_assignments table not available:', err)
+          }
+        })
       }
+    } catch (err) {
+      console.warn('Error fetching from teacher_branch_assignments:', err)
     }
+
+    const subjects = Array.from(allSubjectsMap.values())
 
     return NextResponse.json({
       success: true,

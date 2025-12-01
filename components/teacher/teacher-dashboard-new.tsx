@@ -32,7 +32,7 @@ interface ClassAssignment {
 }
 
 interface TeacherDashboardNewProps {
-  onNavigate?: (view: string, classId?: string) => void
+  onNavigate?: (view: string, classId?: string, subjectId?: string) => void
 }
 
 export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
@@ -259,7 +259,10 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
                         {classItem.subjects.slice(0, 3).map((subject) => (
                           <div 
                             key={subject.id}
-                            className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm"
+                            className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm hover:bg-muted cursor-pointer transition-colors"
+                            onClick={() => onNavigate?.("class-grades", classItem.id.toString(), subject.id.toString())}
+                            role="button"
+                            tabIndex={0}
                           >
                             <span className="font-medium truncate">{subject.name}</span>
                             <Badge variant="outline" className="ml-2 text-xs">

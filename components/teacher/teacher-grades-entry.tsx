@@ -34,10 +34,12 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface Subject {
-  id: number
+  id: string | number
   name: string
   code: string
   coefficient?: number
+  type?: 'subject' | 'branch'
+  maxMarks?: number
 }
 
 interface ClassAssignment {
@@ -45,6 +47,7 @@ interface ClassAssignment {
   name: string
   code: string
   subjects: Subject[]
+  academicYear?: string
 }
 
 interface Student {
@@ -85,7 +88,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [loadingSubjects, setLoadingSubjects] = useState(false)
-  const [_loadingClasses, setLoadingClasses] = useState(false)
+  const [loadingClasses, setLoadingClasses] = useState(false)
   const [selectedSubjectCoefficient, setSelectedSubjectCoefficient] = useState<number>(1.0)
   
   // Static examination sequences
@@ -108,19 +111,6 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
 
   // Fetch teacher's classes with comprehensive error handling and retry logic
   useEffect(() => {
-    // PERMANENT FIX: If class is pre-selected from dashboard, skip the expensive fetch
-    if (preSelectedClassId) {
-      // console.log('[Teacher Grades] Class pre-selected, skipping full class fetch for instant load')
-      setClasses([{
-        id: parseInt(preSelectedClassId),
-        name: 'Selected Class', // Will be populated when students load
-        code: '',
-        subjects: []
-      }])
-      setLoadingClasses(false)
-      return
-    }
-
     // Only fetch all classes if NOT pre-selected (direct navigation scenario)
     const fetchClasses = async () => {
       if (!user?.id) return
@@ -315,7 +305,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
           if (fallbackClass?.subjects && fallbackClass.subjects.length > 0) {
             // console.log('Using fallback subjects from classes data')
             const transformedSubjects: Subject[] = fallbackClass.subjects.map((subject: { id: number | string, name?: string, subject_name?: string, code?: string, subject_code?: string, coefficient?: number | string }) => ({
-              id: typeof subject.id === 'number' ? subject.id : parseInt(String(subject.id)) || 0,
+              id: subject.id,
               name: subject.name || subject.subject_name || 'Unknown Subject',
               code: subject.code || subject.subject_code || '',
               coefficient: subject.coefficient ? (typeof subject.coefficient === 'number' ? subject.coefficient : parseFloat(String(subject.coefficient))) : 1.0
@@ -346,7 +336,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
           if (fallbackClass?.subjects && fallbackClass.subjects.length > 0) {
             // console.log('No subjects from API, using fallback from classes data')
             const transformedSubjects: Subject[] = fallbackClass.subjects.map((subject: { id: number | string, name?: string, subject_name?: string, code?: string, subject_code?: string, coefficient?: number | string }) => ({
-              id: typeof subject.id === 'number' ? subject.id : parseInt(String(subject.id)) || 0,
+              id: subject.id,
               name: subject.name || subject.subject_name || 'Unknown Subject',
               code: subject.code || subject.subject_code || '',
               coefficient: subject.coefficient ? (typeof subject.coefficient === 'number' ? subject.coefficient : parseFloat(String(subject.coefficient))) : 1.0
@@ -362,10 +352,14 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
         const transformedSubjects: Subject[] = subjectsList
           .filter((subject: { id: number }) => subject.id) // Filter out subjects without IDs
           .map((subject: { id: number | string, name?: string, subject_name?: string, code?: string, subject_code?: string, coefficient?: number | string }) => ({
-            id: typeof subject.id === 'number' ? subject.id : parseInt(String(subject.id)) || 0,
+            id: subject.id,
             name: subject.name || subject.subject_name || 'Unknown Subject',
             code: subject.code || subject.subject_code || '',
-            coefficient: subject.coefficient ? (typeof subject.coefficient === 'number' ? subject.coefficient : parseFloat(String(subject.coefficient))) : 1.0
+            coefficient: subject.coefficient ? (typeof subject.coefficient === 'number' ? subject.coefficient : parseFloat(String(subject.coefficient))) : 1.0,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            type: (subject as any).type || 'subject',
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            maxMarks: (subject as any).maxMarks || 20
           }))
         
         setAvailableSubjects(transformedSubjects)
@@ -386,7 +380,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
         if (fallbackClass?.subjects && fallbackClass.subjects.length > 0) {
           // console.log('Error occurred, using fallback subjects from classes data')
           const transformedSubjects: Subject[] = fallbackClass.subjects.map((subject: { id: number | string, name?: string, subject_name?: string, code?: string, subject_code?: string, coefficient?: number | string }) => ({
-            id: typeof subject.id === 'number' ? subject.id : parseInt(String(subject.id)) || 0,
+            id: subject.id,
             name: subject.name || subject.subject_name || 'Unknown Subject',
             code: subject.code || subject.subject_code || '',
             coefficient: subject.coefficient ? (typeof subject.coefficient === 'number' ? subject.coefficient : parseFloat(String(subject.coefficient))) : 1.0
@@ -594,8 +588,11 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
   const handleGradeChange = (studentId: number, _field: 'mark', value: string) => {
     const numValue = value === '' ? '' : parseFloat(value)
     
-    // Validate mark is between 0 and 20
-    if (value !== '' && (isNaN(numValue as number) || (numValue as number) < 0 || (numValue as number) > 20)) {
+    const currentSubject = availableSubjects.find(s => s.id.toString() === selectedSubject)
+    const maxMarks = currentSubject?.maxMarks || 20
+
+    // Validate mark is between 0 and maxMarks
+    if (value !== '' && (isNaN(numValue as number) || (numValue as number) < 0 || (numValue as number) > maxMarks)) {
       return
     }
 
@@ -656,7 +653,9 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
   const validateGrade = (mark: string): boolean => {
     if (!mark) return true // Empty is valid (not required)
     const numMark = parseFloat(mark)
-    return !isNaN(numMark) && numMark >= 0 && numMark <= 20
+    const currentSubject = availableSubjects.find(s => s.id.toString() === selectedSubject)
+    const maxMarks = currentSubject?.maxMarks || 20
+    return !isNaN(numMark) && numMark >= 0 && numMark <= maxMarks
   }
 
   const handleSubmit = async () => {
@@ -675,9 +674,10 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
     )
 
     if (invalidMarks.length > 0) {
+      const currentSubject = availableSubjects.find(s => s.id.toString() === selectedSubject)
       toast({
         title: "Validation Error",
-        description: "Some marks are invalid. Marks must be between 0 and 20.",
+        description: `Some marks are invalid. Marks must be between 0 and ${currentSubject?.maxMarks || 20}.`,
         variant: "destructive"
       })
       return
@@ -698,34 +698,112 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
     try {
       setSubmitting(true)
       
-      const response = await fetch('/api/grades', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const currentSubject = availableSubjects.find(s => s.id.toString() === selectedSubject)
+      const currentClass = classes.find(c => c.id.toString() === selectedClass)
+      
+      if (currentSubject?.type === 'branch') {
+        // Handle Branch Grades
+        const academicYear = currentClass?.academicYear || new Date().getFullYear().toString()
+        const term = examinationSequences.find(e => e.id === selectedExam)?.name || selectedExam
+        
+        // Search for existing assessment
+        const searchParams = new URLSearchParams({
+          branchId: selectedSubject,
           classId: selectedClass,
-          subjectId: parseInt(selectedSubject),
-          examinationName: examinationSequences.find(e => e.id === selectedExam)?.name || selectedExam,
-          teacherId: user?.id,
-          grades: gradesToSubmit.map(entry => {
-            const markValue = typeof entry.mark === 'number' ? entry.mark : parseFloat(entry.mark as string)
-            return {
-              studentId: entry.studentId,
-              mark: markValue,
-              coefficient: entry.coefficient || selectedSubjectCoefficient,
-              totalMarks: entry.totalMarks,
-              grade: entry.grade,
-              rank: entry.rank,
+          academicYear,
+          term,
+          type: 'exam'
+        })
+        
+        const searchRes = await fetch(`/api/branch-assessments?${searchParams.toString()}`)
+        let assessmentId = ''
+        
+        if (searchRes.ok) {
+          const searchData = await searchRes.json()
+          if (searchData.success && searchData.assessments && searchData.assessments.length > 0) {
+            assessmentId = searchData.assessments[0].id
+          }
+        }
+        
+        if (!assessmentId) {
+          // Create new assessment
+          const createRes = await fetch('/api/branch-assessments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              branch_id: selectedSubject,
+              teacher_id: user?.id,
+              class_id: selectedClass,
+              title: `${term} Exam`,
+              type: 'exam',
+              total_marks: currentSubject.maxMarks || 10,
+              academic_year: academicYear,
+              term: term,
+              assessment_date: new Date().toISOString()
+            })
+          })
+          
+          const createData = await createRes.json()
+          if (!createData.success) {
+            throw new Error(createData.error || 'Failed to create assessment')
+          }
+          assessmentId = createData.assessment.id
+        }
+        
+        // Submit grades
+        const promises = gradesToSubmit.map(entry => {
+          const markValue = typeof entry.mark === 'number' ? entry.mark : parseFloat(entry.mark as string)
+          return fetch('/api/branch-grades', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              assessment_id: assessmentId,
+              student_id: entry.studentId,
+              teacher_id: user?.id,
+              marks_obtained: markValue,
               remarks: entry.remarks
-            }
+            })
           })
         })
-      })
+        
+        const results = await Promise.all(promises)
+        const failed = results.filter(r => !r.ok)
+        
+        if (failed.length > 0) {
+          throw new Error(`Failed to submit ${failed.length} grades`)
+        }
+        
+      } else {
+        // Handle Legacy Subject Grades
+        const response = await fetch('/api/grades', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            classId: selectedClass,
+            subjectId: selectedSubject,
+            examinationName: examinationSequences.find(e => e.id === selectedExam)?.name || selectedExam,
+            teacherId: user?.id,
+            grades: gradesToSubmit.map(entry => {
+              const markValue = typeof entry.mark === 'number' ? entry.mark : parseFloat(entry.mark as string)
+              return {
+                studentId: entry.studentId,
+                mark: markValue,
+                coefficient: entry.coefficient || selectedSubjectCoefficient,
+                totalMarks: entry.totalMarks,
+                grade: entry.grade,
+                rank: entry.rank,
+                remarks: entry.remarks
+              }
+            })
+          })
+        })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || 'Failed to submit grades')
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.message || 'Failed to submit grades')
+        }
       }
 
       toast({
@@ -782,13 +860,34 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
       {/* Selection Form */}
       <Card>
         <CardHeader>
-          <CardTitle>Select Subject and Examination</CardTitle>
+          <CardTitle>Select Class, Subject and Examination</CardTitle>
           <CardDescription>
-            Choose the subject and examination to enter grades for
+            Choose the class, subject and examination to enter grades for
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
+            {/* Class Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="class">Class</Label>
+              <Select 
+                value={selectedClass} 
+                onValueChange={setSelectedClass}
+                disabled={loadingClasses}
+              >
+                <SelectTrigger id="class">
+                  <SelectValue placeholder={loadingClasses ? "Loading classes..." : "Select a class"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes.map((cls) => (
+                    <SelectItem key={cls.id} value={cls.id.toString()}>
+                      {cls.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Subject Selection */}
             <div className="space-y-2">
               <Label htmlFor="subject">Subject</Label>
@@ -819,7 +918,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
                 <SelectContent>
                   {availableSubjects.map((subject, index) => (
                     <SelectItem key={`subject-${subject.id}-${index}`} value={subject.id.toString()}>
-                      {subject.name} ({subject.code})
+                      {subject.name} ({subject.code}) {subject.type === 'branch' ? '(Sub-subject)' : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -925,7 +1024,9 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
                       <TableHead className="w-[50px]">#</TableHead>
                       <TableHead>Student ID</TableHead>
                       <TableHead>Student Name</TableHead>
-                      <TableHead className="w-[120px]">Mark (0-20)</TableHead>
+                      <TableHead className="w-[120px]">
+                        Mark (0-{availableSubjects.find(s => s.id.toString() === selectedSubject)?.maxMarks || 20})
+                      </TableHead>
                       <TableHead className="w-[100px]">Coefficient</TableHead>
                       <TableHead className="w-[100px]">Total Marks</TableHead>
                       <TableHead className="w-[80px]">Grade</TableHead>
