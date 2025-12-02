@@ -43,6 +43,7 @@ import { QuickActionsDashboard } from "./admin/quick-actions-dashboard"
 
 // Teacher Components
 import { TeacherDashboardNew as TeacherDashboard } from "./teacher/teacher-dashboard-new"
+import { TeacherSubjectsList } from "./teacher/teacher-subjects-list"
 import { ClassGradeEntry } from "./teacher/class-grade-entry"
 import { GradesHistory } from "./teacher/grades-history"
 
@@ -145,7 +146,7 @@ type AdminView =
   | "configuration"
   | "profile"
 
-type TeacherView = "dashboard" | "class-grades" | "grades-history" | "profile"
+type TeacherView = "dashboard" | "subjects" | "class-grades" | "grades-history" | "profile"
 
 type ParentView = "dashboard" | "records" | "communication" | "alerts" | "profile"
 
@@ -478,6 +479,14 @@ export function Dashboard() {
   const [selectedClassId, setSelectedClassId] = useState<string | undefined>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('selectedClassId') || undefined
+    }
+    return undefined
+  })
+
+  // Initialize selected subject ID state for teacher view
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | undefined>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('selectedSubjectId') || undefined
     }
     return undefined
   })
@@ -1111,10 +1120,11 @@ export function Dashboard() {
   if (user.role === "teacher") {
     const teacherMenuItems = [
       { id: "dashboard", label: "Dashboard", icon: Home },
+      { id: "subjects", label: "Subjects", icon: BookOpen },
       { id: "grades-history", label: "Grades", icon: ClipboardList },
     ]
 
-    const handleTeacherNavigation = (view: string, classId?: string) => {
+    const handleTeacherNavigation = (view: string, classId?: string, subjectId?: string) => {
       if (view === "grades") {
         setTeacherCurrentView("class-grades")
       } else {
@@ -1125,12 +1135,26 @@ export function Dashboard() {
         setSelectedClassId(classId)
         localStorage.setItem('selectedClassId', classId)
       }
+
+      if (subjectId) {
+        setSelectedSubjectId(subjectId)
+        localStorage.setItem('selectedSubjectId', subjectId)
+      } else {
+        setSelectedSubjectId(null)
+        localStorage.removeItem('selectedSubjectId')
+      }
     }
 
     const renderTeacherContent = () => {
       switch (teacherCurrentView) {
         case "class-grades":
-          return <ClassGradeEntry classId={selectedClassId || ""} onBack={() => setTeacherCurrentView("dashboard")} />
+          return <ClassGradeEntry 
+            classId={selectedClassId || ""} 
+            subjectId={selectedSubjectId || undefined}
+            onBack={() => setTeacherCurrentView("dashboard")} 
+          />
+        case "subjects":
+          return <TeacherSubjectsList onNavigate={handleTeacherNavigation} />
         case "grades-history":
           return <GradesHistory />
         case "profile":

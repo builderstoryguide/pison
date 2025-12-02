@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -12,24 +11,8 @@ import {
   FileText,
   ChevronRight
 } from "lucide-react"
-
-interface Subject {
-  id: number
-  name: string
-  code: string
-  coefficient: number
-}
-
-interface ClassAssignment {
-  id: number
-  name: string
-  code: string
-  level: string
-  branch: string
-  subsystem: string
-  studentCount: number
-  subjects: Subject[]
-}
+import { useTeacherAssignments } from "@/hooks/use-teacher-assignments"
+import { useQueryClient } from "@tanstack/react-query"
 
 interface TeacherDashboardNewProps {
   onNavigate?: (view: string, classId?: string, subjectId?: string) => void
@@ -37,54 +20,22 @@ interface TeacherDashboardNewProps {
 
 export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
   const { user } = useAuth()
-  const [classes, setClasses] = useState<ClassAssignment[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  const { data: classes = [], isLoading: loading, error } = useTeacherAssignments()
 
-  useEffect(() => {
-    const fetchTeacherAssignments = async () => {
-      if (!user?.id) return
-
-      try {
-        setLoading(true)
-        // Add cache-busting parameter to ensure fresh data
-        const cacheBuster = new Date().getTime()
-        const response = await fetch(`/api/teachers/${user.id}/assignments?t=${cacheBuster}`, {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-          },
-        })
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch teacher assignments')
-        }
-
+  // Prefetch students for a class
+  const prefetchClassStudents = (classId: string) => {
+    queryClient.prefetchQuery({
+      queryKey: ['class-students', classId],
+      queryFn: async () => {
+        const response = await fetch(`/api/classes/${classId}/students`)
+        if (!response.ok) throw new Error('Failed to fetch students')
         const data = await response.json()
-        setClasses(data.classes || [])
-      } catch (err) {
-        // Error fetching teacher assignments
-        setError(err instanceof Error ? err.message : 'Failed to load assignments')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchTeacherAssignments()
-
-    // Refresh data when page becomes visible (when user switches back to tab)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchTeacherAssignments()
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [user?.id])
+        return data.students || []
+      },
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    })
+  }
 
   // Calculate statistics
   const totalClasses = classes.length
@@ -123,7 +74,7 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
         <Card>
           <CardHeader>
             <CardTitle className="text-red-600">Error Loading Dashboard</CardTitle>
-            <CardDescription>{error}</CardDescription>
+            <CardDescription>{error instanceof Error ? error.message : 'Failed to load assignments'}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={() => window.location.reload()}>Retry</Button>
@@ -260,7 +211,8 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
                           <div 
                             key={subject.id}
                             className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm hover:bg-muted cursor-pointer transition-colors"
-                            onClick={() => onNavigate?.("class-grades", classItem.id.toString(), subject.id.toString())}
+                            onClick={() => onNavigate?.("grades", classItem.id.toString(), subject.id.toString())}
+                            onMouseEnter={() => prefetchClassStudents(classItem.id.toString())}
                             role="button"
                             tabIndex={0}
                           >
@@ -288,7 +240,8 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
                     variant="outline" 
                     size="sm" 
                     className="w-full mt-2"
-                    onClick={() => onNavigate?.("class-grades", classItem.id.toString())}
+                    onClick={() => onNavigate?.("grades", classItem.id.toString())}
+                    onMouseEnter={() => prefetchClassStudents(classItem.id.toString())}
                   >
                     <FileText className="h-4 w-4 mr-2" />
                     Enter Grades

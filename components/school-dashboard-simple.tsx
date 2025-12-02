@@ -12,6 +12,7 @@ import { ClassManagement } from "./admin/class-management"
 import { FinancialManagement } from "./admin/financial-management"
 import { ProfileSettings } from "./profile/profile-settings"
 import { TeacherDashboardNew } from "./teacher/teacher-dashboard-new"
+import { TeacherSubjectsList } from "./teacher/teacher-subjects-list"
 import { TeacherGradesEntryRefactored } from "./teacher/teacher-grades-entry-refactored"
 import { ParentDashboard } from "./parent/parent-dashboard"
 import { ParentCommunication } from "./parent/parent-communication"
@@ -93,7 +94,7 @@ type AdminView =
   | "financial"
   | "profile"
 
-type TeacherView = "dashboard" | "grades" | "profile"
+type TeacherView = "dashboard" | "subjects" | "grades" | "profile"
 type ParentView = "dashboard" | "records" | "communication" | "profile"
 type StudentView = "dashboard" | "profile"
 type BursarView = "dashboard" | "financial" | "reports" | "profile"
@@ -206,6 +207,7 @@ function AppSidebar({
       case "teacher":
         return [
           { id: "dashboard", label: "Dashboard", icon: Home },
+          { id: "subjects", label: "Subjects", icon: BookOpen }, // Added Subjects view
           { id: "grades", label: "Grades", icon: ClipboardList },
         ]
       case "student":
@@ -482,6 +484,18 @@ export function SchoolDashboard() {
             const selectedSubjectId = typeof window !== 'undefined' ? localStorage.getItem('selectedSubjectId') || undefined : undefined
             return <TeacherGradesEntryRefactored preSelectedClassId={selectedClassId} preSelectedSubjectId={selectedSubjectId} />
           }
+          case "subjects":
+            return <TeacherSubjectsList onNavigate={(view: string, classId?: string, subjectId?: string) => {
+              setTeacherCurrentView(view as TeacherView)
+              if (classId && typeof window !== 'undefined') {
+                localStorage.setItem('selectedClassId', classId)
+              }
+              if (subjectId && typeof window !== 'undefined') {
+                localStorage.setItem('selectedSubjectId', subjectId)
+              } else if (typeof window !== 'undefined') {
+                localStorage.removeItem('selectedSubjectId')
+              }
+            }} />
           case "profile":
             return <ProfileSettings />
           default:

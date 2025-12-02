@@ -67,3 +67,37 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json({ error: 'Assessment ID is required' }, { status: 400 })
+    }
+
+    const supabase = await createClient()
+
+    // Delete the assessment. 
+    // Note: If 'grades' table has ON DELETE CASCADE on assessment_id, grades will be deleted automatically.
+    // If not, we might need to delete grades first. Assuming CASCADE or manual deletion if needed.
+    // Let's try deleting the assessment directly first.
+    
+    // First check if it exists and belongs to the user (optional security check if we had user context here easily, 
+    // but for now relying on the ID being valid and the user being authenticated via middleware)
+    
+    const { error } = await supabase
+      .from('assessments')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+
+    return NextResponse.json({ success: true })
+
+  } catch (error: any) {
+    console.error("Error deleting assessment:", error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+

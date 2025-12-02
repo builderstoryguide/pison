@@ -12,6 +12,7 @@ import { toast } from "sonner"
 
 interface ClassGradeEntryProps {
   classId: string
+  subjectId?: string // Added optional subjectId
   onBack: () => void
 }
 
@@ -43,7 +44,7 @@ const SEQUENCES = [
   { id: "seq6", name: "Sixth Sequence" },
 ]
 
-export function ClassGradeEntry({ classId, onBack }: ClassGradeEntryProps) {
+export function ClassGradeEntry({ classId, subjectId, onBack }: ClassGradeEntryProps) {
   const { user } = useAuth()
   const [selectedSubject, setSelectedSubject] = useState<string>("")
   const [selectedSequence, setSelectedSequence] = useState<string>("")
@@ -99,6 +100,16 @@ export function ClassGradeEntry({ classId, onBack }: ClassGradeEntryProps) {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  // Pre-select subject if provided
+  useEffect(() => {
+    if (subjectId && subjects.length > 0) {
+      const subjectExists = subjects.some(s => s.id === subjectId)
+      if (subjectExists) {
+        setSelectedSubject(subjectId)
+      }
+    }
+  }, [subjectId, subjects])
 
   // Helper to calculate grade based on mark (0-20 scale)
   const calculateGrade = (mark: number) => {
@@ -317,22 +328,29 @@ export function ClassGradeEntry({ classId, onBack }: ClassGradeEntryProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Subject</label>
-              <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects.length > 0 ? (
-                    subjects.map(subject => (
-                      <SelectItem key={subject.id} value={subject.id}>
-                        {subject.name} {subject.code ? `(${subject.code})` : ''}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <div className="p-2 text-sm text-muted-foreground">No subjects found</div>
-                  )}
-                </SelectContent>
-              </Select>
+              {subjectId ? (
+                <div className="p-2 border rounded-md bg-muted/50 font-medium">
+                  {subjects.find(s => s.id === subjectId)?.name || "Loading..."}
+                   {currentSubject?.code ? ` (${currentSubject.code})` : ''}
+                </div>
+              ) : (
+                <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjects.length > 0 ? (
+                      subjects.map(subject => (
+                        <SelectItem key={subject.id} value={subject.id}>
+                          {subject.name} {subject.code ? `(${subject.code})` : ''}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-2 text-sm text-muted-foreground">No subjects found</div>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
               {currentSubject && (
                 <p className="text-xs text-muted-foreground">
                   Coefficient: {currentSubject.coefficient}

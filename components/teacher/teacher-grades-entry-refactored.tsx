@@ -17,6 +17,8 @@ import { useGradableItems } from "@/hooks/use-gradable-items"
 import { useGradeEntry } from "@/hooks/use-grade-entry"
 import { GradeEntryFilters } from "./grades/grade-entry-filters"
 import { StudentGradesTable } from "./grades/student-grades-table"
+import { useTeacherAssignments } from "@/hooks/use-teacher-assignments"
+import { useClassStudents } from "@/hooks/use-class-students"
 
 interface ClassAssignment {
   id: number
@@ -24,15 +26,6 @@ interface ClassAssignment {
   code: string
   subjects: unknown[]
   academicYear?: string
-  [key: string]: unknown
-}
-
-interface Student {
-  id: number
-  studentId: string
-  firstName: string
-  lastName: string
-  email: string
   [key: string]: unknown
 }
 
@@ -56,14 +49,21 @@ export function TeacherGradesEntryRefactored({ preSelectedClassId, preSelectedSu
   const { toast } = useToast()
 
   // State
-  const [classes, setClasses] = useState<ClassAssignment[]>([])
-  const [students, setStudents] = useState<Student[]>([])
   const [selectedClass, setSelectedClass] = useState<string>("")
   const [selectedSubject, setSelectedSubject] = useState<string>("")
   const [selectedExam, setSelectedExam] = useState<string>("")
-  const [loadingClasses, setLoadingClasses] = useState(false)
-  const [loadingStudents, setLoadingStudents] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+
+  // React Query Hooks
+  const { 
+    data: classes = [], 
+    isLoading: loadingClasses 
+  } = useTeacherAssignments(true)
+
+  const { 
+    data: students = [], 
+    isLoading: loadingStudents 
+  } = useClassStudents(selectedClass || undefined)
 
   // Custom hooks
   const {
@@ -101,67 +101,6 @@ export function TeacherGradesEntryRefactored({ preSelectedClassId, preSelectedSu
       setSelectedClass(preSelectedClassId)
     }
   }, [preSelectedClassId, classes, selectedClass])
-
-  // Fetch teacher's classes
-  useEffect(() => {
-    const fetchClasses = async () => {
-      if (!user?.id) return
-
-      setLoadingClasses(true)
-      try {
-        const response = await fetch(`/api/teachers/${user.id}/assignments?summaryOnly=true`)
-        if (!response.ok) throw new Error('Failed to fetch classes')
-
-        const data = await response.json()
-        if (data.ok) {
-          setClasses(data.classes || [])
-        }
-      } catch (err) {
-        toast({
-          title: "Error",
-          description: err instanceof Error ? err.message : "Failed to load classes",
-          variant: "destructive"
-        })
-      } finally {
-        setLoadingClasses(false)
-      }
-    }
-
-    fetchClasses()
-  }, [user?.id, toast])
-
-  // Fetch students when class is selected
-  useEffect(() => {
-    const fetchStudents = async () => {
-      if (!selectedClass) {
-        setStudents([])
-        return
-      }
-
-      try {
-        setLoadingStudents(true)
-        const response = await fetch(`/api/classes/${selectedClass}/students`)
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch students')
-        }
-
-        const data = await response.json()
-        setStudents(data.students || [])
-      } catch (err) {
-        toast({
-          title: "Error",
-          description: err instanceof Error ? err.message : "Failed to load students",
-          variant: "destructive"
-        })
-        setStudents([])
-      } finally {
-        setLoadingStudents(false)
-      }
-    }
-
-    fetchStudents()
-  }, [selectedClass, toast])
 
   // Handle submission
   const handleSubmit = async () => {

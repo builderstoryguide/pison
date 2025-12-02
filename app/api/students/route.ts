@@ -39,10 +39,24 @@ export async function GET(request: NextRequest) {
       query = query.eq('academic_year', academicYear)
     }
 
-    const { data, error } = await query
+    let data, error
+    try {
+      const result = await query
+      data = result.data
+      error = result.error
+    } catch (err) {
+      console.error('Network or connection error when fetching students from Supabase:', err)
+      return NextResponse.json(
+        {
+          error: 'Failed to connect to database',
+          details: process.env.NODE_ENV === 'development' && err instanceof Error ? err.message : undefined,
+        },
+        { status: 503 }
+      )
+    }
 
     if (error) {
-      console.error('Error fetching students:', error)
+      console.error('Error fetching students from Supabase:', error)
       return NextResponse.json(
         { error: 'Failed to fetch students' },
         { status: 500 }

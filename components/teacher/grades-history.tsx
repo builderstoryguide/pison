@@ -7,9 +7,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Search, Filter, Eye, Edit } from "lucide-react"
+import { Loader2, Search, Filter, Eye, Edit, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { GradeViewEdit } from "./grade-view-edit"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
 
 interface HistoryEntry {
   id: string
@@ -30,6 +41,8 @@ export function GradesHistory() {
   // View/Edit state
   const [selectedGrade, setSelectedGrade] = useState<HistoryEntry | null>(null)
   const [viewMode, setViewMode] = useState<'view' | 'edit' | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [gradeToDelete, setGradeToDelete] = useState<HistoryEntry | null>(null)
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState("")
@@ -120,6 +133,35 @@ export function GradesHistory() {
     setViewMode(null)
     // Refresh history when coming back
     fetchHistory()
+  }
+
+  const handleDeleteClick = (entry: HistoryEntry) => {
+    setGradeToDelete(entry)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!gradeToDelete) return
+
+    try {
+      const res = await fetch(`/api/grades/history?id=${gradeToDelete.id}`, {
+        method: 'DELETE',
+      })
+
+      if (res.ok) {
+        toast.success("Grade entry deleted successfully")
+        fetchHistory() // Refresh list
+      } else {
+        const data = await res.json()
+        toast.error(data.error || "Failed to delete grade entry")
+      }
+    } catch (error) {
+      console.error("Error deleting grade:", error)
+      toast.error("An error occurred while deleting")
+    } finally {
+      setDeleteDialogOpen(false)
+      setGradeToDelete(null)
+    }
   }
 
   const fetchHistory = async () => {
@@ -317,6 +359,15 @@ export function GradesHistory() {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteClick(entry)}
+                            title="Delete Entry"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -335,6 +386,25 @@ export function GradesHistory() {
           </div>
         </CardContent>
       </Card>
+
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the grade entry for 
+              <span className="font-medium"> {gradeToDelete?.class} - {gradeToDelete?.subject} ({gradeToDelete?.sequence})</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

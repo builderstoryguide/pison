@@ -176,6 +176,10 @@ export async function POST(
       idNumber
     } = body
 
+    // Track assigned IDs for class_subjects creation
+    let assignedSubjectIds: string[] = []
+    let assignedClassIds: string[] = []
+
     // Sanitize inputs
     firstName = firstName?.trim()
     lastName = lastName?.trim()
@@ -565,6 +569,9 @@ export async function POST(
             .eq('is_active', true)
 
           if (subjectRecords && subjectRecords.length > 0) {
+            // Capture IDs for class_subjects creation
+            assignedSubjectIds = subjectRecords.map(s => s.id)
+
             // Create teacher_subjects records
             const teacherSubjectsData = subjectRecords.map((subject) => ({
               teacher_id: teacherUser!.id, // Non-null assertion safe due to check above
@@ -683,6 +690,9 @@ export async function POST(
         }
 
         if (classesToAssign && classesToAssign.length > 0) {
+          // Capture IDs for class_subjects creation
+          assignedClassIds = classesToAssign.map(c => c.id)
+
           // Create class_teachers junction table records
           // teacher_row_id references teachers.id (not users.id)
           const classTeachersData = classesToAssign.map((cls) => ({
@@ -706,6 +716,38 @@ export async function POST(
       } catch (classesError) {
         console.warn('Error creating class_teachers records:', classesError)
         // Continue even if class_teachers creation fails
+      }
+    }
+
+    // Ensure class_subjects records exist for the assigned classes and subjects
+    // This ensures the dashboard can display the subjects for these classes
+    if (assignedSubjectIds.length > 0 && assignedClassIds.length > 0) {
+      try {
+        const classSubjectsData: { class_id: string, subject_id: string }[] = []
+        
+        for (const classId of assignedClassIds) {
+          for (const subjectId of assignedSubjectIds) {
+            classSubjectsData.push({
+              class_id: classId,
+              subject_id: subjectId
+            })
+          }
+        }
+
+        if (classSubjectsData.length > 0) {
+          const { error: classSubjectsError } = await supabase
+            .from('class_subjects')
+            .insert(classSubjectsData)
+            .ignoreDuplicates()
+
+          if (classSubjectsError) {
+            console.warn('Failed to ensure class_subjects records:', classSubjectsError.message)
+          } else {
+            console.log(`Ensured ${classSubjectsData.length} class_subjects records exist`)
+          }
+        }
+      } catch (err) {
+        console.warn('Error ensuring class_subjects:', err)
       }
     }
 
