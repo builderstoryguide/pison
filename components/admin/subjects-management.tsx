@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
 import { ShimmerSubjectsManagement } from '@/components/ui/shimmer-loading'
-import { useSubjects, useCreateSubject, useDeleteSubject } from '@/hooks/use-subjects'
+import { useSubjects, useCreateSubject, useDeleteSubject, usePrefetchSubject } from '@/hooks/use-subjects'
 import { Plus, Edit, Trash2, Users, BookOpen, GraduationCap, Calculator, Settings } from 'lucide-react'
 import SubjectBranchesManagementOptimized from './subject-branches-management-optimized'
 
@@ -47,6 +47,7 @@ export default function SubjectsManagement() {
   const { data: subjects = [], isLoading, error } = useSubjects()
   const createSubjectMutation = useCreateSubject()
   const deleteSubjectMutation = useDeleteSubject()
+  const prefetchSubject = usePrefetchSubject()
   
   // UI state
   const [activeTab, setActiveTab] = useState('subjects')
@@ -250,7 +251,11 @@ export default function SubjectsManagement() {
                   </TableHeader>
                   <TableBody>
                     {subjects.map((subject) => (
-                      <TableRow key={subject.id}>
+                      <TableRow 
+                        key={subject.id}
+                        onMouseEnter={() => prefetchSubject(subject.id)}
+                        className="hover:bg-muted/50 transition-colors"
+                      >
                         <TableCell>
                           <div>
                             <div className="font-medium">{subject.subject_name}</div>

@@ -1,8 +1,20 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext} from 'react'
 import { generateDefaultPassword } from './password-utils'
 import { activityLogger, ActivityLogEntry } from './activity-logger'
+import {
+  useUsers,
+  useUser,
+  useCreateUser as useCreateUserMutation,
+  useUpdateUser as useUpdateUserMutation,
+  useDeleteUser as useDeleteUserMutation,
+  useBulkDeleteUsers as useBulkDeleteUsersMutation,
+  useToggleUserStatus as useToggleUserStatusMutation,
+  useResetPassword as useResetPasswordMutation,
+  usePrefetchUser,
+  usePrefetchUsers,
+} from '@/hooks/use-users'
 
 export interface User {
   id: string
@@ -61,6 +73,8 @@ interface UserManagementContextType {
   refreshUsers: () => Promise<void>
   refreshActivityLogs: () => Promise<void>
   loadUsers: (forceRefresh?: boolean) => Promise<void>
+  prefetchUser: (userId: string) => void
+  prefetchUsers: (filters?: UserFilters) => void
 }
 
 export interface UserFilters {
@@ -81,203 +95,31 @@ const mockActivityLogs: ActivityLog[] = [
     userName: 'Paul Biya Mbeki',
     action: 'LOGIN',
     details: 'User logged in successfully',
-    timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(), // 2 minutes ago
+    timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
     ipAddress: '192.168.1.100',
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-  },
-  {
-    id: '2',
-    userId: '3',
-    userName: 'Amina Fru',
-    action: 'VIEW_GRADES',
-    details: 'Viewed Mathematics grades for Form 5A',
-    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 minutes ago
-    ipAddress: '192.168.1.101',
-    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)'
-  },
-  {
-    id: '3',
-    userId: '1',
-    userName: 'Dr. Marie Ngozi',
-    action: 'CREATE_USER',
-    details: 'Created new teacher account for Jean Claude',
-    timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(), // 45 minutes ago
-    ipAddress: '192.168.1.102',
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'
-  },
-  {
-    id: '4',
-    userId: '5',
-    userName: 'Grace Tabi',
-    action: 'PAYMENT_RECORDED',
-            details: 'Recorded fee payment of 50,000 XOF for student Marie Ngozi',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-    ipAddress: '192.168.1.103',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-  },
-  {
-    id: '5',
-    userId: '1',
-    userName: 'Dr. Marie Ngozi',
-    action: 'CLASS_CREATED',
-    details: 'Created new class Form 6 Science with 25 students',
-    timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), // 3 hours ago
-    ipAddress: '192.168.1.102',
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'
-  },
-  {
-    id: '6',
-    userId: '2',
-    userName: 'Paul Biya Mbeki',
-    action: 'STUDENT_ENROLLED',
-    details: 'Enrolled new student Marie Ngozi in Form 5A',
-    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
-    ipAddress: '192.168.1.100',
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-  },
-  {
-    id: '7',
-    userId: '1',
-    userName: 'Dr. Marie Ngozi',
-    action: 'EXAM_CREATED',
-    details: 'Created Mathematics mid-term exam for Form 5A',
-    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
-    ipAddress: '192.168.1.102',
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'
   },
 ]
 
 export function UserManagementProvider({ children }: { children: React.ReactNode }) {
-  const [users, setUsers] = useState<User[]>([])
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [isLoadingLogs, setIsLoadingLogs] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [lastFetchTime, setLastFetchTime] = useState<{ users: number; logs: number }>({ users: 0, logs: 0 })
-  const CACHE_DURATION = 30000 // 30 seconds cache
+  const [activityLogs, setActivityLogs] = React.useState<ActivityLog[]>(mockActivityLogs)
 
-  const generateId = () => Math.random().toString(36).substr(2, 9)
+  // Use React Query hooks
+  const { data: users = [], isLoading, error: queryError, refetch } = useUsers()
+  const createUserMutation = useCreateUserMutation()
+  const updateUserMutation = useUpdateUserMutation()
+  const deleteUserMutation = useDeleteUserMutation()
+  const bulkDeleteMutation = useBulkDeleteUsersMutation()
+  const toggleStatusMutation = useToggleUserStatusMutation()
+  const resetPasswordMutation = useResetPasswordMutation()
+  const prefetchUserFn = usePrefetchUser()
+  const prefetchUsersFn = usePrefetchUsers()
 
-  const loadActivityLogs = async (forceRefresh = false) => {
-    const now = Date.now()
-    
-    // Check cache first
-    if (!forceRefresh && now - lastFetchTime.logs < CACHE_DURATION && activityLogs.length > 0) {
-      return // Use cached data
-    }
-
-    setIsLoadingLogs(true)
-    try {
-      // Helper to create a fetch with timeout
-      const fetchWithTimeout = async (url: string, timeoutMs = 10000): Promise<Response | null> => {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-        
-        try {
-          const response = await fetch(url, {
-            signal: controller.signal
-          })
-          clearTimeout(timeoutId)
-          return response
-        } catch (error) {
-          clearTimeout(timeoutId)
-          if (error instanceof Error && error.name === 'AbortError') {
-            throw new Error('Request timed out')
-          }
-          throw error
-        }
-      }
-      
-      // Try optimized endpoint first, fallback to simple if it fails
-      let response: Response | null = null
-      
-      try {
-        response = await fetchWithTimeout('/api/activity-logs/optimized?limit=50', 10000)
-      } catch (fetchError) {
-        // Network error or timeout - try simple endpoint
-        console.log('Optimized endpoint network error, trying simple endpoint...', fetchError)
-        try {
-          response = await fetchWithTimeout('/api/activity-logs/simple?limit=50', 10000)
-        } catch (simpleError) {
-          // Both endpoints failed at network level
-          console.warn('Failed to fetch activity logs (network error):', simpleError)
-          setActivityLogs([])
-          return
-        }
-      }
-      
-      if (!response) {
-        setActivityLogs([])
-        return
-      }
-      
-      if (!response.ok) {
-        console.log('Optimized endpoint failed with status, trying simple endpoint...')
-        try {
-          response = await fetchWithTimeout('/api/activity-logs/simple?limit=50', 10000)
-        } catch (simpleError) {
-          console.warn('Simple endpoint also failed (network error):', simpleError)
-          setActivityLogs([])
-          return
-        }
-      }
-      
-      if (!response || !response.ok) {
-        let errorData: any
-        try {
-          errorData = await response.json()
-        } catch (e) {
-          errorData = { message: `HTTP ${response?.status}: ${response?.statusText || 'Unknown error'}` }
-        }
-        
-        // Handle database setup errors with actionable messages
-        if (errorData.setupRequired || errorData.error === 'Database not set up') {
-          const missingScripts = errorData.missingScripts?.length > 0 
-            ? `\n\nMissing migration scripts: ${errorData.missingScripts.join(', ')}`
-            : ''
-          const setupMessage = errorData.setupInstructions 
-            ? `${errorData.message}${missingScripts}\n\n${errorData.setupInstructions}`
-            : errorData.message || 'Database not configured. Please run the setup scripts in Supabase SQL Editor.'
-          console.warn('Activity logs database setup error:', setupMessage)
-          // Don't throw - just log and continue with empty logs
-          setActivityLogs([])
-          return
-        }
-        
-        console.warn('Failed to load activity logs:', errorData.message || errorData.error || `HTTP ${response?.status}: ${response?.statusText}`)
-        // Don't throw - just log and continue with empty logs
-        setActivityLogs([])
-        return
-      }
-
-      const result = await response.json()
-      setActivityLogs(result.logs || [])
-      setLastFetchTime(prev => ({ ...prev, logs: now }))
-    } catch (error) {
-      // Handle any unexpected errors
-      console.error('Failed to load activity logs:', error)
-      // Keep empty array if API fails, but don't set error state for activity logs
-      // as it's not critical for the main functionality
-      setActivityLogs([])
-      
-      // Log schema errors for debugging
-      if (error instanceof Error) {
-        if (error.message.includes('schema cache') || error.message.includes('does not exist')) {
-          console.warn('Activity logs database schema error. Ensure user_activity_logs table exists.')
-        } else if (error.name === 'AbortError' || error.message.includes('timeout') || error.message.includes('timed out')) {
-          console.warn('Activity logs request timed out. The server may be slow or unresponsive.')
-        } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-          console.warn('Activity logs network error. Check if the server is running and accessible.')
-        }
-      }
-    } finally {
-      setIsLoadingLogs(false)
-    }
-  }
+  const error = queryError ? (queryError as Error).message : null
 
   const logActivity = (action: string, details: string, userId?: string) => {
     const newLog: ActivityLog = {
-      id: generateId(),
+      id: Math.random().toString(36).substr(2, 9),
       userId: userId || 'system',
       userName: userId ? users.find(u => u.id === userId)?.name || 'Unknown' : 'System',
       action,
@@ -289,151 +131,8 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
     setActivityLogs(prev => [newLog, ...prev])
   }
 
-  const loadUsers = async (forceRefresh = false) => {
-    const now = Date.now()
-    
-    // Check cache first
-    if (!forceRefresh && now - lastFetchTime.users < CACHE_DURATION && users.length > 0) {
-      return // Use cached data
-    }
-
-    setIsLoading(true)
-    setError(null)
-    
-    try {
-      const response = await fetch('/api/users?limit=50')
-      
-      if (!response.ok) {
-        let errorData: any
-        let parsedMessage: string | undefined
-        try {
-          const contentType = response.headers.get('content-type') || ''
-          if (contentType.includes('application/json')) {
-            errorData = await response.json()
-            // Handle structured database setup errors
-            if (errorData.setupRequired || errorData.error === 'Database not set up') {
-              const missingScripts = errorData.missingScripts?.length > 0 
-                ? `\n\nMissing migration scripts: ${errorData.missingScripts.join(', ')}`
-                : ''
-              parsedMessage = errorData.setupInstructions 
-                ? `${errorData.message}${missingScripts}\n\n${errorData.setupInstructions}`
-                : errorData.message || 'Database not configured. Please run the setup scripts in Supabase SQL Editor.'
-            } else if (errorData.hint) {
-              // Include hints from API (e.g., schema cache issues)
-              parsedMessage = `${errorData.message || errorData.error}\n\nHint: ${errorData.hint}`
-            } else {
-              parsedMessage = errorData?.message || errorData?.error
-            }
-          } else {
-            const text = await response.text()
-            parsedMessage = text?.slice(0, 300)
-          }
-        } catch (e) {
-          // Swallow JSON parsing errors; we'll fall back to status
-        }
-        throw new Error(parsedMessage || `HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      let result: any
-      try {
-        result = await response.json()
-      } catch (e) {
-        console.error('Failed to parse users API response as JSON. Falling back to empty list.', e)
-        throw new Error('Invalid response format from API')
-      }
-
-      if (result.users) {
-        // Transform API response to match our User interface
-        const transformedUsers: User[] = result.users.map((apiUser: any) => ({
-          id: apiUser.id,
-          name: apiUser.name,
-          email: apiUser.email,
-          role: apiUser.role,
-          status: apiUser.status,
-          avatar: apiUser.avatar_url,
-          phone: apiUser.phone,
-          address: apiUser.address,
-          dateOfBirth: apiUser.date_of_birth,
-          gender: apiUser.gender,
-          permissions: apiUser.permissions || [],
-          createdAt: apiUser.created_at,
-          lastLogin: apiUser.last_login,
-          createdBy: apiUser.created_by,
-          hasDefaultPassword: apiUser.has_default_password,
-          passwordLastChanged: apiUser.password_last_changed,
-          passwordExpiryDate: apiUser.password_expiry_date,
-          studentId: apiUser.role_specific_id,
-          teacherRegNo: apiUser.role_specific_id,
-          parentCode: apiUser.role_specific_id,
-          subsystem: apiUser.subsystem,
-          branch: apiUser.branch,
-          class: apiUser.class_name,
-        }))
-        setUsers(transformedUsers)
-        setLastFetchTime(prev => ({ ...prev, users: now }))
-      } else {
-        throw new Error('Invalid response format from API')
-      }
-    } catch (error) {
-      console.error('Failed to load users:', error)
-      let errorMessage = error instanceof Error ? error.message : 'Failed to load users'
-      
-      // Network/Fetch failure (server down, CORS, DNS, etc.)
-      if (error instanceof TypeError && /fetch failed/i.test(error.message)) {
-        errorMessage = 'Unable to reach the server. Ensure the development server is running and environment variables are set.'
-      }
-      
-      // Database setup errors already have detailed messages from the API
-      // The error message will already include setup instructions if it's a setup error
-      setError(errorMessage)
-      
-      // Log detailed error information for debugging
-      if (errorMessage.includes('schema cache') || errorMessage.includes('does not exist')) {
-        console.error('Database schema error detected. Please ensure all migration scripts have been run.')
-        console.error('Error details:', error)
-      }
-      
-      // Keep empty array if API fails
-      setUsers([])
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const refreshUsers = async () => {
-    await loadUsers(true) // Force refresh
-  }
-
-  const refreshActivityLogs = async () => {
-    await loadActivityLogs(true) // Force refresh
-  }
-
-  useEffect(() => {
-    loadUsers()
-    loadActivityLogs()
-    
-    // Listen for student and teacher creation events to refresh the user list
-    const handleStudentCreated = () => {
-      console.log('Student created event received, refreshing user data...')
-      loadUsers(true) // Force refresh
-    }
-    
-    const handleTeacherCreated = () => {
-      console.log('Teacher created event received, refreshing user data...')
-      loadUsers(true) // Force refresh
-    }
-    
-    window.addEventListener('studentCreated', handleStudentCreated)
-    window.addEventListener('teacherCreated', handleTeacherCreated)
-    
-    return () => {
-      window.removeEventListener('studentCreated', handleStudentCreated)
-      window.removeEventListener('teacherCreated', handleTeacherCreated)
-    }
-  }, [])
-
   // Subscribe to activity logger
-  useEffect(() => {
+  React.useEffect(() => {
     const unsubscribe = activityLogger.subscribe((activity: ActivityLogEntry) => {
       const newLog: ActivityLog = {
         id: activity.id,
@@ -442,7 +141,7 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
         action: activity.action,
         details: activity.details,
         timestamp: activity.timestamp,
-        ipAddress: '192.168.1.100', // Mock IP
+        ipAddress: '192.168.1.100',
         userAgent: navigator.userAgent
       }
       setActivityLogs(prev => [newLog, ...prev])
@@ -452,281 +151,92 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
   }, [])
 
   const createUser = async (userData: Omit<User, 'id' | 'createdAt' | 'createdBy'>): Promise<{ success: boolean; password?: string; roleSpecificId?: string }> => {
-    setIsLoading(true)
-    setError(null)
-
     try {
-      // Call the real API endpoint
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...userData,
-          // createdBy will be optional - in production, get from auth context
-        }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to create user')
-      }
-
+      const result = await createUserMutation.mutateAsync(userData)
       if (result.success) {
-        // Refresh users from database
-        await loadUsers()
-        
-        // Dispatch custom events to notify other contexts to refresh their data
-        if (userData.role === 'student') {
-          window.dispatchEvent(new CustomEvent('studentCreated', { 
-            detail: { 
-              studentId: userData.studentId,
-              name: userData.name,
-              email: userData.email 
-            } 
-          }))
-        } else if (userData.role === 'teacher') {
-          window.dispatchEvent(new CustomEvent('teacherCreated', { 
-            detail: { 
-              teacherId: userData.teacherRegNo,
-              name: userData.name,
-              email: userData.email 
-            } 
-          }))
-        }
-        
-        logActivity('CREATE_USER', `Created new ${userData.role} account for ${userData.name} with default password`)
-        return { 
-          success: true, 
+        logActivity('CREATE_USER', `Created new ${userData.role} account for ${userData.name}`)
+        return {
+          success: true,
           password: result.password,
           roleSpecificId: result.user?.role_specific_id
         }
-      } else {
-        throw new Error(result.error || 'Failed to create user')
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create user'
-      setError(errorMessage)
       return { success: false }
-    } finally {
-      setIsLoading(false)
+    } catch {
+      return { success: false }
     }
   }
 
   const updateUser = async (userId: string, userData: Partial<User>): Promise<boolean> => {
-    setIsLoading(true)
-    setError(null)
-
     try {
-      // Call the real API endpoint
-      const response = await fetch('/api/users', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          ...userData,
-          // updatedBy will be optional - in production, get from auth context
-        }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to update user')
-      }
-
-      if (result.success) {
-        // Refresh users from database
-        await loadUsers()
-        
-        const user = users.find(u => u.id === userId)
-        logActivity('UPDATE_USER', `Updated profile for ${user?.name}`, userId)
-        return true
-      } else {
-        throw new Error(result.error || 'Failed to update user')
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update user'
-      setError(errorMessage)
+      await updateUserMutation.mutateAsync({ userId, userData })
+      const user = users.find(u => u.id === userId)
+      logActivity('UPDATE_USER', `Updated profile for ${user?.name}`, userId)
+      return true
+    } catch {
       return false
-    } finally {
-      setIsLoading(false)
     }
   }
 
   const deleteUser = async (userId: string): Promise<boolean> => {
-    setIsLoading(true)
-    setError(null)
-
     try {
-      // Call the real API endpoint
-      const response = await fetch(`/api/users?id=${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete user')
-      }
-
-      if (result.success) {
-        const user = users.find(u => u.id === userId)
-        // Refresh users from database
-        await loadUsers()
-        logActivity('DELETE_USER', `Deleted user account for ${user?.name}`)
-        return true
-      } else {
-        throw new Error(result.error || 'Failed to delete user')
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete user'
-      setError(errorMessage)
+      const user = users.find(u => u.id === userId)
+      await deleteUserMutation.mutateAsync(userId)
+      logActivity('DELETE_USER', `Deleted user account for ${user?.name}`)
+      return true
+    } catch {
       return false
-    } finally {
-      setIsLoading(false)
     }
   }
 
   const bulkDeleteUsers = async (userIds: string[]): Promise<{ success: boolean; deletedCount: number; errors: string[] }> => {
-    setIsLoading(true)
-    setError(null)
-
     try {
-      // Call the bulk delete API endpoint
-      const response = await fetch('/api/users/bulk-delete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userIds }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete users')
-      }
-
+      const deletedUsers = users.filter(u => userIds.includes(u.id))
+      const userNames = deletedUsers.map(u => u.name).join(', ')
+      
+      const result = await bulkDeleteMutation.mutateAsync(userIds)
+      
       if (result.success) {
-        // Refresh users from database
-        await loadUsers()
-        
-        // Log activity for bulk deletion
-        const deletedUsers = users.filter(u => userIds.includes(u.id))
-        const userNames = deletedUsers.map(u => u.name).join(', ')
         logActivity('BULK_DELETE_USERS', `Bulk deleted ${result.deletedCount} users: ${userNames}`)
-        
         return {
           success: true,
           deletedCount: result.deletedCount,
           errors: result.errors || []
         }
-      } else {
-        throw new Error(result.error || 'Failed to delete users')
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete users'
-      setError(errorMessage)
       return {
         success: false,
         deletedCount: 0,
-        errors: [errorMessage]
+        errors: [result.error || 'Failed to delete users']
       }
-    } finally {
-      setIsLoading(false)
+    } catch (err) {
+      return {
+        success: false,
+        deletedCount: 0,
+        errors: [err instanceof Error ? err.message : 'Failed to delete users']
+      }
     }
   }
 
   const toggleUserStatus = async (userId: string, status: 'active' | 'inactive' | 'suspended'): Promise<boolean> => {
-    setIsLoading(true)
-    setError(null)
-
     try {
-      // Call the real API endpoint
-      const response = await fetch('/api/users', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          status,
-          // updatedBy will be optional - in production, get from auth context
-        }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to update user status')
-      }
-
-      if (result.success) {
-        // Refresh users from database
-        await loadUsers()
-        
-        const user = users.find(u => u.id === userId)
-        logActivity('STATUS_CHANGE', `Changed status to ${status} for ${user?.name}`, userId)
-        return true
-      } else {
-        throw new Error(result.error || 'Failed to update user status')
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update user status'
-      setError(errorMessage)
+      await toggleStatusMutation.mutateAsync({ userId, status })
+      const user = users.find(u => u.id === userId)
+      logActivity('STATUS_CHANGE', `Changed status to ${status} for ${user?.name}`, userId)
+      return true
+    } catch {
       return false
-    } finally {
-      setIsLoading(false)
     }
   }
 
   const resetUserPassword = async (userId: string): Promise<{ success: boolean; password?: string }> => {
-    setIsLoading(true)
-    setError(null)
-
     try {
-      // Call the real API endpoint
-      const response = await fetch('/api/users/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          // resetBy will be optional - in production, get from auth context
-        }),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to reset password')
-      }
-
-      if (result.success) {
-        // Refresh users from database
-        await loadUsers()
-
-        const user = users.find(u => u.id === userId)
-        logActivity('PASSWORD_RESET', `Reset password for ${user?.name}`, userId)
-        return { success: true, password: result.password }
-      } else {
-        throw new Error(result.error || 'Failed to reset password')
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to reset password'
-      setError(errorMessage)
+      const result = await resetPasswordMutation.mutateAsync(userId)
+      const user = users.find(u => u.id === userId)
+      logActivity('PASSWORD_RESET', `Reset password for ${user?.name}`, userId)
+      return { success: true, password: result.password }
+    } catch {
       return { success: false }
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -758,6 +268,29 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
     })
   }
 
+  const refreshUsers = async () => {
+    await refetch()
+  }
+
+  const refreshActivityLogs = async () => {
+    // Activity logs are mocked for now
+    // In production, fetch from API
+  }
+
+  const loadUsers = async (forceRefresh = false) => {
+    if (forceRefresh) {
+      await refetch()
+    }
+  }
+
+  const prefetchUser = (userId: string) => {
+    prefetchUserFn(userId)
+  }
+
+  const prefetchUsers = (filters?: UserFilters) => {
+    prefetchUsersFn(filters)
+  }
+
   return (
     <UserManagementContext.Provider value={{
       users,
@@ -765,19 +298,21 @@ export function UserManagementProvider({ children }: { children: React.ReactNode
       createUser,
       updateUser,
       deleteUser,
-    bulkDeleteUsers,
+      bulkDeleteUsers,
       toggleUserStatus,
       resetUserPassword,
       getUserById,
       searchUsers,
       filterUsers,
       logActivity,
-      isLoading,
-      isLoadingLogs,
+      isLoading: isLoading || createUserMutation.isPending || updateUserMutation.isPending || deleteUserMutation.isPending || bulkDeleteMutation.isPending || toggleStatusMutation.isPending || resetPasswordMutation.isPending,
+      isLoadingLogs: false,
       error,
       refreshUsers,
       refreshActivityLogs,
-      loadUsers
+      loadUsers,
+      prefetchUser,
+      prefetchUsers,
     }}>
       {children}
     </UserManagementContext.Provider>

@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toast"
 import { ErrorBoundary } from "@/components/error-boundary"
+import { ReactQueryProvider } from "@/components/providers/react-query-provider"
 import "./globals.css"
 import "react-initials-avatar/lib/ReactInitialsAvatar.css"
 
@@ -29,10 +30,12 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
         <ErrorBoundary>
-          <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-            {children}
-            <Toaster />
-          </ThemeProvider>
+          <ReactQueryProvider>
+            <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+              {children}
+              <Toaster />
+            </ThemeProvider>
+          </ReactQueryProvider>
         </ErrorBoundary>
       </body>
     </html>

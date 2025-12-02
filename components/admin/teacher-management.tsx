@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useTeacherManagement } from "@/lib/teacher-management-context"
+import { usePrefetchTeacher } from "@/hooks/use-teachers"
 
 import { useToast } from "@/hooks/use-toast"
 import { TeacherEnrollmentForm } from "./teacher-enrollment-form"
@@ -40,6 +41,7 @@ import { TeacherExportForm } from "./teacher-export-form"
 export function TeacherManagement() {
   const { teachers, isLoading, deleteTeacher } = useTeacherManagement()
   const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast()
+  const prefetchTeacher = usePrefetchTeacher()
  
 
   const [searchTerm, setSearchTerm] = useState("")
@@ -380,7 +382,11 @@ export function TeacherManagement() {
                   </TableRow>
                 ) : (
                   filteredTeachers.map((teacher) => (
-                    <TableRow key={teacher.teacherId}>
+                    <TableRow 
+                      key={teacher.teacherId}
+                      onMouseEnter={() => prefetchTeacher(teacher.id)}
+                      className="hover:bg-muted/50 transition-colors"
+                    >
                       <TableCell>
                         <div className="flex items-center space-x-3">
                           <Avatar className="h-8 w-8">

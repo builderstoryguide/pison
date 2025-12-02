@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { supabase, testConnection } from "./supabase"
 
 export interface Student {
@@ -64,7 +65,11 @@ interface StudentManagementContextType {
   filters: StudentFilters
   setFilters: (filters: StudentFilters) => void
   clearFilters: () => void
-  loadStudents: () => Promise<void>
+  /**
+   * Load students, using cached data when possible.
+   * When options.force is true we always hit the network and refresh the cache.
+   */
+  loadStudents: (options?: { force?: boolean }) => Promise<void>
   getStudent: (id: string) => Student | undefined
   updateStudent: (id: string, updates: Partial<Student>) => Promise<boolean>
   deleteStudent: (id: string) => Promise<boolean>
@@ -75,6 +80,8 @@ interface StudentManagementContextType {
   updateStudentStatus: (id: string, status: string) => Promise<boolean>
   resetStudentPassword: (studentId: string) => Promise<{ success: boolean; password?: string }>
   testDatabaseConnection: () => Promise<boolean>
+  /** Prefetch students in the background without toggling the global loading state. */
+  prefetchStudents: () => Promise<void>
 }
 
 const StudentManagementContext = createContext<StudentManagementContextType | undefined>(undefined)
@@ -129,7 +136,72 @@ const mockStudents: Student[] = [
   }
 ]
 
+// Shared fetcher used by React Query to load students with caching
+async function fetchStudentsFromApi(): Promise<Student[]> {
+  try {
+    const dbConnected = await testConnection()
+
+    // If database is not available, fall back to mock data
+    if (!dbConnected) {
+      return mockStudents
+    }
+
+    // Use API route which includes class_name in the response
+    const response = await fetch("/api/students")
+
+    if (!response.ok) {
+      // On API failure, gracefully fall back to mock data
+      return mockStudents
+    }
+
+    const data = await response.json()
+
+    // Transform API response to match Student interface
+    const transformedData: Student[] = (data || []).map((student: any) => ({
+      id: student.id,
+      student_id: student.student_id,
+      first_name: student.first_name,
+      last_name: student.last_name,
+      middle_name: student.middle_name,
+      email: student.email,
+      phone: student.phone,
+      date_of_birth: student.date_of_birth,
+      gender: student.gender,
+      place_of_birth: student.place_of_birth,
+      nationality: student.nationality,
+      religion: student.religion,
+      address: student.address,
+      city: student.city,
+      region: student.region,
+      subsystem: student.subsystem,
+      branch: student.branch,
+      class: student.class,
+      class_name: student.class_name,
+      previous_school: student.previous_school,
+      previous_class: student.previous_class,
+      is_new_student: student.is_new_student,
+      total_fees: student.total_fees || 0,
+      paid_fees: student.paid_fees || 0,
+      fees_status: student.fees_status || "pending",
+      enrollment_status: student.enrollment_status || "pending",
+      academic_year: student.academic_year,
+      status: student.status || "active",
+      enrollment_date: student.enrollment_date,
+      created_at: student.created_at,
+      updated_at: student.updated_at,
+    }))
+
+    return transformedData
+  } catch (err) {
+    console.error("Error fetching students from API:", err)
+    // On unexpected error, still return mock data so UI remains usable
+    return mockStudents
+  }
+}
+
 export function StudentManagementProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient()
+
   const [students, setStudents] = useState<Student[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -149,75 +221,45 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
     return connected
   }
 
-  const loadStudents = async () => {
+  const loadStudents = async (options?: { force?: boolean }) => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const dbConnected = await testConnection()
-      setIsUsingDatabase(dbConnected)
+      const queryOptions = {
+        queryKey: ["students"],
+        queryFn: fetchStudentsFromApi,
+        staleTime: 5 * 60 * 1000, // 5 minutes
+      } as const
 
-      if (!dbConnected) {
+      const data = options?.force
+        ? await queryClient.fetchQuery(queryOptions)
+        : await queryClient.ensureQueryData(queryOptions)
 
-        // Load mock data instead of throwing error
+      if (data && Array.isArray(data)) {
+        setStudents(data)
+      } else {
+        // If for some reason no data came back, fall back to mock data
         setStudents(mockStudents)
-        return
       }
-
-      // Use API route which includes class_name in the response
-      const response = await fetch("/api/students")
-      
-      if (!response.ok) {
-
-        setStudents(mockStudents)
-        return
-      }
-
-      const data = await response.json()
-      
-      // Transform API response to match Student interface
-      // The API already includes class_name, so we can use it directly
-      const transformedData: Student[] = (data || []).map((student: any) => ({
-        id: student.id,
-        student_id: student.student_id,
-        first_name: student.first_name,
-        last_name: student.last_name,
-        middle_name: student.middle_name,
-        email: student.email,
-        phone: student.phone,
-        date_of_birth: student.date_of_birth,
-        gender: student.gender,
-        place_of_birth: student.place_of_birth,
-        nationality: student.nationality,
-        religion: student.religion,
-        address: student.address,
-        city: student.city,
-        region: student.region,
-        subsystem: student.subsystem,
-        branch: student.branch,
-        class: student.class,
-        class_name: student.class_name, // This is now included from the API
-        previous_school: student.previous_school,
-        previous_class: student.previous_class,
-        is_new_student: student.is_new_student,
-        total_fees: student.total_fees || 0,
-        paid_fees: student.paid_fees || 0,
-        fees_status: student.fees_status || "pending",
-        enrollment_status: student.enrollment_status || "pending",
-        academic_year: student.academic_year,
-        status: student.status || "active",
-        enrollment_date: student.enrollment_date,
-        created_at: student.created_at,
-        updated_at: student.updated_at,
-      }))
-
-      setStudents(transformedData)
-
     } catch (err) {
-
+      console.error("Error loading students via React Query:", err)
       setStudents(mockStudents)
+      setError(err instanceof Error ? err.message : "Failed to load students")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const prefetchStudents = async () => {
+    try {
+      await queryClient.prefetchQuery({
+        queryKey: ["students"],
+        queryFn: fetchStudentsFromApi,
+        staleTime: 5 * 60 * 1000,
+      })
+    } catch (err) {
+      console.error("Error prefetching students:", err)
     }
   }
 
@@ -225,30 +267,33 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
     return students.find((student) => student.id === id)
   }
 
+  // Optimistic update of a single student record
   const updateStudent = async (id: string, updates: Partial<Student>): Promise<boolean> => {
+    // Snapshot current state in case we ever want to roll back behaviour in future
+    const previousStudents = students
+
+    // Optimistically apply update locally first so UI responds immediately
+    const applyLocalUpdate = () => {
+      const timestamp = new Date().toISOString()
+      setStudents((prev) =>
+        prev.map((student) =>
+          student.id === id ? { ...student, ...updates, updated_at: timestamp } : student,
+        ),
+      )
+    }
+
+    applyLocalUpdate()
+
     try {
       const dbConnected = await testConnection()
 
       if (!dbConnected) {
-
-        // Update local state only
-        setStudents((prev) =>
-          prev.map((student) =>
-            student.id === id ? { ...student, ...updates, updated_at: new Date().toISOString() } : student,
-          ),
-        )
+        // Offline or DB not reachable: keep optimistic local state and exit
         return true
       }
 
-      // Update in Supabase
       if (!supabase) {
-
-        // Update local state only
-        setStudents((prev) =>
-          prev.map((student) =>
-            student.id === id ? { ...student, ...updates, updated_at: new Date().toISOString() } : student,
-          ),
-        )
+        // No Supabase client: keep optimistic local state and exit
         return true
       }
 
@@ -261,49 +306,41 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
         .eq("id", id)
 
       if (updateError) {
-
-        // Update local state only
-        setStudents((prev) =>
-          prev.map((student) =>
-            student.id === id ? { ...student, ...updates, updated_at: new Date().toISOString() } : student,
-          ),
-        )
+        // Log the error but keep optimistic state to preserve UX and offline-friendly behaviour
+        console.error("Error updating student in database:", updateError)
         return true
       }
 
-      // Update local state
-      setStudents((prev) =>
-        prev.map((student) =>
-          student.id === id ? { ...student, ...updates, updated_at: new Date().toISOString() } : student,
-        ),
-      )
-
       return true
     } catch (err) {
-
-      // Update local state only
-      setStudents((prev) =>
-        prev.map((student) =>
-          student.id === id ? { ...student, ...updates, updated_at: new Date().toISOString() } : student,
-        ),
-      )
+      // Preserve optimistic local update even on error to avoid jarring UI rollbacks
+      console.error("Unexpected error updating student:", err)
+      // If you prefer strict consistency instead of offline-first behaviour, we could roll back here:
+      // setStudents(previousStudents)
       return true
     }
   }
 
+  // Optimistic delete of a single student
   const deleteStudent = async (id: string): Promise<boolean> => {
+    // Snapshot current state so we can roll back on failure
+    const previousStudents = students
+
+    // Optimistically remove the student from local state immediately
+    setStudents((prev) => prev.filter((student) => student.id !== id))
+
     try {
       const dbConnected = await testConnection()
 
       if (!dbConnected) {
-        throw new Error("Database connection is required for student management. Please check your database configuration.")
+        throw new Error(
+          "Database connection is required for student management. Please check your database configuration.",
+        )
       }
 
-      // Delete from Supabase
+      // Delete from Supabase when available
       if (!supabase) {
-
-        // Delete local state only
-        setStudents((prev) => prev.filter((student) => student.id !== id))
+        // No Supabase client – keep optimistic local state and return success
         return true
       }
 
@@ -313,29 +350,36 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
         throw new Error(`Failed to delete student: ${deleteError.message}`)
       }
 
-      // Update local state
-      setStudents((prev) => prev.filter((student) => student.id !== id))
       return true
     } catch (err) {
+      // Roll back optimistic update on error
+      setStudents(previousStudents)
       console.error("Error deleting student:", err)
       setError(err instanceof Error ? err.message : "Failed to delete student")
       return false
     }
   }
 
-  const deleteStudentsBulk = async (ids: string[]): Promise<{ success: boolean; deletedCount: number; errors: string[] }> => {
+  // Optimistic bulk delete of multiple students at once
+  const deleteStudentsBulk = async (
+    ids: string[],
+  ): Promise<{ success: boolean; deletedCount: number; errors: string[] }> => {
+    const previousStudents = students
+
+    // Optimistically remove all selected students from local state
+    setStudents((prev) => prev.filter((student) => !ids.includes(student.id)))
+
     try {
       const dbConnected = await testConnection()
 
       if (!dbConnected) {
-        throw new Error("Database connection is required for student management. Please check your database configuration.")
+        throw new Error(
+          "Database connection is required for student management. Please check your database configuration.",
+        )
       }
 
-      // Delete from Supabase
+      // Delete from Supabase when available
       if (!supabase) {
-
-        // Delete local state only
-        setStudents((prev) => prev.filter((student) => !ids.includes(student.id)))
         return { success: true, deletedCount: ids.length, errors: [] }
       }
 
@@ -345,13 +389,14 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
         throw new Error(`Failed to delete students: ${deleteError.message}`)
       }
 
-      // Update local state
-      setStudents((prev) => prev.filter((student) => !ids.includes(student.id)))
       return { success: true, deletedCount: ids.length, errors: [] }
     } catch (err) {
+      // Roll back optimistic update on error
+      setStudents(previousStudents)
       console.error("Error deleting students:", err)
-      setError(err instanceof Error ? err.message : "Failed to delete students")
-      return { success: false, deletedCount: 0, errors: [err instanceof Error ? err.message : "Failed to delete students"] }
+      const message = err instanceof Error ? err.message : "Failed to delete students"
+      setError(message)
+      return { success: false, deletedCount: 0, errors: [message] }
     }
   }
 
@@ -488,12 +533,17 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
 
   // Load students on mount
   useEffect(() => {
-    loadStudents()
+    // Initial load will use cache when available, otherwise hit the network once.
+    loadStudents().catch((err) => {
+      console.error("Initial student load failed:", err)
+    })
     
     // Listen for student creation events from user management
     const handleStudentCreated = () => {
-
-      loadStudents() // Force refresh
+      // For creation events we bypass staleTime to pick up the new record promptly.
+      loadStudents({ force: true }).catch((err) => {
+        console.error("Student load after creation event failed:", err)
+      })
     }
     
     window.addEventListener('studentCreated', handleStudentCreated)
@@ -506,8 +556,10 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
   // Listen for student enrollment events and refresh the list
   useEffect(() => {
     const handleStudentEnrolled = () => {
-
-      loadStudents()
+      // Enrollment also changes server state, so force a refresh while keeping cache warm.
+      loadStudents({ force: true }).catch((err) => {
+        console.error("Student load after enrollment event failed:", err)
+      })
     }
 
     window.addEventListener('studentEnrolled', handleStudentEnrolled)
@@ -536,6 +588,7 @@ export function StudentManagementProvider({ children }: { children: React.ReactN
     updateStudentStatus,
     resetStudentPassword,
     testDatabaseConnection,
+    prefetchStudents,
   }
 
   return <StudentManagementContext.Provider value={value}>{children}</StudentManagementContext.Provider>

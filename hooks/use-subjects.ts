@@ -30,10 +30,18 @@ interface SubjectsResponse {
   error?: string
 }
 
+// Query keys
+export const subjectKeys = {
+  all: ['subjects'] as const,
+  lists: () => [...subjectKeys.all, 'list'] as const,
+  details: () => [...subjectKeys.all, 'detail'] as const,
+  detail: (id: string) => [...subjectKeys.details(), id] as const,
+}
+
 // Fetch subjects with caching
 export function useSubjects() {
   return useQuery({
-    queryKey: ['subjects'],
+    queryKey: subjectKeys.lists(),
     queryFn: async (): Promise<Subject[]> => {
       const response = await fetch('/api/subjects')
       const data: SubjectsResponse = await response.json()
@@ -44,12 +52,31 @@ export function useSubjects() {
       
       return data.subjects
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 30000, // 30 seconds
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: true,
   })
 }
 
-// Create subject mutation
+// Prefetch subject on hover
+export function usePrefetchSubject() {
+  const queryClient = useQueryClient()
+  
+  return (subjectId: string) => {
+    queryClient.prefetchQuery({
+      queryKey: subjectKeys.detail(subjectId),
+      queryFn: async () => {
+        const response = await fetch(`/api/subjects/${subjectId}`)
+        const data = await response.json()
+        if (!data.success) throw new Error(data.error)
+        return data.subject
+      },
+      staleTime: 60000,
+    })
+  }
+}
+
+// Create subject mutation with optimistic updates
 export function useCreateSubject() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -73,8 +100,7 @@ export function useCreateSubject() {
       return data.subject
     },
     onSuccess: (newSubject) => {
-      // Invalidate and refetch subjects
-      queryClient.invalidateQueries({ queryKey: ['subjects'] })
+      queryClient.invalidateQueries({ queryKey: subjectKeys.lists() })
       
       toast({
         title: 'Success',
@@ -91,7 +117,7 @@ export function useCreateSubject() {
   })
 }
 
-// Delete subject mutation
+// Delete subject mutation with optimistic updates
 export function useDeleteSubject() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
@@ -108,21 +134,40 @@ export function useDeleteSubject() {
         throw new Error(data.error || 'Failed to delete subject')
       }
     },
-    onSuccess: (_, subjectId) => {
-      // Invalidate and refetch subjects
-      queryClient.invalidateQueries({ queryKey: ['subjects'] })
+    onMutate: async (subjectId) => {
+      await queryClient.cancelQueries({ queryKey: subjectKeys.lists() })
       
-      toast({
-        title: 'Success',
-        description: 'Subject deleted successfully'
-      })
+      const previousSubjects = queryClient.getQueryData<Subject[]>(subjectKeys.lists())
+      
+      // Optimistically remove subject
+      if (previousSubjects) {
+        queryClient.setQueryData<Subject[]>(subjectKeys.lists(), 
+          previousSubjects.filter(s => s.id !== subjectId)
+        )
+      }
+      
+      return { previousSubjects }
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _subjectId, context) => {
+      // Rollback on error
+      if (context?.previousSubjects) {
+        queryClient.setQueryData(subjectKeys.lists(), context.previousSubjects)
+      }
+      
       toast({
         title: 'Error',
         description: error.message,
         variant: 'destructive'
       })
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Subject deleted successfully'
+      })
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: subjectKeys.lists() })
     },
   })
 }

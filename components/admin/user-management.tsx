@@ -93,7 +93,8 @@ export function UserManagement() {
     resetUserPassword,
     isLoading,
     error,
-    refreshUsers
+    refreshUsers,
+    prefetchUser
   } = useUserManagement()
 
   // Get students from student management context to ensure consistency
@@ -643,7 +644,11 @@ export function UserManagement() {
                     </TableHeader>
                     <TableBody>
                       {paginatedUsers.map((user) => (
-                        <TableRow key={user.id}>
+                        <TableRow 
+                          key={user.id}
+                          onMouseEnter={() => prefetchUser(user.id)}
+                          className="hover:bg-muted/50 transition-colors"
+                        >
                           <TableCell>
                             <Checkbox
                               checked={selectedUsers.has(user.id)}

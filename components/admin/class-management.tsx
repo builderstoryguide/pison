@@ -36,6 +36,7 @@ import {
   ChevronsRight,
 } from "lucide-react"
 import { useClassManagement, type ClassData, type ClassFormData } from "@/lib/class-management-context"
+import { usePrefetchClass } from "@/hooks/use-classes"
 import { ClassForm } from "./class-form"
 import { LevelForm } from "./level-form"
 import { ClassDetailsDialog } from "./class-details-dialog"
@@ -46,6 +47,7 @@ import { useToast } from "@/hooks/use-toast"
 export function ClassManagement() {
   const { isLoading, deleteClass, getClassesPaginated, totalClassesCount } = useClassManagement()
   const { success: toastSuccess, error: toastError } = useToast()
+  const prefetchClass = usePrefetchClass()
   const [searchTerm, setSearchTerm] = useState("")
   const [subsystemFilter, setSubsystemFilter] = useState<string>("all")
   const [branchFilter, setBranchFilter] = useState<string>("all")
@@ -520,7 +522,11 @@ export function ClassManagement() {
                   </TableRow>
                 ) : (
                   paginatedClasses.map((cls) => (
-                    <TableRow key={cls.id} className="hover:bg-muted/50 transition-colors border-b border-border/50">
+                    <TableRow 
+                      key={cls.id} 
+                      onMouseEnter={() => prefetchClass(cls.id)}
+                      className="hover:bg-muted/50 transition-colors border-b border-border/50"
+                    >
                       <TableCell className="px-4 py-3">
                         <input
                           type="checkbox"
