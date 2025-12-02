@@ -21,22 +21,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
-
-interface HistoryEntry {
-  id: string
-  date: string
-  class: string
-  classId: string
-  subject: string
-  sequence: string
-  count: number
-}
+import { useGradeHistory, useDeleteGradeEntry, HistoryEntry } from "@/hooks/use-grade-history"
 
 export function GradesHistory() {
   const { user } = useAuth()
-  const [history, setHistory] = useState<HistoryEntry[]>([])
+  const { data: history = [], isLoading: loading } = useGradeHistory(user?.id)
+  const { mutate: deleteGrade } = useDeleteGradeEntry()
+  
   const [filteredHistory, setFilteredHistory] = useState<HistoryEntry[]>([])
-  const [loading, setLoading] = useState(true)
   
   // View/Edit state
   const [selectedGrade, setSelectedGrade] = useState<HistoryEntry | null>(null)
@@ -49,29 +41,6 @@ export function GradesHistory() {
   const [classFilter, setClassFilter] = useState<string>("all")
   const [subjectFilter, setSubjectFilter] = useState<string>("all")
   const [sequenceFilter, setSequenceFilter] = useState<string>("all")
-
-  useEffect(() => {
-    const fetchHistory = async () => {
-      if (!user?.id) return
-      try {
-        setLoading(true)
-        const res = await fetch(`/api/grades/history?teacherId=${user.id}`)
-        if (res.ok) {
-          const data = await res.json()
-          if (data.success) {
-            setHistory(data.history)
-            setFilteredHistory(data.history)
-          }
-        }
-      } catch (e) {
-        console.error("Error fetching history:", e)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchHistory()
-  }, [user?.id])
 
   // Apply filters
   useEffect(() => {
@@ -131,8 +100,6 @@ export function GradesHistory() {
   const handleBack = () => {
     setSelectedGrade(null)
     setViewMode(null)
-    // Refresh history when coming back
-    fetchHistory()
   }
 
   const handleDeleteClick = (entry: HistoryEntry) => {
@@ -140,47 +107,22 @@ export function GradesHistory() {
     setDeleteDialogOpen(true)
   }
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = () => {
     if (!gradeToDelete) return
 
-    try {
-      const res = await fetch(`/api/grades/history?id=${gradeToDelete.id}`, {
-        method: 'DELETE',
-      })
-
-      if (res.ok) {
+    deleteGrade(gradeToDelete.id, {
+      onSuccess: () => {
         toast.success("Grade entry deleted successfully")
-        fetchHistory() // Refresh list
-      } else {
-        const data = await res.json()
-        toast.error(data.error || "Failed to delete grade entry")
+        setDeleteDialogOpen(false)
+        setGradeToDelete(null)
+      },
+      onError: (error) => {
+        toast.error(error.message || "Failed to delete grade entry")
+        // We might want to keep the dialog open or close it. 
+        // For now, let's close it to avoid stuck state if it was an optimistic update failure that rolled back.
+        setDeleteDialogOpen(false) 
       }
-    } catch (error) {
-      console.error("Error deleting grade:", error)
-      toast.error("An error occurred while deleting")
-    } finally {
-      setDeleteDialogOpen(false)
-      setGradeToDelete(null)
-    }
-  }
-
-  const fetchHistory = async () => {
-    if (!user?.id) return
-    try {
-      setLoading(true)
-      const res = await fetch(`/api/grades/history?teacherId=${user.id}`)
-      if (res.ok) {
-        const data = await res.json()
-        if (data.success) {
-          setHistory(data.history)
-          setFilteredHistory(data.history)
-        }
-      }
-    } catch (e) {
-      console.error("Error fetching history:", e)
-    } finally {
-      setLoading(false)
-    }
+    })
   }
 
   // If viewing/editing a specific grade, show that view

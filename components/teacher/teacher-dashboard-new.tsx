@@ -1,46 +1,64 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/lib/auth-context"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { 
-  BookOpen, 
-  Users, 
-  GraduationCap, 
+import { useAuth } from "@/lib/auth-context";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  BookOpen,
+  Users,
+  GraduationCap,
   FileText,
-  ChevronRight
-} from "lucide-react"
-import { useTeacherAssignments } from "@/hooks/use-teacher-assignments"
-import { useQueryClient } from "@tanstack/react-query"
+} from "lucide-react";
+import { useTeacherAssignments } from "@/hooks/use-teacher-assignments";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface TeacherDashboardNewProps {
-  onNavigate?: (view: string, classId?: string, subjectId?: string) => void
+  onNavigate?: (view: string, classId?: string, subjectId?: string) => void;
 }
 
 export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
-  const { user } = useAuth()
-  const queryClient = useQueryClient()
-  const { data: classes = [], isLoading: loading, error } = useTeacherAssignments()
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const {
+    data: classes = [],
+    isLoading: loading,
+    error,
+  } = useTeacherAssignments();
 
-  // Prefetch students for a class
-  const prefetchClassStudents = (classId: string) => {
+
+
+  // Prefetch grade history
+  const prefetchGradeHistory = () => {
     queryClient.prefetchQuery({
-      queryKey: ['class-students', classId],
+      queryKey: ['grade-history', user?.id],
       queryFn: async () => {
-        const response = await fetch(`/api/classes/${classId}/students`)
-        if (!response.ok) throw new Error('Failed to fetch students')
-        const data = await response.json()
-        return data.students || []
+        if (!user?.id) return []
+        const res = await fetch(`/api/grades/history?teacherId=${user.id}`)
+        if (!res.ok) throw new Error("Failed to fetch grade history")
+        const data = await res.json()
+        if (!data.success) throw new Error(data.error || "Failed to fetch grade history")
+        return data.history || []
       },
       staleTime: 5 * 60 * 1000, // 5 minutes
-    })
-  }
+    });
+  };
 
   // Calculate statistics
-  const totalClasses = classes.length
-  const totalStudents = classes.reduce((sum, cls) => sum + (cls.studentCount || 0), 0)
-  const uniqueSubjects = new Set(classes.flatMap(cls => cls.subjects?.map(s => s.id) || []))
+  const totalClasses = classes.length;
+  const totalStudents = classes.reduce(
+    (sum, cls) => sum + (cls.studentCount || 0),
+    0
+  );
+  const uniqueSubjects = new Set(
+    classes.flatMap((cls) => cls.subjects?.map((s) => s.id) || [])
+  );
 
   if (loading) {
     return (
@@ -65,7 +83,7 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
           ))}
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -73,15 +91,21 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
       <div className="space-y-6 px-4 md:px-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-red-600">Error Loading Dashboard</CardTitle>
-            <CardDescription>{error instanceof Error ? error.message : 'Failed to load assignments'}</CardDescription>
+            <CardTitle className="text-red-600">
+              Error Loading Dashboard
+            </CardTitle>
+            <CardDescription>
+              {error instanceof Error
+                ? error.message
+                : "Failed to load assignments"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={() => window.location.reload()}>Retry</Button>
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -91,7 +115,8 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
         <div>
           <h1 className="text-3xl font-bold">Teacher Dashboard</h1>
           <p className="text-muted-foreground">
-            Welcome back, {user?.name?.split(" ")[0]}! Here&apos;s an overview of your teaching assignments.
+            Welcome back, {user?.name?.split(" ")[0]}! Here&apos;s an overview
+            of your teaching assignments.
           </p>
         </div>
       </div>
@@ -113,7 +138,9 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Students
+            </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -143,11 +170,12 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="w-full"
               onClick={() => onNavigate?.("grades-history")}
+              onMouseEnter={prefetchGradeHistory}
             >
               View Grade History
             </Button>
@@ -172,18 +200,24 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
               <BookOpen className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
               <h3 className="text-lg font-medium mb-2">No Classes Assigned</h3>
               <p className="text-sm text-muted-foreground text-center max-w-md">
-                You don&apos;t have any classes assigned yet. Please contact your administrator.
+                You don&apos;t have any classes assigned yet. Please contact
+                your administrator.
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {classes.map((classItem) => (
-              <Card key={classItem.id} className="hover:shadow-lg transition-shadow">
+              <Card
+                key={classItem.id}
+                className="hover:shadow-lg transition-shadow"
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-lg">{classItem.name}</CardTitle>
+                      <CardTitle className="text-lg">
+                        {classItem.name}
+                      </CardTitle>
                       <CardDescription className="mt-1">
                         {classItem.level} • {classItem.branch}
                       </CardDescription>
@@ -197,26 +231,28 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
                   {/* Class Info */}
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Students:</span>
-                    <span className="font-medium">{classItem.studentCount || 0}</span>
+                    <span className="font-medium">
+                      {classItem.studentCount || 0}
+                    </span>
                   </div>
 
                   {/* Subjects */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Subjects ({classItem.subjects?.length || 0})</span>
+                      <span className="text-sm font-medium">
+                        Subjects ({classItem.subjects?.length || 0})
+                      </span>
                     </div>
                     {classItem.subjects && classItem.subjects.length > 0 ? (
                       <div className="space-y-1">
                         {classItem.subjects.slice(0, 3).map((subject) => (
-                          <div 
+                          <div
                             key={subject.id}
-                            className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm hover:bg-muted cursor-pointer transition-colors"
-                            onClick={() => onNavigate?.("grades", classItem.id.toString(), subject.id.toString())}
-                            onMouseEnter={() => prefetchClassStudents(classItem.id.toString())}
-                            role="button"
-                            tabIndex={0}
+                            className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm"
                           >
-                            <span className="font-medium truncate">{subject.name}</span>
+                            <span className="font-medium truncate">
+                              {subject.name}
+                            </span>
                             <Badge variant="outline" className="ml-2 text-xs">
                               {subject.code}
                             </Badge>
@@ -234,19 +270,6 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
                       </p>
                     )}
                   </div>
-
-                  {/* Action Button */}
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full mt-2"
-                    onClick={() => onNavigate?.("grades", classItem.id.toString())}
-                    onMouseEnter={() => prefetchClassStudents(classItem.id.toString())}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Enter Grades
-                    <ChevronRight className="h-4 w-4 ml-auto" />
-                  </Button>
                 </CardContent>
               </Card>
             ))}
@@ -254,5 +277,5 @@ export function TeacherDashboardNew({ onNavigate }: TeacherDashboardNewProps) {
         )}
       </div>
     </div>
-  )
+  );
 }
