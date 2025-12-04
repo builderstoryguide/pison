@@ -40,6 +40,7 @@ import { useSubjectManagement } from "@/lib/subject-management-context";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useFormPersistence } from "@/hooks/use-form-persistence";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface TeacherEnrollmentFormProps {
   onSuccess: (result: {
@@ -693,40 +694,42 @@ export function TeacherEnrollmentForm({
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select subjects" />
                         </SelectTrigger>
-                        <SelectContent className="max-h-[200px] overflow-y-auto" hideScrollButtons={true}>
-                          {availableSubjects.flatMap((subject) => {
-                            const items = [
-                              <SelectItem key={subject.id} value={subject.name}>
-                                {subject.name}
-                                {subject.has_sub_branches &&
-                                  subject.sub_branches &&
-                                  subject.sub_branches.length > 0 && (
-                                    <span className="text-xs text-muted-foreground ml-2">
-                                      (Main Subject)
-                                    </span>
-                                  )}
-                              </SelectItem>,
-                            ];
+                        <SelectContent>
+                          <ScrollArea className="h-[200px]">
+                            {availableSubjects.flatMap((subject) => {
+                              const items = [
+                                <SelectItem key={subject.id} value={subject.name}>
+                                  {subject.name}
+                                  {subject.has_sub_branches &&
+                                    subject.sub_branches &&
+                                    subject.sub_branches.length > 0 && (
+                                      <span className="text-xs text-muted-foreground ml-2">
+                                        (Main Subject)
+                                      </span>
+                                    )}
+                                </SelectItem>,
+                              ];
 
-                            if (
-                              subject.has_sub_branches &&
-                              subject.sub_branches
-                            ) {
-                              subject.sub_branches.forEach((branch) => {
-                                items.push(
-                                  <SelectItem
-                                    key={`${subject.id}-${branch.id}`}
-                                    value={`${subject.name} - ${branch.name}`}
-                                    className="pl-8"
-                                  >
-                                    {subject.name} - {branch.name}
-                                  </SelectItem>
-                                );
-                              });
-                            }
+                              if (
+                                subject.has_sub_branches &&
+                                subject.sub_branches
+                              ) {
+                                subject.sub_branches.forEach((branch) => {
+                                  items.push(
+                                    <SelectItem
+                                      key={`${subject.id}-${branch.id}`}
+                                      value={`${subject.name} - ${branch.name}`}
+                                      className="pl-8"
+                                    >
+                                      {subject.name} - {branch.name}
+                                    </SelectItem>
+                                  );
+                                });
+                              }
 
-                            return items;
-                          })}
+                              return items;
+                            })}
+                          </ScrollArea>
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -790,14 +793,13 @@ export function TeacherEnrollmentForm({
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select classes" />
                         </SelectTrigger>
-                        <SelectContent className="max-h-[200px] overflow-y-auto" hideScrollButtons={true}>
-                          {availableClasses.map((cls) => (
-                            <SelectItem key={cls.id} value={cls.name}>
-                              {cls.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        <SelectContent className="max-h-[200px]">
+                            {availableClasses.map((cls) => (
+                              <SelectItem key={cls.id} value={cls.name}>
+                                {cls.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>                      </Select>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {formData.classes.map((cls, index) => (
                           <Badge

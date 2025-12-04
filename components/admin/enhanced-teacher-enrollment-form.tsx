@@ -806,7 +806,7 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
                           <SelectTrigger>
                             <SelectValue placeholder="Select subject" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="max-h-[300px] overflow-y-auto">
                             {subjects
                               .filter(subject => subject.subsystem === formData.subsystem)
                               .map(subject => (
@@ -829,7 +829,7 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
                           <SelectTrigger>
                             <SelectValue placeholder="Select branch" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="max-h-[300px] overflow-y-auto">
                             {assignment.subjectId && getBranchesForSubject(assignment.subjectId).map(branch => (
                               <SelectItem key={branch.id} value={branch.id}>
                                 {branch.branch_name} ({branch.branch_code})
@@ -843,7 +843,7 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
                     {/* Class Selection */}
                     <div className="space-y-2">
                       <Label>Classes *</Label>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-[300px] overflow-y-auto pr-2">
                         {getClassesForSubsystem().map(cls => (
                           <div key={cls.id} className="flex items-center space-x-2">
                             <Checkbox
