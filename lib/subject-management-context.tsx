@@ -103,8 +103,19 @@ export function SubjectManagementProvider({ children }: { children: React.ReactN
       const url = `/api/subjects?${params.toString()}`
       console.log('Loading subjects with URL:', url)
       
-      const response = await fetch(url)
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      })
+      
+      console.log('Response status:', response.status, response.statusText)
+      
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Error response:', errorText)
         throw new Error(`Failed to load subjects: ${response.status} ${response.statusText}`)
       }
       
@@ -115,6 +126,14 @@ export function SubjectManagementProvider({ children }: { children: React.ReactN
       const errorMessage = err instanceof Error ? err.message : 'Failed to load subjects'
       setError(errorMessage)
       console.error('Error loading subjects:', err)
+      // Log more details about TypeError: Failed to fetch
+      if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
+        console.error('Network error details:', {
+          message: err.message,
+          name: err.name,
+          stack: err.stack,
+        })
+      }
       setSubjects([]) // Clear subjects on error
     } finally {
       setIsLoading(false)
