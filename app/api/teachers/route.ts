@@ -645,10 +645,13 @@ export async function POST(
                 const { error: branchAssignError } = await supabase
                   .from('teacher_branch_assignments')
                   .insert(branchAssignmentsData)
-                  .ignoreDuplicates() // Prevent unique constraint violations
 
                 if (branchAssignError) {
-                  console.warn(`Failed to assign branch ${assignment.branchName} to teacher:`, branchAssignError.message)
+                  // Ignore duplicate key violations (23505) as they're expected
+                  if (branchAssignError.code !== '23505') {
+                    // eslint-disable-next-line no-console
+                    console.warn(`Failed to assign branch ${assignment.branchName} to teacher:`, branchAssignError.message)
+                  }
                 } else {
                   console.log(`Assigned branch ${assignment.branchName} to teacher for ${classesToAssign.length} classes`)
                 }
@@ -738,11 +741,15 @@ export async function POST(
           const { error: classSubjectsError } = await supabase
             .from('class_subjects')
             .insert(classSubjectsData)
-            .ignoreDuplicates()
 
           if (classSubjectsError) {
-            console.warn('Failed to ensure class_subjects records:', classSubjectsError.message)
+            // Ignore duplicate key violations (23505) as they're expected
+            if (classSubjectsError.code !== '23505') {
+              // eslint-disable-next-line no-console
+              console.warn('Failed to ensure class_subjects records:', classSubjectsError.message)
+            }
           } else {
+            // eslint-disable-next-line no-console
             console.log(`Ensured ${classSubjectsData.length} class_subjects records exist`)
           }
         }
