@@ -30,9 +30,9 @@ import {
 
 
 import { useStudentEnrollment, StudentEnrollmentData } from '@/lib/student-enrollment-context'
-import { useClassManagement } from '@/lib/class-management-context'
 import { formatPhoneNumber, isValidPhoneFormat } from '@/lib/phone-utils'
 import { useFormPersistence } from '@/hooks/use-form-persistence'
+import { useClassManagement } from '@/lib/class-management-context'
 
 const cameroonRegions = [
   'Adamawa', 'Centre', 'East', 'Far North', 'Littoral', 

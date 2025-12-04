@@ -20,6 +20,10 @@ export function useFormPersistence<T>(
 
   // Load data from localStorage on mount
   useEffect(() => {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      setIsLoaded(true)
+      return
+    }
     try {
       const savedData = localStorage.getItem(key)
       if (savedData) {
@@ -36,7 +40,6 @@ export function useFormPersistence<T>(
       setIsLoaded(true)
     }
   }, [key, onDataLoaded])
-
   // Save data to localStorage whenever it changes
   // We use a debounce-like effect by only saving when data changes
   useEffect(() => {

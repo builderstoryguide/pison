@@ -241,9 +241,8 @@ export async function POST(request: NextRequest) {
     } catch (logError) {
       // eslint-disable-next-line no-console
       console.error('🔐 [LOGIN] Failed to log activity:', logError);
-      // Decide: fail the login or just log the error
-    }    // console.log('✅ [LOGIN] Login successful, total time:', Date.now() - startTime, 'ms');
-
+      // Continue with successful login even if activity logging fails
+    }
     return NextResponse.json({
       success: true,
       user: userResponse,
