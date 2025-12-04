@@ -15,6 +15,7 @@ import type { TeacherFormData } from "@/lib/teacher-management-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { ShimmerSubjectBranchAssignment } from "@/components/ui/shimmer-loading"
+import { useFormPersistence } from "@/hooks/use-form-persistence"
 
 interface TeacherEnrollmentFormProps {
   onSuccess: (result: { 
@@ -65,6 +66,13 @@ interface Class {
   status: string
 }
 
+interface Subject {
+  id: string
+  subject_name: string
+  subject_code: string
+  subsystem: string
+}
+
 const steps = [
   { id: 1, title: "Personal Information", icon: User },
   { id: 2, title: "Contact Details", icon: Mail },
@@ -89,13 +97,13 @@ const regions = [
 
 export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEnrollmentFormProps) {
   
-  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
+  const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
   // Subject-branch assignment state
-  const [subjects, setSubjects] = useState<any[]>([])
+  const [subjects, setSubjects] = useState<Subject[]>([])
   const [subjectBranches, setSubjectBranches] = useState<SubjectBranch[]>([])
   const [classes, setClasses] = useState<Class[]>([])
   const [selectedSubjectBranches, setSelectedSubjectBranches] = useState<{
@@ -107,7 +115,7 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
   const [loadingSubjects, setLoadingSubjects] = useState(false)
   const [loadingClasses, setLoadingClasses] = useState(false)
   
-  const [formData, setFormData] = useState<TeacherFormData>({
+  const { data: formData, setData: setFormData, clearSavedData } = useFormPersistence<TeacherFormData>("enhanced-teacher-enrollment-form", {
     title: "",
     firstName: "",
     lastName: "",
@@ -146,8 +154,8 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
         if (data.success) {
           setSubjects(data.subjects || [])
         }
-      } catch (error) {
-        console.error('Error fetching subjects:', error)
+      } catch (_) {
+        // Error fetching subjects
       } finally {
         setLoadingSubjects(false)
       }
@@ -160,8 +168,8 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
         if (data.success) {
           setSubjectBranches(data.branches || [])
         }
-      } catch (error) {
-        console.error('Error fetching subject branches:', error)
+      } catch (_) {
+        // Error fetching subject branches
       }
     }
 
@@ -173,8 +181,8 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
         if (data.success) {
           setClasses(data.classes || [])
         }
-      } catch (error) {
-        console.error('Error fetching classes:', error)
+      } catch (_) {
+        // Error fetching classes
       } finally {
         setLoadingClasses(false)
       }
@@ -185,7 +193,7 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
     fetchClasses()
   }, [])
 
-  const updateFormData = (field: string, value: any) => {
+  const updateFormData = (field: string, value: unknown) => {
     // Special handling for title changes - auto-set gender
     if (field === 'title') {
       setFormData((prev) => {
@@ -200,7 +208,7 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
         
         return { 
           ...prev, 
-          [field]: value,
+          [field]: value as string,
           gender: resolvedGender
         }
       })
@@ -211,7 +219,7 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
     if (field === 'subsystem') {
       setFormData((prev) => ({ 
         ...prev, 
-        [field]: value,
+        [field]: value as "english" | "french",
         // Clear assignment-related state when subsystem changes
         selectedSubjectBranches: [],
         builtAssignments: []
@@ -224,19 +232,19 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
     // Special handling for phone numbers
     if (field === 'phone' || (field.includes('.') && field.endsWith('phone'))) {
       // Ensure phone number starts with +237 6 for Cameroon
-      let formattedPhone = value
+      let formattedPhone = typeof value === 'string' ? value : ''
       if (!formattedPhone.startsWith('+237 6')) {
         formattedPhone = '+237 6'
       }
       // Remove any invalid characters and ensure proper format
-      formattedPhone = formattedPhone.replace(/[^0-9\s\+\-\(\)]/g, '')
+      formattedPhone = formattedPhone.replace(/[^0-9\s+\-()]/g, '')
       
       if (field.includes(".")) {
         const [parent, child] = field.split(".")
         setFormData((prev) => ({
           ...prev,
           [parent]: {
-            ...(prev[parent as keyof typeof prev] as any),
+            ...(prev[parent as keyof typeof prev] as Record<string, unknown>),
             [child]: formattedPhone,
           },
         }))
@@ -248,7 +256,7 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
       setFormData((prev) => ({
         ...prev,
         [parent]: {
-          ...(prev[parent as keyof typeof prev] as any),
+          ...(prev[parent as keyof typeof prev] as Record<string, unknown>),
           [child]: value,
         },
       }))
@@ -283,14 +291,14 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
     setSelectedSubjectBranches(prev => prev.filter((_, i) => i !== index))
   }
 
-  const updateSubjectBranchAssignment = (index: number, field: string, value: any) => {
+  const updateSubjectBranchAssignment = (index: number, field: string, value: unknown) => {
     setSelectedSubjectBranches(prev => 
       prev.map((assignment, i) => {
         if (i === index) {
           if (field === 'subjectId') {
             // When subjectId changes, clear dependent fields and reset
             return {
-              subjectId: value,
+              subjectId: value as string,
               branchId: '',
               classIds: [],
               isPrimary: false
@@ -478,8 +486,9 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
         subjects: subjectsData,
         classes: classesData
       })
+      
+      clearSavedData()
     } catch (err) {
-      console.error("❌ Error in form submission:", err)
       const errorMessage = err instanceof Error ? err.message : 
         typeof err === 'string' ? err : 
         err && typeof err === 'object' && 'message' in err ? String(err.message) :
@@ -493,7 +502,6 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
       })
       
       setError(errorMessage)
-      console.error("Error enrolling teacher:", err)
     } finally {
       setIsSubmitting(false)
     }
@@ -876,7 +884,7 @@ export function EnhancedTeacherEnrollmentForm({ onSuccess, onCancel }: TeacherEn
                 {selectedSubjectBranches.length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
                     <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No assignments added yet. Click "Add Another Assignment" to get started.</p>
+                    <p>No assignments added yet. Click &quot;Add Another Assignment&quot; to get started.</p>
                   </div>
                 )}
               </div>

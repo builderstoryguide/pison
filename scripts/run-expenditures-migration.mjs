@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-undef */
 
 /**
  * Script to run the expenditures table migration
@@ -56,12 +57,12 @@ async function runMigration() {
     // Execute the SQL
     console.log("⚙️  Executing SQL migration...");
 
-    // Split SQL into individual statements (rough split by semicolon)
+    // WARNING: This naive split assumes simple DDL with no semicolons in strings or function bodies
+    // If the SQL contains complex statements, use a proper SQL parser instead
     const statements = sql
       .split(";")
       .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith("--"));
-
+      .filter((s) => s.length > 0 && !s.startsWith("--") && !s.startsWith("/*"));
     console.log(`📊 Found ${statements.length} SQL statements to execute`);
 
     // Execute each statement
@@ -72,7 +73,7 @@ async function runMigration() {
       console.log(`\n[${i + 1}/${statements.length}] Executing statement...`);
 
       try {
-        const { data, error } = await supabase.rpc("exec_sql", {
+        const { error } = await supabase.rpc("exec_sql", {
           sql_query: statement + ";",
         });
 
@@ -108,7 +109,7 @@ async function runMigration() {
 
     // Verify table creation
     console.log("\n🔍 Verifying table creation...");
-    const { data: tables, error: tableError } = await supabase
+    const { error: tableError } = await supabase
       .from("expenditures")
       .select("*")
       .limit(1);

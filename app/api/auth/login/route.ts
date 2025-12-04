@@ -9,28 +9,28 @@ const supabase = createServiceClient();
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
-  console.log('🔐 [LOGIN] Request received at', new Date().toISOString());
+  // console.log('🔐 [LOGIN] Request received at', new Date().toISOString());
   
   try {
     const body = await request.json();
-    console.log('🔐 [LOGIN] Body parsed in', Date.now() - startTime, 'ms');
+    // console.log('🔐 [LOGIN] Body parsed in', Date.now() - startTime, 'ms');
     const { identifier, password, role } = body;
 
     // Validate required fields
     if (!identifier || !password || !role) {
-      console.log('🔐 [LOGIN] Validation failed - missing fields');
+      // console.log('🔐 [LOGIN] Validation failed - missing fields');
       return NextResponse.json(
         { error: 'Identifier, password, and role are required' },
         { status: 400 }
       );
     }
 
-    console.log('🔐 [LOGIN] Validation passed, querying database for role:', role);
+    // console.log('🔐 [LOGIN] Validation passed, querying database for role:', role);
 
     // Helper function to check if error is a "not found" error
     // Helper function to check if error is a "not found" error
     const isNotFoundError = (error: unknown) => {
-      const err = error as any;
+      const err = error as { code?: string; message?: string };
       return err?.code === 'PGRST116' || 
              err?.message?.includes('The result contains 0 rows') ||
              err?.message?.includes('Cannot coerce the result to a single JSON object');
@@ -150,6 +150,7 @@ export async function POST(request: NextRequest) {
 
     // If there's a real error (not a "not found" error), return it
     if (userError) {
+      // eslint-disable-next-line no-console
       console.error('🔐 [LOGIN] Database error at', Date.now() - startTime, 'ms:', userError);
       return NextResponse.json(
         { error: 'Internal server error' },
@@ -159,18 +160,18 @@ export async function POST(request: NextRequest) {
 
     // If user not found, return authentication error
     if (!user) {
-      console.log('🔐 [LOGIN] User not found at', Date.now() - startTime, 'ms');
+      // console.log('🔐 [LOGIN] User not found at', Date.now() - startTime, 'ms');
       return NextResponse.json(
         { error: 'Invalid credentials or user not found' },
         { status: 401 }
       );
     }
 
-    console.log('🔐 [LOGIN] User found at', Date.now() - startTime, 'ms, verifying password');
+    // console.log('🔐 [LOGIN] User found at', Date.now() - startTime, 'ms, verifying password');
 
     // Check if user is active
     if (user.status !== 'active') {
-      console.log('🔐 [LOGIN] User inactive at', Date.now() - startTime, 'ms');
+      // console.log('🔐 [LOGIN] User inactive at', Date.now() - startTime, 'ms');
       return NextResponse.json(
         { error: 'Account is not active. Please contact administrator.' },
         { status: 401 }
@@ -179,10 +180,10 @@ export async function POST(request: NextRequest) {
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    console.log('🔐 [LOGIN] Password verified at', Date.now() - startTime, 'ms');
+    // console.log('🔐 [LOGIN] Password verified at', Date.now() - startTime, 'ms');
     
     if (!isPasswordValid) {
-      console.log('🔐 [LOGIN] Invalid password at', Date.now() - startTime, 'ms');
+      // console.log('🔐 [LOGIN] Invalid password at', Date.now() - startTime, 'ms');
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
@@ -194,7 +195,7 @@ export async function POST(request: NextRequest) {
       const expiryDate = new Date(user.password_expiry_date);
       const now = new Date();
       if (now > expiryDate) {
-        console.log('🔐 [LOGIN] Password expired at', Date.now() - startTime, 'ms');
+        // console.log('🔐 [LOGIN] Password expired at', Date.now() - startTime, 'ms');
         return NextResponse.json(
           { error: 'Password has expired. Please reset your password.' },
           { status: 401 }
@@ -202,7 +203,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('🔐 [LOGIN] Fetching profile data at', Date.now() - startTime, 'ms');
+    // console.log('🔐 [LOGIN] Fetching profile data at', Date.now() - startTime, 'ms');
 
     // Get additional profile information (optional - user may not have a profile)
     const { data: profileData } = await supabase
@@ -211,7 +212,7 @@ export async function POST(request: NextRequest) {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    console.log('🔐 [LOGIN] Profile data fetched at', Date.now() - startTime, 'ms');
+    // console.log('🔐 [LOGIN] Profile data fetched at', Date.now() - startTime, 'ms');
 
     // Prepare user data for response (remove sensitive information)
     const userResponse = {
@@ -228,23 +229,20 @@ export async function POST(request: NextRequest) {
       class: profileData?.class_name
     };
 
-    // Log successful login (fire-and-forget to avoid blocking response)
-    // Don't await this - let it run in the background
-    Promise.resolve(
-      supabase.rpc('log_user_activity', {
+    // Log successful login
+    try {
+      await supabase.rpc('log_user_activity', {
         p_user_id: user.id,
         p_action: 'LOGIN',
         p_details: `User logged in successfully`,
         p_ip_address: request.headers.get('x-forwarded-for') || '',
         p_user_agent: request.headers.get('user-agent')
-      })
-    ).then(() => {
-      console.log('🔐 [LOGIN] Activity logged successfully');
-    }).catch((logError: unknown) => {
-      console.error('🔐 [LOGIN] Failed to log activity (non-blocking):', logError);
-    });
-
-    console.log('✅ [LOGIN] Login successful, total time:', Date.now() - startTime, 'ms');
+      });
+    } catch (logError) {
+      // eslint-disable-next-line no-console
+      console.error('🔐 [LOGIN] Failed to log activity:', logError);
+      // Decide: fail the login or just log the error
+    }    // console.log('✅ [LOGIN] Login successful, total time:', Date.now() - startTime, 'ms');
 
     return NextResponse.json({
       success: true,
@@ -253,6 +251,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('💥 [LOGIN] Error at', Date.now() - startTime, 'ms:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

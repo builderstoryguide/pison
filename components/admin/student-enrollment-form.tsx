@@ -1,21 +1,20 @@
 "use client"
 
 import React, { useState } from 'react'
-import { Check, User, MapPin, GraduationCap, Users, Heart, FileText, AlertCircle, CalendarIcon, ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-react'
+import { Check, AlertCircle, CalendarIcon, ArrowRight, ArrowLeft } from 'lucide-react'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
 import { Calendar } from '@/components/ui/calendar'
@@ -23,7 +22,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -34,6 +32,7 @@ import {
 import { useStudentEnrollment, StudentEnrollmentData } from '@/lib/student-enrollment-context'
 import { useClassManagement } from '@/lib/class-management-context'
 import { formatPhoneNumber, isValidPhoneFormat } from '@/lib/phone-utils'
+import { useFormPersistence } from '@/hooks/use-form-persistence'
 
 const cameroonRegions = [
   'Adamawa', 'Centre', 'East', 'Far North', 'Littoral', 
@@ -78,10 +77,10 @@ interface StudentEnrollmentFormProps {
 }
 
 export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollmentFormProps) {
-  const { enrollStudent, generateStudentId, isLoading, error } = useStudentEnrollment()
+  const { enrollStudent, isLoading } = useStudentEnrollment()
   const { classes: allClasses, isLoading: classesLoading, error: classesError } = useClassManagement()
   const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState<StudentEnrollmentData>({
+  const { data: formData, setData: setFormData, clearSavedData } = useFormPersistence<StudentEnrollmentData>("student-enrollment-form", {
     firstName: '',
     lastName: '',
     middleName: '',
@@ -133,11 +132,11 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
   const totalSteps = 6
   const progress = (currentStep / totalSteps) * 100
 
-  const updateFormData = (field: keyof StudentEnrollmentData, value: any) => {
+  const updateFormData = (field: keyof StudentEnrollmentData, value: unknown) => {
     // Special handling for phone numbers
     if (field === 'phone' || field === 'parentPhone' || field === 'emergencyContactPhone') {
       // Use the centralized phone utility for formatting
-      const formattedPhone = formatPhoneNumber(value)
+      const formattedPhone = formatPhoneNumber(value as string)
       setFormData(prev => ({ ...prev, [field]: formattedPhone }))
     } else {
       setFormData(prev => ({ ...prev, [field]: value }))
@@ -170,6 +169,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
         parentEmail: formData.parentEmail,
         className: formData.class
       })
+      clearSavedData()
     }
   }
 
@@ -181,9 +181,10 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
         return !!(formData.address && formData.city && (!formData.email || formData.email.includes('@')) && (!formData.phone || isValidPhoneFormat(formData.phone)))
       case 3:
         return !!(formData.class)
-      case 4:
+      case 4: {
         const parentEmailValid = formData.parentEmail?.trim() && formData.parentEmail.includes('@')
         return !!(formData.parentName && formData.parentEmail?.trim() && parentEmailValid && (!formData.parentPhone || isValidPhoneFormat(formData.parentPhone)))
+      }
       case 5:
         return !!(formData.emergencyContactName && (!formData.emergencyContactPhone || isValidPhoneFormat(formData.emergencyContactPhone)))
       case 6:
@@ -242,14 +243,14 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
-  const steps = [
-    { id: 1, title: 'Personal Information', icon: User, description: 'Basic personal details' },
-    { id: 2, title: 'Contact Information', icon: MapPin, description: 'Contact and address details' },
-    { id: 3, title: 'Academic Information', icon: GraduationCap, description: 'Academic program and class' },
-    { id: 4, title: 'Parent/Guardian', icon: Users, description: 'Parent or guardian details' },
-    { id: 5, title: 'Emergency & Medical', icon: Heart, description: 'Emergency contact and medical info' },
-    { id: 6, title: 'Required Documents', icon: FileText, description: 'Document confirmation' }
-  ]
+  // const steps = [
+  //   { id: 1, title: 'Personal Information', icon: User, description: 'Basic personal details' },
+  //   { id: 2, title: 'Contact Information', icon: MapPin, description: 'Contact and address details' },
+  //   { id: 3, title: 'Academic Information', icon: GraduationCap, description: 'Academic program and class' },
+  //   { id: 4, title: 'Parent/Guardian', icon: Users, description: 'Parent or guardian details' },
+  //   { id: 5, title: 'Emergency & Medical', icon: Heart, description: 'Emergency contact and medical info' },
+  //   { id: 6, title: 'Required Documents', icon: FileText, description: 'Document confirmation' }
+  // ]
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -309,7 +310,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                 <Separator />
 
                 <div className="flex flex-col gap-4">
-                  <Form {...dateForm} className="w-full">
+                  <Form {...dateForm}>
                     <FormField
                       control={dateForm.control}
                       name="dateOfBirth"

@@ -39,6 +39,7 @@ import { useClassManagement } from "@/lib/class-management-context";
 import { useSubjectManagement } from "@/lib/subject-management-context";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { useFormPersistence } from "@/hooks/use-form-persistence";
 
 interface TeacherEnrollmentFormProps {
   onSuccess: (result: {
@@ -92,7 +93,7 @@ export function TeacherEnrollmentForm({
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<TeacherFormData>({
+  const { data: formData, setData: setFormData, clearSavedData } = useFormPersistence<TeacherFormData>("teacher-enrollment-form", {
     title: "",
     firstName: "",
     lastName: "",
@@ -228,14 +229,8 @@ export function TeacherEnrollmentForm({
       formatted = "+237" + formatted.replace(/^\+/, "");
     }
 
-    // Ensure it's at least 13 characters (+237 + 9 digits)
-    if (formatted.length < 13) {
-      formatted = formatted + "0".repeat(13 - formatted.length);
-    }
-
     return formatted;
   };
-
   // Helper function to validate phone number format
   const isValidPhoneFormat = (phone: string): boolean => {
     // Check if phone matches Cameroon mobile format: +237 6XXXXXXXX
@@ -303,14 +298,8 @@ export function TeacherEnrollmentForm({
       setError(null);
     }
   };
-
   const handleSubmit = async () => {
-    // console.log("🚀 Starting form submission...")
-    // console.log("📋 Current step:", currentStep)
-    // console.log("✅ Step validation:", validateStep(currentStep))
-
     if (!validateStep(currentStep)) {
-      // console.log("❌ Step validation failed")
       toastError("Form validation failed", {
         description: "Please fill in all required fields before proceeding.",
       });
@@ -320,15 +309,11 @@ export function TeacherEnrollmentForm({
     setIsSubmitting(true);
     setError(null);
 
-    // Show loading toast
     toastInfo("Enrolling teacher...", {
       description: "Please wait while we process your request.",
     });
 
     try {
-      // console.log("📤 Submitting teacher data...")
-
-      // Format phone numbers for database submission
       const formattedFormData = {
         ...formData,
         firstName: formData.firstName.trim(),
@@ -341,15 +326,8 @@ export function TeacherEnrollmentForm({
         },
       };
 
-      // console.log("📊 Original form data:", formData)
-      // console.log("📊 Formatted form data:", formattedFormData)
-
       const result = await addTeacher(formattedFormData);
-      // console.log("✅ Teacher added successfully with ID:", result.teacherId)
-      // console.log("🔑 Password received:", result.password)
-      // console.log("📊 Full result:", result)
 
-      // Show success toast
       toastSuccess("Teacher enrolled successfully!", {
         description: `${formData.title} ${formData.firstName} ${formData.lastName} has been added to the system.`,
       });
@@ -359,8 +337,9 @@ export function TeacherEnrollmentForm({
         teacherData: formData,
         password: result.password,
       });
+      
+      clearSavedData();
     } catch (err) {
-      // console.error("❌ Error in form submission:", err)
       const errorMessage =
         err instanceof Error
           ? err.message
@@ -370,13 +349,11 @@ export function TeacherEnrollmentForm({
           ? String(err.message)
           : "Failed to enroll teacher";
 
-      // Show error toast
       toastError("Failed to enroll teacher", {
         description: errorMessage,
       });
 
       setError(errorMessage);
-      // console.error("Error enrolling teacher:", err)
     } finally {
       setIsSubmitting(false);
     }
