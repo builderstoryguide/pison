@@ -831,3 +831,134 @@ export async function POST(
   }
 }
 
+// Shared response type for teacher reads
+interface TeacherApiTeacher {
+  id: string
+  teacherId: string
+  title: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  dateOfBirth: string
+  gender: string
+  nationality: string
+  idNumber: string
+  address: string
+  city: string
+  region: string
+  subsystem: 'english' | 'french'
+  subjects: string[]
+  classes: string[]
+  qualifications: string[]
+  experience: string
+  employmentType: 'full-time' | 'part-time' | 'contract'
+  salary: number
+  startDate: string
+  emergencyContact: {
+    name: string
+    relationship: string
+    phone: string
+  }
+  status: 'active' | 'inactive' | string
+  createdAt: string
+  updatedAt: string | null
+}
+
+// Helper to map raw database row to API response shape
+function mapTeacherRecord(teacher: any): TeacherApiTeacher {
+  return {
+    id: teacher.id,
+    teacherId: teacher.teacher_id,
+    title: teacher.title || '',
+    firstName: teacher.first_name,
+    lastName: teacher.last_name,
+    email: teacher.email || '',
+    phone: teacher.phone || '',
+    dateOfBirth: teacher.date_of_birth || '',
+    gender: teacher.gender || '',
+    nationality: teacher.nationality || '',
+    idNumber: teacher.id_number || '',
+    address: teacher.address || '',
+    city: teacher.city || '',
+    region: teacher.region || '',
+    subsystem: teacher.subsystem,
+    subjects: teacher.subjects || [],
+    classes: teacher.classes || [],
+    qualifications: teacher.qualifications || [],
+    experience: teacher.experience || '',
+    employmentType: teacher.employment_type,
+    salary: teacher.salary || 0,
+    startDate: teacher.start_date || '',
+    emergencyContact: {
+      name: teacher.emergency_contact_name || '',
+      relationship: teacher.emergency_contact_relationship || '',
+      phone: teacher.emergency_contact_phone || '',
+    },
+    status: teacher.status || 'active',
+    createdAt: teacher.created_at,
+    updatedAt: teacher.updated_at || null,
+  }
+}
+
+// GET - Fetch all teachers or a single teacher by ID / teacher_id
+export async function GET(
+  request: NextRequest
+): Promise<NextResponse<{ teachers?: TeacherApiTeacher[]; teacher?: TeacherApiTeacher; error?: string }>> {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    // If an ID is provided, return a single teacher
+    if (id) {
+      // First, try by primary key UUID (teachers.id)
+      let { data: teacher, error } = await supabase
+        .from('teachers')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle()
+
+      // If not found by UUID, try by human-readable teacher_id (e.g. TCH2025001)
+      if (!teacher && (!error || error.code === 'PGRST116')) {
+        const byTeacherId = await supabase
+          .from('teachers')
+          .select('*')
+          .eq('teacher_id', id)
+          .maybeSingle()
+
+        teacher = byTeacherId.data
+        error = byTeacherId.error
+      }
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('❌ Error fetching teacher by id:', error)
+        return NextResponse.json({ error: 'Failed to fetch teacher' }, { status: 500 })
+      }
+
+      if (!teacher) {
+        return NextResponse.json({ error: 'Teacher not found' }, { status: 404 })
+      }
+
+      const mapped = mapTeacherRecord(teacher)
+      return NextResponse.json({ teacher: mapped })
+    }
+
+    // Otherwise, return the full teacher list
+    const { data, error } = await supabase
+      .from('teachers')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('❌ Error fetching teachers list:', error)
+      return NextResponse.json({ error: 'Failed to fetch teachers' }, { status: 500 })
+    }
+
+    const teachers = (data || []).map(mapTeacherRecord)
+    return NextResponse.json({ teachers })
+  } catch (error) {
+    console.error('❌ Error in GET /api/teachers:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
