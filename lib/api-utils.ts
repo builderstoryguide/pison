@@ -46,7 +46,9 @@ function getUserIdFromStorage(): string | null {
  * Automatically adds X-User-Id header when user is logged in
  */
 export async function safeFetch<T = any>(options: ApiCallOptions): Promise<ApiResponse<T>> {
-  const { url, method = 'GET', headers = {}, body, timeout = 30000 } = options;
+  const { url, method = 'GET', headers = {}, body } = options;
+  // Increase timeout for login endpoint to 60 seconds
+  const timeout = options.timeout || (url.includes('/api/auth/login') ? 60000 : 30000);
   
   // Get user ID from localStorage and add to headers
   const userId = getUserIdFromStorage();

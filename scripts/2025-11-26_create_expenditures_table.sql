@@ -58,6 +58,7 @@ ALTER TABLE public.expenditures ENABLE ROW LEVEL SECURITY;
 
 -- Create policies
 -- Policy to allow all authenticated users to view expenditures
+DROP POLICY IF EXISTS "Allow authenticated users to view expenditures" ON public.expenditures;
 CREATE POLICY "Allow authenticated users to view expenditures"
 ON public.expenditures
 FOR SELECT
@@ -65,6 +66,7 @@ TO authenticated
 USING (true);
 
 -- Policy to allow authenticated users to insert expenditures
+DROP POLICY IF EXISTS "Allow authenticated users to insert expenditures" ON public.expenditures;
 CREATE POLICY "Allow authenticated users to insert expenditures"
 ON public.expenditures
 FOR INSERT
@@ -72,6 +74,7 @@ TO authenticated
 WITH CHECK (true);
 
 -- Policy to allow authenticated users to update expenditures
+DROP POLICY IF EXISTS "Allow authenticated users to update expenditures" ON public.expenditures;
 CREATE POLICY "Allow authenticated users to update expenditures"
 ON public.expenditures
 FOR UPDATE
@@ -79,6 +82,7 @@ TO authenticated
 USING (true);
 
 -- Policy to allow authenticated users to delete expenditures
+DROP POLICY IF EXISTS "Allow authenticated users to delete expenditures" ON public.expenditures;
 CREATE POLICY "Allow authenticated users to delete expenditures"
 ON public.expenditures
 FOR DELETE
