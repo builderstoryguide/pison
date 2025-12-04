@@ -3,6 +3,9 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { generateDefaultPassword } from '@/lib/password-utils'
 import bcrypt from 'bcryptjs'
 
+/* eslint-disable no-console */
+// Console logging is intentional for server-side API route debugging
+
 export const runtime = 'nodejs'
 
 // Type definitions for better type safety
@@ -649,7 +652,6 @@ export async function POST(
                 if (branchAssignError) {
                   // Ignore duplicate key violations (23505) as they're expected
                   if (branchAssignError.code !== '23505') {
-                    // eslint-disable-next-line no-console
                     console.warn(`Failed to assign branch ${assignment.branchName} to teacher:`, branchAssignError.message)
                   }
                 } else {
@@ -745,11 +747,9 @@ export async function POST(
           if (classSubjectsError) {
             // Ignore duplicate key violations (23505) as they're expected
             if (classSubjectsError.code !== '23505') {
-              // eslint-disable-next-line no-console
               console.warn('Failed to ensure class_subjects records:', classSubjectsError.message)
             }
           } else {
-            // eslint-disable-next-line no-console
             console.log(`Ensured ${classSubjectsData.length} class_subjects records exist`)
           }
         }
@@ -873,6 +873,7 @@ interface TeacherApiTeacher {
 }
 
 // Helper to map raw database row to API response shape
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapTeacherRecord(teacher: any): TeacherApiTeacher {
   return {
     id: teacher.id,
