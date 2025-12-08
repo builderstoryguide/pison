@@ -1,0 +1,323 @@
+﻿
+> my-v0-project@0.1.0 build
+> next build
+
+node.exe :  ΓÜá 
+`eslint` 
+configuration in 
+next.config.mjs is 
+no longer 
+supported. See 
+more info here: htt
+ps://nextjs.org/doc
+s/app/api-reference
+/cli/next#next-lint
+-options
+At line:1 char:1
++ & "C:\Program Fil
+es\nodejs/node.exe"
+ "C:\Program Files\
+nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
+    + CategoryInfo 
+             : No  
+  tSpecified: (    
+ ΓÜá `eslint` c    
+...xt-lint-opt    
+ions:String) [    
+], RemoteExcep    
+tion
+    + FullyQualifi 
+   edErrorId : Na  
+  tiveCommandErr   
+ or
+ 
+ ΓÜá 
+`images.domains` 
+is deprecated in 
+favor of `images.re
+motePatterns`. 
+Please update 
+next.config.mjs to 
+protect your 
+application from 
+malicious users.
+ ΓÜá Invalid 
+next.config.mjs 
+options detected: 
+ ΓÜá     
+Unrecognized 
+key(s) in object: '
+allowedDevOrigins' 
+at "experimental"
+ ΓÜá     
+Unrecognized 
+key(s) in object: 
+'eslint'
+ ΓÜá See more info 
+here: https://nextj
+s.org/docs/messages
+/invalid-next-confi
+g
+ ΓÜá Warning: 
+Next.js inferred 
+your workspace 
+root, but it may 
+not be correct.
+ We detected 
+multiple lockfiles 
+and selected the 
+directory of 
+C:\Users\Cyrille Ku
+ete\pnpm-lock.yaml 
+as the root 
+directory.
+ To silence this 
+warning, set 
+`turbopack.root` 
+in your Next.js 
+config, or 
+consider removing 
+one of the 
+lockfiles if it's 
+not needed.
+   See https://next
+js.org/docs/app/api
+-reference/config/n
+ext-config-js/turbo
+pack#root-directory
+ for more 
+information.
+ Detected 
+additional 
+lockfiles: 
+   * 
+C:\Users\Cyrille Ku
+ete\Documents\GitHu
+b\pison\pnpm-lock.y
+aml
+
+   Γû▓ Next.js 16.0.7 (Turbopack)
+   - Environments: .env.local
+   - Experiments (use with caution):
+     ? allowedDevOrigins (invalid experimental key)
+
+   Creating an optimized production build ...
+
+> Build error 
+occurred
+Error: Turbopack 
+build failed with 
+2 errors:
+./Documents/GitHub/
+pison/app/globals.c
+ss
+Error evaluating 
+Node.js code
+Error: It looks 
+like you're trying 
+to use 
+`tailwindcss` 
+directly as a 
+PostCSS plugin. 
+The PostCSS plugin 
+has moved to a 
+separate package, 
+so to continue 
+using Tailwind CSS 
+with PostCSS 
+you'll need to 
+install `@tailwindc
+ss/postcss` and 
+update your 
+PostCSS 
+configuration.
+    [at at 
+(C:\Users\Cyrille K
+uete\Documents\GitH
+ub\pison\node_modul
+es\tailwindcss\dist
+\lib.js:38:1629)]
+    at turbopack://
+/[turbopack-node]/t
+ransforms/postcss.t
+s:56:14 
+[C:\Users\Cyrille K
+uete\Documents\GitH
+ub\pison\.next\buil
+d\chunks\[root-of-t
+he-server]__9ebdb79
+8._.js:140:20]
+    [at 
+<anonymous>]
+    at Module.init 
+(turbopack:///[turb
+opack-node]/transfo
+rms/postcss.ts:43:3
+3) 
+[C:\Users\Cyrille K
+uete\Documents\GitH
+ub\pison\.next\buil
+d\chunks\[root-of-t
+he-server]__9ebdb79
+8._.js:130:35]
+    at run (turbopa
+ck:///[turbopack-no
+de]/ipc/evaluate.ts
+:77:20) 
+[C:\Users\Cyrille K
+uete\Documents\GitH
+ub\pison\.next\buil
+d\chunks\[root-of-t
+he-server]__12965a3
+6._.js:429:26]
+    [at process.pro
+cessTicksAndRejecti
+ons (node:internal/
+process/task_queues
+:105:5)]
+
+Import trace:
+  Client Component 
+Browser:
+    ./Documents/Git
+Hub/pison/app/globa
+ls.css [Client 
+Component Browser]
+    ./Documents/Git
+Hub/pison/app/layou
+t.tsx [Server 
+Component]
+
+
+./Documents/GitHub/
+pison/node_modules/
+react-initials-avat
+ar/lib/ReactInitial
+sAvatar.css
+Error evaluating 
+Node.js code
+Error: It looks 
+like you're trying 
+to use 
+`tailwindcss` 
+directly as a 
+PostCSS plugin. 
+The PostCSS plugin 
+has moved to a 
+separate package, 
+so to continue 
+using Tailwind CSS 
+with PostCSS 
+you'll need to 
+install `@tailwindc
+ss/postcss` and 
+update your 
+PostCSS 
+configuration.
+    [at at 
+(C:\Users\Cyrille K
+uete\Documents\GitH
+ub\pison\node_modul
+es\tailwindcss\dist
+\lib.js:38:1629)]
+    at turbopack://
+/[turbopack-node]/t
+ransforms/postcss.t
+s:56:14 
+[C:\Users\Cyrille K
+uete\Documents\GitH
+ub\pison\.next\buil
+d\chunks\[root-of-t
+he-server]__9ebdb79
+8._.js:140:20]
+    [at 
+<anonymous>]
+    at Module.init 
+(turbopack:///[turb
+opack-node]/transfo
+rms/postcss.ts:43:3
+3) 
+[C:\Users\Cyrille K
+uete\Documents\GitH
+ub\pison\.next\buil
+d\chunks\[root-of-t
+he-server]__9ebdb79
+8._.js:130:35]
+    at run (turbopa
+ck:///[turbopack-no
+de]/ipc/evaluate.ts
+:77:20) 
+[C:\Users\Cyrille K
+uete\Documents\GitH
+ub\pison\.next\buil
+d\chunks\[root-of-t
+he-server]__12965a3
+6._.js:429:26]
+    [at process.pro
+cessTicksAndRejecti
+ons (node:internal/
+process/task_queues
+:105:5)]
+
+Import trace:
+  Client Component 
+Browser:
+    ./Documents/Git
+Hub/pison/node_modu
+les/react-initials-
+avatar/lib/ReactIni
+tialsAvatar.css 
+[Client Component 
+Browser]
+    ./Documents/Git
+Hub/pison/app/layou
+t.tsx [Server 
+Component]
+
+
+    at Module.init 
+(turbopack:///[turb
+opack-node]/transfo
+rms/postcss.ts:43:3
+3) 
+[C:\Users\Cyrille K
+uete\Documents\GitH
+ub\pison\.next\buil
+d\chunks\[root-of-t
+he-server]__9ebdb79
+8._.js:130:35])
+    at run (turbopa
+ck:///[turbopack-no
+de]/ipc/evaluate.ts
+:77:20) 
+[C:\Users\Cyrille K
+uete\Documents\GitH
+ub\pison\.next\buil
+d\chunks\[root-of-t
+he-server]__12965a3
+6._.js:429:26])
+    at Module.init 
+(turbopack:///[turb
+opack-node]/transfo
+rms/postcss.ts:43:3
+3) 
+[C:\Users\Cyrille K
+uete\Documents\GitH
+ub\pison\.next\buil
+d\chunks\[root-of-t
+he-server]__9ebdb79
+8._.js:130:35])
+    at run (turbopa
+ck:///[turbopack-no
+de]/ipc/evaluate.ts
+:77:20) 
+[C:\Users\Cyrille K
+uete\Documents\GitH
+ub\pison\.next\buil
+d\chunks\[root-of-t
+he-server]__12965a3
+6._.js:429:26])

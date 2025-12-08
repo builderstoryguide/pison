@@ -1,0 +1,205 @@
+﻿
+> my-v0-project@0.1.0 build
+> next build
+
+node.exe :  ΓÜá 
+`eslint` 
+configuration in 
+next.config.mjs is 
+no longer 
+supported. See 
+more info here: htt
+ps://nextjs.org/doc
+s/app/api-reference
+/cli/next#next-lint
+-options
+At line:1 char:1
++ & "C:\Program Fil
+es\nodejs/node.exe"
+ "C:\Program Files\
+nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
+    + CategoryInfo 
+             : No  
+  tSpecified: (    
+ ΓÜá `eslint` c    
+...xt-lint-opt    
+ions:String) [    
+], RemoteExcep    
+tion
+    + FullyQualifi 
+   edErrorId : Na  
+  tiveCommandErr   
+ or
+ 
+ ΓÜá 
+`images.domains` 
+is deprecated in 
+favor of `images.re
+motePatterns`. 
+Please update 
+next.config.mjs to 
+protect your 
+application from 
+malicious users.
+ ΓÜá Invalid 
+next.config.mjs 
+options detected: 
+ ΓÜá     
+Unrecognized 
+key(s) in object: '
+allowedDevOrigins' 
+at "experimental"
+ ΓÜá     
+Unrecognized 
+key(s) in object: 
+'eslint'
+ ΓÜá See more info 
+here: https://nextj
+s.org/docs/messages
+/invalid-next-confi
+g
+ ΓÜá Warning: 
+Next.js inferred 
+your workspace 
+root, but it may 
+not be correct.
+ We detected 
+multiple lockfiles 
+and selected the 
+directory of 
+C:\Users\Cyrille Ku
+ete\pnpm-lock.yaml 
+as the root 
+directory.
+ To silence this 
+warning, set 
+`turbopack.root` 
+in your Next.js 
+config, or 
+consider removing 
+one of the 
+lockfiles if it's 
+not needed.
+   See https://next
+js.org/docs/app/api
+-reference/config/n
+ext-config-js/turbo
+pack#root-directory
+ for more 
+information.
+ Detected 
+additional 
+lockfiles: 
+   * 
+C:\Users\Cyrille Ku
+ete\Documents\GitHu
+b\pison\pnpm-lock.y
+aml
+
+   Γû▓ Next.js 16.0.7 (Turbopack)
+   - Environments: .env.local
+   - Experiments (use with caution):
+     ? allowedDevOrigins (invalid experimental key)
+
+   Creating an optimized production build ...
+
+> Build error 
+occurred
+Error: Turbopack 
+build failed with 
+1 errors:
+./Documents/GitHub/
+pison/app/globals.c
+ss:2778:20
+Parsing CSS source 
+code failed
+[0m [90m 2776 
+|[39m }
+ [90m 2777 |[39m 
+[33m.[39m[37m[4
+1m[1m\[22m[49m[
+39m[[33m--[39mcel
+l[33m-[39msize[3
+7m[41m[1m\[22m[
+49m[39m[33m:[39m
+[33m--[39mspacing
+[37m[41m[1m\[22
+m[49m[39m([35m8
+[39m[37m[41m[1m\
+[22m[49m[39m)[3
+7m[41m[1m\[22m[
+49m[39m] {
+[31m[1m>[22m[39
+m[90m 2778 |[39m 
+  [33m--[39mcell
+[33m-[39msize[33m
+:[39m [36mvar[39
+m([33m--[39mspaci
+ng([35m8[39m))[3
+3m;[39m
+ [90m      |[39m 
+                   
+[31m[1m^[22m[39
+m
+ [90m 2779 |[39m 
+}
+ [90m 2780 |[39m 
+[33m.[39mgroup[3
+7m[41m[1m\[22m[
+49m[39m[33m/[39m
+sidebar[33m-[39mw
+rapper[33m:[39mha
+s([data[33m-[39mc
+ollapsible[33m=[3
+9micon]) [33m.[39
+mgroup[33m-[39mha
+s[33m-[39m[37m[
+41m[1m\[22m[49m
+[39m[[37m[41m[1m
+\[22m[49m[39m[da
+ta[33m-[39mcollap
+sible[37m[41m[1m
+\[22m[49m[39m[3
+3m=[39micon[37m[
+41m[1m\[22m[49m
+[39m][37m[41m[1m
+\[22m[49m[39m][
+37m[41m[1m\[22m
+[49m[39m[33m/[39
+msidebar[33m-[39m
+wrapper[37m[41m[
+1m\[22m[49m[39m
+[33m:[39mh[33m-[
+39m[35m12.[39mini
+tial[33m-[39mavat
+ar {
+ [90m 2781 |[39m 
+    
+width[33m:[39m [
+35m3[39mrem[33m;
+[39m[0m
+
+Unexpected token Fu
+nction("--spacing")
+
+Import trace:
+  Client Component 
+Browser:
+    ./Documents/Git
+Hub/pison/app/globa
+ls.css [Client 
+Component Browser]
+    ./Documents/Git
+Hub/pison/app/layou
+t.tsx [Server 
+Component]
+
+
+    at <unknown> (.
+/Documents/GitHub/p
+ison/app/globals.cs
+s:2778:20)

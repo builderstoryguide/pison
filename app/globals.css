@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    --cell-size: 2rem;
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
@@ -63,12 +64,12 @@
   body {
     @apply bg-background text-foreground;
   }
-  
+
   /* Sidebar width variables */
   :root {
     --sidebar-width: 18rem; /* 288px - default expanded width */
   }
-  
+
   /* Collapsed sidebar width */
   .sidebar-collapsed {
     --sidebar-width: 4rem; /* 64px - collapsed width */

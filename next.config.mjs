@@ -6,14 +6,14 @@ const nextConfig = {
   // Enable standalone output for Docker deployment
   output: 'standalone',
   
-  // Add this configuration to address the cross-origin warning
-  experimental: {
-    allowedDevOrigins: ['192.168.1.144'],
-  },
-  
   // Image configuration
   images: {
-    domains: ['hztnrwbtfyycrmciketh.supabase.co'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'hztnrwbtfyycrmciketh.supabase.co',
+      },
+    ],
     unoptimized: true,
   },
   
@@ -33,7 +33,7 @@ const nextConfig = {
     if (process.env.NODE_ENV === 'production') {
       return [
         {
-          source: '/test-:path*',
+          source: '/:path(test-.*)',
           destination: '/',
           permanent: false,
         },
