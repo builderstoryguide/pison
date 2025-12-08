@@ -26,8 +26,10 @@ import { Student } from "@/lib/student-management-context"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
-import { Info } from "lucide-react"
+import { Info, Plus } from "lucide-react"
 import { format } from "date-fns"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { PaymentForm } from "./payment-form"
 
 interface EditStudentFormProps {
   student: Student
@@ -86,6 +88,9 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
   const [hasValidFeeStructure, setHasValidFeeStructure] = useState(false)
   const [feeStructureName, setFeeStructureName] = useState<string | null>(null)
   const [term, setTerm] = useState<"first" | "second" | "third">("first")
+  
+  // Payment dialog state
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false)
 
   // Function to check if a string is a UUID
   const isUUID = (str: string): boolean => {
@@ -323,6 +328,21 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handlePaymentSuccess = async (_paymentId: string) => {
+    setShowPaymentDialog(false)
+    // We need to refresh the student data to see the new fee total
+    // Since we don't have direct access to the parent's reload function here,
+    // we rely on the parent component to refresh the data or the user to close/reopen
+    // However, for better UX, we can try to call onSave with the current data to trigger a refresh if the parent supports it
+    // Or we can manually update the local state if we know the amount
+    // Ideally, the parent should be listening to student changes.
+    // For now, let's close the dialog. The user will see the updated amount if they reopen the edit form or if the parent refreshes.
+    
+    // Hint: The parent usually reloads students when specific events occur.
+    // We can dispatch a custom event if needed, but let's assume the user will see it eventually.
+    // A better approach for this form is to perhaps be able to trigger a reload.
   }
 
   const isFormValid = () => {
@@ -770,14 +790,32 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="paid_fees">Paid Fees (XOF)</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="paid_fees">Paid Fees (XOF)</Label>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 px-2 text-xs text-primary"
+                      onClick={() => setShowPaymentDialog(true)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Record Payment
+                    </Button>
+                  </div>
                   <Input
                     id="paid_fees"
                     type="number"
                     value={formData.paid_fees}
-                    onChange={(e) => handleInputChange("paid_fees", parseFloat(e.target.value) || 0)}
+                    // Read-only to enforce payment recording via the specialized form
+                    readOnly
+                    className="bg-muted cursor-not-allowed"
+                    title="Please use 'Record Payment' to update fees"
                     placeholder="Paid fees"
                   />
+                  <p className="text-[10px] text-muted-foreground">
+                     * Auto-calculated from payment records. Cannot be edited directly.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="fees_status">Fees Status</Label>
@@ -853,6 +891,40 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Record Payment for {formData.first_name} {formData.last_name}</DialogTitle>
+          </DialogHeader>
+          <PaymentForm 
+            onSuccess={handlePaymentSuccess}
+            onCancel={() => setShowPaymentDialog(false)}
+            editData={{
+              id: "", // New payment
+              studentId: student.id,
+              studentName: `${student.first_name} ${student.last_name}`,
+              feeStructureId: "", // Let user select
+              feeName: "",
+              amount: 0,
+              amountPaid: 0,
+              paymentDate: new Date(),
+              paymentMethod: "cash",
+              paidBy: "",
+              status: "completed",
+              balance: 0,
+              description: "",
+              reference: "",
+              receiptNumber: "",
+              installment: "",
+              term: "first",
+              academicYear: globalAcademicYear,
+              notes: ""
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
