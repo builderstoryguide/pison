@@ -593,12 +593,13 @@ export function TeacherEnrollmentForm({
                         className="flex items-center gap-1"
                       >
                         {qual}
-                        <X
-                          className="h-3 w-3 cursor-pointer"
-                          onClick={() =>
-                            removeFromArray("qualifications", qual)
-                          }
-                        />
+                        <button
+                          type="button"
+                          onClick={() => removeFromArray("qualifications", qual)}
+                          className="ml-1 hover:text-destructive focus:outline-none"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       </Badge>
                     ))}
                   </div>
@@ -744,12 +745,13 @@ export function TeacherEnrollmentForm({
                             className="flex items-center gap-1"
                           >
                             {subject}
-                            <X
-                              className="h-3 w-3 cursor-pointer"
-                              onClick={() =>
-                                removeFromArray("subjects", subject)
-                              }
-                            />
+                            <button
+                              type="button"
+                              onClick={() => removeFromArray("subjects", subject)}
+                              className="ml-1 hover:text-destructive focus:outline-none"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
                           </Badge>
                         ))}
                       </div>
@@ -808,11 +810,13 @@ export function TeacherEnrollmentForm({
                             className="flex items-center gap-1"
                           >
                             {cls}
-                            <X
-                              className="h-3 w-3 cursor-pointer"
+                            <button
+                              type="button"
                               onClick={() => removeFromArray("classes", cls)}
-                            />
-                          </Badge>
+                              className="ml-1 hover:text-destructive rounded"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>                          </Badge>
                         ))}
                       </div>
                     </>
