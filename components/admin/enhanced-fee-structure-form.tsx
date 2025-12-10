@@ -85,7 +85,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
           totalAmount: editData.totalAmount,
           numberOfInstallments: editData.numberOfInstallments || 1,
           selectedClasses: editData.selectedClasses || [],
-          description: editData.description,
+          description: editData.description || "",
           isActive: editData.isActive,
         }
       : {
@@ -264,9 +264,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
 
   return (
     <div className="max-w-6xl mx-auto">
-      <DialogHeader>
-        <DialogTitle>{editData ? "Edit Fee Structure" : "Create Enhanced Fee Structure"}</DialogTitle>
-      </DialogHeader>
+
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-6">
@@ -286,7 +284,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                       <FormLabel>Fee Structure Name</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select installment" />
                           </SelectTrigger>
                         </FormControl>
@@ -316,7 +314,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                           value={field.value || globalAcademicYear}
                           disabled={true}
                         >
-                          <SelectTrigger className="bg-muted">
+                          <SelectTrigger className="bg-muted w-full">
                             <SelectValue placeholder="Select academic year" />
                           </SelectTrigger>
                           <SelectContent>
@@ -339,7 +337,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                       <FormLabel>Term</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="w-full">
                             <SelectValue placeholder="Select term" />
                           </SelectTrigger>
                         </FormControl>
@@ -517,13 +515,16 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                   </p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground mb-2">
+                <div className="space-y-4">
+                  <div className="text-xs text-muted-foreground">
                     Showing {filteredClasses.length} active class(es)
                   </div>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-3 md:grid-cols-1">
                     {filteredClasses.map((cls) => (
-                      <div key={cls.id} className="flex items-center space-x-2">
+                      <div 
+                        key={cls.id} 
+                        className="flex items-start space-x-3 p-3 rounded-lg border transition-colors hover:bg-accent/50"
+                      >
                         <Checkbox
                           id={cls.id}
                           checked={selectedClasses.includes(cls.id)}
@@ -534,24 +535,28 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                               form.setValue("selectedClasses", selectedClasses.filter(id => id !== cls.id))
                             }
                           }}
+                          className="mt-1"
                         />
                         <label
                           htmlFor={cls.id}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                          className="flex-1 cursor-pointer space-y-1.5"
                         >
-                          <div className="flex items-center justify-between">
-                            <span>{cls.name}</span>
-                            <div className="flex gap-1">
-                              <Badge variant="outline" className="text-xs">
-                                {cls.subsystem}
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {cls.branch}
-                              </Badge>
-                            </div>
+                          <div className="font-medium text-sm">
+                            {cls.name}
                           </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {cls.level} • {cls.academicYear}
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="secondary" className="text-xs font-normal">
+                              {cls.subsystem === "english" ? "English" : "French"}
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs font-normal capitalize">
+                              {cls.branch}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs font-normal">
+                              {cls.level}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs font-normal">
+                              {cls.academicYear}
+                            </Badge>
                           </div>
                         </label>
                       </div>
@@ -574,9 +579,13 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Description</FormLabel>
+                    <FormLabel>Description (Optional)</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Additional details about this fee structure..." {...field} />
+                      <Textarea 
+                        placeholder="Additional details about this fee structure..." 
+                        {...field} 
+                        value={field.value || ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
