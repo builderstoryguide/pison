@@ -11,17 +11,18 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-async function checkStudentClasses() {
+async function checkClasses() {
+  console.log('Testing Supabase Connection...');
   const { data, error } = await supabase
-    .from('students')
-    .select('id, first_name, last_name, class')
+    .from('classes')
+    .select('*')
     .limit(5);
 
   if (error) {
-    console.error('Error fetching students:', error);
+    console.error('Error fetching classes:', error);
   } else {
-    console.log('Student Data Sample:', JSON.stringify(data, null, 2));
+    console.log('Classes Data Sample:', JSON.stringify(data, null, 2));
   }
 }
 
-checkStudentClasses();
+checkClasses();

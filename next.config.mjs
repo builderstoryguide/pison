@@ -22,10 +22,7 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   
-  // ESLint configuration
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+
   
   // Exclude test pages from production builds
   async redirects() {

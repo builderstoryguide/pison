@@ -4,42 +4,36 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { CalendarIcon } from "lucide-react"
 import { format, addMonths } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { useToast } from "@/hooks/use-toast"
-import { cn } from "@/lib/utils"
 import { useGlobalAcademicYear, useCurrencyFormatter } from "@/lib/app-configuration-context-v2"
 import { apiPost } from "@/lib/api-utils"
-import { Info } from "lucide-react"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 
 // Schema for the enhanced fee structure form
 const enhancedFeeStructureSchema = z.object({
-  name: z.enum(["First installment", "Second installment", "Third installment"], {
-    required_error: "Fee structure name is required",
-  }),
+  name: z.string().min(1, "Fee structure name is required"),
   academicYear: z.string().min(1, "Academic year is required"),
   term: z.enum(["all", "first", "second", "third"]),
   dueDate: z.date(),
   totalAmount: z.number().min(1, "Total amount must be greater than 0"),
-  numberOfInstallments: z.number().min(1, "Number of installments must be at least 1").max(12, "Maximum 12 installments"),
+  firstInstallmentAmount: z.number().min(0, "First installment amount must be a positive number"),
+  secondInstallmentAmount: z.number().min(0, "Second installment amount must be a positive number"),
   selectedClasses: z.array(z.string()).min(1, "At least one class must be selected"),
   description: z.string().optional(),
   isActive: z.boolean(),
-})
+}).refine(data => data.firstInstallmentAmount + data.secondInstallmentAmount === data.totalAmount, {
+  message: "The sum of the installments must be equal to the total amount",
+  path: ["totalAmount"],
+});
 
 type EnhancedFeeStructureFormData = z.infer<typeof enhancedFeeStructureSchema>
 
@@ -53,11 +47,7 @@ interface Class {
   status: "active" | "inactive"
 }
 
-interface Installment {
-  installmentNumber: number
-  amount: number
-  dueDate: Date
-}
+
 
 interface EnhancedFeeStructureFormProps {
   onSuccess: (feeStructureId: string) => void
@@ -71,8 +61,6 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
   const { formatCurrency, getCurrencySymbol } = useCurrencyFormatter()
   const [classes, setClasses] = useState<Class[]>([])
   const [isLoadingClasses, setIsLoadingClasses] = useState(true)
-  const [installments, setInstallments] = useState<Installment[]>([])
-  const [showInstallmentPreview, setShowInstallmentPreview] = useState(false)
 
   const form = useForm<EnhancedFeeStructureFormData>({
     resolver: zodResolver(enhancedFeeStructureSchema),
@@ -83,18 +71,20 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
           term: editData.term,
           dueDate: new Date(editData.dueDate),
           totalAmount: editData.totalAmount,
-          numberOfInstallments: editData.numberOfInstallments || 1,
+          firstInstallmentAmount: editData.firstInstallmentAmount || 0,
+          secondInstallmentAmount: editData.secondInstallmentAmount || 0,
           selectedClasses: editData.selectedClasses || [],
           description: editData.description || "",
           isActive: editData.isActive,
         }
       : {
-          name: "First installment" as const,
+          name: "",
           academicYear: globalAcademicYear, // Use global academic year
           term: "first",
           dueDate: new Date(),
           totalAmount: 0,
-          numberOfInstallments: 1,
+          firstInstallmentAmount: 0,
+          secondInstallmentAmount: 0,
           selectedClasses: [],
           description: "",
           isActive: true,
@@ -156,36 +146,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
     }
   }
 
-  // Calculate installments when total amount or number of installments changes
-  useEffect(() => {
-    const totalAmount = form.watch("totalAmount")
-    const numberOfInstallments = form.watch("numberOfInstallments")
-    const dueDate = form.watch("dueDate")
 
-    if (totalAmount > 0 && numberOfInstallments > 0 && dueDate) {
-      calculateInstallments(totalAmount, numberOfInstallments, dueDate)
-    }
-  }, [form.watch("totalAmount"), form.watch("numberOfInstallments"), form.watch("dueDate")])
-
-  const calculateInstallments = (totalAmount: number, numberOfInstallments: number, startDate: Date) => {
-    const installmentAmount = Math.ceil(totalAmount / numberOfInstallments)
-    const lastInstallmentAmount = totalAmount - (installmentAmount * (numberOfInstallments - 1))
-
-    const newInstallments: Installment[] = []
-    
-    for (let i = 0; i < numberOfInstallments; i++) {
-      const installmentDate = addMonths(startDate, i)
-      const amount = i === numberOfInstallments - 1 ? lastInstallmentAmount : installmentAmount
-      
-      newInstallments.push({
-        installmentNumber: i + 1,
-        amount,
-        dueDate: installmentDate
-      })
-    }
-
-    setInstallments(newInstallments)
-  }
 
   const onSubmit = async (data: EnhancedFeeStructureFormData) => {
     try {
@@ -210,12 +171,19 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
           term: data.term,
           dueDate: format(data.dueDate, "yyyy-MM-dd"),
           totalAmount: data.totalAmount,
-          numberOfInstallments: data.numberOfInstallments,
-          installments: installments.map(inst => ({
-            installmentNumber: inst.installmentNumber,
-            amount: inst.amount,
-            dueDate: format(inst.dueDate, "yyyy-MM-dd")
-          })),
+          numberOfInstallments: 2, // Hardcoded to 2 as per new requirements
+          installments: [
+            {
+              installmentNumber: 1,
+              amount: data.firstInstallmentAmount,
+              dueDate: format(data.dueDate, "yyyy-MM-dd"),
+            },
+            {
+              installmentNumber: 2,
+              amount: data.secondInstallmentAmount,
+              dueDate: format(addMonths(data.dueDate, 1), "yyyy-MM-dd"),
+            }
+          ],
           description: data.description,
           isActive: data.isActive
         }
@@ -258,7 +226,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
 
   const selectedClasses = form.watch("selectedClasses")
   const totalAmount = form.watch("totalAmount")
-  const numberOfInstallments = form.watch("numberOfInstallments")
+
 
   const filteredClasses = classes.filter(cls => cls.status === "active")
 
@@ -282,18 +250,12 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Fee Structure Name</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select installment" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="First installment">First installment</SelectItem>
-                          <SelectItem value="Second installment">Second installment</SelectItem>
-                          <SelectItem value="Third installment">Third installment</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g., Tuition Fee, Exam Fee"
+                          {...field}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -329,65 +291,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="term"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Term</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select term" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="all">All terms</SelectItem>
-                          <SelectItem value="first">First term</SelectItem>
-                          <SelectItem value="second">Second term</SelectItem>
-                          <SelectItem value="third">Third term</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
-                <FormField
-                  control={form.control}
-                  name="dueDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>First Payment Due Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground",
-                              )}
-                            >
-                              {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) => date < new Date() || date < new Date("1900-01-01")}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </CardContent>
             </Card>
 
@@ -417,63 +321,45 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="numberOfInstallments"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Number of Installments</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="1"
-                          max="12"
-                          placeholder="3"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Installment Preview */}
-                {installments.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <FormLabel>Installment Preview</FormLabel>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowInstallmentPreview(!showInstallmentPreview)}
-                      >
-                        {showInstallmentPreview ? "Hide" : "Show"} Details
-                      </Button>
-                    </div>
-                    
-                    {showInstallmentPreview && (
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {installments.map((installment) => (
-                          <div key={installment.installmentNumber} className="flex items-center justify-between p-2 bg-muted rounded">
-                            <span className="text-sm font-medium">
-                              Installment {installment.installmentNumber}
-                            </span>
-                            <div className="text-right">
-                              <div className="text-sm font-medium">
-                                {formatCurrency(installment.amount)}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                Due: {format(installment.dueDate, "MMM dd, yyyy")}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="firstInstallmentAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Installment ({getCurrencySymbol()})</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="37500"
+                            {...field}
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                  </div>
-                )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="secondInstallmentAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Second Installment ({getCurrencySymbol()})</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="37500"
+                            {...field}
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
@@ -568,31 +454,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
             </CardContent>
           </Card>
 
-          {/* Additional Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Additional Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description (Optional)</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Additional details about this fee structure..." 
-                        {...field} 
-                        value={field.value || ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+
 
           {/* Summary */}
           {selectedClasses.length > 0 && totalAmount > 0 && (
@@ -616,13 +478,13 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-primary">
-                      {numberOfInstallments}
+                      2
                     </div>
                     <div className="text-sm text-muted-foreground">Installments</div>
                   </div>
                 </div>
                 <div className="mt-4 text-sm text-muted-foreground">
-                  This will create {selectedClasses.length} fee structure(s) with {numberOfInstallments} installment(s) each.
+                  This will create {selectedClasses.length} fee structure(s) with 2 installment(s) each.
                 </div>
               </CardContent>
             </Card>

@@ -23,11 +23,12 @@ import { useCurrencyFormatter } from "@/lib/app-configuration-context-v2"
 import { UserManagement } from "./admin/user-management"
 import { StudentManagement } from "./admin/student-management"
 import { StudentIdCards } from "./admin/student-id-cards"
-import { ReportCards } from "./admin/report-cards-backup"
+import { ReportCardsWrapper } from "./admin/report-cards-wrapper"
 import { TeacherManagement } from "./admin/teacher-management"
 import { EmployeeManagement } from "./admin/employee-management"
 import { ClassManagement } from "./admin/class-management"
 import { SubjectManagement } from "./admin/subject-management"
+import { EnhancedFeeStructureManagement } from "./admin/enhanced-fee-structure-management"
 
 
 import { SalesManagement } from "./admin/sales-management"
@@ -838,6 +839,7 @@ export function Dashboard() {
         subItems: [
 
           { id: "sales", label: "Sales" },
+          { id: "fee-structures", label: "Fee Structures" },
           { id: "payment", label: "Fees Payment" },
           { id: "expenditures", label: "Expenditures" },
         ],
@@ -867,7 +869,7 @@ export function Dashboard() {
         case "student-id-cards":
           return <StudentIdCards />
         case "report-cards":
-          return <ReportCards />
+          return <ReportCardsWrapper />
         case "teachers":
           return <TeacherManagement />
         case "employees":
@@ -888,6 +890,8 @@ export function Dashboard() {
 
         case "sales":
           return <SalesManagement />
+        case "fee-structures":
+          return <EnhancedFeeStructureManagement />
         case "payment":
           return <PaymentManagement />
         case "expenditures":

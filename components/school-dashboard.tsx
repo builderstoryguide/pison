@@ -41,6 +41,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,         // Added
+  SidebarMenuSubButton,   // Added
+  SidebarMenuSubItem,     // Added
 
   SidebarProvider,
 } from "@/components/ui/sidebar-08"
@@ -182,7 +185,18 @@ function SiteHeader({ user, onProfileClick, onLogout }: {
   )
 }
 
+import { usePathname } from "next/navigation";
+import Link from "next/link";
+
 // App Sidebar Component
+interface MenuItem {
+  id: string;
+  label: string;
+  icon: React.ElementType; // Lucide icon components are React components
+  children?: MenuItem[];
+  href?: string;
+}
+
 function AppSidebar({ 
   user, 
   currentView, 
@@ -196,13 +210,22 @@ function AppSidebar({
   onProfileClick: () => void
   onLogout: () => void
 }) {
-  const getMenuItems = () => {
+  const pathname = usePathname();
+  const getMenuItems = (): MenuItem[] => {
     switch (user.role) {
       case "admin":
         return [
           { id: "quick-actions", label: "Dashboard", icon: Home },
           { id: "users", label: "Manage Users", icon: Users },
-          { id: "students", label: "Student Management", icon: GraduationCap },
+          {
+            id: "student-management",
+            label: "Manage Students",
+            icon: GraduationCap,
+            children: [
+              { id: "students", label: "All Students", icon: GraduationCap },
+              { id: "reports", label: "Report Cards", icon: FileText, href: "/dashboard/admin/reports" },
+            ],
+          },
           { id: "teachers", label: "Manage Teachers", icon: UserCheck },
           { id: "classes", label: "Manage Classes", icon: BookOpen },
           { id: "subjects", label: "Manage Subjects", icon: BookOpen },
@@ -260,14 +283,56 @@ function AppSidebar({
           <SidebarMenu>
             {menuItems.map((item) => (
               <SidebarMenuItem key={item.id}>
-                <SidebarMenuButton
-                  onClick={() => onViewChange(item.id)}
-                  isActive={currentView === item.id}
-                  className="hover:bg-accent hover:text-accent-foreground transition-colors"
-                >
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </SidebarMenuButton>
+                {item.children ? (
+                  // Parent item with children (dropdown)
+                  <>
+                    <SidebarMenuButton
+                      isActive={item.children.some(
+                        (child) => (child.href ? pathname === child.href : currentView === child.id)
+                      )}
+                      className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                    <SidebarMenuSub>
+                      {item.children.map((child) => (
+                        <SidebarMenuSubItem key={child.id}>
+                          {child.href ? (
+                            <Link href={child.href} passHref>
+                              <SidebarMenuSubButton
+                                isActive={pathname === child.href}
+                                className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                              >
+                                <child.icon className="h-4 w-4" />
+                                <span>{child.label}</span>
+                              </SidebarMenuSubButton>
+                            </Link>
+                          ) : (
+                            <SidebarMenuSubButton
+                              onClick={() => onViewChange(child.id)}
+                              isActive={currentView === child.id}
+                              className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                            >
+                              <child.icon className="h-4 w-4" />
+                              <span>{child.label}</span>
+                            </SidebarMenuSubButton>
+                          )}
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </>
+                ) : (
+                  // Regular item without children
+                  <SidebarMenuButton
+                    onClick={() => onViewChange(item.id)}
+                    isActive={currentView === item.id}
+                    className="hover:bg-accent hover:text-accent-foreground transition-colors"
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </SidebarMenuButton>
+                )}
               </SidebarMenuItem>
             ))}
           </SidebarMenu>

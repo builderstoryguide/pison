@@ -12,7 +12,7 @@ The Bursar module provides comprehensive financial management capabilities for t
 - **Create**: Bursars can create new fee structures for different classes and terms
 - **Read**: View all fee structures with filtering and search capabilities
 - **Update**: Modify existing fee structures (name, due date, items, status)
-- **Delete**: Remove fee structures (with validation to prevent deletion of assigned structures)
+- **Delete**: Bursars and Admins can remove fee structures (with validation to prevent deletion of assigned structures)
 
 #### Key Components
 - **Fee Structure Table**: Displays all fee structures with class, academic year, term, and total amount

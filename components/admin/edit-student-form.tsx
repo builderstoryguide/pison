@@ -18,7 +18,8 @@ import {
   AlertCircle,
   ChevronDownIcon,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Plus
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -26,7 +27,6 @@ import { Student } from "@/lib/student-management-context"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
-import { Info, Plus } from "lucide-react"
 import { format } from "date-fns"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { PaymentForm } from "./payment-form"
@@ -124,7 +124,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
       const data = await response.json()
       
       // Transform API response to match our format
-      const transformedClasses: ClassData[] = (data || []).map((cls: any) => ({
+      const transformedClasses: ClassData[] = (data || []).map((cls: { id: string; name: string; level: string; subsystem: string; branch: string; academicYear?: string; status: string }) => ({
         id: cls.id,
         name: cls.name,
         level: cls.level,
@@ -162,7 +162,6 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
         // If no match found, keep the current class value (handles edge cases)
       }
     } catch (err) {
-      console.error('Error fetching classes:', err)
       setClassesError(err instanceof Error ? err.message : 'Failed to load classes')
       setAvailableClasses([])
     } finally {
@@ -271,8 +270,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
         setFeeStructureError(null)
         setFormData(prev => ({ ...prev, total_fees: data.totalAmount || 0 }))
       }
-    } catch (err) {
-      console.error('Error fetching fee structure:', err)
+    } catch (_err) {
       setHasValidFeeStructure(false)
       setFeeStructureError("An error occurred while fetching fee structure")
       setFeeStructureName(null)
@@ -307,7 +305,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
         formattedPhone = '+237 6'
       }
       // Remove any invalid characters and ensure proper format
-      formattedPhone = formattedPhone.replace(/[^0-9\s\+\-\(\)]/g, '')
+      formattedPhone = formattedPhone.replace(/[^0-9\s+()-]/g, '')
       setFormData(prev => ({ ...prev, [field]: formattedPhone }))
     } else {
       setFormData(prev => ({ ...prev, [field]: value }))
@@ -323,7 +321,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
       if (!success) {
         setError("Failed to update student. Please try again.")
       }
-    } catch (err) {
+    } catch (_err) {
       setError("An error occurred while updating the student.")
     } finally {
       setIsLoading(false)
@@ -520,7 +518,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 grid-cols-1">
                 <div className="space-y-2">
                   <Label htmlFor="subsystem">Sub-system</Label>
                   <Select 
@@ -530,7 +528,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                       handleInputChange("class", "") // Reset class when subsystem changes
                     }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select sub-system" />
                     </SelectTrigger>
                     <SelectContent>
@@ -548,7 +546,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                       handleInputChange("class", "") // Reset class when branch changes
                     }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select branch" />
                     </SelectTrigger>
                     <SelectContent>
@@ -603,7 +601,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                         setHasValidFeeStructure(false) // Reset validation when class changes
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select class" />
                       </SelectTrigger>
                       <SelectContent>
@@ -618,7 +616,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 grid-cols-1">
                 <div className="space-y-2">
                   <Label htmlFor="term">Term *</Label>
                   <Select 
@@ -628,7 +626,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                       setHasValidFeeStructure(false) // Reset validation when term changes
                     }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select term" />
                     </SelectTrigger>
                     <SelectContent>
@@ -757,7 +755,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 grid-cols-1">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Label htmlFor="total_fees">Total Fees (XOF)</Label>
@@ -823,7 +821,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                     value={formData.fees_status} 
                     onValueChange={(value) => handleInputChange("fees_status", value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select fees status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -836,14 +834,14 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 grid-cols-1">
                 <div className="space-y-2">
                   <Label htmlFor="enrollment_status">Enrollment Status</Label>
                   <Select 
                     value={formData.enrollment_status} 
                     onValueChange={(value) => handleInputChange("enrollment_status", value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select enrollment status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -909,12 +907,11 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
               feeName: "",
               amount: 0,
               amountPaid: 0,
-              paymentDate: new Date(),
+              paymentDate: new Date().toISOString(),
               paymentMethod: "cash",
               paidBy: "",
               status: "completed",
               balance: 0,
-              description: "",
               reference: "",
               receiptNumber: "",
               installment: "",

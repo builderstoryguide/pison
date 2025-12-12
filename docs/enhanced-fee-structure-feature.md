@@ -13,7 +13,7 @@ The Enhanced Fee Structure Management feature allows administrators to create an
 3. **Automatic Installment Calculation**: System automatically calculates installment amounts and due dates
 4. **Class Selection Interface**: Visual interface to select classes with filtering options
 5. **Real-time Preview**: Preview installment breakdown before creating fee structures
-6. **Comprehensive Management**: View, edit, and delete fee structures
+6. **Comprehensive Management**: View, edit, and delete fee structures (Admin and Bursar roles)
 7. **Advanced Filtering**: Filter by academic year, term, status, and search
 8. **Statistics Dashboard**: Overview of fee structure statistics
 9. **Database Integration**: Full Supabase integration with proper error handling
