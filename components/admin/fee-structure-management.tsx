@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,11 +24,10 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { useClassManagement } from '@/lib/class-management-context'
+import { useClassManagement, ClassData } from '@/lib/class-management-context'
 import type { 
   FeeStructure, 
-  FeeStructureFormData,
-  FeeStructuresResponse 
+  FeeStructureFormData
 } from '@/lib/registration-types'
 
 // Mock data for development
@@ -120,7 +119,7 @@ interface FeeStructureFormProps {
   feeStructure?: FeeStructure
   onSave: (feeStructure: FeeStructureFormData) => void
   onCancel: () => void
-  classes: any[]
+  classes: ClassData[]
   classesLoading: boolean
 }
 
@@ -289,7 +288,7 @@ function FeeStructureForm({ feeStructure, onSave, onCancel, classes, classesLoad
 }
 
 export function FeeStructureManagement() {
-  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
+  const { toast } = useToast()
   const { classes, isLoading: classesLoading } = useClassManagement()
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>(mockFeeStructures)
   const [isAddFeeStructureOpen, setIsAddFeeStructureOpen] = useState(false)
@@ -300,7 +299,7 @@ export function FeeStructureManagement() {
     class: 'all',
     is_active: 'all'
   })
-  const [isLoading, setIsLoading] = useState(false)
+
 
   // Quick actions state
   const [selectedFeeStructure, setSelectedFeeStructure] = useState<FeeStructure | null>(null)
@@ -351,8 +350,7 @@ export function FeeStructureManagement() {
         title: "Fee Structure Created Successfully! 🎉",
         description: `Fee structure for ${formData.class} has been created`,
       })
-    } catch (error) {
-      console.error('Error creating fee structure:', error)
+    } catch (_error) {
       toast({
         title: "Failed to create fee structure",
         description: "An error occurred while creating the fee structure",
@@ -387,9 +385,8 @@ export function FeeStructureManagement() {
           title: "Fee Structure Updated",
           description: `Fee structure for ${formData.class} has been updated`,
         })
-      } catch (error) {
-        console.error('Error updating fee structure:', error)
-        toast({
+      } catch (_error) {
+      toast({
           title: "Failed to update fee structure",
           description: "An error occurred while updating the fee structure",
           variant: "destructive"

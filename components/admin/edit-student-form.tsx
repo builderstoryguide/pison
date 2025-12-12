@@ -912,12 +912,12 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
               paidBy: "",
               status: "completed",
               balance: 0,
-              reference: "",
               receiptNumber: "",
-              installment: "",
               term: "first",
               academicYear: globalAcademicYear,
-              notes: ""
+              notes: "",
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
             }}
           />
         </DialogContent>

@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 // Mock data to stand in for API response
 const MOCK_DATA = {
   student: {
-    name: "ABAH CONRAD",
-    id: "242366340",
-    dob: "03/02/2011",
-    pob: "EDEA",
+    name: "STUDENT NAME",
+    id: "STUDENT123",
+    dob: "01/01/2000",
+    pob: "CITY NAME",
     sex: "M",
     class: "EPS3",
     speciality: "ELECTRICAL POWER SYSTEM",

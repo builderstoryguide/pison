@@ -14,19 +14,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-interface SubjectGrade {
-  subjectName: string
-  coefficient: number
-  termAverages: {
-    term1?: number
-    term2?: number
-    term3?: number
-  }
-  annualAverage?: number
-  grade?: string
-  rank?: number
-  remarks?: string
-}
+import { SubjectGrade } from './report-card-types'
 
 interface AnnualReportCardProps {
   data: {
@@ -304,9 +292,9 @@ export function AnnualReportCard({ data }: AnnualReportCardProps) {
                     <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
                       <td className="p-2 border-r border-gray-300 font-medium">{subject.subjectName}</td>
                       <td className="p-2 border-r border-gray-300 text-center">{subject.coefficient}</td>
-                      <td className="p-2 border-r border-gray-300 text-center">{subject.termAverages.term1?.toFixed(1) ?? '-'}</td>
-                      <td className="p-2 border-r border-gray-300 text-center">{subject.termAverages.term2?.toFixed(1) ?? '-'}</td>
-                      <td className="p-2 border-r border-gray-300 text-center">{subject.termAverages.term3?.toFixed(1) ?? '-'}</td>
+                      <td className="p-2 border-r border-gray-300 text-center">{subject.termAverages?.term1?.toFixed(1) ?? '-'}</td>
+                      <td className="p-2 border-r border-gray-300 text-center">{subject.termAverages?.term2?.toFixed(1) ?? '-'}</td>
+                      <td className="p-2 border-r border-gray-300 text-center">{subject.termAverages?.term3?.toFixed(1) ?? '-'}</td>
                       <td className="p-2 border-r border-gray-300 text-center font-bold">{avg.toFixed(2)}</td>
                       <td className="p-2 border-r border-gray-300 text-center">{total.toFixed(2)}</td>
                       <td className={`p-2 border-r border-gray-300 text-center font-bold ${grade === 'F' || grade === 'E' ? 'text-red-600' : ''}`}>

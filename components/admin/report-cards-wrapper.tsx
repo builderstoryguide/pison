@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Search,
   GraduationCap,
@@ -88,7 +88,7 @@ export function ReportCardsWrapper() {
       } else {
         setError('Failed to fetch classes')
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to fetch classes')
     } finally {
       setLoadingClasses(false)
@@ -105,7 +105,7 @@ export function ReportCardsWrapper() {
       } else {
         setError('Failed to fetch students')
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to fetch students')
     } finally {
       setLoadingStudents(false)
@@ -126,7 +126,7 @@ export function ReportCardsWrapper() {
       } else {
         setError('Failed to fetch report data')
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Failed to fetch report data')
     } finally {
       setLoadingReport(false)
@@ -140,8 +140,8 @@ export function ReportCardsWrapper() {
   const handleBack = () => {
     setSelectedStudent(null)
     setReportData(null)
+    setError(null)
   }
-
   // Filter students by search query
   const filteredStudents = students.filter(student => {
     const fullName = `${student.first_name} ${student.last_name}`.toLowerCase()
@@ -317,42 +317,42 @@ export function ReportCardsWrapper() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {filteredStudents.map((student) => (
-                  <Card 
-                    key={student.id}
-                    className="cursor-pointer hover:border-primary hover:shadow-md transition-all"
-                    onClick={() => handleStudentSelect(student)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                          {student.photo_url ? (
-                            <img 
-                              src={student.photo_url} 
-                              alt={student.first_name}
-                              className="w-full h-full rounded-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-lg font-semibold text-muted-foreground">
-                              {student.first_name.charAt(0)}{student.last_name.charAt(0)}
-                            </span>
-                          )}
+                  <Card key={student.id}>
+                    <CardContent className="p-0">
+                      <button
+                        onClick={() => handleStudentSelect(student)}
+                        className="w-full p-4 text-left hover:bg-accent rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                            {student.photo_url ? (
+                              <img 
+                                src={student.photo_url} 
+                                alt={student.first_name}
+                                className="w-full h-full rounded-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-lg font-semibold text-muted-foreground">
+                                {student.first_name.charAt(0)}{student.last_name.charAt(0)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">
+                              {student.first_name} {student.last_name}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {student.student_id || 'No ID'}
+                            </p>
+                            <Badge variant="outline" className="mt-1 text-xs">
+                              {student.class_name || 'Unknown Class'}
+                            </Badge>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">
-                            {student.first_name} {student.last_name}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {student.student_id || 'No ID'}
-                          </p>
-                          <Badge variant="outline" className="mt-1 text-xs">
-                            {student.class_name || 'Unknown Class'}
-                          </Badge>
-                        </div>
-                      </div>
+                      </button>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
+                ))}              </div>
             )}
           </CardContent>
         </Card>

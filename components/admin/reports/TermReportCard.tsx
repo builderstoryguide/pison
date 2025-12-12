@@ -9,20 +9,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-interface SubjectGrade {
-  subjectName: string
-  coefficient: number
-  sequences: {
-    seq1?: number
-    seq2?: number
-    seq3?: number
-    seq4?: number
-  }
-  termAverage?: number
-  grade?: string
-  rank?: number
-  remarks?: string
-}
+import { SubjectGrade } from './report-card-types'
 
 interface TermReportCardProps {
   data: {
@@ -112,9 +99,9 @@ export function TermReportCard({ data }: TermReportCardProps) {
   // Get sequence values based on term
   const getSequenceValues = (subject: SubjectGrade) => {
     if (term === 1) {
-      return { seq1: subject.sequences.seq1, seq2: subject.sequences.seq2 }
+      return { seq1: subject.sequences?.seq1, seq2: subject.sequences?.seq2 }
     } else {
-      return { seq1: subject.sequences.seq3, seq2: subject.sequences.seq4 }
+      return { seq1: subject.sequences?.seq3, seq2: subject.sequences?.seq4 }
     }
   }
 
@@ -311,9 +298,8 @@ export function TermReportCard({ data }: TermReportCardProps) {
                 </div>
                 <div className="flex justify-between">
                   <span>Warnings / Suspensions</span>
-                  <span className="font-mono font-bold">{data.discipline.warnings}</span>
-                </div>
-              </div>
+                  <span className="font-mono font-bold">{data.discipline.warnings} / {data.discipline.suspensions}</span>
+                </div>              </div>
             </div>
 
             {/* Average Circle */}

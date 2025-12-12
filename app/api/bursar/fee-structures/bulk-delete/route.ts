@@ -23,14 +23,14 @@ export async function POST(request: Request) {
   }
 
   const { data, error } = await supabase
-    .from('payments')
+    .from('fee_structures')
     .delete()
     .in('id', ids)
     .select()
 
   if (error) {
     // eslint-disable-next-line no-console
-    console.error('Error deleting payments:', error)
+    console.error('Error deleting fee structures:', error)
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 

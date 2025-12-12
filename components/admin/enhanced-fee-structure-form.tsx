@@ -25,16 +25,15 @@ const enhancedFeeStructureSchema = z.object({
   term: z.enum(["all", "first", "second", "third"]),
   dueDate: z.date(),
   totalAmount: z.number().min(1, "Total amount must be greater than 0"),
-  firstInstallmentAmount: z.number().min(0, "First installment amount must be a positive number"),
-  secondInstallmentAmount: z.number().min(0, "Second installment amount must be a positive number"),
+  firstInstallmentAmount: z.number().min(1, "First installment amount must be greater than 0"),
+  secondInstallmentAmount: z.number().min(1, "Second installment amount must be greater than 0"),
   selectedClasses: z.array(z.string()).min(1, "At least one class must be selected"),
   description: z.string().optional(),
   isActive: z.boolean(),
 }).refine(data => data.firstInstallmentAmount + data.secondInstallmentAmount === data.totalAmount, {
   message: "The sum of the installments must be equal to the total amount",
-  path: ["totalAmount"],
+  path: ["firstInstallmentAmount"],
 });
-
 type EnhancedFeeStructureFormData = z.infer<typeof enhancedFeeStructureSchema>
 
 interface Class {
@@ -49,10 +48,24 @@ interface Class {
 
 
 
+interface FeeStructureEditData {
+  id?: string
+  name: string
+  academicYear: string
+  term: "all" | "first" | "second" | "third"
+  dueDate: string | Date
+  totalAmount: number
+  firstInstallmentAmount?: number
+  secondInstallmentAmount?: number
+  selectedClasses?: string[]
+  description?: string
+  isActive: boolean
+}
+
 interface EnhancedFeeStructureFormProps {
   onSuccess: (feeStructureId: string) => void
   onCancel: () => void
-  editData?: any
+  editData?: Partial<FeeStructureEditData>
 }
 
 export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: EnhancedFeeStructureFormProps) {
@@ -69,7 +82,7 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
           name: editData.name,
           academicYear: globalAcademicYear, // Use global academic year
           term: editData.term,
-          dueDate: new Date(editData.dueDate),
+          dueDate: editData.dueDate ? new Date(editData.dueDate) : new Date(),
           totalAmount: editData.totalAmount,
           firstInstallmentAmount: editData.firstInstallmentAmount || 0,
           secondInstallmentAmount: editData.secondInstallmentAmount || 0,
@@ -93,58 +106,57 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
 
   // Load classes from the database
   useEffect(() => {
-    loadClasses()
-  }, [])
-
-  const loadClasses = async () => {
-    try {
-      const response = await fetch('/api/classes?status=active')
-      if (response.ok) {
-        const data = await response.json()
-        // Ensure we only use active classes
-        const activeClasses = Array.isArray(data) ? data.filter((cls: Class) => cls.status === "active") : []
-        setClasses(activeClasses)
-      } else {
-        // Fallback to mock data if API fails
-        setClasses([
-          {
-            id: "cls1",
-            name: "Form 1A",
-            level: "Form 1",
-            subsystem: "english",
-            branch: "grammar",
-            academicYear: globalAcademicYear,
-            status: "active"
-          },
-          {
-            id: "cls2",
-            name: "Form 2B",
-            level: "Form 2",
-            subsystem: "english",
-            branch: "technical",
-            academicYear: globalAcademicYear,
-            status: "active"
-          },
-          {
-            id: "cls3",
-            name: "Terminale C",
-            level: "Terminale",
-            subsystem: "french",
-            branch: "grammar",
-            academicYear: globalAcademicYear,
-            status: "active"
-          }
-        ])
+    const loadClasses = async () => {
+      try {
+        const response = await fetch('/api/classes?status=active')
+        if (response.ok) {
+          const data = await response.json()
+          // Ensure we only use active classes
+          const activeClasses = Array.isArray(data) ? data.filter((cls: Class) => cls.status === "active") : []
+          setClasses(activeClasses)
+        } else {
+          // Fallback to mock data if API fails
+          setClasses([
+            {
+              id: "cls1",
+              name: "Form 1A",
+              level: "Form 1",
+              subsystem: "english",
+              branch: "grammar",
+              academicYear: globalAcademicYear,
+              status: "active"
+            },
+            {
+              id: "cls2",
+              name: "Form 2B",
+              level: "Form 2",
+              subsystem: "english",
+              branch: "technical",
+              academicYear: globalAcademicYear,
+              status: "active"
+            },
+            {
+              id: "cls3",
+              name: "Terminale C",
+              level: "Terminale",
+              subsystem: "french",
+              branch: "grammar",
+              academicYear: globalAcademicYear,
+              status: "active"
+            }
+          ])
+        }
+      } catch (_error) {
+        toastError("Error loading classes", {
+          description: "Failed to load classes. Using sample data."
+        })
+      } finally {
+        setIsLoadingClasses(false)
       }
-    } catch (error) {
-      console.error("Error loading classes:", error)
-      toastError("Error loading classes", {
-        description: "Failed to load classes. Using sample data."
-      })
-    } finally {
-      setIsLoadingClasses(false)
     }
-  }
+
+    loadClasses()
+  }, [globalAcademicYear, toastError])
 
 
 
@@ -217,7 +229,6 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
         throw new Error("Failed to create any fee structures")
       }
     } catch (error) {
-      console.error("Error creating fee structures:", error)
       toastError("Error creating fee structures", {
         description: error instanceof Error ? error.message : "Failed to create fee structures"
       })

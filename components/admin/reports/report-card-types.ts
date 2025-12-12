@@ -94,17 +94,8 @@ export interface ReportCardData {
   history: HistoryInfo
   stats: StatsInfo
   discipline: DisciplineInfo
-  absences?: number
-  suspensions?: number
-  warnings?: number
-  maxAvg?: number
-  minAvg?: number
-  passed?: number
-  passPercent?: number
-  classAvg?: number
   watermarkUrl?: string
 }
-
 // Legacy format for PisonReportCard (grouped subjects)
 export interface PisonSubjectSection {
   title: string

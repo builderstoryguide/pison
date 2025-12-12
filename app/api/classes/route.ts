@@ -59,9 +59,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(transformedData)
   } catch (error) {
-    // console.error('Error in classes GET:', serializeSupabaseError(error as unknown as any))
+    // console.error('Error in classes GET:', serializeSupabaseError(error))
     return NextResponse.json(
-      { ok: false, error: serializeSupabaseError(error as unknown as any) },
+      { ok: false, error: serializeSupabaseError(error) },
       { status: 500 }
     )
   }

@@ -1,9 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { 
-  Printer, 
-  Edit2, 
-  Save, 
-  GraduationCap, 
   BookOpen, 
   Award,
   User,
@@ -19,20 +15,18 @@ interface PisonReportCardProps {
 }
 
 const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing] = useState(false);
   const [data, setData] = useState<PisonReportCardData>(reportData);
   const [logoError, setLogoError] = useState(false); 
   const printRef = useRef<HTMLDivElement>(null);
 
-  const handlePrint = () => {
-    window.print();
-  };
 
-  const handleInputChange = (section: keyof PisonReportCardData, field: string, value: string | number) => {
+
+  const handleInputChange = (section: Exclude<keyof PisonReportCardData, 'watermarkUrl'>, field: string, value: string | number) => {
     setData(prev => ({
       ...prev,
       [section]: {
-        ...prev[section as keyof PisonReportCardData],
+        ...(prev[section] as object),
         [field]: value
       }
     }));
@@ -105,7 +99,7 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
                 )}
               </div>
               <p className="text-xs font-mono">
-                ORDER Nº: <span className="text-red-600 font-bold">{data.academic.orderNo.split('OF')[0]}</span>
+                ORDER Nº: <span className="text-red-600 font-bold">{data.academic.orderNo?.split('OF')[0] ?? data.academic.orderNo}</span>
               </p>
             </div>
 
@@ -203,7 +197,12 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
             {/* Photo Area */}
             <div className="col-span-3 row-span-2 border-b border-black flex flex-col items-center justify-center p-2 bg-gray-50">
                {data.student.photoUrl ? (
-                 <img src={data.student.photoUrl} alt="Student" className="w-full h-full object-cover" />
+                 <img 
+                   src={data.student.photoUrl} 
+                   alt="Student" 
+                   className="w-full h-full object-cover"
+                   onError={(e) => e.currentTarget.style.display = 'none'}
+                 />
                ) : (
                  <div className="text-center text-gray-400 text-[0.6rem]">
                    <User size={32} className="mx-auto mb-1 opacity-20" />
@@ -215,7 +214,7 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
             {/* Row 3 */}
             <div className="col-span-5 p-2 border-b md:border-b-0 border-r border-black border-dotted md:border-solid">
                <span className="block text-[0.6rem] text-gray-500 uppercase">Speciality</span>
-               <Input value={data.student.speciality} onChange={(v) => handleInputChange('student', 'speciality', v)} className="font-bold" />
+               <Input value={data.student.speciality || ''} onChange={(v) => handleInputChange('student', 'speciality', v)} className="font-bold" />
             </div>
             <div className="col-span-2 p-2 border-b md:border-b-0 border-r border-black border-dotted md:border-solid">
                <span className="block text-[0.6rem] text-gray-500 uppercase">Class</span>
@@ -223,7 +222,7 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
             </div>
             <div className="col-span-2 p-2 border-b md:border-b-0 border-r border-black border-dotted md:border-solid">
                <span className="block text-[0.6rem] text-gray-500 uppercase">Master</span>
-               <Input value={data.student.classMaster} className="font-bold text-[0.65rem]" />
+               <Input value={data.student.classMaster || ''} className="font-bold text-[0.65rem]" />
             </div>
              <div className="col-span-3 md:col-span-3 p-2 flex items-center justify-between bg-black text-white md:bg-transparent md:text-black md:border-none">
                 <span className="text-[0.6rem] uppercase mr-2">Enrolment:</span>
@@ -248,7 +247,7 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
                 </tr>
               </thead>
               <tbody className="text-[0.7rem] font-mono">
-                {Object.entries(data.subjects).map(([key, section], sectionIdx) => (
+                {Object.entries(data.subjects).map(([key, section]) => (
                   <React.Fragment key={key}>
                     {section.items.map((item, idx) => (
                       <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
@@ -265,9 +264,8 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
                         <td className="p-2 border-r border-gray-300 font-medium">{item.name}</td>
                         <td className="p-2 border-r border-gray-300 text-center">{item.eval}</td>
                         <td className="p-2 border-r border-gray-300 text-center">{item.coef}</td>
-                        <td className="p-2 border-r border-gray-300 text-center">{item.total}</td>
-                        <td className={`p-2 border-r border-gray-300 text-center font-bold ${item.grade === 'F' || item.grade === 'U' ? 'text-red-600' : ''}`}>
-                          {item.grade}
+                        <td className={`p-2 ${item.remark?.toLowerCase()?.includes('fail') ? 'text-red-600' : 'text-green-700'}`}>
+                          {item.remark}
                         </td>
                         <td className="p-2 border-r border-gray-300 text-center">{item.rank}</td>
                         <td className={`p-2 ${item.remark.toLowerCase().includes('fail') ? 'text-red-600' : 'text-green-700'}`}>
@@ -307,7 +305,7 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
             <div className="col-span-12 md:col-span-4 flex flex-col gap-4">
               <div className="border border-black bg-white/90 backdrop-blur-sm">
                  <div className="bg-gray-100 p-1 text-center text-[0.65rem] font-bold uppercase border-b border-black">
-                   Student's Evaluation Results
+                   Student&apos;s Evaluation Results
                  </div>
                  <table className="w-full text-[0.7rem] text-center">
                    <thead>
@@ -352,7 +350,6 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
               </div>
             </div>
 
-            {/* Middle Column: Annual Average Circle */}
             <div className="col-span-12 md:col-span-4 flex items-center justify-center py-4 md:py-0">
                <div className="flex gap-4">
                  <div className="w-32 h-32 rounded-full border-4 border-black flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm shadow-lg z-10">
@@ -366,6 +363,7 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
                  </div>
                </div>
             </div>
+
 
             {/* Right Column: Class Stats */}
             <div className="col-span-12 md:col-span-4">

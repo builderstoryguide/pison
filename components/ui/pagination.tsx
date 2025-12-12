@@ -13,6 +13,7 @@ interface PaginationProps {
   onItemsPerPageChange: (itemsPerPage: number) => void
   startIndex: number
   endIndex: number
+  itemLabel?: string
 }
 
 export function Pagination({
@@ -24,6 +25,7 @@ export function Pagination({
   onItemsPerPageChange,
   startIndex,
   endIndex,
+  itemLabel = "items"
 }: PaginationProps) {
   const getVisiblePages = () => {
     const pages = []
@@ -69,7 +71,7 @@ export function Pagination({
           <span className="text-sm text-muted-foreground">per page</span>
         </div>
         <div className="text-sm text-muted-foreground">
-          Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} students
+          Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} {itemLabel}
         </div>
       </div>
 

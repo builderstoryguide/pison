@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Plus, Edit, Trash2, Eye, MoreHorizontal, Calendar, Users, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -12,10 +13,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
+import { useGlobalAcademicYear, useCurrencyFormatter } from "@/lib/app-configuration-context-v2"
 import { EnhancedFeeStructureForm } from "./enhanced-fee-structure-form"
 import { format } from "date-fns"
-import { useCurrencyFormatter } from "@/lib/app-configuration-context-v2"
+import { Pagination } from "@/components/ui/pagination"
 
 interface FeeStructure {
   id: string
@@ -46,6 +47,40 @@ export function EnhancedFeeStructureManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingFeeStructure, setEditingFeeStructure] = useState<FeeStructure | null>(null)
+  
+  // Pagination state
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  // Filter fee structures
+  const filteredFeeStructures = feeStructures.filter((structure) => {
+    const matchesSearch = structure.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         structure.className.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesAcademicYear = academicYearFilter === "all" || structure.academicYear === academicYearFilter
+    const matchesTerm = termFilter === "all" || structure.term === termFilter
+    const matchesStatus = statusFilter === "all" || 
+                         (statusFilter === "active" && structure.isActive) ||
+                         (statusFilter === "inactive" && !structure.isActive)
+
+    return matchesSearch && matchesAcademicYear && matchesTerm && matchesStatus
+  })
+
+  // Reset pagination and selection when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+    setSelectedIds(new Set())
+  }, [searchTerm, academicYearFilter, termFilter, statusFilter])
+
+  // Pagination calculations
+  const totalItems = filteredFeeStructures.length
+  const totalPages = Math.ceil(totalItems / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedFeeStructures = filteredFeeStructures.slice(startIndex, endIndex)
 
   // Generate academic year options dynamically
   const getAcademicYearOptions = () => {
@@ -57,10 +92,6 @@ export function EnhancedFeeStructureManagement() {
     }
     return years
   }
-
-  useEffect(() => {
-    loadFeeStructures()
-  }, [])
 
   const loadFeeStructures = async () => {
     try {
@@ -75,6 +106,7 @@ export function EnhancedFeeStructureManagement() {
         })
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error("Error loading fee structures:", error)
       toastError("Error loading fee structures", {
         description: "Failed to load fee structures"
@@ -84,7 +116,9 @@ export function EnhancedFeeStructureManagement() {
     }
   }
 
-  // Currency formatting is now handled by the centralized utility
+  useEffect(() => {
+    loadFeeStructures()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this fee structure? This action cannot be undone.')) return
@@ -100,17 +134,81 @@ export function EnhancedFeeStructureManagement() {
           description: "Fee structure deleted successfully"
         })
         loadFeeStructures()
+        setSelectedIds(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(id)
+          return newSet
+        })
       } else {
         toastError("Error deleting fee structure", {
           description: result.error || "Failed to delete fee structure"
         })
       }
-    } catch (error) {
+    } catch (_error) {
       toastError("Error deleting fee structure", {
         description: "Failed to delete fee structure"
       })
     }
   }
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Are you sure you want to delete ${selectedIds.size} fee structures? This action cannot be undone.`)) return
+
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/bursar/fee-structures/bulk-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      })
+      const result = await response.json()
+
+      if (result.success) {
+        toastSuccess("Fee structures deleted", {
+          description: result.deletedCount ? `${result.deletedCount} fee structures deleted successfully` : "Fee structures deleted successfully"
+        })
+        loadFeeStructures()
+        setSelectedIds(new Set())
+      } else {
+        toastError("Error deleting fee structures", {
+          description: result.error || "Failed to delete fee structures"
+        })
+      }
+    } catch (error) {
+      console.error("Error bulk deleting fee structures:", error)
+      toastError("Error deleting fee structures", {
+        description: "Failed to delete fee structures"
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds)
+    if (newSelected.has(id)) {
+      newSelected.delete(id)
+    } else {
+      newSelected.add(id)
+    }
+    setSelectedIds(newSelected)
+  }
+
+  const toggleAll = (checked: boolean) => {
+    if (checked) {
+      const newSelected = new Set(selectedIds)
+      paginatedFeeStructures.forEach(fs => newSelected.add(fs.id))
+      setSelectedIds(newSelected)
+    } else {
+      const newSelected = new Set(selectedIds)
+      paginatedFeeStructures.forEach(fs => newSelected.delete(fs.id))
+      setSelectedIds(newSelected)
+    }
+  }
+
+  const isAllPaginatedSelected = paginatedFeeStructures.length > 0 && paginatedFeeStructures.every(fs => selectedIds.has(fs.id))
 
   const handleFormSuccess = (_feeStructureId: string) => {
     setShowCreateForm(false)
@@ -131,18 +229,7 @@ export function EnhancedFeeStructureManagement() {
     setShowCreateForm(true)
   }
 
-  // Filter fee structures
-  const filteredFeeStructures = feeStructures.filter((structure) => {
-    const matchesSearch = structure.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         structure.className.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesAcademicYear = academicYearFilter === "all" || structure.academicYear === academicYearFilter
-    const matchesTerm = termFilter === "all" || structure.term === termFilter
-    const matchesStatus = statusFilter === "all" || 
-                         (statusFilter === "active" && structure.isActive) ||
-                         (statusFilter === "inactive" && !structure.isActive)
 
-    return matchesSearch && matchesAcademicYear && matchesTerm && matchesStatus
-  })
 
   // Calculate statistics
   const totalFeeStructures = feeStructures.length
@@ -164,10 +251,18 @@ export function EnhancedFeeStructureManagement() {
             Create and manage fee structures for multiple classes with installment support
           </p>
         </div>
-        <Button onClick={() => setShowCreateForm(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Fee Structure
-        </Button>
+        <div className="flex gap-2">
+          {selectedIds.size > 0 && (
+            <Button variant="destructive" onClick={handleBulkDelete}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Selected ({selectedIds.size})
+            </Button>
+          )}
+          <Button onClick={() => setShowCreateForm(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Fee Structure
+          </Button>
+        </div>
       </div>
 
       {/* Statistics Cards */}
@@ -297,6 +392,13 @@ export function EnhancedFeeStructureManagement() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox 
+                    checked={isAllPaginatedSelected}
+                    onCheckedChange={(checked) => toggleAll(!!checked)}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Class</TableHead>
                 <TableHead>Academic Year</TableHead>
@@ -310,7 +412,7 @@ export function EnhancedFeeStructureManagement() {
             <TableBody>
               {filteredFeeStructures.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={9} className="text-center py-8">
                     <div className="text-muted-foreground">
                       {searchTerm || academicYearFilter !== "all" || termFilter !== "all" || statusFilter !== "all"
                         ? "No fee structures match your filters"
@@ -319,8 +421,15 @@ export function EnhancedFeeStructureManagement() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredFeeStructures.map((feeStructure) => (
+                paginatedFeeStructures.map((feeStructure) => (
                   <TableRow key={feeStructure.id}>
+                    <TableCell>
+                      <Checkbox 
+                        checked={selectedIds.has(feeStructure.id)}
+                        onCheckedChange={() => toggleSelection(feeStructure.id)}
+                        aria-label={`Select ${feeStructure.name}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium">{feeStructure.name}</p>
@@ -391,6 +500,21 @@ export function EnhancedFeeStructureManagement() {
           </Table>
         </CardContent>
       </Card>
+      
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+        onItemsPerPageChange={(newPerPage) => {
+          setItemsPerPage(newPerPage)
+          setCurrentPage(1)
+        }}
+        startIndex={startIndex}
+        endIndex={endIndex}
+        itemLabel="fee structures"
+      />
 
       {/* Create/Edit Dialog */}
       <Dialog open={showCreateForm} onOpenChange={setShowCreateForm}>
