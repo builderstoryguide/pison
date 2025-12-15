@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 // import { apiCall } from "@/lib/utils/api-client"
+import { useSequenceConfiguration } from "@/hooks/use-sequence-configuration"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -91,15 +92,37 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
   const [loadingClasses, setLoadingClasses] = useState(false)
   const [selectedSubjectCoefficient, setSelectedSubjectCoefficient] = useState<number>(1.0)
   
-  // Static examination sequences
-  const examinationSequences = [
-    { id: '1st-sequence', name: '1st Sequence' },
-    { id: '2nd-sequence', name: '2nd Sequence' },
-    { id: '3rd-sequence', name: '3rd Sequence' },
-    { id: '4th-sequence', name: '4th Sequence' },
-    { id: '5th-sequence', name: '5th Sequence' },
-    { id: '6th-sequence', name: '6th Sequence' }
-  ]
+  const [selectedTerm, setSelectedTerm] = useState<string>("")
+  
+  // Dynamic sequences handling
+  const [currentAcademicYear, setCurrentAcademicYear] = useState<string>(new Date().getFullYear().toString() + "-" + (new Date().getFullYear() + 1).toString())
+
+  // Fetch sequence configuration
+  const { data: sequenceConfig } = useSequenceConfiguration(currentAcademicYear)
+
+  // Derived state for terms and filtered sequences
+  const terms = sequenceConfig?.sequences 
+    ? Array.from(new Set(sequenceConfig.sequences.map(s => s.term))).sort() 
+    : []
+
+  const filteredSequences = sequenceConfig?.sequences
+    .filter(s => s.is_active && (!selectedTerm || s.term === selectedTerm))
+    .sort((a, b) => a.sequence_number - b.sequence_number) || []
+
+  // Update academic year when class changes
+  useEffect(() => {
+    if (selectedClass) {
+      const cls = classes.find(c => c.id.toString() === selectedClass)
+      if (cls?.academicYear) {
+        setCurrentAcademicYear(cls.academicYear)
+      }
+    }
+  }, [selectedClass, classes])
+
+  // Reset exam when term changes
+  useEffect(() => {
+    setSelectedExam("")
+  }, [selectedTerm])
 
   // Auto-select class if pre-selected from dashboard
   useEffect(() => {
@@ -271,8 +294,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
 
       try {
         setLoadingSubjects(true)
-        const response = await fetch(`/api/classes/${selectedClass}/subjects`)
-        
+        const response = await fetch(`/api/classes/${selectedClass}/subjects${user?.id ? `?teacherId=${user.id}` : ''}`)        
         // Check if response is ok before parsing JSON
         if (!response.ok) {
           // Try to parse JSON, but handle HTML responses
@@ -400,7 +422,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
     }
 
     fetchSubjects()
-  }, [selectedClass, classes, toast])
+  }, [selectedClass, classes, toast, user?.id])
 
   // Helper function to calculate grade based on mark (0-20)
   const calculateGrade = (mark: number): string => {
@@ -659,10 +681,10 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
   }
 
   const handleSubmit = async () => {
-    if (!selectedClass || !selectedSubject || !selectedExam) {
+    if (!selectedClass || !selectedSubject || !selectedTerm || !selectedExam) {
       toast({
         title: "Validation Error",
-        description: "Please select class, subject, and examination",
+        description: "Please select class, subject, term and examination",
         variant: "destructive"
       })
       return
@@ -704,7 +726,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
       if (currentSubject?.type === 'branch') {
         // Handle Branch Grades
         const academicYear = currentClass?.academicYear || new Date().getFullYear().toString()
-        const term = examinationSequences.find(e => e.id === selectedExam)?.name || selectedExam
+        const term = selectedTerm
         
         // Search for existing assessment
         const searchParams = new URLSearchParams({
@@ -736,7 +758,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
               class_id: selectedClass,
               title: `${term} Exam`,
               type: 'exam',
-              total_marks: currentSubject.maxMarks || 10,
+              total_marks: currentSubject.maxMarks || 20,
               academic_year: academicYear,
               term: term,
               assessment_date: new Date().toISOString()
@@ -783,7 +805,8 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
           body: JSON.stringify({
             classId: selectedClass,
             subjectId: selectedSubject,
-            examinationName: examinationSequences.find(e => e.id === selectedExam)?.name || selectedExam,
+            term: selectedTerm,
+            examinationName: selectedExam, // This now contains the sequence name directly
             teacherId: user?.id,
             grades: gradesToSubmit.map(entry => {
               const markValue = typeof entry.mark === 'number' ? entry.mark : parseFloat(entry.mark as string)
@@ -924,6 +947,26 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
                 </SelectContent>
               </Select>
             </div>
+            {/* Term Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="term">Term</Label>
+              <Select 
+                value={selectedTerm} 
+                onValueChange={setSelectedTerm}
+                disabled={!selectedClass}
+              >
+                <SelectTrigger id="term">
+                  <SelectValue placeholder="Select a term" />
+                </SelectTrigger>
+                <SelectContent>
+                  {terms.map((term, index) => (
+                    <SelectItem key={`term-${index}`} value={term}>
+                      {term}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Examination Selection */}
             <div className="space-y-2">
@@ -931,15 +974,23 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
               <Select 
                 value={selectedExam} 
                 onValueChange={setSelectedExam}
-                disabled={!selectedClass}
+                disabled={!selectedTerm}
               >
                 <SelectTrigger id="exam">
-                  <SelectValue placeholder="Select an examination" />
+                  <SelectValue 
+                    placeholder={
+                      !selectedTerm 
+                        ? "Select a term first" 
+                        : filteredSequences.length === 0 
+                        ? "No examinations found" 
+                        : "Select an examination"
+                    } 
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {examinationSequences.map((exam, index) => (
-                    <SelectItem key={`exam-${exam.id}-${index}`} value={exam.id}>
-                      {exam.name}
+                  {filteredSequences.map((seq) => (
+                    <SelectItem key={seq.id} value={seq.sequence_name}>
+                      {seq.sequence_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -947,7 +998,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
             </div>
           </div>
 
-          {selectedClass && selectedSubject && selectedExam && (
+          {selectedClass && selectedSubject && selectedTerm && selectedExam && (
             <Alert>
               <CheckCircle2 className="h-4 w-4" />
               <AlertDescription>
@@ -956,9 +1007,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
                   {availableSubjects.find(s => s.id.toString() === selectedSubject)?.name}
                 </strong>
                 {" "}for{" "}
-                <strong>
-                  {examinationSequences.find(e => e.id === selectedExam)?.name}
-                </strong>
+                  <strong>{selectedTerm} - {selectedExam}</strong>
               </AlertDescription>
             </Alert>
           )}
@@ -966,7 +1015,7 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
       </Card>
 
       {/* Grades Entry Table */}
-      {selectedClass && selectedSubject && selectedExam && (
+      {selectedClass && selectedSubject && selectedTerm && selectedExam && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">

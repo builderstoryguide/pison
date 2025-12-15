@@ -16,12 +16,29 @@ import {
   BarChart3,
   PieChart,
   FileText,
-  Target
+  Target,
+  ClipboardList
 } from "lucide-react"
 
-export function AcademicReports() {
+interface AcademicReportsProps {
+  onNavigate?: (view: string) => void
+}
+
+export function AcademicReports({ onNavigate }: AcademicReportsProps = {}) {
   const [selectedPeriod, setSelectedPeriod] = useState("current-term")
   const [selectedClass, setSelectedClass] = useState("all")
+
+  const handleNavigateToMarksTracking = () => {
+    if (onNavigate) {
+      onNavigate("marks-tracking")
+    } else {
+      // Fallback: use localStorage and reload
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('adminCurrentView', 'marks-tracking')
+        window.location.reload()
+      }
+    }
+  }
 
   const reportSections = [
     {
@@ -92,6 +109,20 @@ export function AcademicReports() {
         passRate: 89.2,
         change: 3.5,
         period: "vs last term"
+      }
+    },
+    {
+      id: "marks-tracking",
+      title: "Marks Entry Tracking",
+      description: "Track marks entry status across teachers, subjects, and classes",
+      icon: ClipboardList,
+      color: "text-indigo-600",
+      bgColor: "bg-indigo-50",
+      stats: {
+        totalTeachers: 0,
+        teachersFilled: 0,
+        change: 0,
+        period: "current term"
       }
     }
   ]
@@ -214,19 +245,27 @@ export function AcademicReports() {
                         size="sm" 
                         variant="outline" 
                         className="flex-1"
-                        onClick={() => generateReport(section.id)}
+                        onClick={() => {
+                          if (section.id === "marks-tracking") {
+                            handleNavigateToMarksTracking()
+                          } else {
+                            generateReport(section.id)
+                          }
+                        }}
                       >
                         <BarChart3 className="h-4 w-4 mr-2" />
-                        View Report
+                        {section.id === "marks-tracking" ? "View Tracking" : "View Report"}
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => generateReport(section.id)}
-                        aria-label={`Export report for ${section.title}`}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
+                      {section.id !== "marks-tracking" && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => generateReport(section.id)}
+                          aria-label={`Export report for ${section.title}`}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>

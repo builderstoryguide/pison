@@ -17,42 +17,44 @@ import { useGradableItems } from "@/hooks/use-gradable-items"
 import { useGradeEntry } from "@/hooks/use-grade-entry"
 import { GradeEntryFilters } from "./grades/grade-entry-filters"
 import { StudentGradesTable } from "./grades/student-grades-table"
+import { SequenceNavigator } from "./grades/sequence-navigator"
 import { useTeacherAssignments } from "@/hooks/use-teacher-assignments"
 import { useClassStudents } from "@/hooks/use-class-students"
-
-interface ClassAssignment {
-  id: number
-  name: string
-  code: string
-  subjects: unknown[]
-  academicYear?: string
-  [key: string]: unknown
-}
+import { useClassSubjectStatus } from "@/hooks/use-grade-entry-status"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { CheckCircle2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
+import { useSequenceConfiguration, type Sequence } from "@/hooks/use-sequence-configuration"
 
 interface TeacherGradesEntryRefactoredProps {
   preSelectedClassId?: string
   preSelectedSubjectId?: string
 }
 
-// Static examination sequences
-const EXAMINATION_SEQUENCES = [
-  { id: '1st-sequence', name: '1st Sequence' },
-  { id: '2nd-sequence', name: '2nd Sequence' },
-  { id: '3rd-sequence', name: '3rd Sequence' },
-  { id: '4th-sequence', name: '4th Sequence' },
-  { id: '5th-sequence', name: '5th Sequence' },
-  { id: '6th-sequence', name: '6th Sequence' }
+// Fallback sequences if API fails
+const FALLBACK_SEQUENCES = [
+  { id: '1st-sequence', name: '1st Sequence', sequence_number: 1 },
+  { id: '2nd-sequence', name: '2nd Sequence', sequence_number: 2 },
+  { id: '3rd-sequence', name: '3rd Sequence', sequence_number: 3 },
+  { id: '4th-sequence', name: '4th Sequence', sequence_number: 4 },
+  { id: '5th-sequence', name: '5th Sequence', sequence_number: 5 },
+  { id: '6th-sequence', name: '6th Sequence', sequence_number: 6 }
 ]
 
 export function TeacherGradesEntryRefactored({ preSelectedClassId, preSelectedSubjectId }: TeacherGradesEntryRefactoredProps = {}) {
   const { user } = useAuth()
   const { toast } = useToast()
+  const globalAcademicYear = useGlobalAcademicYear()
 
   // State
   const [selectedClass, setSelectedClass] = useState<string>("")
   const [selectedSubject, setSelectedSubject] = useState<string>("")
+  const [selectedTerm, setSelectedTerm] = useState<string>("")
   const [selectedExam, setSelectedExam] = useState<string>("")
   const [submitting, setSubmitting] = useState(false)
+  const [saveAndContinue, setSaveAndContinue] = useState(false)
 
   // React Query Hooks
   const { 
@@ -85,6 +87,61 @@ export function TeacherGradesEntryRefactored({ preSelectedClassId, preSelectedSu
     getGradesForSubmission
   } = useGradeEntry(students, coefficient, maxMarks)
 
+  const currentClass = classes.find(c => c.id.toString() === selectedClass)
+  const academicYear = currentClass?.academicYear || globalAcademicYear
+
+  // Fetch sequence configuration
+  const { data: sequenceConfig } = useSequenceConfiguration(academicYear)
+
+  // Derived state for terms and filtered sequences
+  const terms = sequenceConfig?.sequences 
+    ? Array.from(new Set(sequenceConfig.sequences.map(s => s.term))).sort() 
+    : []
+
+  // Filter sequences based on selected term
+  const filteredSequences = sequenceConfig?.sequences
+    ? sequenceConfig.sequences
+        .filter(s => s.is_active && (!selectedTerm || s.term === selectedTerm))
+        .sort((a, b) => a.sequence_number - b.sequence_number)
+    : FALLBACK_SEQUENCES
+
+  // Unify sequence types (API vs Fallback)
+  const examinationSequences = filteredSequences.map(s => {
+    const seq = s as (Sequence & { name?: string })
+    return {
+      ...s,
+      name: seq.name || seq.sequence_name || `Sequence ${s.sequence_number}`
+    }
+  })
+
+  // Reset exam when term changes
+  useEffect(() => {
+    setSelectedExam("")
+  }, [selectedTerm, setSelectedExam])
+
+  // Get sequence status for current class/subject
+  const { sequences: sequenceStatuses, classSubjectStatus } = useClassSubjectStatus(
+    selectedClass,
+    selectedSubject,
+    { enabled: !!selectedClass && !!selectedSubject }
+  )
+
+  // Map sequences with status
+  const sequencesWithStatus = examinationSequences.map(seq => {
+    const status = sequenceStatuses.find(s => 
+      s.sequenceId === seq.id || 
+      s.sequenceName === seq.name ||
+      s.sequenceNumber === seq.sequence_number
+    )
+    return {
+      ...seq,
+      isCompleted: status?.isCompleted || false,
+      completedDate: status?.completedDate,
+      studentCount: status?.studentCount || students.length,
+      enteredCount: status?.enteredCount || 0
+    }
+  })
+
   // Auto-select subject if pre-selected
   useEffect(() => {
     if (preSelectedSubjectId && gradableItems.length > 0) {
@@ -104,10 +161,10 @@ export function TeacherGradesEntryRefactored({ preSelectedClassId, preSelectedSu
 
   // Handle submission
   const handleSubmit = async () => {
-    if (!selectedClass || !selectedSubject || !selectedExam) {
+    if (!selectedClass || !selectedSubject || !selectedTerm || !selectedExam) {
       toast({
         title: "Validation Error",
-        description: "Please select class, subject, and examination",
+        description: "Please select class, subject, term and examination",
         variant: "destructive"
       })
       return
@@ -141,8 +198,9 @@ export function TeacherGradesEntryRefactored({ preSelectedClassId, preSelectedSu
 
       if (selectedItem?.type === 'branch') {
         // Handle Branch Grades
-        const academicYear = currentClass?.academicYear || new Date().getFullYear().toString()
-        const term = EXAMINATION_SEQUENCES.find(e => e.id === selectedExam)?.name || selectedExam
+        const academicYear = currentClass?.academicYear || globalAcademicYear
+        const term = selectedTerm
+        const sequenceName = examinationSequences.find(e => e.id === selectedExam)?.name || selectedExam // fallback if needed
 
         // Search for existing assessment
         const searchParams = new URLSearchParams({
@@ -172,7 +230,7 @@ export function TeacherGradesEntryRefactored({ preSelectedClassId, preSelectedSu
               branch_id: selectedSubject,
               teacher_id: user?.id,
               class_id: selectedClass,
-              title: `${term} Exam`,
+              title: `${sequenceName}`,
               type: 'exam',
               total_marks: maxMarks,
               academic_year: academicYear,
@@ -218,7 +276,8 @@ export function TeacherGradesEntryRefactored({ preSelectedClassId, preSelectedSu
           body: JSON.stringify({
             classId: selectedClass,
             subjectId: selectedSubject,
-            examinationName: EXAMINATION_SEQUENCES.find(e => e.id === selectedExam)?.name || selectedExam,
+            term: selectedTerm,
+            examinationName: examinationSequences.find(e => e.id === selectedExam)?.name || selectedExam,
             teacherId: user?.id,
             grades: gradesToSubmit.map(entry => {
               const markValue = typeof entry.mark === 'number' ? entry.mark : parseFloat(entry.mark as string)
@@ -247,6 +306,29 @@ export function TeacherGradesEntryRefactored({ preSelectedClassId, preSelectedSu
       })
 
       clearAll()
+
+      // Auto-advance to next pending sequence if enabled
+      if (saveAndContinue) {
+        const currentIndex = sequencesWithStatus.findIndex(s => s.id === selectedExam)
+        const nextPending = sequencesWithStatus.find((s, idx) => idx > currentIndex && !s.isCompleted)
+        
+        if (nextPending) {
+          setTimeout(() => {
+            setSelectedExam(nextPending.id)
+            toast({
+              title: "Moved to next sequence",
+              description: `Now entering grades for ${nextPending.name}`
+            })
+          }, 500)
+        } else {
+          toast({
+            title: "All sequences complete",
+            description: "You've completed all sequences for this class and subject"
+          })
+        }
+      }
+
+      setSaveAndContinue(false)
     } catch (error) {
       toast({
         title: "Error",
@@ -277,7 +359,7 @@ export function TeacherGradesEntryRefactored({ preSelectedClassId, preSelectedSu
       <GradeEntryFilters
         classes={classes}
         gradableItems={gradableItems}
-        examinationSequences={EXAMINATION_SEQUENCES}
+        examinationSequences={examinationSequences.map(s => ({ id: s.id, name: s.name }))}
         selectedClass={selectedClass}
         selectedSubject={selectedSubject}
         selectedExam={selectedExam}
@@ -288,23 +370,103 @@ export function TeacherGradesEntryRefactored({ preSelectedClassId, preSelectedSu
         loadingSubjects={loadingSubjects}
         preSelectedClassId={preSelectedClassId}
         preSelectedSubjectId={preSelectedSubjectId}
+        // New props for Term selection
+        terms={terms}
+        selectedTerm={selectedTerm}
+        onTermChange={setSelectedTerm}
       />
+
+      {/* Sequence Navigator */}
+      {selectedClass && selectedSubject && sequencesWithStatus.length > 0 && (
+        <Card className="p-4">
+            <SequenceNavigator
+            sequences={sequencesWithStatus.map(s => ({
+              ...s,
+              sequenceId: s.id,
+              sequenceName: s.name,
+              sequenceNumber: s.sequence_number
+            }))}
+            currentSequenceId={selectedExam}
+            onSequenceSelect={setSelectedExam}
+            showProgress={true}
+          />
+        </Card>
+      )}
+
+      {/* Completion Checklist Sidebar */}
+      {selectedClass && selectedSubject && classSubjectStatus && (
+        <Card className="p-4">
+          <div className="space-y-2">
+            <h3 className="font-medium text-sm">Completion Status</h3>
+            <div className="space-y-1">
+              {sequencesWithStatus.map((seq) => (
+                <div
+                  key={seq.id}
+                  className={`flex items-center gap-2 text-sm p-2 rounded ${
+                    seq.isCompleted ? 'bg-green-50 dark:bg-green-950' : 'bg-muted/50'
+                  }`}
+                >
+                  {seq.isCompleted ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <div className="h-4 w-4 rounded-full border-2 border-muted-foreground" />
+                  )}
+                  <span className={seq.isCompleted ? 'line-through text-muted-foreground' : ''}>
+                    {seq.name}
+                  </span>
+                  {seq.id === selectedExam && (
+                    <Badge variant="outline" className="ml-auto text-xs">Current</Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Grades Table */}
       {selectedClass && selectedSubject && selectedExam && (
-        <StudentGradesTable
-          students={students}
-          grades={grades}
-          maxMarks={maxMarks}
-          coefficient={coefficient}
-          enteredCount={enteredCount}
-          onMarkChange={updateGrade}
-          onRemarksChange={updateRemarks}
-          onClearAll={clearAll}
-          onSubmit={handleSubmit}
-          isSubmitting={submitting}
-          isLoading={loadingStudents}
-        />
+        <div className="space-y-4">
+          <StudentGradesTable
+            students={students}
+            grades={grades}
+            maxMarks={maxMarks}
+            coefficient={coefficient}
+            enteredCount={enteredCount}
+            onMarkChange={updateGrade}
+            onRemarksChange={updateRemarks}
+            onClearAll={clearAll}
+            onSubmit={() => {
+              setSaveAndContinue(false)
+              handleSubmit()
+            }}
+            isSubmitting={submitting}
+            isLoading={loadingStudents}
+          />
+          
+          {/* Additional Action Buttons */}
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSaveAndContinue(false)
+                handleSubmit()
+              }}
+              disabled={submitting}
+            >
+              Save Grades
+            </Button>
+            <Button
+              onClick={() => {
+                setSaveAndContinue(true)
+                handleSubmit()
+              }}
+              disabled={submitting}
+            >
+              {submitting ? "Saving..." : "Save and Continue to Next Sequence"}
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   )

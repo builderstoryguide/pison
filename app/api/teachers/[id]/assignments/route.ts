@@ -300,6 +300,115 @@ export async function GET(
     // RESPONSE GENERATION
 
     if (summaryOnly) {
+      // Even in summary mode, we need basic subject and student count info for the dashboard
+      const classIds = paginatedClasses.map(cls => cls.id).filter(Boolean)
+      
+      // Quick fetch for student counts and subjects
+      const [studentCountsResult, classSubjectsResult] = await Promise.all([
+        // Get student counts per class
+        classIds.length > 0 ? supabase
+          .from('class_students')
+          .select('class_id')
+          .in('class_id', classIds) : Promise.resolve({ data: [], error: null }),
+        // Get subjects per class via teacher assignments
+        classIds.length > 0 && teacherRecordId ? supabase
+          .from('teacher_branch_assignments')
+          .select(`
+            class_id,
+            subject_branches (id, branch_name, branch_code, subject_id, subjects (id, name, code, coefficient))
+          `)
+          .eq('teacher_id', teacherRecordId)
+          .in('class_id', classIds) : Promise.resolve({ data: [], error: null })
+      ])
+
+      // Count students per class
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const studentCounts = new Map<string, number>()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(studentCountsResult.data || []).forEach((item: any) => {
+        const classId = item.class_id
+        studentCounts.set(classId, (studentCounts.get(classId) || 0) + 1)
+      })
+
+      // Also try students table as fallback
+      if (classIds.length > 0) {
+        const { data: studentsData } = await supabase
+          .from('students')
+          .select('class_id, class')
+          .in('class_id', classIds)
+          .eq('status', 'active')
+        
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(studentsData || []).forEach((student: any) => {
+          const classId = student.class_id || student.class
+          if (classId) {
+            studentCounts.set(classId, (studentCounts.get(classId) || 0) + 1)
+          }
+        })
+      }
+
+      // Map subjects per class
+      const subjectsByClass = new Map<string, any[]>()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(classSubjectsResult.data || []).forEach((assignment: any) => {
+        const classId = assignment.class_id
+        if (!classId) return
+        
+        // Handle both array and single object cases
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let subjectData: any = null
+        if (Array.isArray(assignment.subject_branches)) {
+          subjectData = assignment.subject_branches[0]?.subjects
+        } else if (assignment.subject_branches) {
+          subjectData = assignment.subject_branches.subjects
+        }
+        
+        if (subjectData && subjectData.id) {
+          if (!subjectsByClass.has(classId)) {
+            subjectsByClass.set(classId, [])
+          }
+          const existing = subjectsByClass.get(classId) || []
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (!existing.some((s: any) => s.id === subjectData.id)) {
+            existing.push({
+              id: subjectData.id,
+              name: subjectData.name || subjectData.subject_name || 'Unknown',
+              code: subjectData.code || subjectData.subject_code || 'N/A',
+              coefficient: subjectData.coefficient || 1,
+            })
+            subjectsByClass.set(classId, existing)
+          }
+        }
+      })
+      
+      // Fallback: also check class_subjects if no assignments found
+      if (subjectsByClass.size === 0 && classIds.length > 0) {
+        const { data: fallbackSubjects } = await supabase
+          .from('class_subjects')
+          .select(`class_id, subjects (id, name, code, coefficient)`)
+          .in('class_id', classIds)
+        
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(fallbackSubjects || []).forEach((cs: any) => {
+          if (cs.class_id && cs.subjects) {
+            if (!subjectsByClass.has(cs.class_id)) {
+              subjectsByClass.set(cs.class_id, [])
+            }
+            const existing = subjectsByClass.get(cs.class_id) || []
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if (!existing.some((s: any) => s.id === cs.subjects.id)) {
+              existing.push({
+                id: cs.subjects.id,
+                name: cs.subjects.name,
+                code: cs.subjects.code,
+                coefficient: cs.subjects.coefficient || 1,
+              })
+              subjectsByClass.set(cs.class_id, existing)
+            }
+          }
+        })
+      }
+
       return NextResponse.json({
         ok: true,
         teacher: { id: user.id, name: user.name },
@@ -323,6 +432,8 @@ export async function GET(
           academicYear: cls.academicYear || '',
           capacity: cls.capacity || 0,
           currentEnrollment: cls.currentEnrollment || 0,
+          studentCount: studentCounts.get(cls.id) || cls.currentEnrollment || 0,
+          subjects: subjectsByClass.get(cls.id) || [],
           assignmentType: cls.assignmentType || 'subject_teacher',
           status: cls.status || 'active',
         })),

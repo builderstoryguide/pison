@@ -1,0 +1,90 @@
+Checking subjects...
+Class 'AC 1' ID: a6a68a6e-6b4a-4960-b505-ecb9b80a50dc
+Found 16 subjects:
+- Manual Labour (LB) (Code: null, ID: 19ebf6d9-597b-4277-9742-f360439e04e6, Coef: 1)
+- ACCOUNTING (Code: null, ID: 1eec7e42-cadd-4378-9ba2-aac192560572, Coef: 2)
+- Computer Science (CSC) (Code: 0595, ID: 28361f32-5963-4202-9903-126f4b3d25aa, Coef: 2)
+- Citizenship (CTZ) (Code: 0562, ID: 5e3cad3c-340b-4a68-9b86-2c33acf22c8b, Coef: 2)
+- Physical Education (PE) (Code: null, ID: 8676e9f9-ff52-45d1-a3d3-712bb0f0ce5c, Coef: 1)
+- French Language (Code: 0545, ID: 901b5e76-9b78-4822-b992-a41b341bfe24, Coef: 4)
+- Computer Aided Management (CAM) (Code: null, ID: b1daf2e6-413e-48a5-93b2-9f907b752fbb, Coef: 2)
+- Computer Aided Management (CAM) (Code: null, ID: b1daf2e6-413e-48a5-93b2-9f907b752fbb, Coef: 2)
+- MATHEMATICS (Code: 5440, ID: b9c6ffc7-35d7-424a-a1ad-8d21b94a30ef, Coef: 4)
+- OHADA Finance Reporting (OFR) (Code: 5010, ID: c7e54954-f358-4180-a07f-d0185576617e, Coef: 5)
+- OFFICE PRACTICE (Code: 5090, ID: d14f8f9c-8282-41a4-95f1-9f489219fb1d, Coef: 2)
+- Business Mathematics (Code: 5020, ID: d2ad10f0-615a-4950-b6c6-eccf8ad17397, Coef: 2)
+- ENGLISH LANGUAGE (ENG LAN) (Code: 0530, ID: efda8b7d-1e9e-4165-8f84-1ddd593a4042, Coef: 4)
+- Introduction to Marketing (Code: null, ID: f1b81ab1-0565-4d7e-94d2-2c178052e464, Coef: 2)
+- Introduction to Marketing (Code: null, ID: f1b81ab1-0565-4d7e-94d2-2c178052e464, Coef: 2)
+- Entrepreneurship (Code: 5055, ID: fb386d69-c3c9-43c9-8c5c-6ac50c02a51b, Coef: 2)
+RESULT: Mathematics IS assigned.
+Found Student ID: 330453b6-a558-4c99-ae03-580e96eb043f
+Fetching report from: http://localhost:3000/api/admin/reports/student-report?studentId=330453b6-a558-4c99-ae03-580e96eb043f&classId=a6a68a6e-6b4a-4960-b505-ecb9b80a50dc&academicTermId=first
+DEBUG INFO:
+{
+  "classId": "a6a68a6e-6b4a-4960-b505-ecb9b80a50dc",
+  "totalClassSubjects": 16,
+  "subjectsFound": [
+    "Manual Labour (LB)",
+    "ACCOUNTING",
+    "Computer Science (CSC)",
+    "Citizenship (CTZ)",
+    "Physical Education (PE)",
+    "French Language",
+    "Computer Aided Management (CAM)",
+    "MATHEMATICS",
+    "OHADA Finance Reporting (OFR)",
+    "OFFICE PRACTICE",
+    "Business Mathematics",
+    "ENGLISH LANGUAGE (ENG LAN)",
+    "Introduction to Marketing",
+    "Entrepreneurship"
+  ],
+  "processedSubjects": [
+    "Manual Labour (LB)",
+    "ACCOUNTING",
+    "Computer Science (CSC)",
+    "Citizenship (CTZ)",
+    "Physical Education (PE)",
+    "French Language",
+    "Computer Aided Management (CAM)",
+    "MATHEMATICS",
+    "OHADA Finance Reporting (OFR)",
+    "OFFICE PRACTICE",
+    "Business Mathematics",
+    "ENGLISH LANGUAGE (ENG LAN)",
+    "Introduction to Marketing",
+    "Entrepreneurship"
+  ],
+  "mathFoundInClassSubjects": true
+}
+Subjects found by API:
+- Manual Labour (LB)
+- ACCOUNTING
+- Computer Science (CSC)
+- Citizenship (CTZ)
+- Physical Education (PE)
+- French Language
+- Computer Aided Management (CAM)
+- MATHEMATICS
+- OHADA Finance Reporting (OFR)
+- OFFICE PRACTICE
+- Business Mathematics
+- ENGLISH LANGUAGE (ENG LAN)
+- Introduction to Marketing
+- Entrepreneurship
+Processed subjects:
+- Manual Labour (LB)
+- ACCOUNTING
+- Computer Science (CSC)
+- Citizenship (CTZ)
+- Physical Education (PE)
+- French Language
+- Computer Aided Management (CAM)
+- MATHEMATICS
+- OHADA Finance Reporting (OFR)
+- OFFICE PRACTICE
+- Business Mathematics
+- ENGLISH LANGUAGE (ENG LAN)
+- Introduction to Marketing
+- Entrepreneurship

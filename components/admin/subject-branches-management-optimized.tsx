@@ -22,6 +22,7 @@ import {
   useDeleteSubjectBranchOptimized
 } from '@/hooks/use-subject-branches-optimized'
 import { useSubjects } from '@/hooks/use-subjects'
+import { useGlobalAcademicYear } from '@/lib/app-configuration-context-v2'
 import { Plus, Edit, Trash2, Users, BookOpen, GraduationCap, Calculator, Loader2 } from 'lucide-react'
 import type { 
   SubjectBranchWithDetails, 
@@ -54,11 +55,14 @@ export default function SubjectBranchesManagementOptimized() {
   const createBranchMutation = useCreateSubjectBranchOptimized()
   const deleteBranchMutation = useDeleteSubjectBranchOptimized()
   
+  // Get global academic year from app configuration
+  const globalAcademicYear = useGlobalAcademicYear()
+  
   // State management
   const [selectedSubject, setSelectedSubject] = useState('all')
   const [selectedBranch, setSelectedBranch] = useState('')
   const [selectedClass, setSelectedClass] = useState('')
-  const [academicYear, setAcademicYear] = useState('2024-2025')
+  const [academicYear, setAcademicYear] = useState(globalAcademicYear)
   const [term, setTerm] = useState('Term 1')
   const [isActive, setIsActive] = useState<boolean | undefined>(undefined)
   
@@ -77,9 +81,15 @@ export default function SubjectBranchesManagementOptimized() {
     description: '',
     weight_percentage: 100,
     is_optional: false,
-    academic_year: '2024-2025',
+    academic_year: globalAcademicYear,
     term: 'Term 1'
   })
+  
+  // Sync academic year with global setting
+  useEffect(() => {
+    setAcademicYear(globalAcademicYear)
+    setBranchForm(prev => ({ ...prev, academic_year: globalAcademicYear }))
+  }, [globalAcademicYear])
 
   // Use optimized query with pagination
   const branchesQuery = useSubjectBranchesOptimized({

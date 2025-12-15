@@ -1,6 +1,61 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createErrorResponse, createSuccessResponse, logApiError, handleSupabaseError } from '@/lib/api/error-handler'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+/**
+ * Helper function to get a student's class ID from multiple sources
+ * Checks in order: class_students junction table, students.class_id, students.class
+ * @param supabase - Supabase client instance
+ * @param studentId - The student's UUID
+ * @returns The class ID (UUID) if found, null otherwise
+ */
+async function getStudentClassId(supabase: SupabaseClient, studentId: string): Promise<string | null> {
+  // Check class_students junction table first (most reliable)
+  const { data: classStudent, error: junctionError } = await supabase
+    .from('class_students')
+    .select('class_id')
+    .eq('student_id', studentId)
+    .maybeSingle()
+
+  if (!junctionError && classStudent?.class_id) {
+    return classStudent.class_id
+  }
+
+  // Fall back to students.class_id if it's a valid UUID
+  const { data: student, error: studentError } = await supabase
+    .from('students')
+    .select('class_id, class')
+    .eq('id', studentId)
+    .maybeSingle()
+
+  if (studentError) {
+    logApiError('Error fetching student class information', studentError, { studentId })
+    return null
+  }
+
+  if (!student) {
+    return null
+  }
+
+  // Check class_id column if it's a valid UUID
+  if (student.class_id) {
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(student.class_id)
+    if (isUUID) {
+      return student.class_id
+    }
+  }
+
+  // Fall back to class column if it's a valid UUID
+  if (student.class) {
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(student.class)
+    if (isUUID) {
+      return student.class
+    }
+  }
+
+  return null
+}
 
 export async function GET(request: NextRequest) {
   const requestUrl = request.url
@@ -340,6 +395,77 @@ export async function POST(request: NextRequest) {
       })
       return createErrorResponse(
         new Error('Fee structure is missing required fields (academic_year, term, or due_date)'),
+        400,
+        { path: requestPath, includeDetails: false }
+      )
+    }
+
+    // Validate that fee structure has a class_id assigned
+    if (!feeStructure.class_id) {
+      logApiError('Fee structure missing class_id', null, {
+        feeStructureId,
+        feeStructureName: feeStructure.name
+      })
+      return createErrorResponse(
+        new Error('Fee structure is not assigned to any class. Please assign the fee structure to a class before assigning it to students.'),
+        400,
+        { path: requestPath, includeDetails: false }
+      )
+    }
+
+    // Get student's class ID
+    const studentClassId = await getStudentClassId(supabase, studentId)
+
+    if (!studentClassId) {
+      logApiError('Student has no class assigned', null, {
+        studentId,
+        feeStructureId
+      })
+      return createErrorResponse(
+        new Error('Student is not assigned to any class. Please assign the student to a class before assigning fees.'),
+        400,
+        { path: requestPath, includeDetails: false }
+      )
+    }
+
+    // Validate that fee structure's class_id matches student's class
+    if (feeStructure.class_id !== studentClassId) {
+      // Get class names for better error message
+      let studentClassName = 'unknown class'
+      let feeStructureClassName = 'unknown class'
+
+      try {
+        const { data: studentClass } = await supabase
+          .from('classes')
+          .select('name')
+          .eq('id', studentClassId)
+          .maybeSingle()
+        if (studentClass?.name) {
+          studentClassName = studentClass.name
+        }
+
+        const { data: feeStructureClass } = await supabase
+          .from('classes')
+          .select('name')
+          .eq('id', feeStructure.class_id)
+          .maybeSingle()
+        if (feeStructureClass?.name) {
+          feeStructureClassName = feeStructureClass.name
+        }
+      } catch (_e) {
+        // Ignore errors getting class names, use default values
+      }
+
+      logApiError('Fee structure class mismatch', null, {
+        studentId,
+        studentClassId,
+        feeStructureId,
+        feeStructureClassId: feeStructure.class_id,
+        studentClassName,
+        feeStructureClassName
+      })
+      return createErrorResponse(
+        new Error(`Fee structure is assigned to "${feeStructureClassName}" but student is in "${studentClassName}". Fees can only be assigned from fee structures that match the student's class.`),
         400,
         { path: requestPath, includeDetails: false }
       )

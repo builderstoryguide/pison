@@ -30,9 +30,15 @@ const ReportGenerationPage = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        `/api/admin/reports/student-report?studentId=${selectedStudent}&classId=${selectedClass}&academicTermId=${selectedTerm}`
-      );
+      const response = await fetch('/api/admin/reports/student-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId: selectedStudent,
+          classId: selectedClass,
+          academicTermId: selectedTerm
+        })
+      });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -69,7 +75,7 @@ const ReportGenerationPage = () => {
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <label className="font-medium">Class</label>
-            <Select onValueChange={setSelectedClass} value={selectedClass}>
+            <Select onValueChange={(value) => { setSelectedClass(value); setSelectedStudent(undefined); }} value={selectedClass}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a class..." />
               </SelectTrigger>

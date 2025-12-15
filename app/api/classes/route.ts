@@ -42,8 +42,76 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    if (!data || data.length === 0) {
+      return NextResponse.json([])
+    }
+
+    // Calculate actual student counts for each class
+    const classIds = data.map(cls => cls.id)
+    const enrollmentCounts = new Map<string, number>()
+
+    // Initialize all counts to 0
+    classIds.forEach(id => enrollmentCounts.set(id, 0))
+
+    // Method 1: Count from students table where class field matches
+    // Fetch all active students with their class assignments
+    let studentsData: any[] = []
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .select('class')
+        .eq('status', 'active')
+        .in('class', classIds)
+      if (!error && data) {
+        studentsData = data
+      }
+    } catch (err: any) {
+      console.error('Error fetching students for enrollment count:', err)
+      // Gracefully handle error - continue with empty array
+    }
+    // Count students per class
+    if (studentsData) {
+      studentsData.forEach((student: any) => {
+        if (student.class && classIds.includes(student.class)) {
+          const currentCount = enrollmentCounts.get(student.class) || 0
+          enrollmentCounts.set(student.class, currentCount + 1)
+        }
+      })
+    }
+
+    // Method 2: Also check class_students junction table and use the higher count
+    let junctionData: any[] = []
+    try {
+      const { data, error } = await supabase
+        .from('class_students')
+        .select('class_id')
+        .in('class_id', classIds)
+      if (!error && data) {
+        junctionData = data
+      }
+    } catch (err: any) {
+      // Gracefully handle error - continue with empty array
+    }
+
+    // Count from junction table and use the maximum
+    if (junctionData) {
+      const junctionCounts = new Map<string, number>()
+      junctionData.forEach((item: any) => {
+        if (item.class_id && classIds.includes(item.class_id)) {
+          const currentCount = junctionCounts.get(item.class_id) || 0
+          junctionCounts.set(item.class_id, currentCount + 1)
+        }
+      })
+
+      // Use the maximum count from either source
+      junctionCounts.forEach((count, classId) => {
+        const currentCount = enrollmentCounts.get(classId) || 0
+        enrollmentCounts.set(classId, Math.max(currentCount, count))
+      })
+    }
+
     // Transform data to match the expected interface
-    const transformedData = data?.map(cls => ({
+    const transformedData = data.map(cls => ({
       id: cls.id,
       name: cls.class_name,
       level: cls.class_level,
@@ -52,10 +120,10 @@ export async function GET(request: NextRequest) {
       academicYear: cls.academic_year,
       status: cls.status,
       capacity: cls.capacity,
-      currentEnrollment: cls.current_enrollment,
+      currentEnrollment: enrollmentCounts.get(cls.id) || 0,
       createdAt: cls.created_at,
       updatedAt: cls.updated_at
-    })) || []
+    }))
 
     return NextResponse.json(transformedData)
   } catch (error) {

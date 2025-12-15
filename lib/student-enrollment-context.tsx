@@ -7,6 +7,9 @@ import { useNotifications } from "./notification-context"
 import { activityLogger } from "./activity-logger"
 import { generateDefaultPassword } from "./password-utils"
 import bcrypt from "bcryptjs"
+// #region agent log
+import { useGlobalAcademicYear } from "./app-configuration-context-v2"
+// #endregion
 
 // Helper function to generate initials from name
 function generateInitials(name: string): string {
@@ -42,6 +45,7 @@ export interface StudentEnrollmentData {
   firstName: string
   lastName: string
   middleName?: string
+  matriculeNumber?: string
   dateOfBirth: string
   gender: string
   placeOfBirth: string
@@ -89,12 +93,22 @@ interface StudentEnrollmentContextType {
 const StudentEnrollmentContext = createContext<StudentEnrollmentContextType | undefined>(undefined)
 
 export function StudentEnrollmentProvider({ children }: { children: React.ReactNode }) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-enrollment-context.tsx:91',message:'StudentEnrollmentProvider entry',data:{hasUseGlobalAcademicYear:typeof useGlobalAcademicYear!=='undefined'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isUsingDatabase, setIsUsingDatabase] = useState(false)
   const [students, setStudents] = useState<any[]>([])
   const [parents, setParents] = useState<any[]>([])
   const { addNotification } = useNotifications()
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-enrollment-context.tsx:98',message:'Before useGlobalAcademicYear call',data:{useGlobalAcademicYearType:typeof useGlobalAcademicYear},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
+  const globalAcademicYear = useGlobalAcademicYear()
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-enrollment-context.tsx:99',message:'After useGlobalAcademicYear call',data:{globalAcademicYear},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 
   // Create a custom event to notify other contexts when a student is enrolled
   const notifyStudentEnrolled = (studentData: any) => {
@@ -249,11 +263,26 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
       }
       
       console.log("Table check successful, proceeding with student insertion...")
+      
+      // Check if matricule number already exists (if provided)
+      if (studentData.matriculeNumber) {
+        const { data: existingMatricule } = await supabase
+          .from("students")
+          .select("id")
+          .eq("matricule_number", studentData.matriculeNumber)
+          .maybeSingle()
+
+        if (existingMatricule) {
+          throw new Error("Matricule Number already exists. Please use a different matricule number.")
+        }
+      }
+      
       // Save to Supabase
       console.log("Attempting to insert student with data:", {
         student_id: studentId,
         first_name: studentData.firstName,
         last_name: studentData.lastName,
+        matricule_number: studentData.matriculeNumber,
         subsystem: studentData.subsystem,
         branch: studentData.branch,
         class: studentData.class
@@ -267,6 +296,7 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
           first_name: studentData.firstName,
           last_name: studentData.lastName,
           middle_name: studentData.middleName,
+          matricule_number: studentData.matriculeNumber,
           email: studentData.email,
           phone: studentData.phone,
           date_of_birth: studentData.dateOfBirth,
@@ -287,7 +317,7 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
           paid_fees: 0,
           fees_status: "pending",
           enrollment_status: "pending",
-          academic_year: "2024-2025",
+          academic_year: globalAcademicYear,
           status: "active",
           enrollment_date: new Date().toISOString().split('T')[0],
         })

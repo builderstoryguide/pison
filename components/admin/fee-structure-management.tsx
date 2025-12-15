@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useClassManagement, ClassData } from '@/lib/class-management-context'
+import { useGlobalAcademicYear } from '@/lib/app-configuration-context-v2'
 import type { 
   FeeStructure, 
   FeeStructureFormData
@@ -124,9 +125,10 @@ interface FeeStructureFormProps {
 }
 
 function FeeStructureForm({ feeStructure, onSave, onCancel, classes, classesLoading }: FeeStructureFormProps) {
+  const globalAcademicYear = useGlobalAcademicYear()
   const [formData, setFormData] = useState<FeeStructureFormData>({
     class: feeStructure?.class || '',
-    academic_year: feeStructure?.academic_year || '2024-2025',
+    academic_year: feeStructure?.academic_year || globalAcademicYear,
     term: feeStructure?.term || 'Term 1',
     registration_fee: feeStructure?.registration_fee || 50000,
     pta_fee: feeStructure?.pta_fee || 15000,
@@ -386,7 +388,7 @@ export function FeeStructureManagement() {
           description: `Fee structure for ${formData.class} has been updated`,
         })
       } catch (_error) {
-      toast({
+        toast({
           title: "Failed to update fee structure",
           description: "An error occurred while updating the fee structure",
           variant: "destructive"

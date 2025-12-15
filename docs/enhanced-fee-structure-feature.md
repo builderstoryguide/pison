@@ -22,24 +22,29 @@ The Enhanced Fee Structure Management feature allows administrators to create an
 
 The enhanced fee structure form includes the following sections:
 
+
 #### Basic Information
+
 - **Fee Structure Name** (required): e.g., "First Term Fees 2024-2025"
 - **Academic Year** (required): 2023-2024, 2024-2025, 2025-2026
 - **Term** (required): First, Second, or Third Term
 - **First Payment Due Date** (required): Date picker for the first installment
 
 #### Financial Details
+
 - **Total Amount** (required): Total fee amount in FCFA
 - **Number of Installments** (required): 1-12 installments
 - **Installment Preview**: Real-time calculation and preview of installment breakdown
 - **Active Status**: Toggle to enable/disable the fee structure
 
 #### Class Selection
+
 - **Class Checkboxes**: Select multiple classes from available active classes
 - **Class Information**: Display class name, level, subsystem, and branch
 - **Filtering**: Only shows active classes
 
 #### Additional Information
+
 - **Description**: Optional description for the fee structure
 
 ## Database Schema
@@ -99,7 +104,7 @@ CREATE TABLE IF NOT EXISTS payment_plan_installments (
 
 ### Enhanced Fee Structure API
 
-```
+```text
 GET    /api/bursar/fee-structures          - List all fee structures with filtering
 POST   /api/bursar/fee-structures          - Create fee structure with installments
 GET    /api/bursar/fee-structures/[id]     - Get specific fee structure
@@ -109,7 +114,7 @@ DELETE /api/bursar/fee-structures/[id]     - Delete fee structure
 
 ### Classes API
 
-```
+```text
 GET    /api/classes                        - List all classes with filtering
 ```
 
@@ -237,18 +242,21 @@ const onSubmit = async (data: EnhancedFeeStructureFormData) => {
 
 ## Benefits
 
-### For Administrators
+### Administrative Benefits
+
 - **Efficiency**: Create fee structures for multiple classes at once
 - **Flexibility**: Support for installment-based payments
 - **Accuracy**: Automatic calculation of installment amounts and dates
 - **Visibility**: Clear overview of all fee structures and statistics
 
-### For Students and Parents
+### Benefits for Students and Parents
+
 - **Transparency**: Clear breakdown of fees and payment schedule
 - **Flexibility**: Multiple payment options through installments
 - **Consistency**: Standardized fee structures across classes
 
-### For the Institution
+### Institutional Benefits
+
 - **Financial Planning**: Better cash flow management with installment tracking
 - **Administrative Efficiency**: Reduced manual work in fee structure setup
 - **Data Integrity**: Centralized fee structure management
@@ -290,6 +298,7 @@ const enhancedFeeStructureSchema = z.object({
 ## Future Enhancements
 
 ### Planned Features
+
 1. **Bulk Operations**: Import/export fee structures
 2. **Advanced Installment Options**: Variable installment amounts
 3. **Fee Structure Templates**: Reusable templates for common fee structures
@@ -297,6 +306,7 @@ const enhancedFeeStructureSchema = z.object({
 5. **Reporting**: Advanced financial reporting and analytics
 
 ### Technical Improvements
+
 1. **Caching**: Implement caching for frequently accessed data
 2. **Real-time Updates**: WebSocket integration for real-time updates
 3. **Mobile Optimization**: Enhanced mobile interface
@@ -305,12 +315,14 @@ const enhancedFeeStructureSchema = z.object({
 ## Testing
 
 ### Test Page
+
 - Visit `/test-enhanced-fee-structure` to test the feature
 - Create sample fee structures with different configurations
 - Test filtering and search functionality
 - Verify installment calculations
 
 ### Database Testing
+
 - Ensure all required tables exist
 - Test data integrity constraints
 - Verify foreign key relationships
@@ -319,11 +331,13 @@ const enhancedFeeStructureSchema = z.object({
 ## Support and Maintenance
 
 ### Common Issues
+
 1. **Class Loading Failures**: Check database connection and classes table
 2. **Installment Calculation Errors**: Verify date-fns library installation
 3. **API Errors**: Check Supabase configuration and permissions
 
 ### Troubleshooting
+
 1. **Clear browser cache** if experiencing UI issues
 2. **Check browser console** for JavaScript errors
 3. **Verify database schema** matches the expected structure

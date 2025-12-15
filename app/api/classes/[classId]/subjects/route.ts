@@ -129,7 +129,7 @@ export async function GET(
               code: branch.branch_code || branch.subjects?.subject_code || '',
               coefficient: branch.subjects?.coefficient ? parseFloat(branch.subjects.coefficient) : 1.0,
               type: 'branch',
-              maxMarks: 10, // Sub-branches are marked out of 10
+              maxMarks: 20, // Sub-branches are marked out of 20
               parentId: branch.subjects?.id
             })
           }

@@ -2,10 +2,12 @@
 
 import { useState } from "react"
 import { useTeacherAssignments } from "@/hooks/use-teacher-assignments"
+import { useGradeEntryStatus } from "@/hooks/use-grade-entry-status"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Progress } from "@/components/ui/progress"
 import { 
   Table, 
   TableBody, 
@@ -18,7 +20,8 @@ import {
   Search, 
   BookOpen, 
   ArrowUpDown, 
-  ChevronRight
+  ChevronRight,
+  CheckCircle2
 } from "lucide-react"
 
 interface TeacherSubjectsListProps {
@@ -27,31 +30,66 @@ interface TeacherSubjectsListProps {
 
 export function TeacherSubjectsList({ onNavigate }: TeacherSubjectsListProps) {
   const { data: classes = [], isLoading, error } = useTeacherAssignments()
+  const { data: statusData } = useGradeEntryStatus()
   const [searchTerm, setSearchTerm] = useState("")
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
+  const [filterStatus, setFilterStatus] = useState<"all" | "completed" | "pending" | "inProgress">("all")
 
   // Flatten the data structure to get a list of all subject assignments
   const allSubjects = classes.flatMap(cls => 
-    (cls.subjects || []).map(subject => ({
-      id: subject.id,
-      name: subject.name,
-      code: subject.code,
-      coefficient: subject.coefficient,
-      classId: cls.id,
-      className: cls.name,
-      classLevel: cls.level,
-      classBranch: cls.branch,
-      classSubsystem: cls.subsystem,
-      studentCount: cls.studentCount
-    }))
+    (cls.subjects || []).map(subject => {
+      // Get sequence status for this class-subject combination
+      const status = statusData?.data?.find(
+        s => s.classId === cls.id.toString() && s.subjectId === subject.id.toString()
+      )      
+      const completedCount = status?.sequences.filter(s => s.isCompleted).length || 0
+      const totalSequences = status?.sequences.length || 6
+      const completionPercentage = totalSequences > 0 ? Math.round((completedCount / totalSequences) * 100) : 0
+      const isFullyCompleted = completedCount === totalSequences && totalSequences > 0
+      const isPending = completedCount === 0
+      const isInProgress = completedCount > 0 && completedCount < totalSequences
+
+      return {
+        id: subject.id,
+        name: subject.name,
+        code: subject.code,
+        coefficient: subject.coefficient,
+        classId: cls.id,
+        className: cls.name,
+        classLevel: cls.level,
+        classBranch: cls.branch,
+        classSubsystem: cls.subsystem,
+        studentCount: cls.studentCount,
+        sequenceStatus: {
+          completed: completedCount,
+          total: totalSequences,
+          percentage: completionPercentage,
+          isFullyCompleted,
+          isPending,
+          isInProgress
+        }
+      }
+    })
   )
 
   // Filter subjects
-  const filteredSubjects = allSubjects.filter(subject => 
-    subject.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    subject.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    subject.className.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredSubjects = allSubjects.filter(subject => {
+    const matchesSearch = 
+      subject.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      subject.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      subject.className.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    let matchesFilter = true
+    if (filterStatus === "completed") {
+      matchesFilter = subject.sequenceStatus.isFullyCompleted
+    } else if (filterStatus === "pending") {
+      matchesFilter = subject.sequenceStatus.isPending
+    } else if (filterStatus === "inProgress") {
+      matchesFilter = subject.sequenceStatus.isInProgress
+    }
+
+    return matchesSearch && matchesFilter
+  })
 
   // Sort subjects
   const sortedSubjects = [...filteredSubjects].sort((a, b) => {
@@ -137,16 +175,28 @@ export function TeacherSubjectsList({ onNavigate }: TeacherSubjectsListProps) {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <CardTitle>Subject Assignments</CardTitle>
-            <div className="relative w-64">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search subjects or classes..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            <div className="flex gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search subjects or classes..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
+                className="px-3 py-2 border rounded-md text-sm"
+              >
+                <option value="all">All Status</option>
+                <option value="completed">Completed</option>
+                <option value="inProgress">In Progress</option>
+                <option value="pending">Pending</option>
+              </select>
             </div>
           </div>
         </CardHeader>
@@ -186,6 +236,7 @@ export function TeacherSubjectsList({ onNavigate }: TeacherSubjectsListProps) {
                     </TableHead>
                     <TableHead>Level / Branch</TableHead>
                     <TableHead className="text-center">Students</TableHead>
+                    <TableHead className="text-center">Sequence Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -215,15 +266,44 @@ export function TeacherSubjectsList({ onNavigate }: TeacherSubjectsListProps) {
                           {subject.studentCount || 0}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex flex-col items-center gap-1 min-w-[120px]">
+                          <Badge 
+                            variant={
+                              subject.sequenceStatus.isFullyCompleted 
+                                ? "default" 
+                                : subject.sequenceStatus.isInProgress 
+                                ? "secondary" 
+                                : "outline"
+                            }
+                            className="text-xs"
+                          >
+                            {subject.sequenceStatus.completed}/{subject.sequenceStatus.total}
+                          </Badge>
+                          {subject.sequenceStatus.isFullyCompleted ? (
+                            <div className="flex items-center gap-1 text-xs text-green-600">
+                              <CheckCircle2 className="h-3 w-3" />
+                              <span>Complete</span>
+                            </div>
+                          ) : (
+                            <Progress 
+                              value={subject.sequenceStatus.percentage} 
+                              className="h-1.5 w-full max-w-[100px]" 
+                            />
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => onNavigate?.("grades", subject.classId.toString(), subject.id.toString())}
-                        >
-                          Enter Grades
-                          <ChevronRight className="ml-2 h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => onNavigate?.("grades", subject.classId.toString(), subject.id.toString())}
+                          >
+                            Enter Grades
+                            <ChevronRight className="ml-2 h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

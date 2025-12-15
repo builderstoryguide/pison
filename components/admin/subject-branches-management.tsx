@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useToast } from '@/hooks/use-toast'
 import { useClassManagement } from '@/lib/class-management-context'
+import { useGlobalAcademicYear } from '@/lib/app-configuration-context-v2'
 import { ShimmerSubjectBranchesManagement } from '@/components/ui/shimmer-loading'
 import { Plus, Edit, Trash2, Users, BookOpen, GraduationCap, Calculator } from 'lucide-react'
 import type { 
@@ -52,6 +53,7 @@ interface Student {
 export default function SubjectBranchesManagement() {
   const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
   const { classes: contextClasses, isLoading: classesLoading } = useClassManagement()
+  const globalAcademicYear = useGlobalAcademicYear()
   
   // State management
   const [subjects, setSubjects] = useState<Subject[]>([])
@@ -77,7 +79,7 @@ export default function SubjectBranchesManagement() {
   const [selectedSubject, setSelectedSubject] = useState('')
   const [selectedBranch, setSelectedBranch] = useState('')
   const [selectedClass, setSelectedClass] = useState('')
-  const [academicYear, setAcademicYear] = useState('2024-2025')
+  const [academicYear, setAcademicYear] = useState(globalAcademicYear)
   const [term, setTerm] = useState('Term 1')
   
   // Create branch form
@@ -88,7 +90,7 @@ export default function SubjectBranchesManagement() {
     description: '',
     weight_percentage: 100,
     is_optional: false,
-    academic_year: '2024-2025',
+    academic_year: globalAcademicYear,
     term: 'Term 1'
   })
   
@@ -97,7 +99,7 @@ export default function SubjectBranchesManagement() {
     teacher_id: '',
     branch_id: '',
     class_id: '',
-    academic_year: '2024-2025',
+    academic_year: globalAcademicYear,
     term: 'Term 1',
     is_primary_teacher: false
   })
@@ -303,7 +305,7 @@ export default function SubjectBranchesManagement() {
           description: '',
           weight_percentage: 100,
           is_optional: false,
-          academic_year: '2024-2025',
+          academic_year: globalAcademicYear,
           term: 'Term 1'
         })
         loadBranches()
@@ -348,7 +350,7 @@ export default function SubjectBranchesManagement() {
           teacher_id: '',
           branch_id: '',
           class_id: '',
-          academic_year: '2024-2025',
+          academic_year: globalAcademicYear,
           term: 'Term 1',
           is_primary_teacher: false
         })
@@ -392,7 +394,7 @@ export default function SubjectBranchesManagement() {
           student_id: '',
           branch_id: '',
           class_id: '',
-          academic_year: '2024-2025',
+          academic_year: globalAcademicYear,
           term: 'Term 1'
         })
         loadStudentEnrollments()

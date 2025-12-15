@@ -53,6 +53,8 @@ export function StudentFeeAssignmentForm({ onSuccess, onCancel, editData }: Stud
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [selectedFeeStructure, setSelectedFeeStructure] = useState<any>(null)
+  const [studentClassId, setStudentClassId] = useState<string | null>(null)
+  const [filteredFeeStructures, setFilteredFeeStructures] = useState(feeStructures)
 
   const form = useForm<StudentFeeAssignmentFormData>({
     resolver: zodResolver(studentFeeAssignmentSchema),
@@ -90,28 +92,74 @@ export function StudentFeeAssignmentForm({ onSuccess, onCancel, editData }: Stud
   )
 
   // Update total amount when fee structure changes
+  const watchedFeeStructureId = form.watch("feeStructureId")
+
   useEffect(() => {
-    const feeStructureId = form.watch("feeStructureId")
-    if (feeStructureId) {
-      const feeStructure = feeStructures.find(fs => fs.id === feeStructureId)
+    if (watchedFeeStructureId) {
+      const feeStructure = filteredFeeStructures.find(fs => fs.id === watchedFeeStructureId)
       if (feeStructure) {
         form.setValue("totalAmount", feeStructure.amount)
         setSelectedFeeStructure(feeStructure)
+      } else {
+        // If fee structure not found in filtered list, clear selection
+        setSelectedFeeStructure(null)
       }
     }
-  }, [form.watch("feeStructureId"), feeStructures, form])
+  }, [watchedFeeStructureId, filteredFeeStructures, form])
+  // Helper function to check if a string is a valid UUID
+  const isUUID = (str: string | undefined): boolean => {
+    if (!str) return false
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
+  }
 
-  // Update student info when student changes
+  // Update student info and filter fee structures when student changes
+  const watchedStudentId = form.watch("studentId")
+
+  // Update student info and filter fee structures when student changes
   useEffect(() => {
-    const studentId = form.watch("studentId")
-    if (studentId) {
-      const student = students.find(s => s.id === studentId)
+    if (watchedStudentId) {
+      const student = students.find(s => s.id === watchedStudentId)
       if (student) {
         setSelectedStudent(student)
-      }
-    }
-  }, [form.watch("studentId"), students])
+        
+        // Get student's class ID
+        const classId = student.class && isUUID(student.class) 
+          ? student.class 
+          : null
+        
+        setStudentClassId(classId)
 
+        // Filter fee structures by student's class
+        if (classId) {
+          const filtered = feeStructures.filter(fs => 
+            fs.classIds && fs.classIds.length > 0 && fs.classIds.includes(classId)
+          )
+          setFilteredFeeStructures(filtered)
+          
+          // Clear fee structure selection if current selection is not in filtered list
+          const currentFeeStructureId = form.watch("feeStructureId")
+          if (currentFeeStructureId) {
+            const isCurrentInFiltered = filtered.some(fs => fs.id === currentFeeStructureId)
+            if (!isCurrentInFiltered) {
+              form.setValue("feeStructureId", "")
+              setSelectedFeeStructure(null)
+            }
+          }
+        } else {
+          // If student has no valid class ID, show all fee structures but warn user
+          setFilteredFeeStructures(feeStructures)
+        }
+      } else {
+        setSelectedStudent(null)
+        setStudentClassId(null)
+        setFilteredFeeStructures(feeStructures)
+      }
+    } else {
+      setSelectedStudent(null)
+      setStudentClassId(null)
+      setFilteredFeeStructures(feeStructures)
+    }
+  }, [watchedStudentId, students, feeStructures, form])
   const onSubmit = async (data: StudentFeeAssignmentFormData) => {
     if (isLoading) return
 
@@ -225,13 +273,21 @@ export function StudentFeeAssignmentForm({ onSuccess, onCancel, editData }: Stud
                     </div>
                     <div>
                       <span className="text-muted-foreground">Class:</span>
-                      <p className="font-medium">{selectedStudent.class}</p>
+                      <p className="font-medium">{getStudentClassName(selectedStudent) || selectedStudent.class || 'Not Assigned'}</p>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Subsystem:</span>
                       <p className="font-medium capitalize">{selectedStudent.subsystem}</p>
                     </div>
                   </div>
+                  {!studentClassId && (
+                    <Alert className="mt-4">
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
+                        Student's class is not properly assigned. Please assign the student to a class before assigning fees.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -257,16 +313,28 @@ export function StudentFeeAssignmentForm({ onSuccess, onCancel, editData }: Stud
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {feeStructures.map((feeStructure) => (
-                          <SelectItem key={feeStructure.id} value={feeStructure.id}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{feeStructure.name}</span>
-                              <span className="text-sm text-muted-foreground">
-                                {feeStructure.amount.toLocaleString()} FCFA • {feeStructure.subsystem} • {feeStructure.branch}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
+                        {filteredFeeStructures.length > 0 ? (
+                          filteredFeeStructures.map((feeStructure) => (
+                            <SelectItem key={feeStructure.id} value={feeStructure.id}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{feeStructure.name}</span>
+                                <span className="text-sm text-muted-foreground">
+                                  {feeStructure.amount.toLocaleString()} FCFA • {feeStructure.subsystem} • {feeStructure.branch}
+                                  {feeStructure.classNames && feeStructure.classNames.length > 0 && (
+                                    <> • {feeStructure.classNames.join(", ")}</>
+                                  )}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                            {selectedStudent 
+                              ? `No fee structures available for ${getStudentClassName(selectedStudent) || 'this student\'s class'}. Please create a fee structure for this class first.`
+                              : "Select a student first to see available fee structures"
+                            }
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -274,6 +342,22 @@ export function StudentFeeAssignmentForm({ onSuccess, onCancel, editData }: Stud
                 )}
               />
 
+              {selectedStudent && !studentClassId && (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    Student's class is not properly assigned. Fee structures cannot be filtered by class. Please ensure the student is assigned to a class.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {selectedStudent && studentClassId && filteredFeeStructures.length === 0 && (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    No fee structures are available for {getStudentClassName(selectedStudent) || 'this student\'s class'}. Please create a fee structure for this class before assigning fees.
+                  </AlertDescription>
+                </Alert>
+              )}
               {selectedFeeStructure && (
                 <div className="p-4 border rounded-lg bg-muted/50">
                   <h4 className="font-medium mb-2">Selected Fee Structure</h4>

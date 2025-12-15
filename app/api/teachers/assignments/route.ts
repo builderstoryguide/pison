@@ -13,14 +13,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('🔄 Processing teacher assignments:', assignments)
-    console.log('📊 Assignment details:', assignments.map(a => ({
-      teacherId: a.teacherId,
-      branchId: a.branchId,
-      classId: a.classId,
-      hasBranchId: !!a.branchId && a.branchId.trim() !== ''
-    })))
-
     // Validate assignments
     for (const assignment of assignments) {
       if (!assignment.teacherId || !assignment.classId) {
@@ -31,7 +23,7 @@ export async function POST(request: NextRequest) {
       }
       // Note: branchId is required for database insertion (NOT NULL constraint)
       if (!assignment.branchId || assignment.branchId.trim() === '') {
-        console.warn('⚠️ Assignment with null/empty branchId will be skipped:', assignment)
+        // Assignment with null/empty branchId will be skipped
       }
     }
 
@@ -44,7 +36,6 @@ export async function POST(request: NextRequest) {
     const teacher = await resolveTeacherId(supabase, teacherId)
     
     if (!teacher) {
-      console.error('❌ Teacher not found for assignments:', teacherId)
       return NextResponse.json(
         { success: false, error: 'Teacher not found' },
         { status: 404 }
@@ -52,7 +43,6 @@ export async function POST(request: NextRequest) {
     }
     
     const actualTeacherId = teacher.id
-    console.log(`✅ Found teacher for assignments: ${teacher.first_name} ${teacher.last_name}, ID: ${actualTeacherId}`)
 
     // First, remove existing assignments for this teacher
     const { error: deleteError } = await supabase
@@ -61,7 +51,6 @@ export async function POST(request: NextRequest) {
       .eq('teacher_id', actualTeacherId)
 
     if (deleteError) {
-      console.error('❌ Error deleting existing assignments:', deleteError)
       return NextResponse.json(
         { success: false, error: 'Failed to clear existing assignments' },
         { status: 500 }
@@ -74,7 +63,6 @@ export async function POST(request: NextRequest) {
     )
     
     if (validAssignments.length === 0) {
-      console.log('⚠️ No valid assignments to insert (all have null branchId)')
       return NextResponse.json({
         success: true,
         assignments: [],
@@ -82,11 +70,15 @@ export async function POST(request: NextRequest) {
       })
     }
     
+    // Get academic year from app configuration
+    const { getAcademicYearFromConfig } = await import('@/lib/app-config-server')
+    const defaultAcademicYear = await getAcademicYearFromConfig()
+    
     const assignmentData = validAssignments.map(assignment => ({
       teacher_id: actualTeacherId,
       branch_id: assignment.branchId,
       class_id: assignment.classId,
-      academic_year: assignment.academicYear || '2024-2025',
+      academic_year: assignment.academicYear || defaultAcademicYear,
       term: assignment.term || 'Term 1',
       is_primary_teacher: assignment.isPrimary || false,
       assigned_at: new Date().toISOString()
@@ -98,25 +90,19 @@ export async function POST(request: NextRequest) {
       .select()
 
     if (insertError) {
-      console.error('❌ Error inserting assignments:', insertError)
-      console.error('❌ Assignment data that failed:', assignmentData)
-      console.error('❌ Error details:', {
-        message: insertError.message,
-        details: insertError.details,
-        hint: insertError.hint,
-        code: insertError.code
-      })
       return NextResponse.json(
         { success: false, error: `Failed to create assignments: ${insertError.message}` },
         { status: 500 }
       )
     }
 
-    console.log('✅ Assignments created successfully:', insertedAssignments)
-
     // Invalidate ultra-fast cache for this teacher
     try {
-      const cacheInvalidationResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/teachers/assignments/ultra-fast`, {
+      // Use request.nextUrl.origin for server-side calls instead of hardcoded localhost
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
+      const cacheUrl = `${baseUrl}/api/teachers/assignments/ultra-fast`
+      
+      const cacheInvalidationResponse = await fetch(cacheUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,13 +113,10 @@ export async function POST(request: NextRequest) {
         })
       })
       
-      if (cacheInvalidationResponse.ok) {
-        console.log('✅ Ultra-fast cache invalidated for teacher:', actualTeacherId)
-      } else {
-        console.warn('⚠️ Failed to invalidate ultra-fast cache for teacher:', actualTeacherId)
+      if (!cacheInvalidationResponse.ok) {
+        // Failed to invalidate ultra-fast cache
       }
-    } catch (cacheError) {
-      console.warn('⚠️ Error invalidating ultra-fast cache:', cacheError)
+    } catch (_cacheError) {
       // Don't fail the main operation if cache invalidation fails
     }
 
@@ -143,8 +126,7 @@ export async function POST(request: NextRequest) {
       message: 'Teacher assignments updated successfully'
     })
 
-  } catch (error) {
-    console.error('❌ Error in assignments API:', error)
+  } catch (_error) {
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
@@ -164,14 +146,11 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.log('🔍 Fetching assignments for teacher:', teacherId)
-
     const supabase = await createClient()
 
     // Convert teacher ID to UUID if it's not already a UUID
     let actualTeacherId = teacherId
     if (!teacherId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-      console.log(`🔄 Converting teacher ID ${teacherId} to UUID for GET`)
       const { data: teacherData, error: teacherError } = await supabase
         .from('teachers')
         .select('id')
@@ -179,7 +158,6 @@ export async function GET(request: NextRequest) {
         .single()
       
       if (teacherError || !teacherData) {
-        console.error('❌ Teacher not found for GET:', teacherError)
         return NextResponse.json(
           { success: false, error: 'Teacher not found' },
           { status: 404 }
@@ -187,7 +165,6 @@ export async function GET(request: NextRequest) {
       }
       
       actualTeacherId = teacherData.id
-      console.log(`✅ Found teacher UUID for GET: ${actualTeacherId}`)
     }
 
     // Fetch assignments with related data
@@ -205,22 +182,18 @@ export async function GET(request: NextRequest) {
       .order('assigned_at', { ascending: false })
 
     if (error) {
-      console.error('❌ Error fetching assignments:', error)
       return NextResponse.json(
         { success: false, error: 'Failed to fetch assignments' },
         { status: 500 }
       )
     }
 
-    console.log('✅ Assignments fetched successfully:', assignments)
-
     return NextResponse.json({
       success: true,
       assignments: assignments || []
     })
 
-  } catch (error) {
-    console.error('❌ Error in assignments GET API:', error)
+  } catch (_error) {
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

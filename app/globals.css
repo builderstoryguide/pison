@@ -107,3 +107,96 @@
     font-size: 1.125rem;
   }
 }
+
+/* Print optimizations for A4 report cards */
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* Ensure background colors print */
+  .bg-white,
+  .bg-gray-100,
+  .bg-gray-200,
+  .bg-gray-300,
+  .bg-black {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* Remove any page breaks within report cards */
+  [class*="max-w"] {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* Optimize table rows - prevent breaking */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+  
+  table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* Keep table headers on each page */
+  table thead {
+    display: table-header-group;
+  }
+  
+  table thead tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    page-break-after: avoid;
+  }
+  
+  table tfoot {
+    display: table-footer-group;
+  }
+  
+  /* Ensure borders are visible */
+  table td,
+  table th {
+    border: 1px solid #000 !important;
+    padding: 2px 4px !important;
+  }
+  
+  /* Prevent text from breaking awkwardly */
+  td, th {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  /* Reverse category order in report card tables for print */
+  table tbody.report-card-subjects-tbody {
+    display: table-row-group !important;
+  }
+  
+  /* Ensure grid layouts don't break */
+  .grid {
+    display: grid !important;
+  }
+  
+  /* Ensure flex layouts are preserved */
+  .flex {
+    display: flex !important;
+  }
+}

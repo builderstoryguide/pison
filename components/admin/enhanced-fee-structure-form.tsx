@@ -115,38 +115,12 @@ export function EnhancedFeeStructureForm({ onSuccess, onCancel, editData }: Enha
           const activeClasses = Array.isArray(data) ? data.filter((cls: Class) => cls.status === "active") : []
           setClasses(activeClasses)
         } else {
-          // Fallback to mock data if API fails
-          setClasses([
-            {
-              id: "cls1",
-              name: "Form 1A",
-              level: "Form 1",
-              subsystem: "english",
-              branch: "grammar",
-              academicYear: globalAcademicYear,
-              status: "active"
-            },
-            {
-              id: "cls2",
-              name: "Form 2B",
-              level: "Form 2",
-              subsystem: "english",
-              branch: "technical",
-              academicYear: globalAcademicYear,
-              status: "active"
-            },
-            {
-              id: "cls3",
-              name: "Terminale C",
-              level: "Terminale",
-              subsystem: "french",
-              branch: "grammar",
-              academicYear: globalAcademicYear,
-              status: "active"
-            }
-          ])
-        }
-      } catch (_error) {
+          // Don't use mock data in production - show error state instead
+          setClasses([])
+          toastError("Error loading classes", {
+            description: "Could not fetch classes from the server. Please try again."
+          })
+        }      } catch (_error) {
         toastError("Error loading classes", {
           description: "Failed to load classes. Using sample data."
         })

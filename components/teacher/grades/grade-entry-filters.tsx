@@ -20,9 +20,9 @@ import { CheckCircle2 } from "lucide-react"
 import { GradableItem } from "@/hooks/use-gradable-items"
 
 interface ClassAssignment {
-  id: number
+  id: number | string
   name: string
-  code: string
+  code?: string
   [key: string]: unknown
 }
 
@@ -45,6 +45,10 @@ interface GradeEntryFiltersProps {
   loadingSubjects: boolean
   preSelectedClassId?: string
   preSelectedSubjectId?: string
+  // New props for Term selection
+  terms?: string[]
+  selectedTerm?: string
+  onTermChange?: (term: string) => void
 }
 
 /**
@@ -68,8 +72,11 @@ export function GradeEntryFilters({
   onExamChange,
   loadingClasses,
   loadingSubjects,
-  preSelectedSubjectId
-}: GradeEntryFiltersProps) {
+  preSelectedSubjectId,
+  // Destructure new props
+  terms = [],
+  selectedTerm = "",
+  onTermChange = () => {}}: GradeEntryFiltersProps) {
   const selectedItem = gradableItems.find(item => item.id === selectedSubject)
 
   return (
@@ -142,16 +149,37 @@ export function GradeEntryFilters({
             </Select>
           </div>
 
+          {/* Term Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="term">Term</Label>
+            <Select
+              value={selectedTerm}
+              onValueChange={onTermChange}
+              disabled={!selectedClass || terms.length === 0}
+            >
+              <SelectTrigger id="term">
+                <SelectValue placeholder="Select a term" />
+              </SelectTrigger>
+              <SelectContent>
+                {terms.map((term, index) => (
+                  <SelectItem key={`term-${index}`} value={term}>
+                    {term}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Examination Selection */}
           <div className="space-y-2">
             <Label htmlFor="exam">Examination</Label>
             <Select
               value={selectedExam}
               onValueChange={onExamChange}
-              disabled={!selectedClass}
+              disabled={!selectedClass || !selectedTerm}
             >
               <SelectTrigger id="exam">
-                <SelectValue placeholder="Select an examination" />
+                <SelectValue placeholder={!selectedTerm ? "Select a term first" : "Select an examination"} />
               </SelectTrigger>
               <SelectContent>
                 {examinationSequences.map((exam, index) => (

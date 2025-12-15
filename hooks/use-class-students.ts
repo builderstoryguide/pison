@@ -32,7 +32,9 @@ export function useClassStudents(classId: string | undefined) {
       return data.students || []
     },
     enabled: !!classId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes - student lists don't change often
+    gcTime: 15 * 60 * 1000, // 15 minutes - keep in cache
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    refetchOnMount: false, // Use cached data if available
   })
 }

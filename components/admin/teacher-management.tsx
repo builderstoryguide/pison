@@ -37,6 +37,7 @@ import { TeacherEnrollmentForm } from "./teacher-enrollment-form"
 import { TeacherEnrollmentSuccessDialog } from "./teacher-enrollment-success-dialog"
 import { EditTeacherForm } from "./edit-teacher-form"
 import { TeacherExportForm } from "./teacher-export-form"
+import { Pagination } from "@/components/ui/pagination"
 
 export function TeacherManagement() {
   const { teachers, isLoading, deleteTeacher } = useTeacherManagement()
@@ -68,6 +69,10 @@ export function TeacherManagement() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [subjectCodeMap, setSubjectCodeMap] = useState<Map<string, string>>(new Map())
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   // Fetch subjects to create name-to-code mapping
   useEffect(() => {
@@ -115,6 +120,28 @@ export function TeacherManagement() {
 
     return matchesSearch && matchesSubsystem && matchesStatus
   })
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredTeachers.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedTeachers = filteredTeachers.slice(startIndex, endIndex)
+
+  // Reset to first page when filters or search change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filterSubsystem, filterStatus])
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage)
+    setCurrentPage(1) // Reset to first page
+  }
 
   const handleTeacherEnrollmentSuccess = async (result: { 
     teacherId: string; 
@@ -374,14 +401,14 @@ export function TeacherManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTeachers.length === 0 ? (
+                {paginatedTeachers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8">
                       No teachers found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredTeachers.map((teacher) => (
+                  paginatedTeachers.map((teacher) => (
                     <TableRow 
                       key={teacher.teacherId}
                       onMouseEnter={() => prefetchTeacher(teacher.id)}
@@ -464,6 +491,21 @@ export function TeacherManagement() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination Controls */}
+          {filteredTeachers.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredTeachers.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              itemLabel="teachers"
+            />
+          )}
         </CardContent>
       </Card>
 

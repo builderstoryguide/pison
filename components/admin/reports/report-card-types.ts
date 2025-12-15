@@ -4,6 +4,7 @@ export interface SubjectGrade {
   subjectName: string
   subjectId?: string
   coefficient: number
+  category?: 'languages' | 'related_trade_subjects' | 'trade_subjects' | 'others'
   sequences?: {
     seq1?: number
     seq2?: number

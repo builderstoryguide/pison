@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getAcademicYearFromConfig } from '@/lib/app-config-server'
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,6 +12,8 @@ export async function GET(request: NextRequest) {
     const classId = searchParams.get('classId')
     const subsystem = searchParams.get('subsystem')
     const academicYear = searchParams.get('academicYear')
+    const studentId = searchParams.get('studentId')
+    const includeMarks = searchParams.get('includeMarks') === 'true'
 
     let query = supabase
       .from('students')
@@ -23,9 +26,11 @@ export async function GET(request: NextRequest) {
           academic_year
         )
       `)
-      .order('first_name', { ascending: true })
 
     // Apply filters
+    if (studentId) {
+      query = query.eq('id', studentId)
+    }
     if (status) {
       query = query.eq('status', status)
     }
@@ -38,10 +43,17 @@ export async function GET(request: NextRequest) {
     if (academicYear) {
       query = query.eq('academic_year', academicYear)
     }
+    
+    // Apply ordering (only if not fetching single student)
+    if (!studentId) {
+      query = query.order('first_name', { ascending: true })
+    }
 
     let data, error
     try {
-      const result = await query
+      const result = studentId 
+        ? await query.maybeSingle()
+        : await query
       data = result.data
       error = result.error
     } catch (err) {
@@ -63,14 +75,17 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Handle single student vs array - normalize early for consistent processing
+    const studentsArray = studentId && data ? [data] : (data || [])
+
     // If the join didn't work (students.class is VARCHAR, not a proper FK), fetch class names separately
     let classMap = new Map<string, string>()
-    const studentsWithClassIds = data?.filter((s: any) => 
+    const studentsWithClassIds = studentsArray.filter((s: any) => 
       s.class && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.class)
-    ) || []
+    )
     
     // Check if join worked by seeing if any student with a class ID has a classes relationship
-    const joinWorked = data?.some((s: any) => 
+    const joinWorked = studentsArray.some((s: any) => 
       s.class && s.classes && (s.classes.class_name || s.classes.id)
     )
     
@@ -86,9 +101,129 @@ export async function GET(request: NextRequest) {
         classMap = new Map(classesData.map((cls: any) => [cls.id, cls.class_name]))
       }
     }
+    
+    // Fetch marks if requested
+    let marksMap = new Map<string, any[]>()
+    if (includeMarks && studentsArray.length > 0) {
+      const academicYearForMarks = academicYear || await getAcademicYearFromConfig()
+      const studentIds = studentsArray.map((s: any) => s.id)
+      
+      // Build a map of student IDs to their class identifiers (UUID or class name)
+      const studentClassMap = new Map<string, { classId: string | null, className: string | null }>()
+      studentsArray.forEach((s: any) => {
+        const classValue = s.class
+        const isUUID = classValue && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(classValue)
+        const className = s.classes?.class_name || classMap.get(classValue) || (isUUID ? null : classValue)
+        
+        studentClassMap.set(s.id, {
+          classId: isUUID ? classValue : null,
+          className: className
+        })
+      })
+      
+      // Get unique class IDs (UUIDs only) for fetching class subjects
+      const classIds = [...new Set(
+        Array.from(studentClassMap.values())
+          .map(c => c.classId)
+          .filter((id): id is string => id !== null)
+      )]
+      
+      // Fetch class subjects to ensure we only get marks for subjects in the student's class
+      let classSubjectsMap = new Map<string, Set<string>>()
+      if (classIds.length > 0) {
+        const { data: classSubjectsData } = await supabase
+          .from('class_subjects')
+          .select('class_id, subject_id, subjects!inner(name)')
+          .in('class_id', classIds)
+        
+        if (classSubjectsData) {
+          classSubjectsData.forEach((cs: any) => {
+            if (!classSubjectsMap.has(cs.class_id)) {
+              classSubjectsMap.set(cs.class_id, new Set())
+            }
+            const subjectName = cs.subjects?.name
+            if (subjectName) {
+              classSubjectsMap.get(cs.class_id)!.add(subjectName)
+            }
+          })
+        }
+      }
+      
+      // Fetch all grades for these students
+      const { data: gradesData, error: gradesError } = await supabase
+        .from('grades')
+        .select(`
+          id,
+          student_id,
+          marks_obtained,
+          percentage,
+          grade_letter,
+          remarks,
+          assessment:assessments!inner (
+            id,
+            subject,
+            type,
+            title,
+            academic_year,
+            term,
+            class_id
+          )
+        `)
+        .in('student_id', studentIds)
+        .eq('assessment.academic_year', academicYearForMarks)
+      
+      if (gradesError) {
+        console.warn('Failed to fetch grades for students:', gradesError)
+      } else if (gradesData) {
+        // Group grades by student_id, filtering by class subjects
+        gradesData.forEach((grade: any) => {
+          const studentClassInfo = studentClassMap.get(grade.student_id)
+          if (!studentClassInfo) return
+          
+          const assessmentSubject = grade.assessment?.subject
+          const assessmentClassId = grade.assessment?.class_id
+          
+          // Only include marks if:
+          // 1. Assessment class_id matches student's class ID (UUID match), OR
+          // 2. Subject is in the student's class subjects list (if we have class ID)
+          let shouldInclude = false
+          
+          if (studentClassInfo.classId && assessmentClassId === studentClassInfo.classId) {
+            // Direct UUID match
+            shouldInclude = true
+          } else if (studentClassInfo.classId) {
+            // Check if subject is in the class subjects list
+            const classSubjects = classSubjectsMap.get(studentClassInfo.classId)
+            shouldInclude = !!(classSubjects && assessmentSubject && classSubjects.has(assessmentSubject))
+          } else {
+            // If student's class is not a UUID (might be class name), include all marks
+            // This is a fallback for backward compatibility
+            shouldInclude = true
+          }
+          
+          if (shouldInclude) {
+            if (!marksMap.has(grade.student_id)) {
+              marksMap.set(grade.student_id, [])
+            }
+            marksMap.get(grade.student_id)!.push({
+              id: grade.id,
+              assessment_id: grade.assessment?.id,
+              subject: assessmentSubject,
+              type: grade.assessment?.type,
+              title: grade.assessment?.title,
+              term: grade.assessment?.term,
+              marks_obtained: grade.marks_obtained,
+              percentage: grade.percentage,
+              grade_letter: grade.grade_letter,
+              remarks: grade.remarks
+            })
+          }
+        })
+      }
+    }
 
     // Transform data to match the expected interface
-    const transformedData = data?.map(student => {
+    const transformedData = studentsArray.map(student => {
       let className = student.classes?.class_name
       
       // If join didn't work, try to get from our map
@@ -101,7 +236,7 @@ export async function GET(request: NextRequest) {
         className = student.class
       }
       
-      return {
+      const studentData: any = {
         id: student.id,
         first_name: student.first_name,
         last_name: student.last_name,
@@ -134,7 +269,25 @@ export async function GET(request: NextRequest) {
         created_at: student.created_at,
         updated_at: student.updated_at
       }
-    }) || []
+      
+      // Add marks if requested
+      if (includeMarks) {
+        studentData.marks = marksMap.get(student.id) || []
+      }
+      
+      return studentData
+    })
+
+    // If fetching single student, return object instead of array
+    if (studentId) {
+      if (transformedData.length === 0) {
+        return NextResponse.json(
+          { error: 'Student not found' },
+          { status: 404 }
+        )
+      }
+      return NextResponse.json(transformedData[0])
+    }
 
     return NextResponse.json(transformedData)
   } catch (error) {
@@ -155,6 +308,7 @@ export async function POST(request: NextRequest) {
       first_name,
       last_name,
       student_id,
+      matricule_number,
       email,
       date_of_birth,
       gender,
@@ -182,13 +336,28 @@ export async function POST(request: NextRequest) {
       .from('students')
       .select('id')
       .eq('student_id', student_id)
-      .single()
+      .maybeSingle()
 
     if (existingStudent) {
       return NextResponse.json(
         { error: 'Student ID already exists' },
         { status: 409 }
       )
+    }
+    // Check if matricule_number already exists (if provided)
+    if (matricule_number) {
+      const { data: existingMatricule } = await supabase
+        .from('students')
+        .select('id')
+        .eq('matricule_number', matricule_number)
+        .single()
+
+      if (existingMatricule) {
+        return NextResponse.json(
+          { error: 'Matricule Number already exists' },
+          { status: 409 }
+        )
+      }
     }
 
     // Normalize class assignment: ensure we store class ID (UUID) instead of class name
@@ -224,6 +393,7 @@ export async function POST(request: NextRequest) {
         first_name,
         last_name,
         student_id,
+        matricule_number,
         email,
         date_of_birth,
         gender,

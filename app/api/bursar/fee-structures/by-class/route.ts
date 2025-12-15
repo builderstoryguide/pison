@@ -52,11 +52,25 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Calculate total amount from fee structure items
-    const totalAmount = data.fee_structure_items?.reduce(
-      (sum: number, item: any) => sum + parseFloat(item.amount || 0),
-      0
-    ) || 0
+    // Calculate total amount
+    // Primary: use amount from fee_structures table (this is what we store)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let totalAmount = parseFloat((data as any).amount || 0)
+    
+    // Fallback: if amount is 0 or items exist, try to sum from items
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((totalAmount === 0 || (data as any).fee_structure_items?.length > 0) && (data as any).fee_structure_items) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const itemsTotal = (data as any).fee_structure_items.reduce(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (sum: number, item: any) => sum + parseFloat(item.amount || 0),
+        0
+      )
+      // Only use items total if it's greater than 0 (meaning items exist)
+      if (itemsTotal > 0) {
+        totalAmount = itemsTotal
+      }
+    }
 
     // Transform and return data
     const transformedData = {

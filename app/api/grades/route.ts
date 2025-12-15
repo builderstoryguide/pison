@@ -13,6 +13,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!Array.isArray(grades) || grades.length === 0) {
+      return NextResponse.json(
+        { error: 'Grades must be a non-empty array' },
+        { status: 400 }
+      )
+    }
+
+    for (const g of grades) {
+      if (!g.studentId || typeof g.marks !== 'number' || g.marks < 0 || g.marks > 20) {
+        return NextResponse.json(
+          { error: 'Invalid grade entry: each must have studentId and marks (0-20)' },
+          { status: 400 }
+        )
+      }
+    }
     const supabase = await createClient()
 
     // 1. Get Subject Name
@@ -29,7 +44,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const subjectName = subject.name
+    // Normalize subject name: trim whitespace to ensure consistency
+    const subjectName = subject.name.trim()
 
     // 2. Determine Title (Sequence Name)
     // ClassGradeEntry sends 'sequenceId' (e.g. 'seq1'). TeacherGradesEntry sends 'examinationName'.
@@ -54,13 +70,36 @@ export async function POST(request: NextRequest) {
     // or just use the first creator). 
     // But strictly adhering to schema: teacher_id is required.
     
+    // Search for existing assessment
+    // First try exact match (most common case)
     let { data: assessment } = await supabase
       .from('assessments')
-      .select('id')
+      .select('id, subject')
       .eq('class_id', classId)
       .eq('subject', subjectName)
       .eq('title', title)
-      .single()
+      .maybeSingle()
+    
+    // If not found with exact match, try case-insensitive search
+    // (in case there are legacy assessments with different casing)
+    if (!assessment) {
+      const { data: allMatches } = await supabase
+        .from('assessments')
+        .select('id, subject')
+        .eq('class_id', classId)
+        .eq('title', title)
+      
+      if (allMatches && allMatches.length > 0) {
+        // Find case-insensitive match
+        const normalizedNew = subjectName.toLowerCase().trim();
+        const match = allMatches.find(a => 
+          a.subject && a.subject.trim().toLowerCase() === normalizedNew
+        );
+        if (match) {
+          assessment = match;
+        }
+      }
+    }
 
     if (!assessment) {
        const { data: newAssessment, error: createError } = await supabase

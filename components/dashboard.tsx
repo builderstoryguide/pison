@@ -38,6 +38,7 @@ import { AppConfiguration } from "./admin/app-configuration"
 import { Alerts } from "./admin/alerts"
 import { FinancialReports as AdminFinancialReports } from "./admin/financial-reports"
 import { AcademicReports } from "./admin/academic-reports"
+import { MarksTracking } from "./admin/marks-tracking"
 import { ProfileSettings } from "./profile/profile-settings"
 import { BursarProfile } from "./bursar/bursar-profile"
 import { QuickActionsDashboard } from "./admin/quick-actions-dashboard"
@@ -143,6 +144,7 @@ type AdminView =
   | "expenditures"
   | "financial-reports"
   | "academic-reports"
+  | "marks-tracking"
   | "alerts"
   | "configuration"
   | "profile"
@@ -420,7 +422,8 @@ export function Dashboard() {
   useEffect(() => {
     if (user?.role === "admin") {
       const isSubItemActive = adminCurrentView === "financial-reports" || 
-                             adminCurrentView === "academic-reports"
+                             adminCurrentView === "academic-reports" ||
+                             adminCurrentView === "marks-tracking"
       // Only auto-open if a sub-item is active and menu wasn't manually closed
       if (isSubItemActive && !reportsMenuManuallyClosed) {
         setReportsMenuOpen(true)
@@ -851,6 +854,7 @@ export function Dashboard() {
         subItems: [
           { id: "financial-reports", label: "Financial Reports" },
           { id: "academic-reports", label: "Academic Reports" },
+          { id: "marks-tracking", label: "Marks Tracking" },
         ],
       },
       { id: "alerts", label: "Alerts", icon: Bell },
@@ -899,7 +903,9 @@ export function Dashboard() {
         case "financial-reports":
           return <AdminFinancialReports />
         case "academic-reports":
-          return <AcademicReports />
+          return <AcademicReports onNavigate={(view: string) => setAdminCurrentView(view as AdminView)} />
+        case "marks-tracking":
+          return <MarksTracking />
         case "alerts":
           return <Alerts />
         case "configuration":

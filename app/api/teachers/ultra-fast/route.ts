@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { resolveTeacherId } from '@/lib/teacher-lookup'
+import { getAcademicYearFromConfig } from '@/lib/app-config-server'
 import { 
   TeacherDataResponse, 
   TeacherDataState, 
@@ -59,7 +60,7 @@ function setUltraFastCache(key: string, data: any, ttl: number = ULTRA_FAST_TTL)
 }
 
 // Ultra-optimized data transformer
-function ultraFastTransform(rawData: any): TeacherDataState {
+async function ultraFastTransform(rawData: any): Promise<TeacherDataState> {
   // Transform and optimize data structure
   const classes = new Map<string, TeacherClass>()
   const students = new Map<string, TeacherClassStudent>()
@@ -104,7 +105,7 @@ function ultraFastTransform(rawData: any): TeacherDataState {
         subsystem: cls.subsystem || 'english',
         branch: cls.branch || 'grammar',
         code: cls.code,
-        academicYear: cls.academic_year || cls.academicYear || '2024-2025',
+        academicYear: cls.academic_year || cls.academicYear || defaultAcademicYear,
         capacity: cls.capacity || 0,
         currentEnrollment: cls.current_enrollment || cls.currentEnrollment || classStudents.length,
         room: cls.room,
@@ -137,7 +138,7 @@ function ultraFastTransform(rawData: any): TeacherDataState {
           classId: assignment.class_id || assignment.classId,
           subjectId: assignment.subject_id || assignment.subjectId,
           isPrimary: assignment.is_primary || assignment.isPrimary || false,
-          academicYear: assignment.academic_year || assignment.academicYear || '2024-2025',
+          academicYear: assignment.academic_year || assignment.academicYear || defaultAcademicYear,
           term: assignment.term || 'Term 1',
           createdAt: assignment.created_at || assignment.createdAt || new Date().toISOString()
         })) || [],
@@ -242,7 +243,7 @@ function ultraFastTransform(rawData: any): TeacherDataState {
       grade: grade.grade,
       remarks: grade.remarks,
       submittedAt: grade.submitted_at,
-      gradedAt: grade.graded_at
+      // gradedAt field removed - column doesn't exist in database
     }
   ]) || []))
   
@@ -422,9 +423,10 @@ async function getUltraFastTeacherData(teacherId: string): Promise<any> {
     }
     
     // Use the optimized function if available
+    const defaultAcademicYear = await getAcademicYearFromConfig()
     const { data, error } = await supabase.rpc('get_teacher_assignments_optimized', {
       p_teacher_id: actualTeacherId,
-      p_academic_year: '2024-2025',
+      p_academic_year: defaultAcademicYear,
       p_term: 'Term 1'
     })
     
@@ -540,7 +542,7 @@ async function getFallbackTeacherData(teacherId: string): Promise<any> {
         )
       `)
       .eq('teacher_id', actualTeacherId)
-      .eq('academic_year', '2024-2025')
+      .eq('academic_year', await getAcademicYearFromConfig())
       .eq('term', 'Term 1')
     
     if (assignmentsError) {
@@ -617,7 +619,7 @@ async function getFallbackTeacherData(teacherId: string): Promise<any> {
         )
       `)
       .eq('assessment.teacher_id', teacherId)
-      .order('graded_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(100)
     
     if (gradesError) {
@@ -691,7 +693,8 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const teacherId = searchParams.get('teacherId')
-    const academicYear = searchParams.get('academicYear') || '2024-2025'
+    const academicYearParam = searchParams.get('academicYear')
+    const academicYear = academicYearParam || await getAcademicYearFromConfig()
     const term = searchParams.get('term') || 'Term 1'
     const useCache = searchParams.get('useCache') !== 'false'
     
@@ -726,7 +729,7 @@ export async function GET(request: NextRequest) {
     const rawData = await getUltraFastTeacherData(teacherId)
     
     // Transform data for optimal performance
-    const transformedData = ultraFastTransform(rawData)
+    const transformedData = await ultraFastTransform(rawData)
     
     // Cache the transformed data
     if (useCache) {

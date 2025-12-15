@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useMemo, useRef } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -28,8 +28,6 @@ export function GradesHistory() {
   const { data: history = [], isLoading: loading } = useGradeHistory(user?.id)
   const { mutate: deleteGrade } = useDeleteGradeEntry()
   
-  const [filteredHistory, setFilteredHistory] = useState<HistoryEntry[]>([])
-  
   // View/Edit state
   const [selectedGrade, setSelectedGrade] = useState<HistoryEntry | null>(null)
   const [viewMode, setViewMode] = useState<'view' | 'edit' | null>(null)
@@ -42,8 +40,28 @@ export function GradesHistory() {
   const [subjectFilter, setSubjectFilter] = useState<string>("all")
   const [sequenceFilter, setSequenceFilter] = useState<string>("all")
 
-  // Apply filters
-  useEffect(() => {
+  // Apply filters using useMemo instead of useEffect to avoid infinite loops
+  // Use a ref to track history IDs and only update when they actually change
+  const historyIdsRef = useRef<string>('')
+  const historyLengthRef = useRef<number>(0)
+  
+  // Calculate current IDs string
+  const currentIds = history.length > 0 
+    ? history.map(h => h.id).sort().join(',')
+    : ''
+  
+  // Only update refs when content actually changes
+  if (historyIdsRef.current !== currentIds || historyLengthRef.current !== history.length) {
+    historyIdsRef.current = currentIds
+    historyLengthRef.current = history.length
+  }
+  
+  // Create stable key from ref values (only changes when content actually changes)
+  const historyContentKey = history.length === 0 
+    ? 'empty' 
+    : `${historyLengthRef.current}-${historyIdsRef.current}`
+  
+  const filteredHistory = useMemo(() => {
     let filtered = [...history]
 
     // Search filter (searches across class, subject, sequence)
@@ -72,13 +90,23 @@ export function GradesHistory() {
       filtered = filtered.filter(entry => entry.sequence === sequenceFilter)
     }
 
-    setFilteredHistory(filtered)
-  }, [searchTerm, classFilter, subjectFilter, sequenceFilter, history])
+    return filtered
+  }, [searchTerm, classFilter, subjectFilter, sequenceFilter, historyContentKey, history])
 
-  // Get unique values for filters
-  const uniqueClasses = Array.from(new Set(history.map(h => h.class))).sort()
-  const uniqueSubjects = Array.from(new Set(history.map(h => h.subject))).sort()
-  const uniqueSequences = Array.from(new Set(history.map(h => h.sequence))).sort()
+  // Get unique values for filters (memoized to prevent unnecessary recalculations)
+  // Use historyContentKey to detect actual content changes
+  const uniqueClasses = useMemo(() => 
+    Array.from(new Set(history.map(h => h.class))).sort(),
+    [historyContentKey]
+  )
+  const uniqueSubjects = useMemo(() => 
+    Array.from(new Set(history.map(h => h.subject))).sort(),
+    [historyContentKey]
+  )
+  const uniqueSequences = useMemo(() => 
+    Array.from(new Set(history.map(h => h.sequence))).sort(),
+    [historyContentKey]
+  )
 
   const handleResetFilters = () => {
     setSearchTerm("")

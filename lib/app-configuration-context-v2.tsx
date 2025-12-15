@@ -128,6 +128,9 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
 
   // Enhanced fetch with multiple fallback strategies
   const fetchConfiguration = useCallback(async (): Promise<AppConfiguration> => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:130',message:'fetchConfiguration entry',data:{isOnline,hasUser:!!user},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     // Strategy 1: Always try to fetch from database first (prioritize database)
     if (isOnline) {
       try {
@@ -148,20 +151,34 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
         }
         
         // Add cache-busting timestamp to ensure fresh data
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:151',message:'Before API fetch',data:{hasUserId:!!currentUser?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         const response = await fetch(`/api/configuration-v2?t=${Date.now()}`, {
           method: 'GET',
           headers,
         })
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:156',message:'API response received',data:{ok:response.ok,status:response.status,statusText:response.statusText},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
 
         if (response.ok) {
           const data = await response.json()
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:158',message:'API response parsed',data:{hasConfiguration:!!data.configuration,source:data.source,configKeys:data.configuration?Object.keys(data.configuration):null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
           const config = data.configuration || getDefaultConfiguration()
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:159',message:'Config determined',data:{isDefault:!data.configuration,schoolName:config.school_name,academicYear:config.academic_year},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
           setLastFetched(new Date())
           console.log('✅ Configuration fetched successfully from database')
           
           // Clear localStorage and update with fresh database data to avoid stale data
           try {
             localStorage.setItem('app_configuration', JSON.stringify(config))
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:164',message:'localStorage updated',data:{schoolName:config.school_name,academicYear:config.academic_year},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
             console.log('💾 Updated localStorage with fresh database configuration')
           } catch (error) {
             console.warn('⚠️ Failed to update localStorage with fresh config:', error)
@@ -172,6 +189,9 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
           throw new Error(`HTTP ${response.status}: ${response.statusText}`)
         }
       } catch (error) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:175',message:'API fetch failed',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         console.warn('⚠️ API fetch failed, checking localStorage:', error)
         // Don't throw here - we'll use fallback
       }
@@ -180,16 +200,28 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
     // Strategy 2: Use localStorage as backup only if database is unavailable
     try {
       const storedConfig = localStorage.getItem('app_configuration')
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:182',message:'Checking localStorage',data:{hasStoredConfig:!!storedConfig},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       if (storedConfig) {
         const parsedConfig = JSON.parse(storedConfig)
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:185',message:'Using localStorage config',data:{schoolName:parsedConfig.school_name,academicYear:parsedConfig.academic_year},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
         console.log('💾 Using localStorage configuration (database unavailable)')
         return { ...getDefaultConfiguration(), ...parsedConfig }
       }
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:189',message:'localStorage read failed',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       console.warn('⚠️ localStorage read failed:', error)
     }
 
     // Strategy 3: Use environment variables as last resort
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:193',message:'Using default configuration',data:{reason:'fallback'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     console.log('🔧 Using environment/default configuration')
     return getDefaultConfiguration()
   }, [isOnline, user])
@@ -206,8 +238,14 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
 
       try {
         const config = await fetchConfiguration()
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:208',message:'Config loaded in useEffect',data:{schoolName:config.school_name,academicYear:config.academic_year,isMounted},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         if (isMounted) {
           setConfiguration(config)
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:210',message:'Configuration state set',data:{schoolName:config.school_name,academicYear:config.academic_year},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
           // localStorage is already updated by fetchConfiguration when it gets data from database
           // Only update here if fetchConfiguration didn't (shouldn't happen, but safe fallback)
           if (config && typeof window !== 'undefined') {
@@ -222,6 +260,9 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
           }
         }
       } catch (error) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:224',message:'Config load error',data:{error:error instanceof Error?error.message:String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         if (isMounted) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to load configuration'
           setError(errorMessage)
@@ -274,6 +315,9 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
         if (response.ok) {
           try {
             const data = await response.json()
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:276',message:'Save response received',data:{hasConfiguration:!!data.configuration,source:data.source,schoolName:data.configuration?.school_name,academicYear:data.configuration?.academic_year},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
             const updatedConfig = data.configuration || newConfig
             
             setConfiguration(updatedConfig)
@@ -283,6 +327,9 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
             // Update localStorage with server response
             try {
               localStorage.setItem('app_configuration', JSON.stringify(updatedConfig))
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:285',message:'localStorage updated after save',data:{schoolName:updatedConfig.school_name,academicYear:updatedConfig.academic_year},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+              // #endregion
             } catch (error) {
               console.warn('Failed to update localStorage with server response:', error)
             }
@@ -290,6 +337,9 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
             // Refresh from database to ensure we have the latest data
             try {
               const freshConfig = await fetchConfiguration()
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:292',message:'Fresh config after save',data:{schoolName:freshConfig.school_name,academicYear:freshConfig.academic_year},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+              // #endregion
               setConfiguration(freshConfig)
               setLastFetched(new Date())
               // Update localStorage with fresh database data
@@ -299,6 +349,9 @@ export function AppConfigurationProvider({ children }: AppConfigurationProviderP
                 console.warn('Failed to update localStorage with fresh config:', error)
               }
             } catch (refreshError) {
+              // #region agent log
+              fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app-configuration-context-v2.tsx:301',message:'Refresh after save failed',data:{error:refreshError instanceof Error?refreshError.message:String(refreshError)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+              // #endregion
               console.warn('Failed to refresh configuration after save:', refreshError)
               // Continue with the response data we already have
             }

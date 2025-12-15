@@ -7,8 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { ArrowLeft, Save, Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { useSequenceConfiguration, type Sequence } from "@/hooks/use-sequence-configuration"
+import { useGlobalAcademicYear } from "@/lib/app-configuration-context-v2"
+import { useSubmitGrades } from "@/hooks/use-submit-grades"
 
 interface ClassGradeEntryProps {
   classId: string
@@ -34,24 +38,37 @@ interface Subject {
   coefficient: number
 }
 
-// Mock sequences for now - could be fetched from configuration
-const SEQUENCES = [
-  { id: "seq1", name: "First Sequence" },
-  { id: "seq2", name: "Second Sequence" },
-  { id: "seq3", name: "Third Sequence" },
-  { id: "seq4", name: "Fourth Sequence" },
-  { id: "seq5", name: "Fifth Sequence" },
-  { id: "seq6", name: "Sixth Sequence" },
-]
-
 export function ClassGradeEntry({ classId, subjectId, onBack }: ClassGradeEntryProps) {
   const { user } = useAuth()
   const [selectedSubject, setSelectedSubject] = useState<string>("")
+  const [selectedTerm, setSelectedTerm] = useState<string>("")
   const [selectedSequence, setSelectedSequence] = useState<string>("")
   const [students, setStudents] = useState<Student[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  
+  // Use optimistic grade submission hook
+  const submitGradesMutation = useSubmitGrades()
+  const saving = submitGradesMutation.isPending
+  
+  // Fetch sequence configuration
+  const globalAcademicYear = useGlobalAcademicYear()
+  const { data: sequenceConfig, isLoading: loadingSequences } = useSequenceConfiguration(globalAcademicYear)
+  
+  // Extract unique terms from configuration
+  const terms = sequenceConfig?.sequences 
+    ? Array.from(new Set(sequenceConfig.sequences.map(s => s.term))).sort()
+    : []
+  
+  // Filter sequences by selected term
+  const filteredSequences = sequenceConfig?.sequences
+    ?.filter(s => s.is_active && s.term === selectedTerm)
+    .sort((a, b) => a.sequence_number - b.sequence_number) || []
+  
+  // Reset sequence when term changes
+  useEffect(() => {
+    setSelectedSequence("")
+  }, [selectedTerm])
 
   const fetchData = useCallback(async () => {
     if (!classId) return
@@ -241,8 +258,8 @@ export function ClassGradeEntry({ classId, subjectId, onBack }: ClassGradeEntryP
   }, [selectedSubject]) // Depend only on selectedSubject change to trigger recalc of totals
 
   const handleSave = async () => {
-    if (!selectedSubject || !selectedSequence) {
-      toast.error("Please select both subject and sequence")
+    if (!selectedSubject || !selectedTerm || !selectedSequence) {
+      toast.error("Please select subject, term and sequence")
       return
     }
 
@@ -251,50 +268,45 @@ export function ClassGradeEntry({ classId, subjectId, onBack }: ClassGradeEntryP
       return
     }
 
-    setSaving(true)
-    try {
-      const gradesToSave = students
-        .filter(s => s.marks !== "")
-        .map(s => ({
-          studentId: s.id,
-          marks: parseFloat(s.marks),
-          grade: s.grade,
-          remarks: s.remarks
-        }))
-
-      if (gradesToSave.length === 0) {
-        toast.error("No grades entered to save")
-        setSaving(false)
-        return
-      }
-
-      const response = await fetch('/api/grades', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          classId,
-          subjectId: selectedSubject,
-          sequenceId: selectedSequence,
-          teacherId: user.id,
-          grades: gradesToSave
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to save grades')
-      }
-      
-      toast.success("Grades saved successfully")
-      
-    } catch (error: any) {
-      console.error("Error saving grades:", error)
-      toast.error(error.message || "Failed to save grades")
-    } finally {
-      setSaving(false)
+    const gradesToSave = students
+      .filter(s => s.marks !== "")
+      .map(s => ({
+        studentId: s.id,
+        marks: parseFloat(s.marks),
+        grade: s.grade,
+        remarks: s.remarks,
+        coefficient: subjects.find(sub => sub.id === selectedSubject)?.coefficient || 1,
+        totalMarks: s.total,
+        rank: s.rank
+      }))
+    if (gradesToSave.length === 0) {
+      toast.error("No grades entered to save")
+      return
     }
+
+    // Use optimistic mutation
+    submitGradesMutation.mutate(
+      {
+        classId,
+        subjectId: selectedSubject,
+        term: selectedTerm,
+        sequenceId: selectedSequence,
+        grades: gradesToSave
+      },
+      {
+        onSuccess: () => {
+          // Clear the form after successful submission
+          setStudents(prev => prev.map(s => ({
+            ...s,
+            marks: "",
+            total: undefined,
+            grade: undefined,
+            rank: undefined,
+            remarks: undefined
+          })))
+        }
+      }
+    )
   }
 
   const currentSubject = subjects.find(s => s.id === selectedSubject)
@@ -325,9 +337,10 @@ export function ClassGradeEntry({ classId, subjectId, onBack }: ClassGradeEntryP
           <CardTitle>Grade Entry</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Subject Selection */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Subject</label>
+              <Label className="text-sm font-medium">Subject</Label>
               {subjectId ? (
                 <div className="p-2 border rounded-md bg-muted/50 font-medium">
                   {subjects.find(s => s.id === subjectId)?.name || "Loading..."}
@@ -358,16 +371,42 @@ export function ClassGradeEntry({ classId, subjectId, onBack }: ClassGradeEntryP
               )}
             </div>
 
+            {/* Term Selection */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Sequence</label>
-              <Select value={selectedSequence} onValueChange={setSelectedSequence}>
+              <Label className="text-sm font-medium">Term</Label>
+              <Select 
+                value={selectedTerm} 
+                onValueChange={setSelectedTerm}
+                disabled={loadingSequences || terms.length === 0}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select Sequence" />
+                  <SelectValue placeholder={loadingSequences ? "Loading..." : "Select Term"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {SEQUENCES.map(seq => (
+                  {terms.map((term, index) => (
+                    <SelectItem key={`term-${index}`} value={term}>
+                      {term}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Sequence Selection */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Sequence</Label>
+              <Select 
+                value={selectedSequence} 
+                onValueChange={setSelectedSequence}
+                disabled={!selectedTerm || filteredSequences.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={!selectedTerm ? "Select Term first" : "Select Sequence"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredSequences.map(seq => (
                     <SelectItem key={seq.id} value={seq.id}>
-                      {seq.name}
+                      {seq.sequence_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -375,7 +414,7 @@ export function ClassGradeEntry({ classId, subjectId, onBack }: ClassGradeEntryP
             </div>
           </div>
 
-          {selectedSubject && selectedSequence ? (
+          {selectedSubject && selectedTerm && selectedSequence ? (
             <div className="border rounded-md">
               <Table>
                 <TableHeader>
@@ -437,14 +476,14 @@ export function ClassGradeEntry({ classId, subjectId, onBack }: ClassGradeEntryP
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground border rounded-md bg-muted/10">
-              Please select a subject and sequence to start entering grades.
+              Please select a subject, term and sequence to start entering grades.
             </div>
           )}
 
           <div className="flex justify-end">
             <Button 
               onClick={handleSave} 
-              disabled={!selectedSubject || !selectedSequence || saving || students.length === 0}
+              disabled={!selectedSubject || !selectedTerm || !selectedSequence || saving || students.length === 0}
             >
               {saving ? (
                 <>

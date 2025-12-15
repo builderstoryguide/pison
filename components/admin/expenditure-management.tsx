@@ -35,7 +35,7 @@ import {
   MoreHorizontal
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { useCurrencyFormatter, useGlobalCurrency } from '@/lib/app-configuration-context-v2'
+import { useCurrencyFormatter, useGlobalCurrency, useGlobalAcademicYear } from '@/lib/app-configuration-context-v2'
 import { useAuth } from '@/lib/auth-context'
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-utils'
 import type { 
@@ -110,6 +110,7 @@ export function ExpenditureManagement() {
   const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
   const { formatCurrency } = useCurrencyFormatter()
   const globalCurrency = useGlobalCurrency()
+  const globalAcademicYear = useGlobalAcademicYear()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   
@@ -184,8 +185,7 @@ export function ExpenditureManagement() {
     vendor_contact: '',
     receipt_number: '',
     invoice_number: '',
-    academic_year: '2024-2025',
-    term: 'Term 1',
+    academic_year: globalAcademicYear || '2024-2025',    term: 'Term 1',
     department: '',
     budget_category: 'operational',
     notes: ''
@@ -247,7 +247,7 @@ export function ExpenditureManagement() {
           vendor_contact: '',
           receipt_number: '',
           invoice_number: '',
-          academic_year: '2024-2025',
+          academic_year: globalAcademicYear,
           term: 'Term 1',
           department: '',
           budget_category: 'operational',

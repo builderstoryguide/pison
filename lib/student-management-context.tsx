@@ -1,12 +1,13 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, ReactNode } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { supabase, testConnection } from "./supabase"
 
 export interface Student {
   id: string
   student_id: string
+  matricule_number?: string
   first_name: string
   last_name: string
   middle_name?: string
@@ -160,6 +161,7 @@ async function fetchStudentsFromApi(): Promise<Student[]> {
     const transformedData: Student[] = (data || []).map((student: any) => ({
       id: student.id,
       student_id: student.student_id,
+      matricule_number: student.matricule_number,
       first_name: student.first_name,
       last_name: student.last_name,
       middle_name: student.middle_name,
@@ -190,7 +192,6 @@ async function fetchStudentsFromApi(): Promise<Student[]> {
       created_at: student.created_at,
       updated_at: student.updated_at,
     }))
-
     return transformedData
   } catch (err) {
     console.error("Error fetching students from API:", err)
@@ -199,7 +200,7 @@ async function fetchStudentsFromApi(): Promise<Student[]> {
   }
 }
 
-export function StudentManagementProvider({ children }: { children: React.ReactNode }) {
+export function StudentManagementProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
 
   const [students, setStudents] = useState<Student[]>([])

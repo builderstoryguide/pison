@@ -32,8 +32,8 @@ interface Student {
 
 interface ClassData {
   id: string
-  class_name: string
-  current_enrollment?: number
+  name: string
+  currentEnrollment?: number
 }
 
 type TermType = '1' | '2' | 'annual'
@@ -80,16 +80,33 @@ export function ReportCardsWrapper() {
 
   const fetchClasses = async () => {
     setLoadingClasses(true)
+    setError(null)
     try {
       const response = await fetch('/api/classes')
-      if (response.ok) {
-        const data = await response.json()
-        setClasses(Array.isArray(data) ? data : [])
-      } else {
-        setError('Failed to fetch classes')
+      const data = await response.json()
+      
+      // Handle error response from API
+      if (!response.ok || (data && data.ok === false)) {
+        const errorMessage = typeof data?.error === 'string' ? data.error : (data?.error?.message || 'Failed to fetch classes')
+        console.error('API error:', errorMessage)
+        setError(errorMessage)
+        setClasses([])
+        return
       }
-    } catch (_err) {
-      setError('Failed to fetch classes')
+      
+      // Handle successful response
+      const classesArray = Array.isArray(data) ? data : []
+      console.log('Fetched classes:', classesArray.length, classesArray)
+      
+      if (classesArray.length === 0) {
+        console.warn('No classes found in API response')
+      }
+      
+      setClasses(classesArray)
+    } catch (err) {
+      console.error('Error fetching classes:', err)
+      setError('Failed to fetch classes. Please try again.')
+      setClasses([])
     } finally {
       setLoadingClasses(false)
     }
@@ -115,18 +132,28 @@ export function ReportCardsWrapper() {
   const fetchReportData = async (studentId: string, term: TermType) => {
     setLoadingReport(true)
     try {
-      const response = await fetch(`/api/report-cards/${studentId}?term=${term}`)
+      const url = `/api/report-cards/${studentId}?term=${term}`
+      const response = await fetch(url)
       if (response.ok) {
         const result = await response.json()
         if (result.success) {
           setReportData(result.data)
         } else {
-          setError(result.error || 'Failed to fetch report data')
+          const errorMessage = typeof result.error === 'string' ? result.error : (result.error?.message || 'Failed to fetch report data')
+          setError(errorMessage)
         }
       } else {
-        setError('Failed to fetch report data')
+        const errorText = await response.text()
+        let parsedError
+        try {
+          parsedError = JSON.parse(errorText)
+        } catch {
+          parsedError = null
+        }
+        const errorMessage = parsedError?.error?.message || parsedError?.error || parsedError?.message || 'Failed to fetch report data'
+        setError(errorMessage)
       }
-    } catch (_err) {
+    } catch (err: any) {
       setError('Failed to fetch report data')
     } finally {
       setLoadingReport(false)
@@ -170,11 +197,10 @@ export function ReportCardsWrapper() {
             ...reportData,
             academic: {
               ...reportData.academic,
-              term: parseInt(selectedTerm) as 1 | 2
+              term: selectedTerm === '1' ? 1 : 2
             }
           }} />
-        )}
-      </div>
+        )}      </div>
     )
   }
 
@@ -250,17 +276,31 @@ export function ReportCardsWrapper() {
                 disabled={loadingClasses}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={loadingClasses ? "Loading..." : "Select class"} />
+                  <SelectValue 
+                    placeholder={
+                      loadingClasses 
+                        ? "Loading..." 
+                        : classes.length === 0 
+                        ? "No classes available" 
+                        : "Select class"
+                    } 
+                  />
                 </SelectTrigger>
-                <SelectContent>
-                  {classes.map((cls) => (
-                    <SelectItem key={cls.id} value={cls.id}>
-                      <span className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        {cls.class_name} ({cls.current_enrollment || 0} students)
-                      </span>
-                    </SelectItem>
-                  ))}
+                <SelectContent className="max-h-[240px] overflow-y-auto">
+                  {classes.length > 0 ? (
+                    classes.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        <span className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          {cls.name} ({cls.currentEnrollment || 0} students)
+                        </span>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="py-6 text-center text-sm text-muted-foreground px-2">
+                      {loadingClasses ? 'Loading classes...' : 'No classes available'}
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -286,7 +326,7 @@ export function ReportCardsWrapper() {
       {/* Error */}
       {error && (
         <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
-          {error}
+          {typeof error === 'string' ? error : (error?.message || 'An error occurred')}
           <Button variant="link" className="ml-2 p-0 h-auto" onClick={() => setError(null)}>
             Dismiss
           </Button>

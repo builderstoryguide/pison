@@ -83,7 +83,7 @@ export interface BranchGrade {
   is_absent: boolean
   is_excused: boolean
   submitted_at: string
-  graded_at: string
+  // graded_at field removed - column doesn't exist in database, use created_at instead
   created_at: string
   updated_at: string
 }

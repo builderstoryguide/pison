@@ -84,6 +84,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
     firstName: '',
     lastName: '',
     middleName: '',
+    matriculeNumber: '',
     dateOfBirth: '',
     gender: 'male',
     placeOfBirth: '',
@@ -176,7 +177,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
   const isStepValid = (step: number): boolean => {
     switch (step) {
       case 1:
-        return !!(formData.firstName && formData.lastName && formData.dateOfBirth && formData.placeOfBirth)
+        return !!(formData.firstName && formData.lastName && formData.matriculeNumber && formData.dateOfBirth && formData.placeOfBirth)
       case 2:
         return !!(formData.address && formData.city && (!formData.email || formData.email.includes('@')) && (!formData.phone || isValidPhoneFormat(formData.phone)))
       case 3:
@@ -193,16 +194,15 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
         return true
     }
   }
-
   const getStepValidationMessage = (step: number): string | null => {
     switch (step) {
       case 1:
         if (!formData.firstName) return "First name is required"
         if (!formData.lastName) return "Last name is required"
+        if (!formData.matriculeNumber) return "Matricule number is required"
         if (!formData.dateOfBirth) return "Date of birth is required"
         if (!formData.placeOfBirth) return "Place of birth is required"
-        break
-      case 2:
+        break      case 2:
         if (!formData.address) return "Home address is required"
         if (!formData.city) return "City is required"
         if (formData.email && !formData.email.includes('@')) return "Please enter a valid email address"
@@ -305,6 +305,19 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                       required
                     />
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="matriculeNumber">
+                    Matricule Number <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="matriculeNumber"
+                    value={formData.matriculeNumber}
+                    onChange={(e) => updateFormData('matriculeNumber', e.target.value)}
+                    placeholder="Enter matricule number"
+                    required
+                  />
                 </div>
 
                 <Separator />

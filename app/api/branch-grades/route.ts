@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('term', term)
     }
 
-    const { data: grades, error } = await query.order('graded_at', { ascending: false })
+    const { data: grades, error } = await query.order('created_at', { ascending: false })
 
     if (error) {
       // console.error('Error fetching branch grades:', error)
@@ -134,7 +134,6 @@ export async function GET(request: NextRequest) {
       is_absent: grade.is_absent,
       is_excused: grade.is_excused,
       submitted_at: grade.submitted_at,
-      graded_at: grade.graded_at,
       created_at: grade.created_at,
       updated_at: grade.updated_at,
       assessment: {
@@ -378,7 +377,6 @@ export async function POST(request: NextRequest) {
           is_late: body.is_late || false,
           is_absent: body.is_absent || false,
           is_excused: body.is_excused || false,
-          graded_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq('id', existingGrade.id)

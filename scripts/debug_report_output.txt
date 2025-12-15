@@ -1,0 +1,40 @@
+Fetching: http://localhost:3000/api/admin/reports/student-report?studentId=330453b6-a558-4c99-ae03-580e96eb043f&classId=a6a68a6e-6b4a-4960-b505-ecb9b80a50dc&academicTermId=first
+Status Code: 200
+DEBUG INFO RECEIVED:
+{
+  "classId": "a6a68a6e-6b4a-4960-b505-ecb9b80a50dc",
+  "totalClassSubjects": 16,
+  "subjectsFound": [
+    "Manual Labour (LB)",
+    "ACCOUNTING",
+    "Computer Science (CSC)",
+    "Citizenship (CTZ)",
+    "Physical Education (PE)",
+    "French Language",
+    "Computer Aided Management (CAM)",
+    "MATHEMATICS",
+    "OHADA Finance Reporting (OFR)",
+    "OFFICE PRACTICE",
+    "Business Mathematics",
+    "ENGLISH LANGUAGE (ENG LAN)",
+    "Introduction to Marketing",
+    "Entrepreneurship"
+  ],
+  "processedSubjects": [
+    "Manual Labour (LB)",
+    "ACCOUNTING",
+    "Computer Science (CSC)",
+    "Citizenship (CTZ)",
+    "Physical Education (PE)",
+    "French Language",
+    "Computer Aided Management (CAM)",
+    "MATHEMATICS",
+    "OHADA Finance Reporting (OFR)",
+    "OFFICE PRACTICE",
+    "Business Mathematics",
+    "ENGLISH LANGUAGE (ENG LAN)",
+    "Introduction to Marketing",
+    "Entrepreneurship"
+  ],
+  "mathFoundInClassSubjects": true
+}

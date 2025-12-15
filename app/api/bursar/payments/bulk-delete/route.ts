@@ -18,8 +18,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: 'Invalid JSON body' }, { status: 400 })
   }
 
+  const MAX_BULK_DELETE = 100 // Adjust based on your requirements
+  
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
     return NextResponse.json({ success: false, error: 'Invalid input: ids array required' }, { status: 400 })
+  }
+  
+  if (ids.length > MAX_BULK_DELETE) {
+    return NextResponse.json({ success: false, error: `Cannot delete more than ${MAX_BULK_DELETE} records at once` }, { status: 400 })
+  }
+  
+  if (!ids.every(id => typeof id === 'string' && id.length > 0)) {
+    return NextResponse.json({ success: false, error: 'Invalid input: all ids must be non-empty strings' }, { status: 400 })
   }
 
   const { data, error } = await supabase

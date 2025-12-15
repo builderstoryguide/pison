@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useGlobalAcademicYear } from '@/lib/app-configuration-context-v2'
 
 export interface ClassOption {
   id: string
@@ -132,6 +133,7 @@ export function useTeacherClasses(teacherId?: string) {
   const [classes, setClasses] = useState<ClassOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const globalAcademicYear = useGlobalAcademicYear()
 
   const fetchTeacherClasses = useCallback(async () => {
     if (!teacherId) {
@@ -167,7 +169,7 @@ export function useTeacherClasses(teacherId?: string) {
           )
         `)
         .eq('teacher_id', teacherId)
-        .eq('academic_year', '2024-2025')
+        .eq('academic_year', globalAcademicYear)
         .eq('term', 'Term 1')
 
       if (fetchError) {
@@ -198,7 +200,7 @@ export function useTeacherClasses(teacherId?: string) {
     } finally {
       setIsLoading(false)
     }
-  }, [teacherId])
+  }, [teacherId, globalAcademicYear])
 
   useEffect(() => {
     fetchTeacherClasses()

@@ -10,6 +10,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   }
 
+  // Check if user has permission to delete fee structures
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile || !['admin', 'bursar'].includes(profile.role)) {
+    return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+  }
+
+  // Parse request body
   let ids: string[] = []
   try {
     const body = await request.json()
@@ -20,6 +32,19 @@ export async function POST(request: Request) {
 
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
     return NextResponse.json({ success: false, error: 'Invalid input: ids array required' }, { status: 400 })
+  }
+
+  // Limit batch size
+  const MAX_BATCH_SIZE = 100
+  if (ids.length > MAX_BATCH_SIZE) {
+    return NextResponse.json({ success: false, error: `Cannot delete more than ${MAX_BATCH_SIZE} items at once` }, { status: 400 })
+  }
+
+  // Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  const invalidIds = ids.filter(id => typeof id !== 'string' || !uuidRegex.test(id))
+  if (invalidIds.length > 0) {
+    return NextResponse.json({ success: false, error: 'Invalid UUID format in ids array' }, { status: 400 })
   }
 
   const { data, error } = await supabase
