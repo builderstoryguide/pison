@@ -37,6 +37,72 @@ export async function GET(req: NextRequest) {
       throw new Error('Student not found');
     }
 
+    // Verify that the classId matches the student's class
+    // Handle both UUID and class name cases
+    const studentClassValue = student.class;
+    if (!studentClassValue) {
+      throw new Error('Student is not assigned to a class');
+    }
+
+    // Check if student.class is a UUID
+    const isStudentClassUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studentClassValue);
+    
+    // If student.class is a UUID, it must match the passed classId
+    // If student.class is a class name, we need to verify the classId corresponds to that class name
+    if (isStudentClassUUID) {
+      if (studentClassValue !== classId) {
+        throw new Error(`Class ID mismatch: student is in class ${studentClassValue}, but report requested for class ${classId}`);
+      }
+    } else {
+      // student.class is a class name, verify that classId corresponds to this class name
+      // Try multiple approaches to find the class: exact match on name, class_name, or case-insensitive match
+      let classByName = null;
+      
+      // First try: exact match on class_name (preferred field)
+      const { data: classByName1 } = await supabase
+        .from('classes')
+        .select('id, name, class_name')
+        .eq('class_name', studentClassValue)
+        .maybeSingle();
+      
+      if (classByName1) {
+        classByName = classByName1;
+      } else {
+        // Second try: exact match on name field (legacy)
+        const { data: classByName2 } = await supabase
+          .from('classes')
+          .select('id, name, class_name')
+          .eq('name', studentClassValue)
+          .maybeSingle();
+        
+        if (classByName2) {
+          classByName = classByName2;
+        } else {
+          // Third try: case-insensitive match on class_name
+          const { data: allClasses } = await supabase
+            .from('classes')
+            .select('id, name, class_name');
+          
+          if (allClasses) {
+            const normalizedInput = studentClassValue.trim().toLowerCase();
+            classByName = allClasses.find(cls => {
+              const className = (cls.class_name || cls.name || '').trim().toLowerCase();
+              return className === normalizedInput;
+            }) || null;
+          }
+        }
+      }
+      
+      if (classByName && classByName.id !== classId) {
+        throw new Error(`Class ID mismatch: student is in class "${studentClassValue}" (ID: ${classByName.id}), but report requested for class ${classId}`);
+      }
+      
+      // If class not found by name, log a warning but continue (classId might still be valid)
+      if (!classByName) {
+        console.warn(`[Report Card] Could not verify class name "${studentClassValue}" matches classId ${classId}, but proceeding with classId`);
+      }
+    }
+
     // 2. Fetch Class Details (for Year/Level)
     const { data: classData, error: classError } = await supabase
       .from('classes')
@@ -51,10 +117,12 @@ export async function GET(req: NextRequest) {
 
     // 3. Fetch Class Subjects
     // Explicitly define return type to avoid array-inference issues on joins
+    // CRITICAL: Ensure subjects are fetched ONLY from the student's class via class_subjects table
     const { data: classSubjects, error: subjectsError } = await supabase
       .from('class_subjects')
       .select(`
         subject_id,
+        class_id,
         subjects!inner (
           id,
           name,
@@ -67,7 +135,27 @@ export async function GET(req: NextRequest) {
       .eq('class_id', classId);
 
     if (subjectsError) {
-      throw new Error('Failed to fetch subjects');
+      console.error('[Report Card] Error fetching class subjects:', subjectsError);
+      throw new Error(`Failed to fetch subjects for class ${classId}: ${subjectsError.message}`);
+    }
+    
+    // Verify that subjects were found and log for debugging
+    if (!classSubjects || classSubjects.length === 0) {
+      console.warn(`[Report Card] No subjects found for class ${classId} (${classData?.class_name || classData?.name || 'Unknown'})`);
+      // Don't throw error, just log - student might not have subjects assigned yet
+    } else {
+      // Verify all subjects belong to the correct class
+      const invalidSubjects = classSubjects.filter(cs => cs.class_id !== classId);
+      if (invalidSubjects.length > 0) {
+        console.error(`[Report Card] WARNING: Found ${invalidSubjects.length} subjects with incorrect class_id!`);
+      }
+      
+      console.log(`[Report Card] Found ${classSubjects.length} subjects for class ${classId} (${classData?.class_name || classData?.name || 'Unknown'}):`, 
+        classSubjects.map(cs => {
+          const subj = Array.isArray(cs.subjects) ? cs.subjects[0] : cs.subjects;
+          return subj ? { id: subj.id, name: subj.name, class_id: cs.class_id } : null;
+        }).filter(Boolean)
+      );
     }
 
     // 4. Fetch Teacher-Subject Assignments for these subjects
@@ -379,13 +467,177 @@ export async function GET(req: NextRequest) {
     console.log(`[Report Card] Found ${subjectsList.length} subjects for class ${classId}:`, 
         subjectsList.map((s: any) => ({ id: s.id, name: s.name, normalized: normalizeSubjectName(s.name) }))
     );
+    
+    // Log all assessment subjects found in grades for comparison
+    if (gradesData && gradesData.length > 0) {
+        const allAssessmentSubjects = gradesData.map((g: any) => {
+            const assessment = g.assessment as any;
+            return assessment?.subject || '';
+        }).filter(Boolean);
+        const uniqueAssessmentSubjects = [...new Set(allAssessmentSubjects)];
+        console.log(`[Report Card] Found ${uniqueAssessmentSubjects.length} unique assessment subjects in grades:`, 
+            uniqueAssessmentSubjects.map(s => ({
+                original: s,
+                normalized: normalizeSubjectName(s)
+            }))
+        );
+        
+        // Compare class subjects with assessment subjects
+        const classSubjectNames = subjectsList.map((s: any) => normalizeSubjectName(s.name));
+        const assessmentSubjectNames = uniqueAssessmentSubjects.map(s => normalizeSubjectName(s));
+        
+        const missingInAssessments = classSubjectNames.filter(cs => 
+            !assessmentSubjectNames.some(as => subjectNamesMatch(cs, as))
+        );
+        const missingInClassSubjects = assessmentSubjectNames.filter(as => 
+            !classSubjectNames.some(cs => subjectNamesMatch(cs, as))
+        );
+        
+        if (missingInAssessments.length > 0) {
+            console.warn(`[Report Card] Class subjects with NO matching assessments:`, missingInAssessments);
+        }
+        if (missingInClassSubjects.length > 0) {
+            console.warn(`[Report Card] Assessment subjects with NO matching class subjects:`, missingInClassSubjects);
+        }
+    }
 
     let totalScore = 0;
     let totalCoef = 0;
     let passedCount = 0;
     
+    // Track GCE subjects (subjects with codes) for GCE section
+    let gceTradeSubjects = 0;
+    let gceRelatedTrade = 0;
+    let gceOtherSubjects = 0;
+    let gceSubjectsPassed = 0;
+    
     // Track processed subject names to prevent duplicates in reportItems
     const processedSubjectNames = new Set<string>();
+    
+    // Initialize subject ranks map (will be populated during ranking calculation)
+    const subjectRanks = new Map<string, number>();
+
+    // Track specific subjects for Form 1 EPS class diagnostics
+    const targetSubjectNames = [
+        'Professional English',
+        'Industrial Computing', 
+        'Mathematics',
+        'Building Construction Drawing',
+        'Computer Aided Management',
+        'Electrical Technology and Diagrams'
+    ];
+    
+    // Find all target subjects in class_subjects
+    const foundTargetSubjects = subjectsList.filter((s: any) => {
+        const normalized = normalizeSubjectName(s.name);
+        return targetSubjectNames.some(target => 
+            normalized === normalizeSubjectName(target) || 
+            normalized.includes(normalizeSubjectName(target)) ||
+            normalizeSubjectName(target).includes(normalized)
+        );
+    });
+    
+    if (foundTargetSubjects.length > 0) {
+        console.log(`[FORM 1 EPS DIAGNOSTIC] Found ${foundTargetSubjects.length} target subjects in class_subjects:`, 
+            foundTargetSubjects.map((s: any) => ({
+                id: s.id,
+                name: s.name,
+                normalized: normalizeSubjectName(s.name)
+            }))
+        );
+    } else {
+        console.log(`[FORM 1 EPS DIAGNOSTIC] None of the target subjects found in class_subjects for class ${classId}`);
+        console.log(`[FORM 1 EPS DIAGNOSTIC] Available subjects:`, subjectsList.map((s: any) => ({
+            name: s.name,
+            normalized: normalizeSubjectName(s.name)
+        })));
+    }
+    
+    // BC-SPECIFIC DIAGNOSTIC: Check if BC subject exists and log details
+    const bcSubject = subjectsList.find((s: any) => {
+        const normalized = normalizeSubjectName(s.name);
+        return normalized === 'bc' || normalized === 'building construction' || 
+               normalized.includes('bc') || normalized.includes('building construction');
+    });
+    if (bcSubject) {
+        console.log(`[BC DIAGNOSTIC] BC subject found in class_subjects:`, {
+            id: bcSubject.id,
+            name: bcSubject.name,
+            normalized: normalizeSubjectName(bcSubject.name)
+        });
+    } else {
+        console.log(`[BC DIAGNOSTIC] BC subject NOT found in class_subjects for class ${classId}`);
+        console.log(`[BC DIAGNOSTIC] Available subjects:`, subjectsList.map((s: any) => s.name));
+    }
+    
+    // EPS-SPECIFIC DIAGNOSTIC: Check if EPS subject exists and log details
+    const epsSubject = subjectsList.find((s: any) => {
+        const normalized = normalizeSubjectName(s.name);
+        return normalized === 'eps' || normalized === 'physical education' || normalized === 'pe' ||
+               normalized.includes('eps') || normalized.includes('physical education') || normalized.includes('pe');
+    });
+    if (epsSubject) {
+        console.log(`[EPS DIAGNOSTIC] EPS subject found in class_subjects:`, {
+            id: epsSubject.id,
+            name: epsSubject.name,
+            normalized: normalizeSubjectName(epsSubject.name)
+        });
+    } else {
+        console.log(`[EPS DIAGNOSTIC] EPS subject NOT found in class_subjects for class ${classId}`);
+    }
+    
+    // AC-SPECIFIC DIAGNOSTIC: Check if AC subject exists and log details
+    const acSubject = subjectsList.find((s: any) => {
+        const normalized = normalizeSubjectName(s.name);
+        return normalized === 'ac' || normalized === 'accounting' || normalized === 'accountancy' ||
+               normalized.includes('ac') || normalized.includes('accounting');
+    });
+    if (acSubject) {
+        console.log(`[AC DIAGNOSTIC] AC subject found in class_subjects:`, {
+            id: acSubject.id,
+            name: acSubject.name,
+            normalized: normalizeSubjectName(acSubject.name)
+        });
+    } else {
+        console.log(`[AC DIAGNOSTIC] AC subject NOT found in class_subjects for class ${classId}`);
+    }
+    
+    // HEC-SPECIFIC DIAGNOSTIC: Check if HEC subject exists and log details
+    const hecSubject = subjectsList.find((s: any) => {
+        const normalized = normalizeSubjectName(s.name);
+        return normalized === 'hec' || normalized === 'home economics' || normalized === 'home ec' ||
+               normalized.includes('hec') || normalized.includes('home economics');
+    });
+    if (hecSubject) {
+        console.log(`[HEC DIAGNOSTIC] HEC subject found in class_subjects:`, {
+            id: hecSubject.id,
+            name: hecSubject.name,
+            normalized: normalizeSubjectName(hecSubject.name)
+        });
+    } else {
+        console.log(`[HEC DIAGNOSTIC] HEC subject NOT found in class_subjects for class ${classId}`);
+    }
+    
+    // DIAGNOSTIC: Call diagnostic logging after grades are fetched and subject variables are declared
+    // This must be after bcSubject, epsSubject, acSubject, hecSubject are declared
+    
+    // Log diagnostics for Form 1 EPS target subjects
+    foundTargetSubjects.forEach((targetSubject: any) => {
+        logSubjectMarkDiagnostics(targetSubject.name, classSubjects, gradesData || [], subjectTeacherMap, studentId);
+    });
+    
+    if (bcSubject) {
+        logSubjectMarkDiagnostics(bcSubject.name, classSubjects, gradesData || [], subjectTeacherMap, studentId);
+    }
+    if (epsSubject) {
+        logSubjectMarkDiagnostics(epsSubject.name, classSubjects, gradesData || [], subjectTeacherMap, studentId);
+    }
+    if (acSubject) {
+        logSubjectMarkDiagnostics(acSubject.name, classSubjects, gradesData || [], subjectTeacherMap, studentId);
+    }
+    if (hecSubject) {
+        logSubjectMarkDiagnostics(hecSubject.name, classSubjects, gradesData || [], subjectTeacherMap, studentId);
+    }
 
     for (const subject of subjectsList) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -411,6 +663,11 @@ export async function GET(req: NextRequest) {
         const hasSubBranches = (subject as any).has_sub_branches;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const subjectCoef = (subject as any).coefficient || 1;
+        // Check if this is a GCE subject (has a code)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const subjectCode = (subject as any).code;
+        const isGceSubject = subjectCode && String(subjectCode).trim().length > 0;
+        
         // Get category from subject_groupings, default to 'others'
         let category = 'others';
         try {
@@ -470,14 +727,91 @@ export async function GET(req: NextRequest) {
         } else {
             // Normal Subject - Group grades by sequence number
             // Use validGradesData which has been filtered by teacher assignments
+            
+            // BC/EPS/AC/HEC AND FORM 1 EPS SUBJECTS: Check if this is a target subject for logging
+            const targetSubjectsList = [
+                'bc', 'eps', 'ac', 'hec', 
+                'building construction', 'physical education', 'accounting', 'home economics',
+                'professional english', 'industrial computing', 'mathematics',
+                'building construction drawing', 'computer aided management',
+                'electrical technology and diagrams'
+            ];
+            const isTargetSubject = targetSubjectsList
+                .some(target => {
+                    const normSubj = normalizeSubjectName(subjectName);
+                    const normTarget = normalizeSubjectName(target);
+                    return normSubj.includes(normTarget) || normTarget.includes(normSubj) || 
+                           normSubj === normTarget;
+                });
+            
             const sGrades = validGradesData?.filter(g => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const assessment = g.assessment as any;
                 const assessSubject = assessment?.subject || '';
                 // Use normalized comparison to handle case sensitivity and whitespace
-                return subjectNamesMatch(assessSubject, subjectName) && 
+                const matches = subjectNamesMatch(assessSubject, subjectName);
+                
+                // BC/EPS/AC/HEC AND FORM 1 EPS SUBJECTS: Log matching attempts
+                if (isTargetSubject && !matches) {
+                    console.log(`[${subjectName.toUpperCase()} MATCHING] Assessment subject "${assessSubject}" does NOT match "${subjectName}"`, {
+                        normalizedAssess: normalizeSubjectName(assessSubject),
+                        normalizedSubject: normalizeSubjectName(subjectName),
+                        match: matches,
+                        assessSubjectWords: normalizeSubjectName(assessSubject).split(' '),
+                        subjectNameWords: normalizeSubjectName(subjectName).split(' ')
+                    });
+                }
+                if (isTargetSubject && matches) {
+                    console.log(`[${subjectName.toUpperCase()} MATCHING] ✓ Assessment subject "${assessSubject}" MATCHES "${subjectName}"`);
+                }
+                
+                return matches && 
                     isTargetTerm(assessment?.term || null, assessment?.title || null);
             }) || [];
+            
+            // BC/EPS/AC/HEC AND FORM 1 EPS SUBJECTS: Log grades found
+            const targetSubjectsList2 = [
+                'bc', 'eps', 'ac', 'hec', 
+                'building construction', 'physical education', 'accounting', 'home economics',
+                'professional english', 'industrial computing', 'mathematics',
+                'building construction drawing', 'computer aided management',
+                'electrical technology and diagrams'
+            ];
+            const isTargetSubject2 = targetSubjectsList2
+                .some(target => {
+                    const normSubj = normalizeSubjectName(subjectName);
+                    const normTarget = normalizeSubjectName(target);
+                    return normSubj.includes(normTarget) || normTarget.includes(normSubj) || 
+                           normSubj === normTarget;
+                });
+            if (isTargetSubject2) {
+                console.log(`[${subjectName.toUpperCase()} GRADES] Found ${sGrades.length} grades for subject "${subjectName}"`, {
+                    subjectName,
+                    normalizedSubjectName: normalizeSubjectName(subjectName),
+                    gradesCount: sGrades.length,
+                    grades: sGrades.map((g: any) => ({
+                        marks: g.marks_obtained,
+                        assessmentSubject: (g.assessment as any)?.subject,
+                        normalizedAssessmentSubject: normalizeSubjectName((g.assessment as any)?.subject),
+                        assessmentTitle: (g.assessment as any)?.title,
+                        matches: subjectNamesMatch((g.assessment as any)?.subject, subjectName)
+                    }))
+                });
+                
+                // If no grades found, log all available assessment subjects for debugging
+                if (sGrades.length === 0) {
+                    const allAssessmentSubjects = validGradesData?.map((g: any) => {
+                        const assessment = g.assessment as any;
+                        return assessment?.subject || '';
+                    }).filter(Boolean) || [];
+                    const uniqueAssessmentSubjects = [...new Set(allAssessmentSubjects)];
+                    console.error(`[${subjectName.toUpperCase()} ERROR] No grades found! Available assessment subjects:`, uniqueAssessmentSubjects.map(s => ({
+                        original: s,
+                        normalized: normalizeSubjectName(s),
+                        matches: subjectNamesMatch(s, subjectName)
+                    })));
+                }
+            }
 
             // Determine term number for mapping in-term sequences to global sequences
             const currentTermNumber = getTermNumber(academicTermId);
@@ -539,11 +873,30 @@ export async function GET(req: NextRequest) {
                 finalMark = availableSeqMarks.reduce((a, b) => a + b, 0) / availableSeqMarks.length;
                 hasMark = true;
                 console.log(`[Report Card] Subject "${subjectName}": Found ${availableSeqMarks.length} sequence marks, average: ${finalMark.toFixed(2)}`);
+                
+                // BC/EPS/AC/HEC SPECIFIC: Log successful mark calculation
+                if (isTargetSubject) {
+                    console.log(`[${subjectName.toUpperCase()} SUCCESS] Marks calculated successfully:`, {
+                        subjectName,
+                        finalMark: finalMark.toFixed(2),
+                        sequenceMarks: availableSeqMarks,
+                        sequenceCount: availableSeqMarks.length
+                    });
+                }
             } else if (gradesBySequence[0] && gradesBySequence[0].length > 0) {
                 // Fallback for legacy grades without sequence numbers
                 finalMark = gradesBySequence[0].reduce((a, b) => a + b, 0) / gradesBySequence[0].length;
                 hasMark = true;
                 console.log(`[Report Card] Subject "${subjectName}": Using legacy grades (no sequence numbers), average: ${finalMark.toFixed(2)}`);
+                
+                // BC/EPS/AC/HEC SPECIFIC: Log legacy marks
+                if (isTargetSubject) {
+                    console.log(`[${subjectName.toUpperCase()} LEGACY] Using legacy grades:`, {
+                        subjectName,
+                        finalMark: finalMark.toFixed(2),
+                        legacyGradesCount: gradesBySequence[0].length
+                    });
+                }
             } else {
                 // Log when no grades found for debugging
                 const allAssessmentSubjects = gradesData?.map((g: any) => {
@@ -552,6 +905,21 @@ export async function GET(req: NextRequest) {
                 }).filter(Boolean) || [];
                 const uniqueAssessmentSubjects = [...new Set(allAssessmentSubjects)];
                 console.warn(`[Report Card] Subject "${subjectName}": No grades found. Available assessment subjects:`, uniqueAssessmentSubjects);
+                
+                // BC/EPS/AC/HEC SPECIFIC: Detailed logging when marks are missing
+                if (isTargetSubject) {
+                    console.error(`[${subjectName.toUpperCase()} ERROR] No marks found for subject "${subjectName}"`, {
+                        subjectName,
+                        normalizedSubjectName: normalizeSubjectName(subjectName),
+                        availableAssessmentSubjects: uniqueAssessmentSubjects,
+                        normalizedAvailable: uniqueAssessmentSubjects.map(s => normalizeSubjectName(s)),
+                        matchingAttempts: uniqueAssessmentSubjects.map(assessSubj => ({
+                            assessmentSubject: assessSubj,
+                            normalized: normalizeSubjectName(assessSubj),
+                            matches: subjectNamesMatch(assessSubj, subjectName)
+                        }))
+                    });
+                }
             }
         }
 
@@ -563,6 +931,20 @@ export async function GET(req: NextRequest) {
             totalCoef += coef;
             if (finalMark >= 10) passedCount++;
             remark = calculateRemark(finalMark);
+            
+            // Track GCE subjects (only subjects with codes)
+            if (isGceSubject) {
+                if (category === 'trade_subjects') {
+                    gceTradeSubjects++;
+                    if (finalMark >= 10) gceSubjectsPassed++;
+                } else if (category === 'related_trade_subjects') {
+                    gceRelatedTrade++;
+                    if (finalMark >= 10) gceSubjectsPassed++;
+                } else if (category === 'others') {
+                    gceOtherSubjects++;
+                    if (finalMark >= 10) gceSubjectsPassed++;
+                }
+            }
 
             // Get sequence marks for this subject (for normal subjects only)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -602,21 +984,27 @@ export async function GET(req: NextRequest) {
                 }
             }
 
+            // Get subject rank (will be calculated later if not available yet)
+            const subjectRank = subjectRanks.get(normalizeSubjectName(subjectName)) || 0;
+            
             reportItems.push({
                 name: subjectName.trim(), // Ensure trimmed for consistency
+                code: subjectCode || undefined, // Include subject code for GCE identification
                 eval: parseFloat(finalMark.toFixed(2)),
                 coef: coef,
                 total: parseFloat(total.toFixed(2)),
                 grade: calculateGrade(finalMark),
-                rank: 0, 
+                rank: subjectRank, 
                 remark: remark,
                 category: category,
                 // Include individual sequence marks
                 ...subjectSequenceMarks
             });
         } else {
+            // Subject has no marks - don't include it in the average calculation
             reportItems.push({
                 name: subjectName.trim(), // Ensure trimmed for consistency
+                code: subjectCode || undefined, // Include subject code for GCE identification
                 eval: '-',
                 coef: subjectCoef,
                 total: '-',
@@ -625,52 +1013,186 @@ export async function GET(req: NextRequest) {
                 remark: 'No Grade',
                 category: category
             });
-            totalCoef += subjectCoef;
+            // Note: We intentionally do NOT add subjectCoef to totalCoef here
+            // This ensures subjects without marks don't count toward the average
         }
     }
 
-    // Calculate student's rank in class
+    // Calculate student's rank in class (overall and per subject)
     // Fetch all students in the same class to calculate rank
     let studentRank = 0;
+    
     try {
-        const { data: allClassStudents } = await supabase
+        // Fetch all students in the class - handle both UUID and class name cases
+        // First try by UUID (most reliable)
+        let { data: allClassStudents } = await supabase
             .from('students')
-            .select('id')
+            .select('id, class')
             .eq('class', classId);
+        
+        // If no students found by UUID, try by class name (for backward compatibility)
+        if (!allClassStudents || allClassStudents.length === 0) {
+            const { data: classData } = await supabase
+                .from('classes')
+                .select('name, class_name')
+                .eq('id', classId)
+                .single();
+            
+            if (classData) {
+                const className = classData.class_name || classData.name;
+                if (className) {
+                    const { data: studentsByName } = await supabase
+                        .from('students')
+                        .select('id, class')
+                        .eq('class', className);
+                    
+                    if (studentsByName) {
+                        allClassStudents = studentsByName;
+                    }
+                }
+            }
+        }
         
         if (allClassStudents && allClassStudents.length > 0) {
             const studentAverages: Array<{ studentId: string, average: number }> = [];
             const currentStudentAverage = totalCoef > 0 ? totalScore / totalCoef : 0;
             
-            // Calculate average for each student in the class
-            for (const classStudent of allClassStudents) {
-                if (classStudent.id === studentId) {
-                    // Add current student
-                    studentAverages.push({
-                        studentId: classStudent.id,
-                        average: currentStudentAverage
+            // Calculate subject-level rankings
+            // OPTIMIZATION: Fetch all grades for all students in the class at once instead of per-student queries
+            const currentTermNumber = getTermNumber(academicTermId);
+            const allStudentIds = allClassStudents.map(s => s.id);
+            
+            // Batch fetch all grades for all students in the class
+            const { data: allClassGrades, error: allGradesError } = await supabase
+                .from('grades')
+                .select(`
+                    marks_obtained,
+                    student_id,
+                    assessment:assessments!inner (
+                        subject,
+                        class_id,
+                        title
+                    )
+                `)
+                .in('student_id', allStudentIds)
+                .eq('assessment.class_id', classId);
+            
+            if (allGradesError) {
+                console.warn('[Report Card] Failed to fetch all class grades for ranking:', allGradesError);
+            }
+            
+            // Process grades by subject for efficient ranking calculation
+            for (const subject of subjectsList) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const subjectName = (subject as any).name;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const subjectId = (subject as any).id;
+                
+                const subjectStudentMarks: Array<{ studentId: string, mark: number }> = [];
+                
+                // Get current student's mark for this subject
+                const currentStudentSubjectMark = reportItems.find((item: any) => 
+                    subjectNamesMatch(item.name, subjectName) && typeof item.eval === 'number'
+                );
+                
+                if (currentStudentSubjectMark) {
+                    subjectStudentMarks.push({
+                        studentId: studentId,
+                        mark: currentStudentSubjectMark.eval
                     });
-                    continue;
                 }
                 
-                // Calculate average for other students
-                const { data: otherStudentGrades } = await supabase
-                    .from('grades')
-                    .select(`
-                        marks_obtained,
-                        assessment:assessments!inner (
-                            subject,
-                            class_id,
-                            title
-                        )
-                    `)
-                    .eq('student_id', classStudent.id)
-                    .eq('assessment.class_id', classId);
+                // Process all grades for this subject from the batch-fetched data
+                if (allClassGrades && allClassGrades.length > 0) {
+                    // Group grades by student_id for this subject
+                    const gradesByStudent = new Map<string, number[]>();
+                    
+                    for (const grade of allClassGrades) {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const assessment = grade.assessment as any;
+                        const assessSubject = assessment?.subject || '';
+                        
+                        // Check if this grade is for the current subject
+                        if (!subjectNamesMatch(assessSubject, subjectName)) continue;
+                        
+                        // Filter for current term
+                        const globalSeqNum = extractGlobalSequenceNumber(assessment?.title || '');
+                        let termFromTitle: number | null = null;
+                        if (globalSeqNum !== null) {
+                            if (globalSeqNum >= 1 && globalSeqNum <= 2) termFromTitle = 1;
+                            else if (globalSeqNum >= 3 && globalSeqNum <= 4) termFromTitle = 2;
+                            else if (globalSeqNum >= 5 && globalSeqNum <= 6) termFromTitle = 3;
+                        }
+                        if (termFromTitle !== currentTermNumber) continue;
+                        
+                        // Skip current student (already added above)
+                        if (grade.student_id === studentId) continue;
+                        
+                        // Add grade to student's collection
+                        if (!gradesByStudent.has(grade.student_id)) {
+                            gradesByStudent.set(grade.student_id, []);
+                        }
+                        gradesByStudent.get(grade.student_id)!.push(grade.marks_obtained);
+                    }
+                    
+                    // Calculate average for each student
+                    for (const [studentIdKey, marks] of gradesByStudent.entries()) {
+                        if (marks.length > 0) {
+                            const subjectAvg = marks.reduce((sum, m) => sum + m, 0) / marks.length;
+                            subjectStudentMarks.push({
+                                studentId: studentIdKey,
+                                mark: subjectAvg
+                            });
+                        }
+                    }
+                }
                 
-                if (otherStudentGrades && otherStudentGrades.length > 0) {
+                // Sort by mark descending and calculate rank
+                subjectStudentMarks.sort((a, b) => b.mark - a.mark);
+                
+                // Find current student's rank in this subject
+                let subjectRank = 0;
+                let currentRank = 1;
+                for (let i = 0; i < subjectStudentMarks.length; i++) {
+                    if (i > 0 && subjectStudentMarks[i].mark < subjectStudentMarks[i - 1].mark) {
+                        currentRank = i + 1;
+                    }
+                    if (subjectStudentMarks[i].studentId === studentId) {
+                        subjectRank = currentRank;
+                        break;
+                    }
+                }
+                
+                if (subjectRank > 0) {
+                    subjectRanks.set(normalizeSubjectName(subjectName), subjectRank);
+                }
+            }
+            
+            // Calculate average for each student in the class
+            // OPTIMIZATION: Use the batch-fetched grades instead of per-student queries
+            // Add current student first
+            studentAverages.push({
+                studentId: studentId,
+                average: currentStudentAverage
+            });
+            
+            // Process all other students using the batch-fetched grades
+            if (allClassGrades && allClassGrades.length > 0) {
+                // Group grades by student_id
+                const gradesByStudent = new Map<string, any[]>();
+                for (const grade of allClassGrades) {
+                    if (grade.student_id === studentId) continue; // Skip current student (already added)
+                    
+                    if (!gradesByStudent.has(grade.student_id)) {
+                        gradesByStudent.set(grade.student_id, []);
+                    }
+                    gradesByStudent.get(grade.student_id)!.push(grade);
+                }
+                
+                // Calculate average for each student
+                for (const [otherStudentId, studentGrades] of gradesByStudent.entries()) {
                     // Filter grades for current term
-                    const currentTermNumber = getTermNumber(academicTermId);
-                    const termGrades = otherStudentGrades.filter(grade => {
+                    const termGrades = studentGrades.filter(grade => {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const assessment = grade.assessment as any;
                         const globalSeqNum = extractGlobalSequenceNumber(assessment?.title || '');
@@ -683,44 +1205,55 @@ export async function GET(req: NextRequest) {
                         return termFromTitle === currentTermNumber;
                     });
                     
-                    // Group grades by subject and calculate averages
-                    const subjectTotals: Record<string, { total: number, coef: number }> = {};
-                    
-                    for (const subject of subjectsList) {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const subjectName = (subject as any).name;
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const coef = (subject as any).coefficient || 1;
+                    if (termGrades.length > 0) {
+                        // Group grades by subject and calculate averages
+                        const subjectTotals: Record<string, { total: number, coef: number }> = {};
                         
-                    // Get all grades for this subject
-                    // Use normalized comparison to handle case sensitivity and whitespace
-                    // Note: termGrades is already filtered from validGradesData which respects teacher assignments
-                    const subjectGrades = termGrades.filter(g => {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const assessSubject = (g.assessment as any).subject || '';
-                        return subjectNamesMatch(assessSubject, subjectName);
-                    });
-                        
-                        if (subjectGrades.length > 0) {
-                            const subjectAvg = subjectGrades.reduce((sum, g) => sum + g.marks_obtained, 0) / subjectGrades.length;
-                            subjectTotals[subjectName] = { 
-                                total: subjectAvg * coef, 
-                                coef: coef 
-                            };
+                        for (const subject of subjectsList) {
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const subjectName = (subject as any).name;
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            const coef = (subject as any).coefficient || 1;
+                            
+                            // Get all grades for this subject
+                            const subjectGrades = termGrades.filter(g => {
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                const assessSubject = (g.assessment as any).subject || '';
+                                return subjectNamesMatch(assessSubject, subjectName);
+                            });
+                            
+                            if (subjectGrades.length > 0) {
+                                const subjectAvg = subjectGrades.reduce((sum, g) => sum + g.marks_obtained, 0) / subjectGrades.length;
+                                subjectTotals[subjectName] = { 
+                                    total: subjectAvg * coef, 
+                                    coef: coef 
+                                };
+                            }
                         }
+                        
+                        // Calculate overall average
+                        const otherTotalScore = Object.values(subjectTotals).reduce((sum, s) => sum + s.total, 0);
+                        const otherTotalCoef = Object.values(subjectTotals).reduce((sum, s) => sum + s.coef, 0);
+                        const otherAverage = otherTotalCoef > 0 ? otherTotalScore / otherTotalCoef : 0;
+                        
+                        studentAverages.push({
+                            studentId: otherStudentId,
+                            average: otherAverage
+                        });
+                    } else {
+                        // Student has no grades for this term, add with 0 average
+                        studentAverages.push({
+                            studentId: otherStudentId,
+                            average: 0
+                        });
                     }
-                    
-                    // Calculate overall average
-                    const otherTotalScore = Object.values(subjectTotals).reduce((sum, s) => sum + s.total, 0);
-                    const otherTotalCoef = Object.values(subjectTotals).reduce((sum, s) => sum + s.coef, 0);
-                    const otherAverage = otherTotalCoef > 0 ? otherTotalScore / otherTotalCoef : 0;
-                    
-                    studentAverages.push({
-                        studentId: classStudent.id,
-                        average: otherAverage
-                    });
-                } else {
-                    // Student has no grades, add with 0 average
+                }
+            }
+            
+            // Add students with no grades at all
+            for (const classStudent of allClassStudents) {
+                if (classStudent.id === studentId) continue;
+                if (!studentAverages.find(s => s.studentId === classStudent.id)) {
                     studentAverages.push({
                         studentId: classStudent.id,
                         average: 0
@@ -731,17 +1264,58 @@ export async function GET(req: NextRequest) {
             // Sort by average descending and assign ranks
             studentAverages.sort((a, b) => b.average - a.average);
             
-            // Find rank of current student
-            let rank = 1;
+            // Calculate ranks with proper tie handling
+            // Students with the same average get the same rank
+            // Next rank skips the number of students with the previous rank
+            let currentRank = 1;
             for (let i = 0; i < studentAverages.length; i++) {
+                // If this is not the first student and average is different from previous, update rank
                 if (i > 0 && studentAverages[i].average < studentAverages[i - 1].average) {
-                    rank = i + 1;
+                    // Count how many students have the previous average (for tie handling)
+                    let tieCount = 1;
+                    for (let j = i - 2; j >= 0 && studentAverages[j].average === studentAverages[i - 1].average; j--) {
+                        tieCount++;
+                    }
+                    currentRank = i + 1;
                 }
+                
+                // If this is the current student, record their rank
                 if (studentAverages[i].studentId === studentId) {
-                    studentRank = rank;
+                    studentRank = currentRank;
                     break;
                 }
             }
+            
+            // Log ranking information for debugging
+            console.log(`[Report Card] Student rank calculation:`, {
+                studentId,
+                studentRank,
+                totalStudents: studentAverages.length,
+                studentAverage: currentStudentAverage,
+                topAverage: studentAverages[0]?.average,
+                bottomAverage: studentAverages[studentAverages.length - 1]?.average
+            });
+            
+            // Update reportItems with calculated subject ranks
+            for (let i = 0; i < reportItems.length; i++) {
+                const item = reportItems[i];
+                if (typeof item.eval === 'number' && item.rank !== '-') {
+                    const normalizedName = normalizeSubjectName(item.name);
+                    const rank = subjectRanks.get(normalizedName);
+                    if (rank !== undefined && rank > 0) {
+                        reportItems[i].rank = rank;
+                    } else if (rank === undefined) {
+                        // Subject rank not calculated (might be no other students with marks)
+                        // Keep existing rank (0 or calculated value)
+                        console.warn(`[Report Card] Subject rank not found for "${item.name}"`);
+                    }
+                }
+            }
+            
+            // Log subject ranks for debugging
+            console.log(`[Report Card] Subject ranks calculated:`, 
+                Array.from(subjectRanks.entries()).map(([name, rank]) => ({ subject: name, rank }))
+            );
         }
     } catch (error) {
         // If rank calculation fails, default to 0
@@ -821,6 +1395,12 @@ export async function GET(req: NextRequest) {
             max: 0,
             min: 0,
             percent: subjectsList.length ? parseFloat(((passedCount / subjectsList.length) * 100).toFixed(1)) : 0,
+            
+            // GCE Section counts (only subjects with codes)
+            gceTradeSubjects: gceTradeSubjects,
+            gceRelatedTrade: gceRelatedTrade,
+            gceOtherSubjects: gceOtherSubjects,
+            gceSubjectsPassed: gceSubjectsPassed,
         }
     };
 
@@ -956,17 +1536,229 @@ function getTermNumber(termStr: string): number {
 }
 
 /**
- * Normalize subject name for consistent comparison
- * Trims whitespace and converts to lowercase
+ * Subject alias mapping for common abbreviations
+ * Maps abbreviations and variations to canonical subject names
  */
-function normalizeSubjectName(name: string | null | undefined): string {
-    if (!name) return '';
-    return name.trim().toLowerCase();
+const SUBJECT_ALIASES: Record<string, string[]> = {
+    'building construction': ['bc', 'b.c.', 'b.c', 'buildingconstruction', 'construction'],
+    'physical education': ['eps', 'e.p.s.', 'e.p.s', 'pe', 'p.e.', 'p.e', 'physicaleducation', 'sport'],
+    'accounting': ['ac', 'a.c.', 'a.c', 'accountancy', 'accounts'],
+    'home economics': ['hec', 'h.e.c.', 'h.e.c', 'homeeconomics', 'home ec', 'homeec'],
+};
+
+/**
+ * Get all possible variations of a subject name (including aliases)
+ */
+function getSubjectVariations(name: string): string[] {
+    const normalized = normalizeSubjectName(name);
+    const variations = [normalized];
+    
+    // Check if this name is an alias for another subject
+    for (const [canonical, aliases] of Object.entries(SUBJECT_ALIASES)) {
+        if (normalized === canonical || aliases.includes(normalized)) {
+            // Add canonical name and all aliases
+            variations.push(canonical);
+            variations.push(...aliases);
+        }
+    }
+    
+    // Also check if normalized name matches any canonical name
+    if (SUBJECT_ALIASES[normalized]) {
+        variations.push(...SUBJECT_ALIASES[normalized]);
+    }
+    
+    return [...new Set(variations)]; // Remove duplicates
 }
 
 /**
- * Check if two subject names match (case-insensitive, trimmed)
+ * Normalize subject name for consistent comparison
+ * Trims whitespace and converts to lowercase
+ * Also handles common abbreviations via alias mapping
+ */
+function normalizeSubjectName(name: string | null | undefined): string {
+    if (!name) return '';
+    const trimmed = name.trim().toLowerCase();
+    
+    // Check if this is a known alias and return canonical name
+    for (const [canonical, aliases] of Object.entries(SUBJECT_ALIASES)) {
+        if (trimmed === canonical || aliases.includes(trimmed)) {
+            return canonical;
+        }
+    }
+    
+    return trimmed;
+}
+
+/**
+ * Check if two subject names match (case-insensitive, trimmed, with alias support)
+ * Also handles partial matches for longer subject names
  */
 function subjectNamesMatch(name1: string | null | undefined, name2: string | null | undefined): boolean {
-    return normalizeSubjectName(name1) === normalizeSubjectName(name2);
+    if (!name1 || !name2) return false;
+    
+    const norm1 = normalizeSubjectName(name1);
+    const norm2 = normalizeSubjectName(name2);
+    
+    // Exact match
+    if (norm1 === norm2) return true;
+    
+    // Check if they're aliases of the same subject
+    const variations1 = getSubjectVariations(name1);
+    const variations2 = getSubjectVariations(name2);
+    
+    if (variations1.some(v1 => variations2.includes(v1))) return true;
+    
+    // For longer subject names, try partial matching
+    // If one name contains the other (after removing common words), consider it a match
+    const removeCommonWords = (str: string): string => {
+        const commonWords = ['the', 'and', 'or', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'a', 'an'];
+        return str.split(' ')
+            .filter(word => !commonWords.includes(word))
+            .join(' ')
+            .trim();
+    };
+    
+    const cleaned1 = removeCommonWords(norm1);
+    const cleaned2 = removeCommonWords(norm2);
+    
+    // If one cleaned name is contained in the other (for longer names)
+    if (cleaned1.length > 5 && cleaned2.length > 5) {
+        if (cleaned1.includes(cleaned2) || cleaned2.includes(cleaned1)) {
+            return true;
+        }
+    }
+    
+    // Word-by-word matching for multi-word subjects
+    // If most significant words match, consider it a match
+    const words1 = cleaned1.split(' ').filter(w => w.length > 2);
+    const words2 = cleaned2.split(' ').filter(w => w.length > 2);
+    
+    // For single-word subjects, check if one contains the other
+    if (words1.length === 1 && words2.length === 1) {
+        if (words1[0] === words2[0] || words1[0].includes(words2[0]) || words2[0].includes(words1[0])) {
+            return true;
+        }
+    }
+    
+    // For multi-word subjects, check if significant words match
+    if (words1.length > 1 || words2.length > 1) {
+        const matchingWords = words1.filter(w1 => words2.some(w2 => w1 === w2 || w1.includes(w2) || w2.includes(w1)));
+        // If at least 2 significant words match, or if one word matches and it's a long word (>5 chars), consider it a match
+        if (matchingWords.length >= 2) {
+            return true;
+        }
+        // For longer subject names, if one significant word matches and it's substantial (>5 chars), consider it
+        if (matchingWords.length >= 1 && matchingWords.some(w => w.length > 5)) {
+            return true;
+        }
+        // If one subject name contains all words of the other (subset match), consider it a match
+        const allWords1Match = words1.every(w1 => words2.some(w2 => w1 === w2 || w1.includes(w2) || w2.includes(w1)));
+        const allWords2Match = words2.every(w2 => words1.some(w1 => w2 === w1 || w2.includes(w1) || w1.includes(w2)));
+        if (allWords1Match || allWords2Match) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Diagnostic logging function for subject mark verification
+ * Logs detailed information about subject matching for BC, EPS, AC, HEC and other specified subjects
+ */
+function logSubjectMarkDiagnostics(
+    subjectName: string,
+    classSubjects: any[],
+    allGrades: any[],
+    subjectTeacherMap: Map<string, Set<string>>,
+    studentId: string
+): void {
+    const targetSubjects = [
+        'bc', 'eps', 'ac', 'hec', 
+        'building construction', 'physical education', 'accounting', 'home economics',
+        'professional english', 'industrial computing', 'mathematics', 
+        'building construction drawing', 'computer aided management', 
+        'electrical technology and diagrams'
+    ];
+    const normalizedSubject = normalizeSubjectName(subjectName);
+    
+    // Only log for target subjects
+    if (!targetSubjects.some(target => normalizedSubject.includes(target) || target.includes(normalizedSubject))) {
+        return;
+    }
+    
+    console.log(`\n[DIAGNOSTIC] === Subject Mark Verification for "${subjectName}" ===`);
+    
+    // 1. Check if subject exists in class_subjects
+    const classSubjectMatch = classSubjects.find((cs: any) => {
+        const subj = Array.isArray(cs.subjects) ? cs.subjects[0] : cs.subjects;
+        return subj && subjectNamesMatch(subj.name, subjectName);
+    });
+    
+    if (classSubjectMatch) {
+        const subj = Array.isArray(classSubjectMatch.subjects) ? classSubjectMatch.subjects[0] : classSubjectMatch.subjects;
+        console.log(`[DIAGNOSTIC] ✓ Subject found in class_subjects:`, {
+            subjectId: subj?.id,
+            subjectName: subj?.name,
+            classSubjectId: classSubjectMatch.subject_id,
+            classId: classSubjectMatch.class_id
+        });
+    } else {
+        console.log(`[DIAGNOSTIC] ✗ Subject NOT found in class_subjects`);
+        console.log(`[DIAGNOSTIC] Available class subjects:`, classSubjects.map((cs: any) => {
+            const subj = Array.isArray(cs.subjects) ? cs.subjects[0] : cs.subjects;
+            return subj ? { id: subj.id, name: subj.name, normalized: normalizeSubjectName(subj.name) } : null;
+        }).filter(Boolean));
+    }
+    
+    // 2. Check if assessments exist for this subject
+    const assessmentSubjects = new Set<string>();
+    allGrades.forEach((grade: any) => {
+        const assessment = grade.assessment as any;
+        if (assessment?.subject) {
+            assessmentSubjects.add(assessment.subject);
+        }
+    });
+    
+    const matchingAssessments = Array.from(assessmentSubjects).filter(assessSubj => 
+        subjectNamesMatch(assessSubj, subjectName)
+    );
+    
+    console.log(`[DIAGNOSTIC] Assessment subjects found:`, Array.from(assessmentSubjects));
+    console.log(`[DIAGNOSTIC] Matching assessment subjects:`, matchingAssessments);
+    
+    // 3. Check teacher assignments
+    if (classSubjectMatch) {
+        const subj = Array.isArray(classSubjectMatch.subjects) ? classSubjectMatch.subjects[0] : classSubjectMatch.subjects;
+        const subjectId = subj?.id;
+        if (subjectId) {
+            const assignedTeachers = subjectTeacherMap.get(subjectId);
+            console.log(`[DIAGNOSTIC] Teacher assignments:`, {
+                subjectId,
+                hasAssignments: !!assignedTeachers,
+                teacherCount: assignedTeachers?.size || 0,
+                teacherIds: assignedTeachers ? Array.from(assignedTeachers) : []
+            });
+        }
+    }
+    
+    // 4. Check grades for this student and subject
+    const studentGrades = allGrades.filter((grade: any) => {
+        const assessment = grade.assessment as any;
+        return grade.student_id === studentId && 
+               assessment?.subject && 
+               subjectNamesMatch(assessment.subject, subjectName);
+    });
+    
+    console.log(`[DIAGNOSTIC] Grades found for student ${studentId}:`, {
+        count: studentGrades.length,
+        grades: studentGrades.map((g: any) => ({
+            marks: g.marks_obtained,
+            assessmentSubject: (g.assessment as any)?.subject,
+            assessmentTitle: (g.assessment as any)?.title,
+            assessmentId: (g.assessment as any)?.id
+        }))
+    });
+    
+    console.log(`[DIAGNOSTIC] === End Diagnostic for "${subjectName}" ===\n`);
 }

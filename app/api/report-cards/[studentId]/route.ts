@@ -55,9 +55,9 @@ export async function GET(
       )
     }
 
-    // Get student's class
-    const classId = student.class
-    if (!classId) {
+    // Get student's class - handle both UUID and class name
+    const studentClassValue = student.class
+    if (!studentClassValue) {
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/report-cards/[studentId]/route.ts:49',message:'Student has no class',data:{studentId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
       // #endregion
@@ -67,9 +67,74 @@ export async function GET(
       )
     }
 
+    // Check if student.class is a UUID or a class name
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studentClassValue)
+    let classId: string
+    
+    if (isUUID) {
+      // It's already a UUID, use it directly
+      classId = studentClassValue
+    } else {
+      // It's a class name, look up the class ID
+      // Try multiple approaches to find the class: exact match on name, class_name, or case-insensitive match
+      let classByName = null
+      let classLookupError = null
+      
+      // First try: exact match on class_name (preferred field)
+      const { data: classByName1, error: error1 } = await supabase
+        .from('classes')
+        .select('id, name, class_name')
+        .eq('class_name', studentClassValue)
+        .maybeSingle()
+      
+      if (classByName1) {
+        classByName = classByName1
+      } else {
+        // Second try: exact match on name field (legacy)
+        const { data: classByName2, error: error2 } = await supabase
+          .from('classes')
+          .select('id, name, class_name')
+          .eq('name', studentClassValue)
+          .maybeSingle()
+        
+        if (classByName2) {
+          classByName = classByName2
+        } else {
+          // Third try: case-insensitive match on class_name
+          const { data: allClasses } = await supabase
+            .from('classes')
+            .select('id, name, class_name')
+          
+          if (allClasses) {
+            const normalizedInput = studentClassValue.trim().toLowerCase()
+            classByName = allClasses.find(cls => {
+              const className = (cls.class_name || cls.name || '').trim().toLowerCase()
+              return className === normalizedInput
+            }) || null
+          }
+          
+          if (!classByName) {
+            classLookupError = error2 || error1
+          }
+        }
+      }
+      
+      if (classLookupError || !classByName) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/report-cards/[studentId]/route.ts:67',message:'Class lookup by name failed',data:{className:studentClassValue,error:classLookupError?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
+        return NextResponse.json(
+          { success: false, error: `Class "${studentClassValue}" not found` },
+          { status: 404 }
+        )
+      }
+      
+      classId = classByName.id
+    }
+
     // Fetch class details
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/report-cards/[studentId]/route.ts:58',message:'Fetching class',data:{classId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/api/report-cards/[studentId]/route.ts:58',message:'Fetching class',data:{classId,originalClassValue:studentClassValue,wasUUID:isUUID},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
     // #endregion
     const { data: classData, error: classError } = await supabase
       .from('classes')
@@ -102,7 +167,8 @@ export async function GET(
     
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000)
+      // Increase timeout to 120 seconds for large classes with complex ranking calculations
+      const timeoutId = setTimeout(() => controller.abort(), 120000)
       
       const reportResponse = await fetch(reportUrl, {
         headers: {

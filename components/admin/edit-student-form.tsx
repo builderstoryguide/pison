@@ -434,13 +434,37 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
   }
 
   const isFormValid = () => {
-    return !!(
+    // #region agent log
+    const validationState = {
+      first_name: !!formData.first_name,
+      last_name: !!formData.last_name,
+      email: !!formData.email,
+      class: !!formData.class,
+      hasValidFeeStructure,
+      activeTab,
+      queryEnabled: activeTab === "fees" && !!classId && !!formData.academic_year && !!term,
+      classId,
+      academicYear: formData.academic_year,
+      term
+    }
+    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit-student-form.tsx:436',message:'Form validation check',data:validationState,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
+    // Only require fee structure validation when on fees tab
+    // For other tabs, allow saving without fee structure validation
+    const baseValidation = !!(
       formData.first_name &&
       formData.last_name &&
       formData.email &&
-      formData.class &&
-      hasValidFeeStructure // Require valid fee structure
+      formData.class
     )
+    
+    // If on fees tab, also require valid fee structure
+    if (activeTab === "fees") {
+      return baseValidation && hasValidFeeStructure
+    }
+    
+    return baseValidation
   }
 
   return (
@@ -455,7 +479,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
           <Button 
             onClick={handleSubmit} 
             disabled={!isFormValid() || isLoading}
-            title={!hasValidFeeStructure ? "Cannot save: No fee structure assigned to this class" : undefined}
+            title={activeTab === "fees" && !hasValidFeeStructure ? "Cannot save: No fee structure assigned to this class" : undefined}
           >
             <Save className="h-4 w-4 mr-2" />
             {isLoading ? 'Saving...' : 'Save Changes'}
@@ -518,10 +542,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                     placeholder="Middle name"
                   />
                 </div>
-                </div>
               </div>
-
-              <div className="grid gap-4 md:grid-cols-3">              </div>
 
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
@@ -548,47 +569,18 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                         {formData.date_of_birth ? new Date(formData.date_of_birth).toLocaleDateString() : "Select date"}
                         <ChevronDownIcon />
                       </Button>
-                <div className="space-y-2">
-                  <Label htmlFor="first_name">First Name</Label>
-                  <Input
-                    id="first_name"
-                    value={formData.first_name || ""}
-                    onChange={(e) => handleInputChange("first_name", e.target.value)}
-                    placeholder="First name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="last_name">Last Name</Label>
-                  <Input
-                    id="last_name"
-                    value={formData.last_name || ""}
-                    onChange={(e) => handleInputChange("last_name", e.target.value)}
-                    placeholder="Last name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="middle_name">Middle Name</Label>
-                  <Input
-                    id="middle_name"
-                    value={formData.middle_name || ""}
-                    onChange={(e) => handleInputChange("middle_name", e.target.value)}
-                    placeholder="Middle name"
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="matricule_number">Matricule Number</Label>
-                  <Input
-                    id="matricule_number"
-                    value={formData.matricule_number || ""}
-                    onChange={(e) => handleInputChange("matricule_number", e.target.value)}
-                    placeholder="Matricule number"
-                  />
-                </div>
-              </div>                          }
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={formData.date_of_birth ? new Date(formData.date_of_birth) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            handleInputChange("date_of_birth", format(date, "yyyy-MM-dd"))
+                          }
                         }}
+                        disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                        initialFocus
                       />
                     </PopoverContent>
                   </Popover>

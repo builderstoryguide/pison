@@ -202,7 +202,8 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
         if (!formData.matriculeNumber) return "Matricule number is required"
         if (!formData.dateOfBirth) return "Date of birth is required"
         if (!formData.placeOfBirth) return "Place of birth is required"
-        break      case 2:
+        break
+      case 2:
         if (!formData.address) return "Home address is required"
         if (!formData.city) return "City is required"
         if (formData.email && !formData.email.includes('@')) return "Please enter a valid email address"

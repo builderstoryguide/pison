@@ -60,6 +60,10 @@ interface TermReportCardProps {
       passed: number
       passPercent: number
       classAvg: number
+      gceTradeSubjects?: number
+      gceRelatedTrade?: number
+      gceOtherSubjects?: number
+      gceSubjectsPassed?: number
     }
     discipline: {
       absences: number
@@ -329,12 +333,30 @@ export function TermReportCard({ data }: TermReportCardProps) {
   }
 
   // Calculate GCE section counts
+  // Use API-provided GCE counts (only subjects with codes) if available, otherwise calculate from grouped subjects
   const gceCounts = React.useMemo(() => {
-    const tradeSubjects = groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.length || 0
-    const relatedTrade = groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.length || 0
-    const otherSubjects = groupedSubjects.find(g => g.category === 'others')?.subjects.length || 0
+    // Check if API provides GCE counts (from stats)
+    if (data.stats && 
+        'gceTradeSubjects' in data.stats && 
+        'gceRelatedTrade' in data.stats && 
+        'gceOtherSubjects' in data.stats && 
+        'gceSubjectsPassed' in data.stats) {
+      return {
+        tradeSubjects: data.stats.gceTradeSubjects ?? 0,
+        relatedTrade: data.stats.gceRelatedTrade ?? 0,
+        otherSubjects: data.stats.gceOtherSubjects ?? 0,
+        passed: data.stats.gceSubjectsPassed ?? 0
+      }
+    }
+    
+    // Fallback: Calculate from grouped subjects, but only count subjects with codes (GCE subjects)
+    const tradeSubjects = groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.filter(s => s.code).length || 0
+    const relatedTrade = groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.filter(s => s.code).length || 0
+    const otherSubjects = groupedSubjects.find(g => g.category === 'others')?.subjects.filter(s => s.code).length || 0
     const passed = groupedSubjects.reduce((sum, group) => {
       return sum + group.subjects.filter(s => {
+        // Only count subjects with codes (GCE subjects)
+        if (!s.code) return false
         const seqs = getSequenceValues(s)
         const avg = s.termAverage ?? 
           (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
@@ -345,7 +367,7 @@ export function TermReportCard({ data }: TermReportCardProps) {
     }, 0)
     
     return { tradeSubjects, relatedTrade, otherSubjects, passed }
-  }, [groupedSubjects])
+  }, [groupedSubjects, data.stats])
 
   // Generate QR Code data with report card information
   const qrCodeData = useMemo(() => {

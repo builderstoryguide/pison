@@ -204,17 +204,19 @@ export async function PUT(request: NextRequest) {
     const { data: upsertedSequences, error: upsertError } = await supabase
       .from('academic_sequences')
       .upsert(sequencesToUpsert, {
-        onConflict: 'academic_year,sequence_number'      .select()
+        onConflict: 'academic_year,sequence_number'
+      })
+      .select()
 
-    if (upsertError) {
-      console.error('Error upserting sequences:', upsertError)
     if (upsertError) {
       console.error('Error upserting sequences:', upsertError)
       return NextResponse.json(
         { success: false, error: serializeSupabaseError(upsertError) },
         { status: 500 }
       )
-    }    if (existingCount > numberOfSequences) {
+    }
+
+    if (existingCount > numberOfSequences) {
       const sequencesToDeactivate = existingSequences
         ?.filter(seq => seq.sequence_number > numberOfSequences)
         .map(seq => seq.id) || []
