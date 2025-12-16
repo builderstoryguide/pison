@@ -250,22 +250,38 @@ export function AnnualReportCard({ data }: AnnualReportCardProps) {
   // Use API-provided GCE counts (only subjects with codes) if available, otherwise calculate from grouped subjects
   const gceCounts = React.useMemo(() => {
     // Check if API provides GCE counts (from stats)
-    if (data.stats && 'gceTradeSubjects' in data.stats) {
+    if (data.stats && 
+        'gceTradeSubjects' in data.stats && 
+        'gceRelatedTrade' in data.stats && 
+        'gceOtherSubjects' in data.stats && 
+        'gceSubjectsPassed' in data.stats) {
       return {
-        tradeSubjects: (data.stats as any).gceTradeSubjects || 0,
-        relatedTrade: (data.stats as any).gceRelatedTrade || 0,
-        otherSubjects: (data.stats as any).gceOtherSubjects || 0,
-        passed: (data.stats as any).gceSubjectsPassed || 0
+        tradeSubjects: data.stats.gceTradeSubjects ?? 0,
+        relatedTrade: data.stats.gceRelatedTrade ?? 0,
+        otherSubjects: data.stats.gceOtherSubjects ?? 0,
+        passed: data.stats.gceSubjectsPassed ?? 0
       }
     }
     
-    // Fallback: Calculate from grouped subjects, but only count subjects with codes (GCE subjects)
-    const tradeSubjects = groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.filter(s => s.code).length || 0
-    const relatedTrade = groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.filter(s => s.code).length || 0
-    const otherSubjects = groupedSubjects.find(g => g.category === 'others')?.subjects.filter(s => s.code).length || 0
+    // Fallback: Calculate from grouped subjects, but only count subjects with codes (GCE subjects) that are PASSED (marks >= 10)
+    const tradeSubjects = groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.filter(s => {
+      if (!s.code) return false
+      return (s.annualAverage ?? 0) >= 10
+    }).length || 0
+    
+    const relatedTrade = groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.filter(s => {
+      if (!s.code) return false
+      return (s.annualAverage ?? 0) >= 10
+    }).length || 0
+    
+    const otherSubjects = groupedSubjects.find(g => g.category === 'others')?.subjects.filter(s => {
+      if (!s.code) return false
+      return (s.annualAverage ?? 0) >= 10
+    }).length || 0
+    
     const passed = groupedSubjects.reduce((sum, group) => {
       return sum + group.subjects.filter(s => {
-        // Only count subjects with codes (GCE subjects)
+        // Only count subjects with codes (GCE subjects) that are PASSED
         if (!s.code) return false
         return (s.annualAverage ?? 0) >= 10
       }).length

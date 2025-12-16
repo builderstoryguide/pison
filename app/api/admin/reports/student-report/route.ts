@@ -506,10 +506,11 @@ export async function GET(req: NextRequest) {
     let passedCount = 0;
     
     // Track GCE subjects (subjects with codes) for GCE section
-    let gceTradeSubjects = 0;
-    let gceRelatedTrade = 0;
-    let gceOtherSubjects = 0;
-    let gceSubjectsPassed = 0;
+    // Count only PASSED subjects (marks >= 10) for each category
+    let gceTradeSubjectsPassed = 0;
+    let gceRelatedTradePassed = 0;
+    let gceOtherSubjectsPassed = 0;
+    let gceSubjectsPassed = 0; // Total of all GCE subjects passed
     
     // Track processed subject names to prevent duplicates in reportItems
     const processedSubjectNames = new Set<string>();
@@ -932,17 +933,17 @@ export async function GET(req: NextRequest) {
             if (finalMark >= 10) passedCount++;
             remark = calculateRemark(finalMark);
             
-            // Track GCE subjects (only subjects with codes)
-            if (isGceSubject) {
+            // Track GCE subjects (only subjects with codes) that are PASSED (marks >= 10)
+            if (isGceSubject && finalMark >= 10) {
                 if (category === 'trade_subjects') {
-                    gceTradeSubjects++;
-                    if (finalMark >= 10) gceSubjectsPassed++;
+                    gceTradeSubjectsPassed++;
+                    gceSubjectsPassed++;
                 } else if (category === 'related_trade_subjects') {
-                    gceRelatedTrade++;
-                    if (finalMark >= 10) gceSubjectsPassed++;
+                    gceRelatedTradePassed++;
+                    gceSubjectsPassed++;
                 } else if (category === 'others') {
-                    gceOtherSubjects++;
-                    if (finalMark >= 10) gceSubjectsPassed++;
+                    gceOtherSubjectsPassed++;
+                    gceSubjectsPassed++;
                 }
             }
 
@@ -1396,10 +1397,10 @@ export async function GET(req: NextRequest) {
             min: 0,
             percent: subjectsList.length ? parseFloat(((passedCount / subjectsList.length) * 100).toFixed(1)) : 0,
             
-            // GCE Section counts (only subjects with codes)
-            gceTradeSubjects: gceTradeSubjects,
-            gceRelatedTrade: gceRelatedTrade,
-            gceOtherSubjects: gceOtherSubjects,
+            // GCE Section counts (only subjects with codes that are PASSED - marks >= 10)
+            gceTradeSubjects: gceTradeSubjectsPassed,
+            gceRelatedTrade: gceRelatedTradePassed,
+            gceOtherSubjects: gceOtherSubjectsPassed,
             gceSubjectsPassed: gceSubjectsPassed,
         }
     };

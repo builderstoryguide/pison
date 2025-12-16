@@ -349,13 +349,40 @@ export function TermReportCard({ data }: TermReportCardProps) {
       }
     }
     
-    // Fallback: Calculate from grouped subjects, but only count subjects with codes (GCE subjects)
-    const tradeSubjects = groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.filter(s => s.code).length || 0
-    const relatedTrade = groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.filter(s => s.code).length || 0
-    const otherSubjects = groupedSubjects.find(g => g.category === 'others')?.subjects.filter(s => s.code).length || 0
+    // Fallback: Calculate from grouped subjects, but only count subjects with codes (GCE subjects) that are PASSED (marks >= 10)
+    const tradeSubjects = groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.filter(s => {
+      if (!s.code) return false
+      const seqs = getSequenceValues(s)
+      const avg = s.termAverage ?? 
+        (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
+          ? (seqs.seq1 + seqs.seq2) / 2 
+          : seqs.seq1 ?? seqs.seq2 ?? 0)
+      return avg >= 10
+    }).length || 0
+    
+    const relatedTrade = groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.filter(s => {
+      if (!s.code) return false
+      const seqs = getSequenceValues(s)
+      const avg = s.termAverage ?? 
+        (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
+          ? (seqs.seq1 + seqs.seq2) / 2 
+          : seqs.seq1 ?? seqs.seq2 ?? 0)
+      return avg >= 10
+    }).length || 0
+    
+    const otherSubjects = groupedSubjects.find(g => g.category === 'others')?.subjects.filter(s => {
+      if (!s.code) return false
+      const seqs = getSequenceValues(s)
+      const avg = s.termAverage ?? 
+        (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
+          ? (seqs.seq1 + seqs.seq2) / 2 
+          : seqs.seq1 ?? seqs.seq2 ?? 0)
+      return avg >= 10
+    }).length || 0
+    
     const passed = groupedSubjects.reduce((sum, group) => {
       return sum + group.subjects.filter(s => {
-        // Only count subjects with codes (GCE subjects)
+        // Only count subjects with codes (GCE subjects) that are PASSED
         if (!s.code) return false
         const seqs = getSequenceValues(s)
         const avg = s.termAverage ?? 
