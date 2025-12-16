@@ -54,23 +54,13 @@ export async function GET(req: NextRequest) {
         suggestions: [
           'Check if the class name is spelled correctly',
           'Verify the class exists in the classes table',
-    // Escape SQL wildcards in user input
-    const escapedSubjectName = subjectName.replace(/[%_]/g, '\\          'Check both "name" and "class_name" columns'
+          'Check both "name" and "class_name" columns'
         ]
       });
     }
 
     const classId = classData.id;
-');
-    
-    // 2. Find the subject
-    const { data: subjectData, error: subjectError } = await supabase
-      .from('subjects')
-      .select('id, name, code, is_active')
-      .ilike('name', `%${escapedSubjectName}%`)
-      .limit(1);
-
-    const subject = subjectData?.[0];    const actualClassName = classData.class_name || classData.name;
+    const actualClassName = classData.class_name || classData.name;
 
     // 2. Find the subject
     const { data: subjectData, error: subjectError } = await supabase

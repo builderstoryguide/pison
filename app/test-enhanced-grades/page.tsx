@@ -2,6 +2,7 @@
 
 import { TeacherGradesProvider } from "@/lib/teacher-grades-context"
 import { AuthProvider } from "@/lib/auth-context"
+import { AppConfigurationProvider } from "@/lib/app-configuration-context-v2"
 import { EnhancedGradesManagement } from "@/components/teacher/enhanced-grades-management"
 import { useEffect } from "react"
 
@@ -50,7 +51,9 @@ function TestEnhancedGradesContent() {
 export default function TestEnhancedGradesPage() {
   return (
     <AuthProvider>
-      <TestEnhancedGradesContent />
+      <AppConfigurationProvider>
+        <TestEnhancedGradesContent />
+      </AppConfigurationProvider>
     </AuthProvider>
   )
 }

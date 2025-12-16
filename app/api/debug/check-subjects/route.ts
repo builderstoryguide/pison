@@ -36,15 +36,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ 
       error: 'Error fetching subjects',
       ...(process.env.NODE_ENV === 'development' && { details: subjectsError })
+    });
+  }
+
+  if (!classSubjects || classSubjects.length === 0) {
+    return NextResponse.json({ 
+      error: 'No subjects found for this class'
+    });
+  }
+
   const subjects = classSubjects
     .filter((cs: any) => cs.subjects)
     .map((cs: any) => ({
       name: cs.subjects?.name,
       id: cs.subjects?.id,
       coef: cs.subjects?.coefficient
-    }));      coef: cs.subjects?.coefficient
-  }));
+    }));
 
+  const mathSubject = subjects.find((s: any) => 
+    s.name?.toLowerCase().includes('math')
+  );
 
   const { data: students, error: studentsError } = await supabase
     .from('students')
@@ -57,9 +68,7 @@ export async function GET(req: NextRequest) {
       error: 'Error fetching students',
       ...(process.env.NODE_ENV === 'development' && { details: studentsError })
     });
-  }    .select('id')
-    .eq('class', classId)
-    .limit(1);
+  }
 
   return NextResponse.json({
       class: classes[0],

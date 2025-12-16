@@ -509,6 +509,7 @@ export async function GET(req: NextRequest) {
     // Count only PASSED subjects (marks >= 10) for each category
     let gceTradeSubjectsPassed = 0;
     let gceRelatedTradePassed = 0;
+    let gceLanguageSubjectsPassed = 0;
     let gceOtherSubjectsPassed = 0;
     let gceSubjectsPassed = 0; // Total of all GCE subjects passed
     
@@ -940,6 +941,9 @@ export async function GET(req: NextRequest) {
                     gceSubjectsPassed++;
                 } else if (category === 'related_trade_subjects') {
                     gceRelatedTradePassed++;
+                    gceSubjectsPassed++;
+                } else if (category === 'languages') {
+                    gceLanguageSubjectsPassed++;
                     gceSubjectsPassed++;
                 } else if (category === 'others') {
                     gceOtherSubjectsPassed++;
@@ -1400,6 +1404,7 @@ export async function GET(req: NextRequest) {
             // GCE Section counts (only subjects with codes that are PASSED - marks >= 10)
             gceTradeSubjects: gceTradeSubjectsPassed,
             gceRelatedTrade: gceRelatedTradePassed,
+            gceLanguageSubjects: gceLanguageSubjectsPassed,
             gceOtherSubjects: gceOtherSubjectsPassed,
             gceSubjectsPassed: gceSubjectsPassed,
         }
