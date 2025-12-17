@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       code: subject.code,
       description: subject.description,
       has_sub_branches: subject.has_sub_branches || false,
-      coefficient: subject.has_sub_branches ? undefined : (subject.coefficient ? parseFloat(subject.coefficient) : 1.0),
+      coefficient: subject.coefficient ? parseFloat(subject.coefficient) : 1.0,
       is_active: subject.is_active !== false,
       created_at: subject.created_at,
       updated_at: subject.updated_at,
@@ -73,7 +73,6 @@ export async function GET(request: NextRequest) {
         id: sb.id,
         subject_id: subject.id,
         name: sb.name,
-        coefficient: parseFloat(sb.coefficient) || 1.0,
         description: sb.description,
         is_active: sb.is_active !== false,
         created_at: sb.created_at,
@@ -115,15 +114,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate coefficient for simple subjects
-    if (!has_sub_branches) {
-      const coefficientValue = coefficient !== undefined ? parseFloat(coefficient) : 1.0
-      if (isNaN(coefficientValue) || coefficientValue <= 0) {
-        return NextResponse.json(
-          { ok: false, error: 'Coefficient must be a positive number' },
-          { status: 400 }
-        )
-      }
+    // Validate coefficient for all subjects
+    const coefficientValue = coefficient !== undefined ? parseFloat(coefficient) : 1.0
+    if (isNaN(coefficientValue) || coefficientValue <= 0) {
+      return NextResponse.json(
+        { ok: false, error: 'Coefficient must be a positive number' },
+        { status: 400 }
+      )
     }
 
     // Validate subject_groupings
@@ -165,14 +162,10 @@ export async function POST(request: NextRequest) {
       description: description?.trim() || null,
       has_sub_branches: has_sub_branches === true,
       is_active: is_active !== false,
+      coefficient: coefficientValue,
       subject_groupings: Array.isArray(subject_groupings) && subject_groupings.length > 0 
         ? subject_groupings 
         : [],
-    }
-
-    // Only add coefficient for simple subjects (without sub-branches)
-    if (!has_sub_branches) {
-      subjectData.coefficient = coefficient !== undefined ? parseFloat(coefficient) : 1.0
     }
 
     const { data: newSubject, error: subjectError } = await supabase
@@ -195,7 +188,6 @@ export async function POST(request: NextRequest) {
       const subBranchesData = sub_branches.map((sb: any) => ({
         subject_id: newSubject.id,
         name: sb.name.trim(),
-        coefficient: parseFloat(sb.coefficient) || 1.0,
         description: sb.description?.trim() || null,
         is_active: sb.is_active !== false,
       }))
@@ -237,7 +229,7 @@ export async function POST(request: NextRequest) {
       code: newSubject.code,
       description: newSubject.description,
       has_sub_branches: newSubject.has_sub_branches,
-      coefficient: newSubject.has_sub_branches ? undefined : (newSubject.coefficient ? parseFloat(newSubject.coefficient) : 1.0),
+      coefficient: newSubject.coefficient ? parseFloat(newSubject.coefficient) : 1.0,
       is_active: newSubject.is_active,
       created_at: newSubject.created_at,
       updated_at: newSubject.updated_at,
@@ -246,7 +238,6 @@ export async function POST(request: NextRequest) {
         id: sb.id,
         subject_id: newSubject.id,
         name: sb.name,
-        coefficient: parseFloat(sb.coefficient) || 1.0,
         description: sb.description,
         is_active: sb.is_active,
         created_at: sb.created_at,

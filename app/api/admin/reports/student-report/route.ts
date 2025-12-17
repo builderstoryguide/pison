@@ -734,7 +734,7 @@ export async function GET(req: NextRequest) {
             const targetSubjectsList = [
                 'bc', 'eps', 'ac', 'hec', 
                 'building construction', 'physical education', 'accounting', 'home economics',
-                'professional english', 'industrial computing', 'mathematics',
+                'professional english', 'mathematics',
                 'building construction drawing', 'computer aided management',
                 'electrical technology and diagrams'
             ];
@@ -775,7 +775,7 @@ export async function GET(req: NextRequest) {
             const targetSubjectsList2 = [
                 'bc', 'eps', 'ac', 'hec', 
                 'building construction', 'physical education', 'accounting', 'home economics',
-                'professional english', 'industrial computing', 'mathematics',
+                'professional english', 'mathematics',
                 'building construction drawing', 'computer aided management',
                 'electrical technology and diagrams'
             ];
@@ -1682,7 +1682,7 @@ function logSubjectMarkDiagnostics(
     const targetSubjects = [
         'bc', 'eps', 'ac', 'hec', 
         'building construction', 'physical education', 'accounting', 'home economics',
-        'professional english', 'industrial computing', 'mathematics', 
+        'professional english', 'mathematics', 
         'building construction drawing', 'computer aided management', 
         'electrical technology and diagrams'
     ];

@@ -30,7 +30,6 @@ export interface SubBranch {
   id: string
   subject_id: string
   name: string
-  coefficient: number
   description?: string
   is_active: boolean
   created_at: string

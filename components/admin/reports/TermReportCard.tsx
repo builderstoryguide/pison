@@ -132,6 +132,38 @@ function getCategoryFullLabel(category: string | undefined): string {
   }
 }
 
+function getSpecialityFromClass(className: string | undefined, speciality: string | undefined): string {
+  // If speciality is provided, use it
+  if (speciality && speciality.trim() !== '') {
+    return speciality
+  }
+  
+  // Otherwise, derive from class name
+  if (!className) return ''
+  
+  const classUpper = className.toUpperCase().trim()
+  
+  // Check for common class patterns
+  if (classUpper.startsWith('AC')) {
+    return 'Accounting'
+  }
+  if (classUpper.startsWith('SEC')) {
+    return 'Secretariat'
+  }
+  if (classUpper.startsWith('COM')) {
+    return 'Commerce'
+  }
+  if (classUpper.startsWith('MAN')) {
+    return 'Management'
+  }
+  if (classUpper.startsWith('MKT')) {
+    return 'Marketing'
+  }
+  
+  // If no match, return empty string instead of "General"
+  return ''
+}
+
 export function TermReportCard({ data }: TermReportCardProps) {
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/admin/reports/TermReportCard.tsx:129',message:'TermReportCard rendered',data:{studentId:data?.student?.id,studentIdField:data?.student?.studentId,name:data?.student?.name,className:data?.student?.className,subjectsCount:data?.subjects?.length,term:data?.academic?.term},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
@@ -681,6 +713,7 @@ export function TermReportCard({ data }: TermReportCardProps) {
             .pdf-report-card .space-y-0 { }
             .pdf-report-card .space-y-0\.5 > * + * { margin-top: 0.125rem !important; }
             .pdf-report-card .space-y-1 > * + * { margin-top: 0.25rem !important; }
+            .pdf-report-card .space-y-2 > * + * { margin-top: 0.5rem !important; }
             
             /* Table Styles */
             .pdf-report-card table {
@@ -748,6 +781,7 @@ export function TermReportCard({ data }: TermReportCardProps) {
               .pdf-report-card .print\\:h-\[297mm\] { height: 297mm !important; }
               .pdf-report-card .print\\:border { border-width: 1px !important; }
               .pdf-report-card .print\\:leading-\[1\\.1\] { line-height: 1.1 !important; }
+              .pdf-report-card .print\\:space-y-2 > * + * { margin-top: 0.5rem !important; }
             }
             
             /* Responsive - Medium screens and up */
@@ -848,7 +882,7 @@ export function TermReportCard({ data }: TermReportCardProps) {
               </div>
             </div>
 
-            <div className="text-left text-[0.55rem] print:text-[7pt] uppercase font-medium space-y-0 print:space-y-0 leading-tight">
+            <div className="text-right text-[0.55rem] print:text-[7pt] uppercase font-medium space-y-2 print:space-y-2 leading-tight pt-2 pb-2">
               <p className="print:leading-[1.1]">Republic of Cameroon</p>
               <p className="print:leading-[1.1]">Peace - Work - Fatherland</p>
               <p className="print:leading-[1.1]">Ministry of Secondary Education</p>
@@ -907,61 +941,53 @@ export function TermReportCard({ data }: TermReportCardProps) {
           {/* Student Info Grid */}
           <div className="border border-black grid grid-cols-12 mb-1 print:mb-0.5 font-mono text-[0.65rem] print:text-[7pt] relative z-10 bg-white/90" style={{ border: '1px solid #000', backgroundColor: 'rgba(255, 255, 255, 0.9)' }}>
             <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
-              <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Unifier No / Matricule</span>
+              <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">First Name / Prénom</span>
+              {/* #region agent log */}
+              {(() => { fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/admin/reports/TermReportCard.tsx:362',message:'Displaying student name',data:{studentId:data?.student?.id,studentIdField:data?.student?.studentId,name:data?.student?.name,className:data?.student?.className},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{}); return null; })()}
+              {/* #endregion */}
+              <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.firstName || data.student.name.split(' ')[0]}</span>
+            </div>
+            <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
+              <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Last Name / Nom</span>
+              <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.lastName || data.student.name.split(' ').slice(1).join(' ')}</span>
+            </div>
+            <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b border-black" style={{ borderBottom: '1px solid #000', padding: '2px 4px' }}>
+              <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Unique Identifier No / Matricule</span>
               {/* #region agent log */}
               {(() => { fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/admin/reports/TermReportCard.tsx:357',message:'Displaying student ID',data:{studentId:data?.student?.id,studentIdField:data?.student?.studentId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{}); return null; })()}
               {/* #endregion */}
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.studentId}</span>
-            </div>
-            <div className="col-span-12 md:col-span-6 p-1 print:p-0.5 border-b md:border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
-              <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Name & Surname / Noms et Prénoms</span>
-              {/* #region agent log */}
-              {(() => { fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/admin/reports/TermReportCard.tsx:362',message:'Displaying student name',data:{studentId:data?.student?.id,studentIdField:data?.student?.studentId,name:data?.student?.name,className:data?.student?.className},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{}); return null; })()}
-              {/* #endregion */}
-              <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.name}</span>
-            </div>
-            <div className="col-span-12 md:col-span-2 p-1 print:p-0.5 border-b border-black" style={{ borderBottom: '1px solid #000', padding: '2px 4px' }}>
-              <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Repeater / Redoublant</span>
-              <span className="font-bold text-[0.65rem] print:text-[7pt]">NO / NON</span>
             </div>
 
             <div className="col-span-2 p-1 print:p-0.5 border-b border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Sex</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.sex}</span>
             </div>
-            <div className="col-span-7 p-1 print:p-0.5 border-b border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
-              <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Date & Place of Birth / Né le - à</span>
-              <div className="flex gap-1 text-[0.65rem] print:text-[7pt]">
-                <span className="font-bold">{data.student.dob}</span>
-                <span className="text-gray-400">|</span>
-                <span className="font-bold">{data.student.pob}</span>
-              </div>
+            <div className="col-span-4 p-1 print:p-0.5 border-b border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
+              <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Date of Birth / Né le</span>
+              <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.dob}</span>
             </div>
-            
-            {/* Photo Area */}
-            <div className="col-span-3 row-span-2 border-b border-black flex flex-col items-center justify-center p-1 print:p-0.5 bg-gray-50" style={{ borderBottom: '1px solid #000', backgroundColor: '#f9fafb', padding: '2px 4px' }}>
-              {data.student.photoUrl ? (
-                <img src={data.student.photoUrl} alt="Student" className="w-full h-full object-cover" />
-              ) : (
-                <div className="text-left text-gray-400 text-[0.5rem] print:text-[6pt]">
-                  <User size={20} className="mb-0.5 opacity-20 print:w-3 print:h-3" />
-                  PHOTO
-                </div>
-              )}
+            <div className="col-span-4 p-1 print:p-0.5 border-b border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
+              <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Place of Birth / Né à</span>
+              <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.pob}</span>
+            </div>
+            <div className="col-span-2 p-1 print:p-0.5 border-b border-black" style={{ borderBottom: '1px solid #000', padding: '2px 4px' }}>
+              <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Repeater / Redoublant</span>
+              <span className="font-bold text-[0.65rem] print:text-[7pt]">NO / NON</span>
             </div>
 
             <div className="col-span-5 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black" style={{ borderRight: '1px solid #000', padding: '2px 4px' }}>
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Speciality</span>
-              <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.speciality || 'General'}</span>
+              <span className="font-bold text-[0.65rem] print:text-[7pt]">{getSpecialityFromClass(data.student.className, data.student.speciality)}</span>
             </div>
-            <div className="col-span-2 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black" style={{ borderRight: '1px solid #000', padding: '2px 4px' }}>
+            <div className="col-span-4 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black" style={{ borderRight: '1px solid #000', padding: '2px 4px' }}>
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Class</span>
               {/* #region agent log */}
               {(() => { fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/admin/reports/TermReportCard.tsx:400',message:'Displaying class name',data:{className:data?.student?.className,class:data?.student?.class},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{}); return null; })()}
               {/* #endregion */}
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.className}</span>
             </div>
-            <div className="col-span-2 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black" style={{ borderRight: '1px solid #000', padding: '2px 4px' }}>
+            <div className="col-span-3 p-1 print:p-0.5 border-b md:border-b-0 border-black" style={{ borderBottom: '1px solid #000', padding: '2px 4px' }}>
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Master</span>
               <span className="font-bold text-[0.6rem] print:text-[6pt]">{data.student.classMaster || '-'}</span>
             </div>
@@ -1107,35 +1133,19 @@ export function TermReportCard({ data }: TermReportCardProps) {
                 <table className="w-full text-[0.6rem] print:text-[7pt]">
                   <thead>
                     <tr className="border-b border-gray-300">
-                      <th className="p-0.5 print:p-0.5 border-r border-gray-300">TERM</th>
-                      <th className="p-0.5 print:p-0.5 border-r border-gray-300">1</th>
-                      <th className="p-0.5 print:p-0.5 border-r border-gray-300">2</th>
-                      <th className="p-0.5 print:p-0.5">3</th>
+                      <th className="p-0.5 print:p-0.5 border-r border-gray-300 text-left">TERM</th>
+                      <th className="p-0.5 print:p-0.5 text-left">{data.academic.term}</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr className="border-b border-gray-300 font-mono">
                       <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">AVERAGE</td>
-                      <td className={`p-0.5 print:p-0.5 border-r border-gray-300 ${data.academic.term === 1 ? 'font-bold' : ''}`}>
-                        {data.academic.term === 1 
-                          ? data.totals.average.toFixed(1) 
-                          : (data.history?.term1?.toFixed(1) ?? '-')}
-                      </td>
-                      <td className={`p-0.5 print:p-0.5 border-r border-gray-300 ${data.academic.term === 2 ? 'font-bold' : ''}`}>
-                        {data.academic.term === 2 
-                          ? data.totals.average.toFixed(1) 
-                          : (data.history?.term2?.toFixed(1) ?? '-')}
-                      </td>
-                      <td className={`p-0.5 print:p-0.5 font-bold ${data.academic.term === 3 ? 'font-bold' : ''}`}>
-                        {data.academic.term === 3 
-                          ? data.totals.average.toFixed(1) 
-                          : (data.history?.term3?.toFixed(1) ?? '-')}
+                      <td className="p-0.5 print:p-0.5 font-bold">
+                        {data.totals.average.toFixed(1)}
                       </td>
                     </tr>
                     <tr className="font-mono">
                       <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">RANK</td>
-                      <td className="p-0.5 print:p-0.5 border-r border-gray-300">-</td>
-                      <td className="p-0.5 print:p-0.5 border-r border-gray-300">-</td>
                       <td className="p-0.5 print:p-0.5">{data.history?.rank ?? '-'}</td>
                     </tr>
                   </tbody>
@@ -1273,7 +1283,7 @@ export function TermReportCard({ data }: TermReportCardProps) {
                     </div>
                   </div>
 
-                  <div className="text-left text-[0.55rem] print:text-[7pt] uppercase font-medium space-y-0 print:space-y-0 leading-tight">
+                  <div className="text-right text-[0.55rem] print:text-[7pt] uppercase font-medium space-y-2 print:space-y-2 leading-tight pt-2 pb-2">
                     <p className="print:leading-[1.1]">Republic of Cameroon</p>
                     <p className="print:leading-[1.1]">Peace - Work - Fatherland</p>
                     <p className="print:leading-[1.1]">Ministry of Secondary Education</p>
@@ -1332,52 +1342,44 @@ export function TermReportCard({ data }: TermReportCardProps) {
                 {/* Student Info Grid */}
                 <div className="border border-black grid grid-cols-12 mb-1 print:mb-0.5 font-mono text-[0.65rem] print:text-[7pt] relative z-10 bg-white/90">
                   <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black">
-                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Unifier No / Matricule</span>
+                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">First Name / Prénom</span>
+                    <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.firstName || data.student.name.split(' ')[0]}</span>
+                  </div>
+                  <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black">
+                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Last Name / Nom</span>
+                    <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.lastName || data.student.name.split(' ').slice(1).join(' ')}</span>
+                  </div>
+                  <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b border-black">
+                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Unique Identifier No / Matricule</span>
                     <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.studentId}</span>
-                  </div>
-                  <div className="col-span-12 md:col-span-6 p-1 print:p-0.5 border-b md:border-r border-black">
-                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Name & Surname / Noms et Prénoms</span>
-                    <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.name}</span>
-                  </div>
-                  <div className="col-span-12 md:col-span-2 p-1 print:p-0.5 border-b border-black">
-                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Repeater / Redoublant</span>
-                    <span className="font-bold text-[0.65rem] print:text-[7pt]">NO / NON</span>
                   </div>
 
                   <div className="col-span-2 p-1 print:p-0.5 border-b border-r border-black">
                     <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Sex</span>
                     <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.sex}</span>
                   </div>
-                  <div className="col-span-7 p-1 print:p-0.5 border-b border-r border-black">
-                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Date & Place of Birth / Né le - à</span>
-                    <div className="flex gap-1 text-[0.65rem] print:text-[7pt]">
-                      <span className="font-bold">{data.student.dob}</span>
-                      <span className="text-gray-400">|</span>
-                      <span className="font-bold">{data.student.pob}</span>
-                    </div>
+                  <div className="col-span-4 p-1 print:p-0.5 border-b border-r border-black">
+                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Date of Birth / Né le</span>
+                    <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.dob}</span>
                   </div>
-                  
-                  {/* Photo Area */}
-                  <div className="col-span-3 row-span-2 border-b border-black flex flex-col items-center justify-center p-1 print:p-0.5 bg-gray-50">
-                    {data.student.photoUrl ? (
-                      <img src={data.student.photoUrl} alt="Student" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="text-left text-gray-400 text-[0.5rem] print:text-[6pt]">
-                        <User size={20} className="mb-0.5 opacity-20 print:w-3 print:h-3" />
-                        PHOTO
-                      </div>
-                    )}
+                  <div className="col-span-4 p-1 print:p-0.5 border-b border-r border-black">
+                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Place of Birth / Né à</span>
+                    <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.pob}</span>
+                  </div>
+                  <div className="col-span-2 p-1 print:p-0.5 border-b border-black">
+                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Repeater / Redoublant</span>
+                    <span className="font-bold text-[0.65rem] print:text-[7pt]">NO / NON</span>
                   </div>
 
                   <div className="col-span-5 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black">
                     <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Speciality</span>
-                    <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.speciality || 'General'}</span>
+                    <span className="font-bold text-[0.65rem] print:text-[7pt]">{getSpecialityFromClass(data.student.className, data.student.speciality)}</span>
                   </div>
-                  <div className="col-span-2 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black">
+                  <div className="col-span-4 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black">
                     <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Class</span>
                     <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.className}</span>
                   </div>
-                  <div className="col-span-2 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black">
+                  <div className="col-span-3 p-1 print:p-0.5 border-b md:border-b-0 border-black">
                     <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Master</span>
                     <span className="font-bold text-[0.6rem] print:text-[6pt]">{data.student.classMaster || '-'}</span>
                   </div>
@@ -1494,35 +1496,19 @@ export function TermReportCard({ data }: TermReportCardProps) {
                       <table className="w-full text-[0.6rem] print:text-[7pt]">
                         <thead>
                           <tr className="border-b border-gray-300">
-                            <th className="p-0.5 print:p-0.5 border-r border-gray-300">TERM</th>
-                            <th className="p-0.5 print:p-0.5 border-r border-gray-300">1</th>
-                            <th className="p-0.5 print:p-0.5 border-r border-gray-300">2</th>
-                            <th className="p-0.5 print:p-0.5">3</th>
+                            <th className="p-0.5 print:p-0.5 border-r border-gray-300 text-left">TERM</th>
+                            <th className="p-0.5 print:p-0.5 text-left">{data.academic.term}</th>
                           </tr>
                         </thead>
                         <tbody>
                             <tr className="border-b border-gray-300 font-mono">
                               <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">AVERAGE</td>
-                              <td className={`p-0.5 print:p-0.5 border-r border-gray-300 ${data.academic.term === 1 ? 'font-bold' : ''}`}>
-                                {data.academic.term === 1 
-                                  ? data.totals.average.toFixed(1) 
-                                  : (data.history?.term1?.toFixed(1) ?? '-')}
-                              </td>
-                              <td className={`p-0.5 print:p-0.5 border-r border-gray-300 ${data.academic.term === 2 ? 'font-bold' : ''}`}>
-                                {data.academic.term === 2 
-                                  ? data.totals.average.toFixed(1) 
-                                  : (data.history?.term2?.toFixed(1) ?? '-')}
-                              </td>
-                              <td className={`p-0.5 print:p-0.5 font-bold ${data.academic.term === 3 ? 'font-bold' : ''}`}>
-                                {data.academic.term === 3 
-                                  ? data.totals.average.toFixed(1) 
-                                  : (data.history?.term3?.toFixed(1) ?? '-')}
+                              <td className="p-0.5 print:p-0.5 font-bold">
+                                {data.totals.average.toFixed(1)}
                               </td>
                             </tr>
                           <tr className="font-mono">
                             <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">RANK</td>
-                            <td className="p-0.5 print:p-0.5 border-r border-gray-300">-</td>
-                            <td className="p-0.5 print:p-0.5 border-r border-gray-300">-</td>
                             <td className="p-0.5 print:p-0.5">{data.history?.rank ?? '-'}</td>
                           </tr>
                         </tbody>

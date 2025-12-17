@@ -38,7 +38,6 @@ const subjectSchema = z.object({
 
 const subBranchSchema = z.object({
   name: z.string().min(1, 'Sub-branch name is required').max(100, 'Sub-branch name must be less than 100 characters'),
-  coefficient: z.number().positive('Coefficient must be positive').default(1.0),
   description: z.string().max(500, 'Description must be less than 500 characters').optional().or(z.literal('')),
   is_active: z.boolean().default(true),
 })
@@ -56,7 +55,6 @@ export function SubjectForm({ subject, onSuccess, onCancel }: SubjectFormProps) 
   const { error: toastError } = useToast()
   const [subBranches, setSubBranches] = useState<Array<{
     name: string
-    coefficient: number
     description?: string
     is_active: boolean
   }>>([])
@@ -69,7 +67,7 @@ export function SubjectForm({ subject, onSuccess, onCancel }: SubjectFormProps) 
       description: subject?.description || '',
       subject_groupings: subject?.subject_groupings || [],
       has_sub_branches: subject?.has_sub_branches || false,
-      coefficient: subject?.coefficient || (subject?.has_sub_branches ? undefined : 1.0),
+      coefficient: subject?.coefficient || 1.0,
       is_active: subject?.is_active !== false,
     },
   })
@@ -82,7 +80,6 @@ export function SubjectForm({ subject, onSuccess, onCancel }: SubjectFormProps) 
       setSubBranches(
         subject.sub_branches.map((sb) => ({
           name: sb.name,
-          coefficient: sb.coefficient,
           description: sb.description || '',
           is_active: sb.is_active,
         }))
@@ -95,7 +92,6 @@ export function SubjectForm({ subject, onSuccess, onCancel }: SubjectFormProps) 
       ...subBranches,
       {
         name: '',
-        coefficient: 1.0,
         description: '',
         is_active: true,
       },
@@ -137,13 +133,6 @@ export function SubjectForm({ subject, onSuccess, onCancel }: SubjectFormProps) 
       return false
     }
 
-    // Validate coefficients
-    const invalidCoefficients = subBranches.some((sb) => sb.coefficient <= 0 || isNaN(sb.coefficient))
-    if (invalidCoefficients) {
-      toastError('Validation Error', 'All coefficients must be positive numbers.')
-      return false
-    }
-
     return true
   }
 
@@ -158,14 +147,13 @@ export function SubjectForm({ subject, onSuccess, onCancel }: SubjectFormProps) 
       description: data.description?.trim() || undefined,
       subject_groupings: data.subject_groupings || [],
       has_sub_branches: data.has_sub_branches,
-      coefficient: data.has_sub_branches ? undefined : (data.coefficient || 1.0),
+      coefficient: data.coefficient || 1.0,
       is_active: data.is_active,
     }
 
     const subBranchesData = hasSubBranches && subBranches.length > 0
       ? subBranches.map((sb) => ({
           name: sb.name.trim(),
-          coefficient: sb.coefficient,
           description: sb.description?.trim() || undefined,
           is_active: sb.is_active,
         }))
@@ -296,35 +284,35 @@ export function SubjectForm({ subject, onSuccess, onCancel }: SubjectFormProps) 
             />
           </div>
 
-          {/* Coefficient field for simple subjects */}
-          {!hasSubBranches && (
-            <FormField
-              control={form.control}
-              name="coefficient"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Coefficient *</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      placeholder="1.0"
-                      value={field.value || 1.0}
-                      onChange={(e) => {
-                        const value = parseFloat(e.target.value) || 1.0
-                        field.onChange(value)
-                      }}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    The weight/coefficient for this subject when calculating grades. Must be a positive number.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
+          {/* Coefficient field - shown for all subjects */}
+          <FormField
+            control={form.control}
+            name="coefficient"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Coefficient *</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="1.0"
+                    value={field.value || 1.0}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 1.0
+                      field.onChange(value)
+                    }}
+                  />
+                </FormControl>
+                <FormDescription>
+                  {hasSubBranches 
+                    ? "The weight/coefficient for this subject when calculating grades. Applied after aggregating sub-branch marks."
+                    : "The weight/coefficient for this subject when calculating grades. Must be a positive number."}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <div className="flex items-center space-x-2">
             <FormField
@@ -358,7 +346,7 @@ export function SubjectForm({ subject, onSuccess, onCancel }: SubjectFormProps) 
                 <div>
                   <CardTitle>Sub-Branches</CardTitle>
                   <CardDescription>
-                    Add sub-branches for this subject. Each sub-branch can have a coefficient.
+                    Add sub-branches for this subject. The subject coefficient will be applied after aggregating marks from all sub-branches.
                   </CardDescription>
                 </div>
                 <Button type="button" onClick={addSubBranch} size="sm">
@@ -398,31 +386,15 @@ export function SubjectForm({ subject, onSuccess, onCancel }: SubjectFormProps) 
                             onChange={(e) => updateSubBranch(index, 'name', e.target.value)}
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor={`sb-coefficient-${index}`}>Coefficient *</Label>
-                            <Input
-                              id={`sb-coefficient-${index}`}
-                              type="number"
-                              min="0.01"
-                              step="0.01"
-                              placeholder="1.0"
-                              value={sb.coefficient}
-                              onChange={(e) =>
-                                updateSubBranch(index, 'coefficient', parseFloat(e.target.value) || 1.0)
-                              }
-                            />
-                          </div>
-                          <div className="flex items-center space-x-2 pt-8">
-                            <Switch
-                              id={`sb-active-${index}`}
-                              checked={sb.is_active}
-                              onCheckedChange={(checked) =>
-                                updateSubBranch(index, 'is_active', checked)
-                              }
-                            />
-                            <Label htmlFor={`sb-active-${index}`}>Active</Label>
-                          </div>
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id={`sb-active-${index}`}
+                            checked={sb.is_active}
+                            onCheckedChange={(checked) =>
+                              updateSubBranch(index, 'is_active', checked)
+                            }
+                          />
+                          <Label htmlFor={`sb-active-${index}`}>Active</Label>
                         </div>
                         <div>
                           <Label htmlFor={`sb-description-${index}`}>Description</Label>

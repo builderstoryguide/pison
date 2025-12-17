@@ -163,9 +163,9 @@ export function SubjectManagement() {
         subject.name,
         subject.code || 'N/A',
         subject.has_sub_branches ? 'Yes' : 'No',
-        subject.has_sub_branches ? 'N/A' : (subject.coefficient || 1.0).toString(),
+        (subject.coefficient || 1.0).toString(),
         subject.has_sub_branches 
-          ? (subject.sub_branches || []).map(sb => `${sb.name} (${sb.coefficient})`).join('; ') 
+          ? (subject.sub_branches || []).map(sb => sb.name).join('; ') 
           : 'N/A',
         subject.is_active ? 'Active' : 'Inactive',
         new Date(subject.created_at).toLocaleDateString()
@@ -494,20 +494,16 @@ export function SubjectManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {subject.has_sub_branches ? (
-                        <span className="text-muted-foreground text-sm">N/A</span>
-                      ) : (
-                        <Badge variant="secondary">
-                          {subject.coefficient || 1.0}
-                        </Badge>
-                      )}
+                      <Badge variant="secondary">
+                        {subject.coefficient || 1.0}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       {subject.has_sub_branches && subject.sub_branches ? (
                         <div className="flex flex-col gap-1">
                           {subject.sub_branches.slice(0, 2).map((sb) => (
                             <Badge key={sb.id} variant="secondary" className="w-fit">
-                              {sb.name} (coeff: {sb.coefficient})
+                              {sb.name}
                             </Badge>
                           ))}
                           {subject.sub_branches.length > 2 && (
@@ -695,16 +691,19 @@ export function SubjectManagement() {
                   {selectedSubject.has_sub_branches ? 'With Sub-Branches' : 'Simple Subject'}
                 </Badge>
               </div>
-              {!selectedSubject.has_sub_branches && (
-                <div>
-                  <Label className="text-sm font-medium">Coefficient</Label>
-                  <p className="text-sm text-muted-foreground">
-                    <Badge variant="secondary">
-                      {selectedSubject.coefficient || 1.0}
-                    </Badge>
-                  </p>
-                </div>
-              )}
+              <div>
+                <Label className="text-sm font-medium">Coefficient</Label>
+                <p className="text-sm text-muted-foreground">
+                  <Badge variant="secondary">
+                    {selectedSubject.coefficient || 1.0}
+                  </Badge>
+                  {selectedSubject.has_sub_branches && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      (applied after aggregating sub-branch marks)
+                    </span>
+                  )}
+                </p>
+              </div>
               {selectedSubject.has_sub_branches && selectedSubject.sub_branches && (
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Sub-Branches</Label>
@@ -715,9 +714,6 @@ export function SubjectManagement() {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="font-medium">{sb.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                Coefficient: {sb.coefficient}
-                              </p>
                               {sb.description && (
                                 <p className="text-sm text-muted-foreground mt-1">{sb.description}</p>
                               )}

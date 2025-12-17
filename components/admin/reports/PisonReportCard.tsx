@@ -158,7 +158,7 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
           <div className="border border-black grid grid-cols-12 mb-1 print:mb-0.5 font-mono text-[0.65rem] print:text-[7pt] relative z-10 bg-white/90 backdrop-blur-sm">
             {/* Row 1 */}
             <div className="col-span-12 md:col-span-4 p-2 border-b md:border-r border-black border-dotted md:border-solid">
-              <span className="block text-[0.6rem] text-gray-500 uppercase">Unifier No / Matricule</span>
+              <span className="block text-[0.6rem] text-gray-500 uppercase">Unique Identifier No / Matricule</span>
               <Input value={data.student.id} onChange={(v) => handleInputChange('student', 'id', v)} className="font-bold" />
             </div>
             <div className="col-span-12 md:col-span-6 p-2 border-b md:border-r border-black border-dotted md:border-solid">

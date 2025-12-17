@@ -28,7 +28,6 @@ export async function GET(
       id: sb.id,
       subject_id: sb.subject_id,
       name: sb.name,
-      coefficient: parseFloat(sb.coefficient) || 1.0,
       description: sb.description,
       is_active: sb.is_active !== false,
       created_at: sb.created_at,
@@ -54,19 +53,12 @@ export async function POST(
     const { id } = await params
     const body = await request.json()
 
-    const { name, coefficient, description, is_active = true } = body
+    const { name, description, is_active = true } = body
 
     // Validate required fields
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       return NextResponse.json(
         { ok: false, error: 'Sub-branch name is required' },
-        { status: 400 }
-      )
-    }
-
-    if (coefficient !== undefined && (isNaN(parseFloat(coefficient)) || parseFloat(coefficient) <= 0)) {
-      return NextResponse.json(
-        { ok: false, error: 'Coefficient must be a positive number' },
         { status: 400 }
       )
     }
@@ -114,7 +106,6 @@ export async function POST(
       .insert({
         subject_id: id,
         name: name.trim(),
-        coefficient: parseFloat(coefficient) || 1.0,
         description: description?.trim() || null,
         is_active: is_active !== false,
       })
@@ -133,7 +124,6 @@ export async function POST(
       id: newSubBranch.id,
       subject_id: newSubBranch.subject_id,
       name: newSubBranch.name,
-      coefficient: parseFloat(newSubBranch.coefficient) || 1.0,
       description: newSubBranch.description,
       is_active: newSubBranch.is_active !== false,
       created_at: newSubBranch.created_at,

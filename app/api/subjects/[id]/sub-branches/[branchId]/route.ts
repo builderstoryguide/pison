@@ -11,7 +11,7 @@ export async function PUT(
     const { id, branchId } = await params
     const body = await request.json()
 
-    const { name, coefficient, description, is_active } = body
+    const { name, description, is_active } = body
 
     // Check if sub-branch exists
     const { data: existingSubBranch } = await supabase
@@ -46,18 +46,9 @@ export async function PUT(
       }
     }
 
-    // Validate coefficient if provided
-    if (coefficient !== undefined && (isNaN(parseFloat(coefficient)) || parseFloat(coefficient) <= 0)) {
-      return NextResponse.json(
-        { ok: false, error: 'Coefficient must be a positive number' },
-        { status: 400 }
-      )
-    }
-
     // Build update object
     const updateData: any = {}
     if (name !== undefined) updateData.name = name.trim()
-    if (coefficient !== undefined) updateData.coefficient = parseFloat(coefficient)
     if (description !== undefined) updateData.description = description?.trim() || null
     if (is_active !== undefined) updateData.is_active = is_active
 
@@ -81,7 +72,6 @@ export async function PUT(
       id: updatedSubBranch.id,
       subject_id: updatedSubBranch.subject_id,
       name: updatedSubBranch.name,
-      coefficient: parseFloat(updatedSubBranch.coefficient) || 1.0,
       description: updatedSubBranch.description,
       is_active: updatedSubBranch.is_active !== false,
       created_at: updatedSubBranch.created_at,

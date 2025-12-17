@@ -424,7 +424,7 @@ export function AnnualReportCard({ data }: AnnualReportCardProps) {
           {/* Student Info Grid */}
           <div className="border border-black grid grid-cols-12 mb-1 print:mb-0.5 font-mono text-[0.65rem] print:text-[7pt] relative z-10 bg-white/90">
             <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black">
-              <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Unifier No / Matricule</span>
+              <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Unique Identifier No / Matricule</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.studentId}</span>
             </div>
             <div className="col-span-12 md:col-span-6 p-1 print:p-0.5 border-b md:border-r border-black">

@@ -780,6 +780,19 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
           throw new Error("Database connection is required for class management")
         }
 
+        // First, check if student is already assigned to a different class
+        const { data: currentStudent, error: studentFetchError } = await supabase
+          .from("students")
+          .select("class")
+          .eq("id", studentId)
+          .single()
+
+        if (studentFetchError) {
+          throw new Error(`Failed to fetch student data: ${studentFetchError.message}`)
+        }
+
+        const previousClassId = currentStudent?.class
+
         // Update student's class assignment
         // Handle potential type mismatch between classId (UUID) and students.class (VARCHAR)
         const { error: studentUpdateError } = await supabase
@@ -791,7 +804,41 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
           throw new Error(`Failed to assign student to class: ${studentUpdateError.message}`)
         }
 
-        // Update class enrollment count - first get current enrollment
+        // If student was previously in a different class, decrement that class enrollment
+        if (previousClassId && previousClassId !== classId.toString()) {
+          const { data: prevClass, error: prevFetchError } = await supabase
+            .from("classes")
+            .select("current_enrollment")
+            .eq("id", previousClassId)
+            .single()
+
+          if (!prevFetchError && prevClass) {
+            const prevEnrollment = Math.max(0, (prevClass.current_enrollment || 0) - 1)
+            await supabase
+              .from("classes")
+              .update({ 
+                current_enrollment: prevEnrollment,
+                student_count: prevEnrollment,
+                updated_at: new Date().toISOString()
+              })
+              .eq("id", previousClassId)
+
+            // Update local state for previous class
+            setClasses((prev) =>
+              prev.map((cls) =>
+                cls.id === previousClassId
+                  ? {
+                      ...cls,
+                      currentEnrollment: Math.max(0, cls.currentEnrollment - 1),
+                      updatedAt: new Date().toISOString().split("T")[0],
+                    }
+                  : cls,
+              ),
+            )
+          }
+        }
+
+        // Update new class enrollment count
         const { data: currentClass, error: fetchError } = await supabase
           .from("classes")
           .select("current_enrollment")
@@ -802,7 +849,12 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
           throw new Error(`Failed to fetch current enrollment: ${fetchError.message}`)
         }
 
-        const newEnrollment = (currentClass.current_enrollment || 0) + 1
+        // Only increment if student wasn't already in this class
+        const shouldIncrement = !previousClassId || previousClassId !== classId.toString()
+        const newEnrollment = shouldIncrement 
+          ? (currentClass.current_enrollment || 0) + 1
+          : (currentClass.current_enrollment || 0)
+
         const { error: classUpdateError } = await supabase
           .from("classes")
           .update({ 
@@ -816,13 +868,13 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
           throw new Error(`Failed to update class enrollment: ${classUpdateError.message}`)
         }
 
-        // Update local state
+        // Update local state for new class
         setClasses((prev) =>
           prev.map((cls) =>
             cls.id === classId
               ? {
                   ...cls,
-                  currentEnrollment: cls.currentEnrollment + 1,
+                  currentEnrollment: shouldIncrement ? cls.currentEnrollment + 1 : cls.currentEnrollment,
                   updatedAt: new Date().toISOString().split("T")[0],
                 }
               : cls,
@@ -1154,6 +1206,17 @@ export function ClassManagementProvider({ children }: { children: React.ReactNod
           // Assign subjects to each class
           transformedClasses.forEach(classData => {
             classData.subjects = subjectsByClassId[classData.id] || []
+          })
+          
+          // Verification logging (can be removed after confirming data accuracy)
+          console.log('[Class Management] Loaded classes with data:', {
+            totalClasses: transformedClasses.length,
+            sampleClass: transformedClasses[0] ? {
+              name: transformedClasses[0].name,
+              enrollment: `${transformedClasses[0].currentEnrollment}/${transformedClasses[0].capacity}`,
+              teacher: transformedClasses[0].classTeacher,
+              subjectCount: transformedClasses[0].subjects.length
+            } : null
           })
         }
       } catch (err) {

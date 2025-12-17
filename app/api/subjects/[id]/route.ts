@@ -48,7 +48,7 @@ export async function GET(
       code: subject.code,
       description: subject.description,
       has_sub_branches: subject.has_sub_branches || false,
-      coefficient: subject.has_sub_branches ? undefined : (subject.coefficient ? parseFloat(subject.coefficient) : 1.0),
+      coefficient: subject.coefficient ? parseFloat(subject.coefficient) : 1.0,
       is_active: subject.is_active !== false,
       created_at: subject.created_at,
       updated_at: subject.updated_at,
@@ -57,7 +57,6 @@ export async function GET(
         id: sb.id,
         subject_id: subject.id,
         name: sb.name,
-        coefficient: parseFloat(sb.coefficient) || 1.0,
         description: sb.description,
         is_active: sb.is_active !== false,
         created_at: sb.created_at,
@@ -170,14 +169,17 @@ export async function PUT(
     if (description !== undefined) updateData.description = description?.trim() || null
     if (has_sub_branches !== undefined) {
       updateData.has_sub_branches = has_sub_branches
-      // When switching to sub-branches, clear coefficient (set to default)
-      if (has_sub_branches === true) {
-        updateData.coefficient = 1.0 // Set default, but won't be used
-      }
     }
-    // Only update coefficient for simple subjects
-    if (coefficient !== undefined && finalHasSubBranches === false) {
-      updateData.coefficient = parseFloat(coefficient)
+    // Update coefficient for all subjects (with or without sub-branches)
+    if (coefficient !== undefined) {
+      const coefficientValue = parseFloat(coefficient)
+      if (isNaN(coefficientValue) || coefficientValue <= 0) {
+        return NextResponse.json(
+          { ok: false, error: 'Coefficient must be a positive number' },
+          { status: 400 }
+        )
+      }
+      updateData.coefficient = coefficientValue
     }
     // When switching from sub-branches to simple, set default coefficient if not provided
     if (has_sub_branches === false && currentSubject?.has_sub_branches === true && coefficient === undefined) {
@@ -217,7 +219,7 @@ export async function PUT(
       code: updatedSubject.code,
       description: updatedSubject.description,
       has_sub_branches: updatedSubject.has_sub_branches,
-      coefficient: updatedSubject.has_sub_branches ? undefined : (updatedSubject.coefficient ? parseFloat(updatedSubject.coefficient) : 1.0),
+      coefficient: updatedSubject.coefficient ? parseFloat(updatedSubject.coefficient) : 1.0,
       is_active: updatedSubject.is_active,
       created_at: updatedSubject.created_at,
       updated_at: updatedSubject.updated_at,
@@ -226,7 +228,6 @@ export async function PUT(
         id: sb.id,
         subject_id: updatedSubject.id,
         name: sb.name,
-        coefficient: parseFloat(sb.coefficient) || 1.0,
         description: sb.description,
         is_active: sb.is_active !== false,
         created_at: sb.created_at,
