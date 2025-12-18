@@ -84,7 +84,8 @@ export function TeacherGradesEntryRefactored({ preSelectedClassId, preSelectedSu
     clearAll,
     validate,
     enteredCount,
-    getGradesForSubmission
+    getGradesForSubmission,
+    setInitialGrades
   } = useGradeEntry(students, coefficient, maxMarks)
 
   const currentClass = classes.find(c => c.id.toString() === selectedClass)

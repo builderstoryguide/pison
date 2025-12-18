@@ -427,6 +427,32 @@ export function TeacherGradesDatabaseProvider({ children }: { children: ReactNod
       if (insertError) throw insertError
 
       await loadData() // Reload data
+
+      // Send notification to admins
+      try {
+        // 1. Get all admins
+        const { data: admins } = await supabase!
+          .from("users") // Assuming users table has role column, verified in auth-context research 
+          .select("id")
+          .eq("role", "admin")
+
+        if (admins && admins.length > 0) {
+           const notifications = admins.map(admin => ({
+              recipient_id: admin.id,
+              title: "New Grades Submitted",
+              message: `Teacher ${newGrade.teacher_id} submitted a grade for ${newGrade.student_name} in ${assessment?.className || 'Class'} - ${assessment?.subject}`,
+              type: "info"
+           }))
+
+           await supabase!
+             .from("notifications")
+             .insert(notifications)
+        }
+      } catch (notifError) {
+        console.error("Failed to send notification:", notifError)
+        // Don't fail the grade submission if notification fails
+      }
+
       return insertedGrade.id
 
     } catch (err) {
@@ -552,6 +578,36 @@ export function TeacherGradesDatabaseProvider({ children }: { children: ReactNod
       if (error) throw error
 
       await loadData() // Reload data
+
+      // Send notification to admins
+      try {
+        if (gradesData.length > 0) {
+            const firstGrade = gradesData[0]
+             // 1. Get all admins
+            const { data: admins } = await supabase!
+              .from("users")
+              .select("id")
+              .eq("role", "admin")
+
+            if (admins && admins.length > 0) {
+                // Get assessment details for better message
+                const assessment = assessments.find(a => a.id === firstGrade.assessmentId)
+                
+               const notifications = admins.map(admin => ({
+                  recipient_id: admin.id,
+                  title: "Bulk Grades Submitted",
+                  message: `Teacher submitted ${gradesData.length} grades for ${assessment?.className || 'Class'} - ${assessment?.subject}`,
+                  type: "info"
+               }))
+
+               await supabase!
+                 .from("notifications")
+                 .insert(notifications)
+            }
+        }
+      } catch (notifError) {
+        console.error("Failed to send notification:", notifError)
+      }
 
     } catch (err) {
       console.error("Error bulk adding grades:", err)

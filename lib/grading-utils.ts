@@ -6,7 +6,7 @@
  */
 
 export interface GradeEntry {
-  studentId: number
+  studentId: number | string
   mark: number | string
   coefficient: number
   totalMarks: number
@@ -16,7 +16,7 @@ export interface GradeEntry {
 }
 
 export interface StudentWithMarks {
-  studentId: number
+  studentId: number | string
   totalMarks: number
 }
 
@@ -81,19 +81,19 @@ export function validateMark(mark: string | number, maxMarks: number): boolean {
  * @returns Record mapping student IDs to their ranks
  */
 export function calculateRanks(
-  allGrades: Record<number, GradeEntry>,
+  allGrades: Record<string | number, GradeEntry>,
   coefficient: number
-): Record<number, number> {
+): Record<string | number, number> {
   // Get all students with marks
-  const studentsWithMarks: StudentWithMarks[] = Object.entries(allGrades)
-    .filter(([_, entry]) => entry.mark !== '' && entry.mark !== undefined)
-    .map(([studentId, entry]) => {
+  const studentsWithMarks: StudentWithMarks[] = Object.values(allGrades)
+    .filter((entry) => entry.mark !== '' && entry.mark !== undefined)
+    .map((entry) => {
       const markValue = typeof entry.mark === 'number' 
         ? entry.mark 
         : parseFloat(entry.mark as string) || 0
       
       return {
-        studentId: parseInt(studentId),
+        studentId: entry.studentId,
         totalMarks: calculateTotalMarks(
           markValue,
           entry.coefficient || coefficient
@@ -103,7 +103,7 @@ export function calculateRanks(
     .sort((a, b) => b.totalMarks - a.totalMarks) // Sort descending
 
   // Assign ranks (handle ties)
-  const ranks: Record<number, number> = {}
+  const ranks: Record<string | number, number> = {}
   let currentRank = 1
   
   for (let i = 0; i < studentsWithMarks.length; i++) {
@@ -141,7 +141,7 @@ export function processGradeEntry(mark: number, coefficient: number) {
  * @returns Validation result with any errors
  */
 export function validateAllGrades(
-  grades: Record<number, GradeEntry>,
+  grades: Record<string | number, GradeEntry>,
   maxMarks: number
 ): { valid: boolean; invalidCount: number; message?: string } {
   const invalidMarks = Object.values(grades).filter(
@@ -164,6 +164,6 @@ export function validateAllGrades(
  * @param grades - Record of all grade entries
  * @returns Count of entered grades
  */
-export function countEnteredGrades(grades: Record<number, GradeEntry>): number {
+export function countEnteredGrades(grades: Record<string | number, GradeEntry>): number {
   return Object.values(grades).filter(entry => entry.mark && entry.mark !== '').length
 }

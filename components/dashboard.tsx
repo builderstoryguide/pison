@@ -42,6 +42,8 @@ import { MarksTracking } from "./admin/marks-tracking"
 import { ProfileSettings } from "./profile/profile-settings"
 import { BursarProfile } from "./bursar/bursar-profile"
 import { QuickActionsDashboard } from "./admin/quick-actions-dashboard"
+import { HeaderNotifications } from "./admin/header-notifications"
+import { QuickActionsDashboard as QuickActionsDashboardOriginal } from "./admin/quick-actions-dashboard"
 
 // Teacher Components
 import { TeacherDashboardNew as TeacherDashboard } from "./teacher/teacher-dashboard-new"
@@ -311,7 +313,7 @@ function DashboardHeader({
 
       <div className="ml-auto flex items-center gap-2 px-4">
         <ThemeToggle />
-        <NotificationDropdown />
+        <HeaderNotifications />
         <UserProfileDropdown user={user} onProfileClick={onProfileClick} onLogout={onLogout} />
       </div>
     </header>

@@ -291,10 +291,139 @@ export async function POST(request: NextRequest) {
     // Check if user already exists
     const { data: existingUser } = await supabase
       .from('users')
-      .select('id')
+      .select('id, role, name')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
+    // Special handling: If creating a parent and user exists as teacher, create parent record
+    if (existingUser && role === 'parent' && existingUser.role === 'teacher') {
+      // Get student_id from body (required for parent creation)
+      const { studentId } = body;
+      
+      if (!studentId) {
+        return NextResponse.json(
+          { error: 'Student ID is required when creating a parent account for an existing teacher. Please select the student who is the child of this teacher.' },
+          { status: 400 }
+        );
+      }
+
+      // Validate student exists
+      const { data: student, error: studentError } = await supabase
+        .from('students')
+        .select('student_id, first_name, last_name, status')
+        .eq('student_id', studentId)
+        .maybeSingle();
+
+      if (studentError) {
+        console.error('Error checking student:', studentError);
+        return NextResponse.json(
+          { error: 'Failed to validate student. Please try again.' },
+          { status: 500 }
+        );
+      }
+
+      if (!student) {
+        return NextResponse.json(
+          { error: `Student with ID "${studentId}" not found. Please provide a valid student ID.` },
+          { status: 404 }
+        );
+      }
+
+      if (student.status !== 'active') {
+        return NextResponse.json(
+          { error: `Student "${student.first_name} ${student.last_name}" (${studentId}) is not active. Only active students can be linked to parent accounts.` },
+          { status: 400 }
+        );
+      }
+
+      // Check if teacher already has parent record for this student (prevent duplicates)
+      const { data: existingParent, error: duplicateCheckError } = await supabase
+        .from('parents')
+        .select('id, parent_code, student_id')
+        .eq('email', email)
+        .eq('student_id', studentId)
+        .maybeSingle();
+
+      if (duplicateCheckError) {
+        console.error('Error checking for duplicate parent record:', duplicateCheckError);
+        return NextResponse.json(
+          { error: 'Failed to check for existing parent record. Please try again.' },
+          { status: 500 }
+        );
+      }
+
+      if (existingParent) {
+        return NextResponse.json(
+          { error: `This teacher already has a parent account linked to student "${student.first_name} ${student.last_name}" (${studentId}). Each teacher can have one parent account per child.` },
+          { status: 409 }
+        );
+      }
+
+      // Generate parent code
+      const parentCode = await generateRoleSpecificId('parent');
+      
+      // Create parent record in parents table
+      const { data: parentRecord, error: parentError } = await supabase
+        .from('parents')
+        .insert({
+          parent_code: parentCode,
+          name: existingUser.name,
+          email: email,
+          phone: phone || null,
+          address: address || null,
+          occupation: occupation || null,
+          relationship: relationship || 'guardian',
+          student_id: studentId, // Link to student
+        })
+        .select()
+        .single();
+
+      if (parentError) {
+        console.error('Error creating parent record for teacher:', parentError);
+        return NextResponse.json(
+          { error: 'Failed to create parent record', details: parentError.message },
+          { status: 500 }
+        );
+      }
+
+      // Note: We don't modify user_profiles.role_specific_id because it contains the teacher_id
+      // The parent_code is stored in the parents table and can be looked up by email or user_id
+      // The teacher can access parent features through the parent record and permissions
+
+      // Add parent permissions to teacher's existing permissions
+      const { data: teacherUser } = await supabase
+        .from('users')
+        .select('permissions')
+        .eq('id', existingUser.id)
+        .single();
+
+      if (teacherUser) {
+        const parentPermissions = ['view_child_progress', 'communicate_teachers', 'view_financial_records'];
+        const currentPermissions = teacherUser.permissions || [];
+        const updatedPermissions = [...new Set([...currentPermissions, ...parentPermissions])];
+
+        await supabase
+          .from('users')
+          .update({ permissions: updatedPermissions })
+          .eq('id', existingUser.id);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Parent record created successfully. Teacher "${existingUser.name}" can now access parent features for their child "${student.first_name} ${student.last_name}" (${studentId}).`,
+        roleSpecificId: parentCode,
+        password: null, // No new password, teacher uses existing account
+        userAccountCreated: false,
+        teacherAccountLinked: true,
+        parentRecord: parentRecord,
+        student: {
+          studentId: student.student_id,
+          name: `${student.first_name} ${student.last_name}`
+        }
+      });
+    }
+
+    // If user exists and not the teacher-as-parent case, return error
     if (existingUser) {
       return NextResponse.json(
         { error: 'User with this email already exists' },
@@ -556,6 +685,53 @@ export async function POST(request: NextRequest) {
         }
       } catch (teacherErr) {
         console.error('Error in teacher creation:', teacherErr);
+        // Note: We don't fail here as the user was created successfully
+      }
+    }
+
+    // If creating a parent, also create a record in the parents table
+    if (role === 'parent') {
+      try {
+        // Get student_id from body (required for parent creation)
+        const { studentId } = body;
+        
+        if (!studentId) {
+          console.warn('Warning: Student ID not provided for parent creation. Parent record will not be created.');
+        } else {
+          // Check if parent record already exists
+          const { data: existingParent } = await supabase
+            .from('parents')
+            .select('id')
+            .eq('parent_code', roleSpecificId)
+            .maybeSingle();
+
+          if (!existingParent) {
+            // Create parent record
+            const { error: parentError } = await supabase
+              .from('parents')
+              .insert({
+                parent_code: roleSpecificId,
+                name: name,
+                email: email,
+                phone: phone || null,
+                address: address || null,
+                occupation: occupation || null,
+                relationship: relationship || 'guardian',
+                student_id: studentId, // Link to student
+              });
+
+            if (parentError) {
+              console.error('Error creating parent record:', parentError);
+              // Note: We don't fail here as the user was created successfully
+            } else {
+              console.log('Parent record created successfully:', roleSpecificId);
+            }
+          } else {
+            console.log('Parent record already exists, skipping creation:', roleSpecificId);
+          }
+        }
+      } catch (parentErr) {
+        console.error('Error in parent creation:', parentErr);
         // Note: We don't fail here as the user was created successfully
       }
     }

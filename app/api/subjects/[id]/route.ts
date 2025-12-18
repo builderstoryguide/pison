@@ -207,7 +207,63 @@ export async function PUT(
       )
     }
 
-    // Fetch sub-branches
+    // Update sub-branches if provided and has_sub_branches is true
+    if (body.sub_branches && Array.isArray(body.sub_branches) && updatedSubject.has_sub_branches) {
+      const incomingBranches = body.sub_branches
+      
+      // 1. Get existing branches
+      const { data: existingBranches } = await supabase
+        .from('subject_sub_branches')
+        .select('id')
+        .eq('subject_id', id)
+      
+      const existingIds = existingBranches?.map(b => b.id) || []
+      const incomingIds = incomingBranches.map((b: any) => b.id).filter(Boolean)
+      
+      // 2. Identify branches to delete (existing but not in incoming)
+      const toDelete = existingIds.filter(eid => !incomingIds.includes(eid))
+      if (toDelete.length > 0) {
+        await supabase
+          .from('subject_sub_branches')
+          .delete()
+          .in('id', toDelete)
+      }
+      
+      // 3. Upsert incoming branches
+      for (const branch of incomingBranches) {
+        if (branch.id) {
+          // Update existing
+          await supabase
+            .from('subject_sub_branches')
+            .update({
+              name: branch.name,
+              description: branch.description,
+              is_active: branch.is_active,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', branch.id)
+            .eq('subject_id', id) // Security check
+        } else {
+          // Insert new
+          await supabase
+            .from('subject_sub_branches')
+            .insert({
+              subject_id: id,
+              name: branch.name,
+              description: branch.description,
+              is_active: branch.is_active
+            })
+        }
+      }
+    } else if (updatedSubject.has_sub_branches === false) {
+      // If switched to simple subject, delete all sub-branches
+       await supabase
+        .from('subject_sub_branches')
+        .delete()
+        .eq('subject_id', id)
+    }
+
+    // Fetch updated sub-branches
     const { data: subBranches } = await supabase
       .from('subject_sub_branches')
       .select('*')

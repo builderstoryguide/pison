@@ -122,8 +122,15 @@ export function SubjectManagement() {
     }
   }
 
-  const handleUpdateSubject = async (subjectId: string, subjectData: Partial<Subject>) => {
-    const success = await updateSubject(subjectId, subjectData)
+  const handleUpdateSubject = async (subjectId: string, subjectData: Partial<Subject>, subBranches?: Partial<SubBranch>[]) => {
+    // If sub-branches are provided, include them in the update payload
+    // Note: The API must be updated to handle 'sub_branches' in the PUT body, which we have done.
+    const dataToUpdate = {
+      ...subjectData,
+      ...(subBranches ? { sub_branches: subBranches } : {})
+    };
+
+    const success = await updateSubject(subjectId, dataToUpdate)
     if (success) {
       toastSuccess('Subject updated successfully', 'The subject has been updated.')
       setShowEditDialog(false)
@@ -643,7 +650,7 @@ export function SubjectManagement() {
             <SubjectForm
               subject={selectedSubject}
               onSuccess={(subjectData, subBranches) => {
-                handleUpdateSubject(selectedSubject.id, subjectData)
+                handleUpdateSubject(selectedSubject.id, subjectData, subBranches)
               }}
               onCancel={() => {
                 setShowEditDialog(false)

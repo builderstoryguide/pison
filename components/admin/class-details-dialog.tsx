@@ -26,7 +26,7 @@ interface ClassDetailsDialogProps {
 
 export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDelete }: ClassDetailsDialogProps) {
   const { getClassStudents, assignStudentToClass, removeStudentFromClass, updateClass, refreshClasses } = useClassManagement()
-  const { getSubjectById } = useSubjectManagement()
+  const { subjects, getSubjectById } = useSubjectManagement()
   const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
   const [activeTab, setActiveTab] = useState("overview")
   const [students, setStudents] = useState<any[]>([])
@@ -125,18 +125,26 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
   }
 
   // Handle updating class subjects
-  const handleUpdateSubjects = async (updatedSubjects: string[]) => {
+  const handleUpdateSubjects = async (updatedSubjects: ClassSubject[]) => {
     try {
-      // Convert string array to ClassSubject array
-      const classSubjects: ClassSubject[] = updatedSubjects.map(subjectId => {
-        const subject = getSubjectById(subjectId)
+      // Subjects are now passed as ClassSubject[] directly from the dialog
+      // Resolve subject IDs for any subjects that don't have them
+      const resolvedSubjects: ClassSubject[] = updatedSubjects.map(subject => {
+        if (subject.subjectId) {
+          return subject
+        }
+        // Try to find subject ID by name from the subjects array
+        const foundSubject = subjects.find(s => 
+          s.name.toLowerCase() === subject.subjectName.toLowerCase()
+        )
         return {
-          subjectId,
-          subjectName: subject?.name || 'Unknown Subject',
-          isTradeSubject: false
+          subjectId: foundSubject?.id || '',
+          subjectName: subject.subjectName,
+          isTradeSubject: subject.isTradeSubject || false
         }
       })
-      const result = await updateClass(classData.id, { subjects: classSubjects })
+      
+      const result = await updateClass(classData.id, { subjects: resolvedSubjects })
       if (!result.success) {
         throw new Error(result.error || "Failed to update subjects")
       }
@@ -147,7 +155,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
       toastSuccess("Subjects updated successfully", {
         description: `Subjects for ${classData.name} have been updated.`,
       })
-         } catch (error) {
+    } catch (error) {
       toastError("Error updating subjects", {
         description: error instanceof Error ? error.message : "Failed to update subjects",
       })

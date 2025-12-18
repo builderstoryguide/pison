@@ -1,6 +1,111 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const classId = searchParams.get('classId')
+    const subjectId = searchParams.get('subjectId')
+    const sequenceId = searchParams.get('sequenceId')
+    const examinationName = searchParams.get('examinationName')
+
+    if (!classId || !subjectId || (!sequenceId && !examinationName)) {
+      return NextResponse.json(
+        { error: 'Missing required parameters' },
+        { status: 400 }
+      )
+    }
+
+    const supabase = await createClient()
+
+    // 1. Get Subject Name
+    const { data: subject, error: subjectError } = await supabase
+      .from('subjects')
+      .select('name')
+      .eq('id', subjectId)
+      .single()
+    
+    if (subjectError || !subject) {
+      return NextResponse.json(
+        { error: 'Subject not found' },
+        { status: 404 }
+      )
+    }
+
+    const subjectName = subject.name.trim()
+
+    // 2. Determine Title
+    let title = examinationName
+    if (!title && sequenceId) {
+        const SEQUENCE_NAMES: Record<string, string> = {
+            "seq1": "First Sequence",
+            "seq2": "Second Sequence",
+            "seq3": "Third Sequence",
+            "seq4": "Fourth Sequence",
+            "seq5": "Fifth Sequence",
+            "seq6": "Sixth Sequence",
+        }
+        title = SEQUENCE_NAMES[sequenceId] || sequenceId
+    }
+
+    // 3. Find Assessment
+    let { data: assessment } = await supabase
+      .from('assessments')
+      .select('id')
+      .eq('class_id', classId)
+      .eq('subject', subjectName)
+      .eq('title', title)
+      .maybeSingle()
+    
+    // Case-insensitive fallback
+    if (!assessment) {
+      const { data: allMatches } = await supabase
+        .from('assessments')
+        .select('id, subject')
+        .eq('class_id', classId)
+        .eq('title', title)
+      
+      if (allMatches && allMatches.length > 0) {
+        const normalizedNew = subjectName.toLowerCase().trim();
+        const match = allMatches.find(a => 
+          a.subject && a.subject.trim().toLowerCase() === normalizedNew
+        );
+        if (match) {
+          assessment = match;
+        }
+      }
+    }
+
+    if (!assessment) {
+      // No assessment means no grades
+      return NextResponse.json({ grades: [] })
+    }
+
+    // 4. Fetch Grades
+    const { data: grades, error: gradesError } = await supabase
+      .from('grades')
+      .select('student_id, marks_obtained, remarks')
+      .eq('assessment_id', assessment.id)
+
+    if (gradesError) {
+      throw gradesError
+    }
+
+    // Format for frontend
+    const formattedGrades = grades.map(g => ({
+        studentId: g.student_id,
+        mark: g.marks_obtained,
+        remarks: g.remarks
+    }))
+
+    return NextResponse.json({ grades: formattedGrades })
+
+  } catch (error: any) {
+    console.error("Error in GET /api/grades:", error)
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()

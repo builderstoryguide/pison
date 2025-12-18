@@ -30,6 +30,8 @@ import {
 import { StudentEnrollmentForm } from './student-enrollment-form'
 import { TeacherEnrollmentForm } from './teacher-enrollment-form'
 import { UserCreationSuccessDialog } from './user-creation-success-dialog'
+import { StudentSearch } from '@/components/ui/student-search'
+import { Info } from 'lucide-react'
 
 const roleIcons = {
   admin: User,
@@ -289,8 +291,14 @@ function AdminBursarParentForm({
     gender: 'male' as 'male' | 'female',
     role: role,
     status: 'active' as const,
-    permissions: [] as string[]
+    permissions: [] as string[],
+    studentId: '' as string | undefined,
+    relationship: 'guardian' as 'father' | 'mother' | 'guardian' | 'other'
   })
+  const [selectedStudent, setSelectedStudent] = useState<any>(null)
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false)
+  const [isTeacherEmail, setIsTeacherEmail] = useState(false)
+  const [teacherInfo, setTeacherInfo] = useState<{ name: string; teacherId: string } | null>(null)
 
   const rolePermissions = {
     admin: ['all'],
@@ -309,13 +317,92 @@ function AdminBursarParentForm({
     setFormData(prev => ({ ...prev, phone: formattedPhone }))
   }
 
+  const checkTeacherEmail = async (email: string) => {
+    if (!email || role !== 'parent') {
+      setIsTeacherEmail(false)
+      setTeacherInfo(null)
+      return
+    }
+
+    setIsCheckingEmail(true)
+    try {
+      // Check if email belongs to a teacher by searching users with role=teacher
+      const response = await fetch(`/api/users?role=teacher&search=${encodeURIComponent(email)}&limit=1`)
+      if (response.ok) {
+        const data = await response.json()
+        const users = data.users || []
+        const teacherUser = users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase())
+        
+        if (teacherUser && teacherUser.role === 'teacher') {
+          setIsTeacherEmail(true)
+          setTeacherInfo({
+            name: teacherUser.name || 'Teacher',
+            teacherId: teacherUser.role_specific_id || teacherUser.teacherRegNo || 'N/A'
+          })
+        } else {
+          setIsTeacherEmail(false)
+          setTeacherInfo(null)
+        }
+      } else {
+        setIsTeacherEmail(false)
+        setTeacherInfo(null)
+      }
+    } catch (err) {
+      console.error('Error checking teacher email:', err)
+      setIsTeacherEmail(false)
+      setTeacherInfo(null)
+    } finally {
+      setIsCheckingEmail(false)
+    }
+  }
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const email = e.target.value
+    setFormData(prev => ({ ...prev, email }))
+    // Check if email belongs to teacher (debounced)
+    if (email && email.includes('@')) {
+      const timeoutId = setTimeout(() => {
+        checkTeacherEmail(email)
+      }, 500)
+      return () => clearTimeout(timeoutId)
+    } else {
+      setIsTeacherEmail(false)
+      setTeacherInfo(null)
+    }
+  }
+
+  const handleStudentSelect = (student: any) => {
+    if (student) {
+      setSelectedStudent({
+        id: student.id,
+        studentId: student.studentId,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        fullName: student.fullName || `${student.firstName} ${student.lastName}`,
+        email: student.email,
+        className: student.className
+      })
+      setFormData(prev => ({ ...prev, studentId: student.studentId }))
+    } else {
+      setSelectedStudent(null)
+      setFormData(prev => ({ ...prev, studentId: undefined }))
+    }
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate student selection for parent accounts
+    if (role === 'parent' && !formData.studentId) {
+      alert('Please select a student for the parent account.')
+      return
+    }
     
     const submitData = {
       ...formData,
       dateOfBirth: new Date(formData.dateOfBirth),
-      permissions: rolePermissions[role]
+      permissions: rolePermissions[role],
+      ...(role === 'parent' && { studentId: formData.studentId, relationship: formData.relationship })
     }
     
     onSuccess(submitData)
@@ -344,10 +431,23 @@ function AdminBursarParentForm({
             type="email"
             required
             value={formData.email}
-            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+            onChange={handleEmailChange}
+            onBlur={() => checkTeacherEmail(formData.email)}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             placeholder="Enter email address"
           />
+          {isCheckingEmail && (
+            <p className="text-xs text-muted-foreground mt-1">Checking email...</p>
+          )}
+          {isTeacherEmail && teacherInfo && role === 'parent' && (
+            <Alert className="mt-2 border-blue-200 bg-blue-50">
+              <Info className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800 text-sm">
+                This email belongs to teacher <strong>{teacherInfo.name}</strong> ({teacherInfo.teacherId}). 
+                A parent record will be linked to their teacher account. Please select the student below.
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
 
         <div>
@@ -402,6 +502,43 @@ function AdminBursarParentForm({
           placeholder="Enter full address"
         />
       </div>
+
+      {role === 'parent' && (
+        <>
+          <div>
+            <Label htmlFor="student">Student (Child) *</Label>
+            <StudentSearch
+              value={selectedStudent || null}
+              onSelect={handleStudentSelect}
+              placeholder="Search and select student..."
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Select the student who is the child of this parent
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="relationship">Relationship to Student *</Label>
+            <Select 
+              value={formData.relationship} 
+              onValueChange={(value: 'father' | 'mother' | 'guardian' | 'other') => 
+                setFormData(prev => ({ ...prev, relationship: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="father">Father</SelectItem>
+                <SelectItem value="mother">Mother</SelectItem>
+                <SelectItem value="guardian">Guardian</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>

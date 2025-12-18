@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
     // 3. Fetch Class Subjects
     // Explicitly define return type to avoid array-inference issues on joins
     // CRITICAL: Ensure subjects are fetched ONLY from the student's class via class_subjects table
-    const { data: classSubjects, error: subjectsError } = await supabase
+    let { data: classSubjects, error: subjectsError } = await supabase
       .from('class_subjects')
       .select(`
         subject_id,
@@ -129,7 +129,8 @@ export async function GET(req: NextRequest) {
           code,
           coefficient,
           has_sub_branches,
-          subject_groupings
+          subject_groupings,
+          is_active
         )
       `)
       .eq('class_id', classId);
@@ -137,6 +138,21 @@ export async function GET(req: NextRequest) {
     if (subjectsError) {
       console.error('[Report Card] Error fetching class subjects:', subjectsError);
       throw new Error(`Failed to fetch subjects for class ${classId}: ${subjectsError.message}`);
+    }
+
+    // Filter out inactive subjects
+    if (classSubjects) {
+      const initialCount = classSubjects.length;
+      classSubjects = classSubjects.filter(cs => {
+        const subj = Array.isArray(cs.subjects) ? cs.subjects[0] : cs.subjects;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const isActive = (subj as any)?.is_active; 
+        return isActive !== false; // Default to true if undefined
+      });
+      
+      if (classSubjects.length < initialCount) {
+        console.log(`[Report Card] Filtered out ${initialCount - classSubjects.length} inactive subjects`);
+      }
     }
     
     // Verify that subjects were found and log for debugging

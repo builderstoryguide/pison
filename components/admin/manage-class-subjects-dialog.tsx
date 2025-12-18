@@ -11,13 +11,13 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Search, BookOpen, Plus, X, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import type { ClassData } from "@/lib/class-management-context"
+import type { ClassData, ClassSubject } from "@/lib/class-management-context"
 
 interface ManageClassSubjectsDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   classData: ClassData
-  onSuccess: (updatedSubjects: string[]) => void
+  onSuccess: (updatedSubjects: ClassSubject[]) => void
 }
 
 // Available subjects based on subsystem and branch
@@ -121,7 +121,11 @@ export function ManageClassSubjectsDialog({
   // Get current subjects that are not in the class
   const getAvailableSubjectsForClass = () => {
     const allAvailable = getAvailableSubjects()
-    return allAvailable.filter(subject => !classData.subjects.includes(subject))
+    // Get the names of subjects already in the class
+    const currentSubjectNames = classData.subjects.map(subject => 
+      typeof subject === 'string' ? subject : subject.subjectName
+    )
+    return allAvailable.filter(subject => !currentSubjectNames.includes(subject))
   }
 
   // Filter subjects based on search query
@@ -154,7 +158,17 @@ export function ManageClassSubjectsDialog({
   }
 
   const handleRemoveSubject = (subjectToRemove: string) => {
-    const updatedSubjects = classData.subjects.filter(subject => subject !== subjectToRemove)
+    // Filter out the subject to remove and normalize to ClassSubject[] format
+    const updatedSubjects: ClassSubject[] = classData.subjects
+      .filter(subject => {
+        const subjectName = typeof subject === 'string' ? subject : subject.subjectName
+        return subjectName !== subjectToRemove
+      })
+      .map(subject => 
+        typeof subject === 'string' 
+          ? { subjectId: '', subjectName: subject, isTradeSubject: false }
+          : subject
+      )
     handleSaveSubjects(updatedSubjects)
   }
 
@@ -166,16 +180,35 @@ export function ManageClassSubjectsDialog({
       return
     }
 
-    const updatedSubjects = [...classData.subjects, ...selectedSubjects]
+    // Convert selected subject names to ClassSubject objects
+    const newSubjects: ClassSubject[] = selectedSubjects.map(subjectName => ({
+      subjectId: '', // Will be resolved by the context when saving
+      subjectName: subjectName,
+      isTradeSubject: false
+    }))
+    
+    // Normalize existing subjects to ClassSubject[] format
+    const existingSubjects: ClassSubject[] = classData.subjects.map(subject => 
+      typeof subject === 'string' 
+        ? { subjectId: '', subjectName: subject, isTradeSubject: false }
+        : subject
+    )
+    
+    const updatedSubjects = [...existingSubjects, ...newSubjects]
     handleSaveSubjects(updatedSubjects)
   }
 
-  const handleSaveSubjects = async (updatedSubjects: string[]) => {
+  const handleSaveSubjects = async (updatedSubjects: ClassSubject[]) => {
     setIsSaving(true)
     try {
-      // Here we would call the class management context to update subjects
-      // For now, we'll simulate the update
-      onSuccess(updatedSubjects)
+      // Normalize all subjects to ClassSubject[] format before passing to callback
+      const normalizedSubjects: ClassSubject[] = updatedSubjects.map(subject => 
+        typeof subject === 'string' 
+          ? { subjectId: '', subjectName: subject, isTradeSubject: false }
+          : subject
+      )
+      
+      onSuccess(normalizedSubjects)
       
       toastSuccess("Subjects updated successfully", {
         description: `Subjects for ${classData.name} have been updated.`

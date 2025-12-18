@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Download } from "lucide-react"
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Download, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -37,6 +37,7 @@ import { TeacherEnrollmentForm } from "./teacher-enrollment-form"
 import { TeacherEnrollmentSuccessDialog } from "./teacher-enrollment-success-dialog"
 import { EditTeacherForm } from "./edit-teacher-form"
 import { TeacherExportForm } from "./teacher-export-form"
+import { TeacherPasswordResetDialog } from "./teacher-password-reset-dialog"
 import { Pagination } from "@/components/ui/pagination"
 
 export function TeacherManagement() {
@@ -53,6 +54,7 @@ export function TeacherManagement() {
   const [showTeacherDetails, setShowTeacherDetails] = useState(false)
   const [showEditTeacherForm, setShowEditTeacherForm] = useState(false)
   const [showExportForm, setShowExportForm] = useState(false)
+  const [showPasswordResetDialog, setShowPasswordResetDialog] = useState(false)
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([])
   const [teacherEnrollmentSuccess, setTeacherEnrollmentSuccess] = useState<{
     teacherId: string
@@ -469,6 +471,13 @@ export function TeacherManagement() {
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => {
                               setSelectedTeacher(teacher)
+                              setShowPasswordResetDialog(true)
+                            }}>
+                              <RotateCcw className="mr-2 h-4 w-4" />
+                              Reset Password
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedTeacher(teacher)
                               setShowExportForm(true)
                             }}>
                               <Download className="mr-2 h-4 w-4" />
@@ -743,6 +752,24 @@ export function TeacherManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Password Reset Dialog */}
+      {selectedTeacher && (
+        <TeacherPasswordResetDialog
+          teacher={{
+            id: selectedTeacher.id,
+            teacherId: selectedTeacher.teacherId,
+            firstName: selectedTeacher.firstName,
+            lastName: selectedTeacher.lastName,
+            email: selectedTeacher.email,
+          }}
+          isOpen={showPasswordResetDialog}
+          onClose={() => {
+            setShowPasswordResetDialog(false)
+            setSelectedTeacher(null)
+          }}
+        />
+      )}
     </div>
   )
 }

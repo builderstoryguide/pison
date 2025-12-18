@@ -20,7 +20,7 @@ import { StudentGradeRow } from "./student-grade-row"
 import { GradeEntry } from "@/lib/grading-utils"
 
 interface Student {
-  id: number
+  id: number | string
   studentId: string
   firstName: string
   lastName: string
@@ -29,12 +29,12 @@ interface Student {
 
 interface StudentGradesTableProps {
   students: Student[]
-  grades: Record<number, GradeEntry>
+  grades: Record<string | number, GradeEntry>
   maxMarks: number
   coefficient: number
   enteredCount: number
-  onMarkChange: (studentId: number, mark: string) => void
-  onRemarksChange: (studentId: number, remarks: string) => void
+  onMarkChange: (studentId: number | string, mark: string) => void
+  onRemarksChange: (studentId: number | string, remarks: string) => void
   onClearAll: () => void
   onSubmit: () => void
   isSubmitting: boolean

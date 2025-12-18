@@ -66,15 +66,34 @@ export async function POST(request: NextRequest) {
 
     // Helper function to query user by role-specific ID
     const queryUserByRoleSpecificId = async (roleSpecificId: string, userRole: string) => {
+      // Normalize role-specific ID (uppercase for teacher IDs like TCH2025011)
+      const normalizedId = userRole === 'teacher' ? roleSpecificId.toUpperCase() : roleSpecificId;
+      
       // First get the user_id from user_profiles
-      const { data: profileData, error: profileError } = await supabase
+      // Try exact match first, then case-insensitive if needed
+      let { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
         .select('user_id')
-        .eq('role_specific_id', roleSpecificId)
+        .eq('role_specific_id', normalizedId)
         .maybeSingle();
+
+      // If not found and it's a teacher ID, try case-insensitive search
+      if (!profileData && userRole === 'teacher' && normalizedId !== roleSpecificId) {
+        const { data: profileDataCaseInsensitive, error: profileErrorCaseInsensitive } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+          .ilike('role_specific_id', roleSpecificId)
+          .maybeSingle();
+        
+        if (profileDataCaseInsensitive) {
+          profileData = profileDataCaseInsensitive;
+          profileError = profileErrorCaseInsensitive;
+        }
+      }
 
       // Treat PGRST116 as "not found" rather than an error
       if (profileError && !isNotFoundError(profileError)) {
+        console.error('🔐 [LOGIN] Error querying user_profiles:', profileError);
         return { data: null, error: profileError };
       }
 
@@ -161,6 +180,13 @@ export async function POST(request: NextRequest) {
     // If user not found, return authentication error
     if (!user) {
       // console.log('🔐 [LOGIN] User not found at', Date.now() - startTime, 'ms');
+      // Log diagnostic information for troubleshooting
+      console.error('🔐 [LOGIN] User not found:', {
+        identifier,
+        role,
+        searchedByEmail: role === 'admin' || role === 'bursar' || (role === 'teacher' && identifier.includes('@')),
+        searchedByRoleId: role === 'teacher' && !identifier.includes('@'),
+      });
       return NextResponse.json(
         { error: 'Invalid credentials or user not found' },
         { status: 401 }

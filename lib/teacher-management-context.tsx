@@ -102,6 +102,7 @@ interface TeacherManagementContextType {
   addTeacher: (teacherData: TeacherFormData) => Promise<{ teacherId: string; password: string }>
   updateTeacher: (id: string, teacherData: Partial<Teacher>) => Promise<void>
   deleteTeacher: (id: string) => Promise<void>
+  resetTeacherPassword: (teacherId: string) => Promise<{ success: boolean; password?: string; error?: string }>
   getTeacher: (id: string) => Teacher | undefined
   loadTeachers: () => Promise<void>
 }
@@ -584,6 +585,94 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
     return teachers.find((teacher) => teacher.id === id)
   }
 
+  const resetTeacherPassword = async (teacherId: string): Promise<{ success: boolean; password?: string; error?: string }> => {
+    if (!supabase) {
+      return { success: false, error: 'Supabase client not available' }
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      // Find the teacher record
+      const { data: teacher, error: teacherError } = await supabase
+        .from('teachers')
+        .select('id, teacher_id, email, user_id')
+        .eq('id', teacherId)
+        .maybeSingle()
+
+      if (teacherError || !teacher) {
+        return { success: false, error: 'Teacher not found' }
+      }
+
+      // Find the user account
+      let userId: string | null = null
+
+      // Try to get user_id from teacher record first
+      if (teacher.user_id) {
+        userId = teacher.user_id
+      } else {
+        // Try to find user by email
+        const { data: userByEmail } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', teacher.email)
+          .eq('role', 'teacher')
+          .maybeSingle()
+
+        if (userByEmail) {
+          userId = userByEmail.id
+        } else {
+          // Try to find user by teacher_id in user_profiles
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('user_id')
+            .eq('role_specific_id', teacher.teacher_id)
+            .maybeSingle()
+
+          if (profile) {
+            userId = profile.user_id
+          }
+        }
+      }
+
+      if (!userId) {
+        return { success: false, error: 'User account not found for this teacher. Please create a user account first.' }
+      }
+
+      // Call the password reset API
+      const response = await fetch('/api/users/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          resetBy: null, // Could be enhanced to track who reset the password
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to reset password' }))
+        return { success: false, error: errorData.error || 'Failed to reset password' }
+      }
+
+      const result = await response.json()
+      if (result.success && result.password) {
+        return { success: true, password: result.password }
+      } else {
+        return { success: false, error: result.error || 'Password reset failed' }
+      }
+    } catch (err) {
+      console.error('Error resetting teacher password:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to reset password'
+      setError(errorMessage)
+      return { success: false, error: errorMessage }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const value: TeacherManagementContextType = {
     teachers,
     isLoading,
@@ -591,6 +680,7 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
     addTeacher,
     updateTeacher,
     deleteTeacher,
+    resetTeacherPassword,
     getTeacher,
     loadTeachers,
   }

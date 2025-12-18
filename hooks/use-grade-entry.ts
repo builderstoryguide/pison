@@ -13,18 +13,19 @@ import {
 } from '@/lib/grading-utils'
 
 interface Student {
-  id: number
+  id: number | string
   [key: string]: unknown
 }
 
 interface UseGradeEntryResult {
-  grades: Record<number, GradeEntry>
-  updateGrade: (studentId: number, mark: string | number) => void
-  updateRemarks: (studentId: number, remarks: string) => void
+  grades: Record<string | number, GradeEntry>
+  updateGrade: (studentId: number | string, mark: string | number) => void
+  updateRemarks: (studentId: number | string, remarks: string) => void
   clearAll: () => void
   validate: () => { valid: boolean; invalidCount: number; message?: string }
   enteredCount: number
   getGradesForSubmission: () => GradeEntry[]
+  setInitialGrades: (entries: GradeEntry[]) => void
 }
 
 /**
@@ -46,12 +47,12 @@ export function useGradeEntry(
   coefficient: number,
   maxMarks: number
 ): UseGradeEntryResult {
-  const [grades, setGrades] = useState<Record<number, GradeEntry>>({})
+  const [grades, setGrades] = useState<Record<string | number, GradeEntry>>({})
 
   /**
    * Update a student's grade and recalculate all derived values
    */
-  const updateGrade = useCallback((studentId: number, mark: string | number) => {
+  const updateGrade = useCallback((studentId: number | string, mark: string | number) => {
     setGrades(prev => {
       const updatedGrades = { ...prev }
 
@@ -95,9 +96,15 @@ export function useGradeEntry(
       // Recalculate all ranks
       const ranks = calculateRanks(updatedGrades, coefficient)
       Object.keys(ranks).forEach(id => {
-        const studentIdNum = parseInt(id)
-        if (updatedGrades[studentIdNum]) {
-          updatedGrades[studentIdNum].rank = ranks[studentIdNum]
+        // Since id comes from keys, it is string. But rank map might have nuumber keys if ID was number.
+        // But calculateRanks returns Record<string|number, number>.
+        // Safest is to rely on updatedGrades[id] existence.
+        // However, if ID is number `1`, key is `"1"`.
+        // If ranks uses number `1` as key.
+        // `ranks["1"]` works for number key in JS.
+        // So we can just use the key.
+        if (updatedGrades[id]) {
+          updatedGrades[id].rank = ranks[id]
         }
       })
 
@@ -108,7 +115,7 @@ export function useGradeEntry(
   /**
    * Update a student's remarks
    */
-  const updateRemarks = useCallback((studentId: number, remarks: string) => {
+  const updateRemarks = useCallback((studentId: number | string, remarks: string) => {
     setGrades(prev => ({
       ...prev,
       [studentId]: {
@@ -152,6 +159,34 @@ export function useGradeEntry(
     return Object.values(grades).filter(entry => entry.mark && entry.mark !== '')
   }, [grades])
 
+  /**
+   * Initialize/Bulk set grades (e.g. from database)
+   */
+  const setInitialGrades = useCallback((entries: GradeEntry[]) => {
+    setGrades(prev => {
+      const newGrades = { ...prev }
+      entries.forEach(entry => {
+        newGrades[entry.studentId] = {
+           ...entry,
+           totalMarks: calculateTotalMarks(entry.mark as number, coefficient),
+           grade: typeof entry.mark === 'number' ? calculateGrade(entry.mark) : '',
+           rank: 0 // Will be calculated below
+        }
+      })
+
+      // Recalculate ranks
+      const ranks = calculateRanks(newGrades, coefficient)
+      Object.keys(ranks).forEach(id => {
+        const studentIdNum = parseInt(id)
+        if (newGrades[studentIdNum]) {
+            newGrades[studentIdNum].rank = ranks[studentIdNum]
+        }
+      })
+
+      return newGrades
+    })
+  }, [coefficient])
+
   return {
     grades,
     updateGrade,
@@ -159,6 +194,7 @@ export function useGradeEntry(
     clearAll,
     validate,
     enteredCount,
-    getGradesForSubmission
+    getGradesForSubmission,
+    setInitialGrades
   }
 }

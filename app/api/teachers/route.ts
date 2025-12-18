@@ -473,24 +473,55 @@ export async function POST(
           
           // Create user profile for teacher
           if (teacherUser) {
-            const { error: profileError } = await supabase
+            // Check if profile already exists
+            const { data: existingProfile } = await supabase
               .from('user_profiles')
-              .insert({
-                user_id: teacherUser.id,
-                role_specific_id: teacherId,
-                subsystem: subsystem,
-                occupation: employmentType,
-                emergency_contact_name: emergencyContact?.name || null,
-                emergency_contact_phone: emergencyContact?.phone || null,
-                emergency_contact_relationship: emergencyContact?.relationship || null
-              })
-          
-            if (profileError) {
-              console.warn('⚠️ Failed to create teacher user profile:', profileError.message)
-              // Profile creation failure is not critical, but we log it
-              // The user account still exists, so this is recoverable
+              .select('id')
+              .eq('user_id', teacherUser.id)
+              .maybeSingle();
+
+            if (existingProfile) {
+              // Update existing profile to ensure role_specific_id is correct
+              const { error: updateProfileError } = await supabase
+                .from('user_profiles')
+                .update({
+                  role_specific_id: teacherId,
+                  subsystem: subsystem,
+                  occupation: employmentType,
+                  emergency_contact_name: emergencyContact?.name || null,
+                  emergency_contact_phone: emergencyContact?.phone || null,
+                  emergency_contact_relationship: emergencyContact?.relationship || null
+                })
+                .eq('id', existingProfile.id);
+
+              if (updateProfileError) {
+                console.warn('⚠️ Failed to update teacher user profile:', updateProfileError.message)
+              } else {
+                console.log(`✅ Successfully updated user profile for teacher ${teacherId}`)
+              }
             } else {
-              console.log(`✅ Successfully created user profile for teacher ${teacherId}`)
+              // Create new profile
+              const { error: profileError } = await supabase
+                .from('user_profiles')
+                .insert({
+                  user_id: teacherUser.id,
+                  role_specific_id: teacherId,
+                  subsystem: subsystem,
+                  occupation: employmentType,
+                  emergency_contact_name: emergencyContact?.name || null,
+                  emergency_contact_phone: emergencyContact?.phone || null,
+                  emergency_contact_relationship: emergencyContact?.relationship || null
+                })
+          
+              if (profileError) {
+                console.error('❌ Failed to create teacher user profile:', profileError.message)
+                console.error('❌ Profile error code:', profileError.code)
+                console.error('❌ Profile error details:', profileError.details)
+                // Profile creation failure is not critical, but we log it
+                // The user account still exists, so this is recoverable
+              } else {
+                console.log(`✅ Successfully created user profile for teacher ${teacherId}`)
+              }
             }
 
             // Link teacher record to user account
