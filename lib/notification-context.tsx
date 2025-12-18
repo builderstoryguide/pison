@@ -38,6 +38,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
 
     try {
+      /* eslint-disable no-console */
       if (!supabase) {
            console.error("Supabase client is not initialized")
            return
@@ -50,6 +51,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       }
 
       console.log("Fetching notifications for user:", user.id)
+      /* eslint-enable no-console */
 
       const { data, error } = await supabase
         .from('notifications')
@@ -61,7 +63,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       if (error) throw error
 
       if (data) {
-        const formattedNotifications: Notification[] = data.map((n: any) => ({
+        interface NotificationDB {
+          id: string
+          title: string
+          message: string
+          type: "info" | "success" | "warning" | "error"
+          created_at: string
+          read: boolean
+        }
+
+        const formattedNotifications: Notification[] = data.map((n: NotificationDB) => ({
           id: n.id,
           title: n.title,
           message: n.message,
@@ -72,8 +83,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         }))
         setNotifications(formattedNotifications)
       }
-    } catch (error: any) {
-      console.error('Error fetching notifications:', JSON.stringify(error, Object.getOwnPropertyNames(error)))
+    } catch (error: unknown) {
+      // eslint-disable-next-line no-console
+      console.error('Error fetching notifications:', error instanceof Error ? error.message : String(error))
     } finally {
       setLoading(false)
     }
@@ -95,7 +107,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             filter: `recipient_id=eq.${user.id}`,
           },
           (payload) => {
-             const newNotification = payload.new as any
+             const newNotification = payload.new as Notification
              const formatted: Notification = {
                 id: newNotification.id,
                 title: newNotification.title,
@@ -105,7 +117,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 read: newNotification.read,
                 created_at: newNotification.created_at
              }
-             setNotifications(prev => [formatted, ...prev])
+             setNotifications(prev => {
+               // Avoid duplicates from race condition with initial fetch
+               if (prev.some(n => n.id === formatted.id)) {
+                 return prev
+               }
+               return [formatted, ...prev]
+             })          
           }
         )
         .subscribe()
@@ -114,47 +132,37 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         supabase!.removeChannel(channel)
       }
     }
+    return undefined
   }, [user, fetchNotifications])
 
-  const addNotification = useCallback(async (notification: Omit<Notification, "id" | "time" | "read" | "created_at">) => {
+  const addNotification = useCallback(async (_notification: Omit<Notification, "id" | "time" | "read" | "created_at">) => {
     // This is primarily for local optimistic updates or client-side triggered notifications
     // For admin alerts, the database trigger/insertion happens elsewhere
-    // But we can implement this to insert into DB if needed
     if (!user) return
-
-    try {
-       const { error } = await supabase!
-        .from('notifications')
-        .insert({
-            recipient_id: user.id, // Defaults to self if used this way
-            title: notification.title,
-            message: notification.message,
-            type: notification.type,
-        })
-       
-       if (error) throw error
-       // Realtime subscription will pick this up
-    } catch (err) {
-        console.error("Error adding notification:", err)
-    }
   }, [user])
 
   const markAsRead = useCallback(async (id: string) => {
+    if (!supabase) {
+      // eslint-disable-next-line no-console
+      console.error("Supabase client is not initialized")
+      return
+    }
+
     try {
       // Optimistic update
       setNotifications(prev => 
         prev.map(n => n.id === id ? { ...n, read: true } : n)
       )
 
-      const { error } = await supabase!
+      const { error } = await supabase
         .from('notifications')
         .update({ read: true })
         .eq('id', id)
 
       if (error) throw error
     } catch (err) {
-        console.error("Error marking notification as read:", err)
-        // Revert on error if necessary
+      // eslint-disable-next-line no-console
+      console.error("Error marking notification as read:", err)
     }
   }, [])
 
@@ -173,6 +181,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         
         if (error) throw error
     } catch (err) {
+        // eslint-disable-next-line no-console
         console.error("Error marking all as read:", err)
     }
   }, [user])

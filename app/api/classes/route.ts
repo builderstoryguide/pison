@@ -4,7 +4,16 @@ import { serializeSupabaseError } from '@/lib/safe-error'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    let supabase
+    try {
+      supabase = await createClient()
+    } catch (clientError: any) {
+      console.error('Failed to create Supabase client:', clientError?.message)
+      return NextResponse.json(
+        { ok: false, error: 'Database connection failed. Please try again.' },
+        { status: 503 }
+      )
+    }
     
     // Get query parameters for filtering
     const { searchParams } = new URL(request.url)
@@ -32,7 +41,19 @@ export async function GET(request: NextRequest) {
       query = query.eq('status', status)
     }
 
-    const { data, error } = await query
+    let data, error
+    try {
+      const result = await query
+      data = result.data
+      error = result.error
+    } catch (networkError: any) {
+      // Handle network errors (fetch failed, timeout, etc.)
+      console.error('Network error fetching classes:', networkError?.message)
+      return NextResponse.json(
+        { ok: false, error: 'Unable to connect to database. Please check your network connection and try again.' },
+        { status: 503 }
+      )
+    }
 
     if (error) {
       // console.error('Error fetching classes:', serializeSupabaseError(error))
@@ -126,7 +147,7 @@ export async function GET(request: NextRequest) {
     }))
 
     return NextResponse.json(transformedData)
-  } catch (error) {
+  } catch (error: any) {
     // console.error('Error in classes GET:', serializeSupabaseError(error))
     return NextResponse.json(
       { ok: false, error: serializeSupabaseError(error) },

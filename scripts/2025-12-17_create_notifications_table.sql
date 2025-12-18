@@ -21,13 +21,12 @@ USING (auth.uid() = recipient_id);
 -- Policy: Authenticated users can insert notifications (for teachers to notify admins)
 CREATE POLICY "Authenticated users can insert notifications" 
 ON public.notifications FOR INSERT 
-WITH CHECK (auth.role() = 'authenticated');
-
+WITH CHECK (auth.uid() = recipient_id);
 -- Policy: Users can update their own notifications (e.g. mark as read)
 CREATE POLICY "Users can update their own notifications" 
 ON public.notifications FOR UPDATE 
-USING (auth.uid() = recipient_id);
-
+USING (auth.uid() = recipient_id)
+WITH CHECK (auth.uid() = recipient_id);
 -- Create index for performance
 CREATE INDEX IF NOT EXISTS idx_notifications_recipient_id ON public.notifications(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON public.notifications(created_at);

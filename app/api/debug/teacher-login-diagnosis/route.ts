@@ -3,6 +3,20 @@ import { createServiceClient } from '@/lib/supabase/service'
 import bcrypt from 'bcryptjs'
 
 export async function POST(request: NextRequest) {
+  // Restrict to development environment only
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      { error: 'This endpoint is disabled in production' },
+      { status: 403 }
+    )
+  }
+
+  // Add authentication check (e.g., admin-only)
+  // const session = await getServerSession()
+  // if (!session?.user || session.user.role !== 'admin') {
+  //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // }
+
   try {
     const supabase = createServiceClient()
     const { teacherId, email, password } = await request.json()
@@ -13,7 +27,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const diagnosis: any = {
       teacherId: teacherId || null,
       email: email || null,
@@ -33,7 +47,6 @@ export async function POST(request: NextRequest) {
 
     let teacher = null
     let user = null
-    let userProfile = null
 
     // Check 1: Find teacher record
     if (teacherId) {
@@ -139,7 +152,6 @@ export async function POST(request: NextRequest) {
       if (profileError && profileError.code !== 'PGRST116') {
         diagnosis.issues.push(`Error querying user_profiles table: ${profileError.message}`)
       } else if (profileData) {
-        userProfile = profileData
         diagnosis.checks.userProfileExists = true
         diagnosis.details.userProfile = {
           id: profileData.id,
@@ -165,39 +177,42 @@ export async function POST(request: NextRequest) {
 
     // Check 4: Try to find user by role_specific_id (for login with teacher ID)
     if (teacherId && !user) {
-      const { data: profileByRoleId, error: profileError2 } = await supabase
+      const { data: profileByRoleId } = await supabase
         .from('user_profiles')
         .select('user_id, role_specific_id')
         .eq('role_specific_id', teacherId)
         .maybeSingle()
-
+      
       if (profileByRoleId) {
-        const { data: userByProfile, error: userError2 } = await supabase
+        const { data: userFound } = await supabase
           .from('users')
-          .select('*')
+          .select('id, email')
           .eq('id', profileByRoleId.user_id)
-          .eq('role', 'teacher')
           .maybeSingle()
 
-        if (userByProfile) {
-          diagnosis.details.alternativeUser = {
-            id: userByProfile.id,
-            email: userByProfile.email,
-            note: 'Found user via role_specific_id lookup',
+        if (userFound) {
+          diagnosis.details.userFoundByTeacherId = {
+            id: userFound.id,
+            email: userFound.email
           }
-          diagnosis.recommendations.push('User account exists but email may not match. Verify email consistency.')
         }
       }
     }
 
     // Summary
-    const allChecksPass = Object.values(diagnosis.checks).every(check => check === true)
+    const checksToValidate = { ...diagnosis.checks }
+    if (!password) {
+      delete checksToValidate.passwordMatches
+    }
+    const allChecksPass = Object.values(checksToValidate).every(check => check === true)
+
     diagnosis.summary = {
       allChecksPass,
       canLogin: diagnosis.checks.userExists && 
                 diagnosis.checks.userStatusActive && 
                 diagnosis.checks.userProfileExists && 
                 diagnosis.checks.roleSpecificIdMatches,
+      passwordMatches: diagnosis.checks.passwordMatches,
       loginMethod: diagnosis.checks.userProfileExists && diagnosis.checks.roleSpecificIdMatches
         ? 'Can login with teacher ID'
         : diagnosis.checks.userExists
@@ -210,6 +225,7 @@ export async function POST(request: NextRequest) {
       diagnosis,
     })
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('❌ Diagnosis endpoint error:', error)
     return NextResponse.json(
       {

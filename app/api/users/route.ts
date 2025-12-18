@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import bcrypt from 'bcryptjs';
@@ -183,19 +184,25 @@ export async function GET(request: NextRequest) {
     // Try ordering by created_at; if it fails because the column doesn't exist in the view,
     // fall back to ordering by id.
     let users, error, count;
-    let firstAttempt = await baseQuery
+    const firstAttempt = await baseQuery
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     users = firstAttempt.data as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     error = firstAttempt.error as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     count = firstAttempt.count as any;
 
     if (error && /created_at/i.test(error.message || '') && /column|does not exist/i.test(error.message || '')) {
       const secondAttempt = await baseQuery
         .order('id', { ascending: false })
         .range(offset, offset + limit - 1);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       users = secondAttempt.data as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       error = secondAttempt.error as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       count = secondAttempt.count as any;
     }
 
@@ -696,7 +703,11 @@ export async function POST(request: NextRequest) {
         const { studentId } = body;
         
         if (!studentId) {
-          console.warn('Warning: Student ID not provided for parent creation. Parent record will not be created.');
+          console.error('Error: Student ID is required for parent creation');
+          return NextResponse.json(
+            { error: 'Student ID is required when creating a parent account. Please select the student who is the child of this parent.' },
+            { status: 400 }
+          );
         } else {
           // Check if parent record already exists
           const { data: existingParent } = await supabase
@@ -735,7 +746,6 @@ export async function POST(request: NextRequest) {
         // Note: We don't fail here as the user was created successfully
       }
     }
-
     // Log activity (only if createdBy is provided)
     if (createdBy) {
       await supabase.rpc('log_user_activity', {

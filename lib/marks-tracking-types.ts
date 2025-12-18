@@ -48,13 +48,12 @@ export interface SubjectClassBreakdown {
     teacherName?: string
     marksCount: number
     lastEntryDate?: string
-  }>}
+  }>
+}
 
 export interface ClassSubjectBreakdown {
   classId: string
   className: string
-  subjects: Array<{
-    subjectId: string
   subjects: Array<{
     subjectId: string
     subjectName: string
@@ -64,7 +63,10 @@ export interface ClassSubjectBreakdown {
     teacherName?: string
     marksCount: number
     lastEntryDate?: string
-  }>export interface MarksTrackingResponse {
+  }>
+}
+
+export interface MarksTrackingResponse {
   success: boolean
   error?: string
   summary: MarksTrackingSummary

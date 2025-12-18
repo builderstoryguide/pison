@@ -7,19 +7,21 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createServiceClient()
     
+    const url = new URL(request.url)
+    const email = url.searchParams.get('email')
+    
     // 1. Get 10 most recent teachers, or filter by email
     let query = supabase
       .from('teachers')
       .select('*')
-      .order('created_at', { ascending: false })
-      .limit(10)
-
-    const url = new URL(request.url)
-    const email = url.searchParams.get('email')
+    
     if (email) {
-      query = supabase.from('teachers').select('*').eq('email', email)
-    }
-      
+      query = query.eq('email', email)
+    } else {
+      query = query
+        .order('created_at', { ascending: false })
+        .limit(10)
+    }      
     const { data: teachers, error: teachersError } = await query
 
       

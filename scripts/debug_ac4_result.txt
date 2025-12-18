@@ -1,0 +1,30 @@
+=== Debugging AC 4 Students Fetch ===
+
+Found AC 4 class(es):
+  ID: 8fe6b8a4-0eba-4e52-8813-32975299b206
+  class_name: AC 4
+  name: AC 4
+  status: active
+
+Using class ID: 8fe6b8a4-0eba-4e52-8813-32975299b206
+
+Students where class = classId (UUID) and status = active:
+  Found 8 students
+    - FESSI SOH DIEUDONNE (STU2025103)
+    - NGO  BASSEGA SOPHIE MERIME (STU2025101)
+    - BUSSE  JEANET KANG (STU2025113)
+    - MBONG BENEDIT CITHIA  (STU2025104)
+    - KUM ANNAH (STU2025102)
+
+Students where class = 'AC 4' (name string) and status = active:
+  Found 0 students
+
+class_students join table entries for AC 4:
+  Error: {"code":"42703","details":null,"hint":null,"message":"column class_students.id does not exist"}
+
+=== SUMMARY ===
+Students by UUID match: 8
+Students by name match: 0
+class_students entries: 0
+
+=== Done ===

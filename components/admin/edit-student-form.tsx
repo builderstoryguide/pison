@@ -434,22 +434,6 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
   }
 
   const isFormValid = () => {
-    // #region agent log
-    const validationState = {
-      first_name: !!formData.first_name,
-      last_name: !!formData.last_name,
-      email: !!formData.email,
-      class: !!formData.class,
-      hasValidFeeStructure,
-      activeTab,
-      queryEnabled: activeTab === "fees" && !!classId && !!formData.academic_year && !!term,
-      classId,
-      academicYear: formData.academic_year,
-      term
-    }
-    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit-student-form.tsx:436',message:'Form validation check',data:validationState,timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
     // Only require fee structure validation when on fees tab
     // For other tabs, allow saving without fee structure validation
     const baseValidation = !!(

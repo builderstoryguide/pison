@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, GraduationCap, Calendar, BookOpen, Settings, UserPlus, UserMinus, Edit, Trash2, Clock } from "lucide-react"
+import { Users, Calendar, BookOpen, Settings, UserPlus, UserMinus, Edit, Trash2, Clock } from "lucide-react"
 import { useClassManagement, type ClassData, type ClassSubject } from "@/lib/class-management-context"
 import { useSubjectManagement } from "@/lib/subject-management-context"
 import { type Student } from "@/lib/student-management-context"
@@ -26,10 +26,10 @@ interface ClassDetailsDialogProps {
 
 export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDelete }: ClassDetailsDialogProps) {
   const { getClassStudents, assignStudentToClass, removeStudentFromClass, updateClass, refreshClasses } = useClassManagement()
-  const { subjects, getSubjectById } = useSubjectManagement()
-  const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast()
+  const { subjects } = useSubjectManagement()
+  const { success: toastSuccess, error: toastError } = useToast()
   const [activeTab, setActiveTab] = useState("overview")
-  const [students, setStudents] = useState<any[]>([])
+  const [students, setStudents] = useState<Student[]>([])
   const [_isLoadingStudents, setIsLoadingStudents] = useState(false)
   const [showAddStudentDialog, setShowAddStudentDialog] = useState(false)
   const [showRemoveStudentDialog, setShowRemoveStudentDialog] = useState(false)
@@ -61,6 +61,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
           const classStudents = await getClassStudents(classData.id)
           setStudents(classStudents)
         } catch (error) {
+          // eslint-disable-next-line no-console
           console.error("Error loading students:", error)
         } finally {
           setIsLoadingStudents(false)
@@ -365,7 +366,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                   <div className="text-center py-8">
                     <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium mb-2">No students enrolled</h3>
-                    <p className="text-muted-foreground mb-4">This class doesn't have any students enrolled yet.</p>
+                    <p className="text-muted-foreground mb-4">This class doesn&apos;t have any students enrolled yet.</p>
                     <Button onClick={() => setShowAddStudentDialog(true)}>
                       <UserPlus className="h-4 w-4 mr-2" />
                       Add First Student
@@ -477,7 +478,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
                     </div>
                     <h4 className="text-lg font-medium mb-2">No subjects assigned</h4>
                     <p className="text-sm text-muted-foreground max-w-md mb-6">
-                      This class doesn't have any subjects assigned yet. Add subjects to create a curriculum for this class.
+                      This class doesn&apos;t have any subjects assigned yet. Add subjects to create a curriculum for this class.
                     </p>
                     <Button onClick={() => setShowManageSubjectsDialog(true)}>
                       <BookOpen className="h-4 w-4 mr-2" />

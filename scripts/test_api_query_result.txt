@@ -1,0 +1,43 @@
+=== Testing exact query used in /api/students ===
+
+SUCCESS: Found 8 students
+
+First student data:
+{
+  "id": "4fe5f3df-fb72-457d-bb1b-68dcdd5e9246",
+  "student_id": "STU2025106",
+  "first_name": "AMADOU ",
+  "last_name": "MEMUNA ",
+  "middle_name": "",
+  "email": "",
+  "phone": "+237 670156084",
+  "date_of_birth": "2009-10-28",
+  "gender": "female",
+  "place_of_birth": "SABONGIDA ",
+  "nationality": "Cameroonian",
+  "religion": "",
+  "address": "MBANDA ATTENNE",
+  "city": "EDEA",
+  "region": "Littoral",
+  "subsystem": "english",
+  "branch": "commercial",
+  "class": "8fe6b8a4-0eba-4e52-8813-32975299b206",
+  "previous_school": "",
+  "previous_class": "",
+  "is_new_student": true,
+  "total_fees": 0,
+  "paid_fees": 0,
+  "fees_status": "pending",
+  "enrollment_status": "enrolled",
+  "academic_year": "2024-2025",
+  "status": "active",
+  "enrollment_date": "2025-11-28",
+  "class_id": null,
+  "class_name": null,
+  "created_at": "2025-11-28T11:16:08.419326+00:00",
+  "updated_at": "2025-12-14T05:48:18.889218+00:00",
+  "matricule_number": null,
+  "classes": []
+}
+
+=== Done ===

@@ -103,9 +103,15 @@ export function ReportCardsWrapper() {
       }
       
       setClasses(classesArray)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching classes:', err)
-      setError('Failed to fetch classes. Please try again.')
+      // Provide more specific error message for network issues
+      const isNetworkError = err?.message?.includes('fetch failed') || err?.message?.includes('network')
+      if (isNetworkError) {
+        setError('Network connection issue. Please check your internet and try again.')
+      } else {
+        setError('Failed to fetch classes. Please try again.')
+      }
       setClasses([])
     } finally {
       setLoadingClasses(false)
@@ -114,16 +120,32 @@ export function ReportCardsWrapper() {
 
   const fetchStudents = async (classId: string) => {
     setLoadingStudents(true)
+    setError(null)
     try {
+      console.log('[ReportCards] Fetching students for class:', classId)
       const response = await fetch(`/api/students?classId=${classId}&status=active`)
+      console.log('[ReportCards] Students fetch response:', response.status, response.statusText)
+      
       if (response.ok) {
         const data = await response.json()
+        console.log('[ReportCards] Students data received:', Array.isArray(data) ? data.length : 'not array')
         setStudents(Array.isArray(data) ? data : [])
       } else {
-        setError('Failed to fetch students')
+        const errorText = await response.text()
+        console.error('[ReportCards] Students fetch failed:', response.status, errorText)
+        let parsedError
+        try {
+          parsedError = JSON.parse(errorText)
+        } catch {
+          parsedError = null
+        }
+        const errorMessage = parsedError?.error || `Failed to fetch students (HTTP ${response.status})`
+        setError(errorMessage)
       }
-    } catch (_err) {
-      setError('Failed to fetch students')
+    } catch (err) {
+      console.error('[ReportCards] Students fetch exception:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch students'
+      setError(`Network error: ${errorMessage}`)
     } finally {
       setLoadingStudents(false)
     }
@@ -131,30 +153,41 @@ export function ReportCardsWrapper() {
 
   const fetchReportData = async (studentId: string, term: TermType) => {
     setLoadingReport(true)
+    setError(null)
     try {
       const url = `/api/report-cards/${studentId}?term=${term}`
+      console.log('[ReportCards] Fetching report data:', { url, studentId, term })
+      
       const response = await fetch(url)
+      console.log('[ReportCards] Response status:', response.status, response.statusText)
+      
       if (response.ok) {
         const result = await response.json()
+        console.log('[ReportCards] Response result:', { success: result.success, hasData: !!result.data, error: result.error })
+        
         if (result.success) {
           setReportData(result.data)
         } else {
           const errorMessage = typeof result.error === 'string' ? result.error : (result.error?.message || 'Failed to fetch report data')
+          console.error('[ReportCards] API returned success=false:', errorMessage)
           setError(errorMessage)
         }
       } else {
         const errorText = await response.text()
+        console.error('[ReportCards] HTTP error:', response.status, errorText)
         let parsedError
         try {
           parsedError = JSON.parse(errorText)
         } catch {
           parsedError = null
         }
-        const errorMessage = parsedError?.error?.message || parsedError?.error || parsedError?.message || 'Failed to fetch report data'
+        const errorMessage = parsedError?.error?.message || parsedError?.error || parsedError?.message || `HTTP ${response.status}: ${response.statusText || 'Failed to fetch report data'}`
         setError(errorMessage)
       }
     } catch (err: any) {
-      setError('Failed to fetch report data')
+      console.error('[ReportCards] Fetch exception:', err)
+      const errorMessage = err?.message || 'Failed to fetch report data'
+      setError(`Network error: ${errorMessage}`)
     } finally {
       setLoadingReport(false)
     }

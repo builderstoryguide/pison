@@ -1,0 +1,82 @@
+﻿node.exe : npm warn Unknown 
+project config 
+"frozen-lockfile". This will 
+stop working in the next major 
+version of npm.
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Users\Cyrille 
+Kuete\AppData\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo          :  
+   NotSpecified: (npm warn Un  
+  know...version of npm.:Str   
+ ing) [], RemoteException
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 
+npm warn Unknown project 
+config 
+"prefer-frozen-lockfile". This 
+will stop working in the next 
+major version of npm.
+npm warn Unknown project 
+config "auto-install-peers". 
+This will stop working in the 
+next major version of npm.
+npm warn Unknown project 
+config 
+"strict-peer-dependencies". 
+This will stop working in the 
+next major version of npm.
+[dotenv@17.2.1] injecting env (6) from .env.local -- tip: ΓÜÖ∩╕Å  suppress all logs with { quiet: true }
+=== Debugging AC 4 Students Fetch ===
+
+Found AC 4 class(es):
+  - ID: 8fe6b8a4-0eba-4e52-8813-32975299b206
+    class_name: AC 4
+    name: AC 4
+    status: active
+
+Using class ID: 8fe6b8a4-0eba-4e52-8813-32975299b206
+
+Students where class = classId (UUID):
+  Found 8 students
+    - FESSI SOH DIEUDONNE (STU2025103), status: active
+    - NGO  BASSEGA SOPHIE MERIME (STU2025101), status: active
+    - BUSSE  JEANET KANG (STU2025113), status: active
+
+Students where class = 'AC 4' (name string):
+  Found 0 students
+
+class_students join table entries for AC 4:
+  Error: {
+  code: '42703',
+  details: null,
+  hint: null,
+  message: 'column 
+class_students.id does not 
+exist'
+}
+
+Unique 'class' column values in students table (sample):
+  - 08d838d8-6e7a-475b-8a67-4b61fa87d5e7
+  - 3077f36f-9df0-4c67-8b0a-da18780eae14
+  - 65515326-ec10-49a9-a3c5-4d0a15af728c
+  - 5c47b77c-46e7-4abe-b115-778a54d5dc04
+  - 21568976-da6e-4fd2-aa71-b076f96c47fc
+  - 01e6f09f-28ec-49df-9d1d-bc37d6f38cc9
+  - 5551a5a5-52b3-43c8-9f07-248b6e6e38f1
+  - 3a508d31-a9de-48b9-996e-c70f0aaed8d9
+  - d617a72a-2189-4c28-9628-95ff0e89c7d6
+  - af5e8037-4198-41b8-819d-506dd1026c0a
+  - 8fe6b8a4-0eba-4e52-8813-32975299b206
+  - a6a68a6e-6b4a-4960-b505-ecb9b80a50dc
+  - 95cfa5cc-b06a-4a95-b786-e22409d37aff
+  - a32d3100-05a3-4fd5-9883-4480d6ad845e
+  - 8d768a61-3c62-459b-b935-b9efc32c2840
+
+=== Done ===

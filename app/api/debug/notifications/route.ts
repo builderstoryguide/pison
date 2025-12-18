@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
+  // Only allow in development
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 404 })
+  }
+
   try {
     const supabase = await createClient()
 
@@ -17,7 +22,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: data, message: 'Table exists and is accessible' })
 
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message || err })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ success: false, error: message })
   }
 }

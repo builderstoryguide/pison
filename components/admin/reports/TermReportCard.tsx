@@ -165,9 +165,6 @@ function getSpecialityFromClass(className: string | undefined, speciality: strin
 }
 
 export function TermReportCard({ data }: TermReportCardProps) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/admin/reports/TermReportCard.tsx:129',message:'TermReportCard rendered',data:{studentId:data?.student?.id,studentIdField:data?.student?.studentId,name:data?.student?.name,className:data?.student?.className,subjectsCount:data?.subjects?.length,term:data?.academic?.term},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
-  // #endregion
   const printRef = useRef<HTMLDivElement>(null)
   const previewRef = useRef<HTMLDivElement>(null)
   const [logoError, setLogoError] = React.useState(false)
@@ -195,49 +192,85 @@ export function TermReportCard({ data }: TermReportCardProps) {
       const a4Width = 210
       const a4Height = 297
       
-      // Configure PDF options with optimized settings for high-quality output
-      const opt = {
-        margin: [0, 0, 0, 0],
-        filename: filename,
-        image: { 
-          type: 'jpeg', 
-          quality: 1.0 // Maximum quality for crisp text and barcodes
-        },
-        html2canvas: { 
-          scale: 2, // High DPI (2x) for crisp text and barcodes
-          useCORS: true, // CORS support for external images (logos, student photos)
-          logging: false,
-          backgroundColor: '#ffffff',
-          letterRendering: true, // Better text rendering
-          allowTaint: false, // Prevent canvas tainting, ensures CORS images work
-          windowWidth: element.scrollWidth,
-          windowHeight: element.scrollHeight
-        },
-        jsPDF: { 
-          unit: 'mm', 
-          format: [a4Width, a4Height], // A4 format: 210mm × 297mm
-          orientation: 'portrait',
-          compress: false, // Disable compression for better quality
-          precision: 16
-        },
-        pagebreak: { 
-          mode: ['avoid-all', 'css'], // Better page break handling
-          before: '.page-break-before',
-          after: '.page-break-after',
-          avoid: ['tr', '.no-break']
-        }
-      }
-
       // Add a small delay to ensure all styles and images are fully loaded
       await new Promise(resolve => setTimeout(resolve, 100))
       
+      // Calculate scaling to fit on single page
+      const originalStyle = element.getAttribute('style') || ''
+      const a4HeightPx = 1122 // Approx 297mm at 96 DPI
+      const contentHeight = element.scrollHeight
+      const contentWidth = element.scrollWidth
+      
+      let scale = 1
+      if (contentHeight > a4HeightPx) {
+        // Calculate scale needed to fit height, with small buffer
+        scale = (a4HeightPx - 20) / contentHeight 
+      }
+
+      // Apply scaling if needed
+      if (scale < 1) {
+        // We need to scale down the content
+        // We also need to adjust margins/width to keep it centered effectively if needed,
+        // but simple scaling is usually enough for "fit to page"
+        element.style.transform = `scale(${scale})`
+        element.style.transformOrigin = 'top left'
+        // Adjust width to compensate for scaling so it still fills the PDF width visually if appropriate,
+        // but usually we just want it to fit.
+        // Actually, if we scale down, the visual width shrinks. 
+        // HTML2PDF captures the visual state.
+        // If we want it to still look "full width" on the PDF paper, we'd need to change page size, but we want A4.
+        // So visually it will look smaller on the A4 page. This is the definition of scaling to fit.
+        element.style.width = `${100 / scale}%` // Compensate width to fill page?
+        // If we increase width, flow might change and height might decrease?
+        // Let's just scale the container. preserving aspect ratio is key for "exact match".
+        element.style.width = `${210 / scale}mm` // Compensate width
+      }
+
+      // Configure PDF options with optimized settings for high-quality output
+      const opt = {
+        margin: [0, 0, 0, 0], // No margins, we handle padding in CSS
+        filename: filename,
+        image: { 
+          type: 'jpeg', 
+          quality: 1.0 
+        },
+        html2canvas: { 
+          scale: 2, // High DPI
+          useCORS: true, 
+          logging: false,
+          backgroundColor: '#ffffff',
+          letterRendering: true,
+          allowTaint: false,
+          scrollY: 0, // Ensure we capture from top
+          windowWidth: element.scrollWidth, // Capture full scaled width
+          windowHeight: element.scrollHeight // Capture full scaled height
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'a4',
+          orientation: 'portrait',
+          compress: true,
+          precision: 16
+        }
+      }
+
       // Generate and download PDF
       await html2pdf().set(opt).from(element).save()
+      
+      // Revert styles
+      element.setAttribute('style', originalStyle)
       
       toast.success('PDF downloaded successfully', {
         description: `Report card saved as ${filename}`
       })
     } catch (error) {
+      // Revert styles in case of error (if element still exists)
+      if (printRef.current) {
+        printRef.current.style.transform = ''
+        printRef.current.style.width = ''
+        printRef.current.style.transformOrigin = ''
+      }
+      
       console.error('Error generating PDF:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       toast.error('PDF generation failed', {
@@ -330,9 +363,13 @@ export function TermReportCard({ data }: TermReportCardProps) {
   }, [data.subjects])
 
   // Calculate category summaries
+  // Only include coefficients for subjects that have marks (coefficient > 0)
   const calculateCategorySummary = (subjects: typeof data.subjects, category: string) => {
-    const coef = subjects.reduce((sum, s) => sum + s.coefficient, 0)
+    // Only count coefficients for subjects with marks (coefficient > 0)
+    const coef = subjects.reduce((sum, s) => sum + (s.coefficient > 0 ? s.coefficient : 0), 0)
     const totalScore = subjects.reduce((sum, s) => {
+      // Skip subjects without marks (coefficient = 0)
+      if (s.coefficient === 0) return sum
       const seqs = getSequenceValues(s)
       const avg = s.termAverage ?? 
         (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
@@ -344,6 +381,8 @@ export function TermReportCard({ data }: TermReportCardProps) {
     const validRanks = subjects.map(s => s.rank ?? 0).filter(r => r > 0)
     const rank = validRanks.length > 0 ? Math.min(...validRanks) : 0
     const passed = subjects.filter(s => {
+      // Skip subjects without marks
+      if (s.coefficient === 0) return false
       const seqs = getSequenceValues(s)
       const avg = s.termAverage ?? 
         (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
@@ -365,68 +404,34 @@ export function TermReportCard({ data }: TermReportCardProps) {
   }
 
   // Calculate GCE section counts
-  // Use API-provided GCE counts (only subjects with codes) if available, otherwise calculate from grouped subjects
+  // Count subjects that are PASSED (termAverage >= 10) from each category
   const gceCounts = React.useMemo(() => {
-    // Check if API provides GCE counts (from stats)
-    if (data.stats && 
-        'gceTradeSubjects' in data.stats && 
-        'gceRelatedTrade' in data.stats && 
-        'gceOtherSubjects' in data.stats && 
-        'gceSubjectsPassed' in data.stats) {
-      return {
-        tradeSubjects: data.stats.gceTradeSubjects ?? 0,
-        relatedTrade: data.stats.gceRelatedTrade ?? 0,
-        otherSubjects: data.stats.gceOtherSubjects ?? 0,
-        passed: data.stats.gceSubjectsPassed ?? 0
-      }
+    // Helper to check if a subject passed (termAverage >= 10)
+    const isPassed = (s: SubjectData) => {
+      const seqs = getSequenceValues(s)
+      const avg = s.termAverage ?? 
+        (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
+          ? (seqs.seq1 + seqs.seq2) / 2 
+          : seqs.seq1 ?? seqs.seq2 ?? 0)
+      return avg >= 10
     }
     
-    // Fallback: Calculate from grouped subjects, but only count subjects with codes (GCE subjects) that are PASSED (marks >= 10)
-    const tradeSubjects = groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.filter(s => {
-      if (!s.code) return false
-      const seqs = getSequenceValues(s)
-      const avg = s.termAverage ?? 
-        (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
-          ? (seqs.seq1 + seqs.seq2) / 2 
-          : seqs.seq1 ?? seqs.seq2 ?? 0)
-      return avg >= 10
-    }).length || 0
+    // Count passed subjects in trade_subjects category
+    const tradeSubjects = groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.filter(isPassed).length || 0
     
-    const relatedTrade = groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.filter(s => {
-      if (!s.code) return false
-      const seqs = getSequenceValues(s)
-      const avg = s.termAverage ?? 
-        (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
-          ? (seqs.seq1 + seqs.seq2) / 2 
-          : seqs.seq1 ?? seqs.seq2 ?? 0)
-      return avg >= 10
-    }).length || 0
+    // Count passed subjects in related_trade_subjects category
+    const relatedTrade = groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.filter(isPassed).length || 0
     
-    const otherSubjects = groupedSubjects.find(g => g.category === 'others')?.subjects.filter(s => {
-      if (!s.code) return false
-      const seqs = getSequenceValues(s)
-      const avg = s.termAverage ?? 
-        (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
-          ? (seqs.seq1 + seqs.seq2) / 2 
-          : seqs.seq1 ?? seqs.seq2 ?? 0)
-      return avg >= 10
-    }).length || 0
+    // Count passed subjects in languages and others categories combined
+    const languagesPassed = groupedSubjects.find(g => g.category === 'languages')?.subjects.filter(isPassed).length || 0
+    const othersPassed = groupedSubjects.find(g => g.category === 'others')?.subjects.filter(isPassed).length || 0
+    const otherSubjects = languagesPassed + othersPassed
     
-    const passed = groupedSubjects.reduce((sum, group) => {
-      return sum + group.subjects.filter(s => {
-        // Only count subjects with codes (GCE subjects) that are PASSED
-        if (!s.code) return false
-        const seqs = getSequenceValues(s)
-        const avg = s.termAverage ?? 
-          (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
-            ? (seqs.seq1 + seqs.seq2) / 2 
-            : seqs.seq1 ?? seqs.seq2 ?? 0)
-        return avg >= 10
-      }).length
-    }, 0)
+    // Total passed subjects
+    const passed = tradeSubjects + relatedTrade + otherSubjects
     
     return { tradeSubjects, relatedTrade, otherSubjects, passed }
-  }, [groupedSubjects, data.stats])
+  }, [groupedSubjects])
 
   // Generate QR Code data with report card information
   const qrCodeData = useMemo(() => {
@@ -837,10 +842,7 @@ export function TermReportCard({ data }: TermReportCardProps) {
         {/* Main Report Card Sheet */}
         <div className="pdf-report-card max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none print:w-full print:max-w-full overflow-hidden text-xs print:text-[8pt] relative print:h-[297mm]" ref={printRef}>
         
-        {/* Top Border */}
-        <div className="h-1 print:h-0.5 w-full bg-black print:block" style={{ color: 'rgba(17, 24, 39, 1)' }} />
-
-        <div className="px-8 print:px-3 pt-2 print:pt-2 pb-2 print:pb-2 flex flex-col gap-0 relative" style={{ color: 'rgba(26, 26, 26, 1)' }}>
+        <div className="px-8 print:px-3 pt-0 print:pt-6 pb-0 print:pb-2 flex flex-col gap-0 relative" style={{ color: 'rgba(26, 26, 26, 1)' }}>
           
           {/* Watermark */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
@@ -878,7 +880,7 @@ export function TermReportCard({ data }: TermReportCardProps) {
                 )}
               </div>
               <div className="text-[0.5rem] print:text-[6pt] font-mono text-left">
-                ORDER Nº: <span className="text-red-600 font-bold">{data.academic.orderNo}</span>
+                ORDER Nº: <span className="text-red-600 font-bold">714/24/MINESEC/SG/DESTP/SSEPTP OF 31 DECEMBER 2024</span>
               </div>
             </div>
 
@@ -942,9 +944,6 @@ export function TermReportCard({ data }: TermReportCardProps) {
           <div className="border border-black grid grid-cols-12 mb-1 print:mb-0.5 font-mono text-[0.65rem] print:text-[7pt] relative z-10 bg-white/90" style={{ border: '1px solid #000', backgroundColor: 'rgba(255, 255, 255, 0.9)' }}>
             <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">First Name / Prénom</span>
-              {/* #region agent log */}
-              {(() => { fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/admin/reports/TermReportCard.tsx:362',message:'Displaying student name',data:{studentId:data?.student?.id,studentIdField:data?.student?.studentId,name:data?.student?.name,className:data?.student?.className},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{}); return null; })()}
-              {/* #endregion */}
               <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.firstName || data.student.name.split(' ')[0]}</span>
             </div>
             <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
@@ -953,9 +952,6 @@ export function TermReportCard({ data }: TermReportCardProps) {
             </div>
             <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b border-black" style={{ borderBottom: '1px solid #000', padding: '2px 4px' }}>
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Unique Identifier No / Matricule</span>
-              {/* #region agent log */}
-              {(() => { fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/admin/reports/TermReportCard.tsx:357',message:'Displaying student ID',data:{studentId:data?.student?.id,studentIdField:data?.student?.studentId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{}); return null; })()}
-              {/* #endregion */}
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.studentId}</span>
             </div>
 
@@ -982,9 +978,6 @@ export function TermReportCard({ data }: TermReportCardProps) {
             </div>
             <div className="col-span-4 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black" style={{ borderRight: '1px solid #000', padding: '2px 4px' }}>
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Class</span>
-              {/* #region agent log */}
-              {(() => { fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/admin/reports/TermReportCard.tsx:400',message:'Displaying class name',data:{className:data?.student?.className,class:data?.student?.class},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{}); return null; })()}
-              {/* #endregion */}
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.className}</span>
             </div>
             <div className="col-span-3 p-1 print:p-0.5 border-b md:border-b-0 border-black" style={{ borderBottom: '1px solid #000', padding: '2px 4px' }}>
@@ -1010,12 +1003,6 @@ export function TermReportCard({ data }: TermReportCardProps) {
                 </tr>
               </thead>
               <tbody className="text-[0.6rem] print:text-[7pt] font-mono report-card-subjects-tbody">
-                {(() => {
-                  // #region agent log
-                  fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'components/admin/reports/TermReportCard.tsx:424',message:'Rendering subjects table',data:{totalSubjects:data?.subjects?.length,groupedSubjectsCount:groupedSubjects.length,firstSubjectName:data?.subjects?.[0]?.subjectName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
-                  // #endregion
-                  return null;
-                })()}
                 {groupedSubjects.map((group, groupIdx) => {
                   const summary = calculateCategorySummary(group.subjects, group.category)
                   const categoryLabel = getCategoryLabel(group.category)
@@ -1030,7 +1017,8 @@ export function TermReportCard({ data }: TermReportCardProps) {
                           (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
                             ? (seqs.seq1 + seqs.seq2) / 2 
                             : seqs.seq1 ?? seqs.seq2 ?? 0)
-                        const totalScore = avg * subject.coefficient
+                        // Only calculate totalScore if coefficient > 0 (subject has marks)
+                        const totalScore = subject.coefficient > 0 ? avg * subject.coefficient : 0
                         const grade = subject.grade || calculateGrade(avg)
                         const remarks = subject.remarks || calculateRemarks(grade)
 
@@ -1062,7 +1050,7 @@ export function TermReportCard({ data }: TermReportCardProps) {
                               </td>
                             )}
                             <td className="p-1 print:p-0.5 border-r border-gray-300 font-medium" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{subject.subjectName}</td>
-                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{subject.coefficient}</td>
+                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{subject.coefficient > 0 ? subject.coefficient : '-'}</td>
                             <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{seqs.seq1?.toFixed(1) ?? '-'}</td>
                             <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{seqs.seq2?.toFixed(1) ?? '-'}</td>
                             <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{avg > 0 ? avg.toFixed(1) : '-'}</td>
@@ -1159,11 +1147,11 @@ export function TermReportCard({ data }: TermReportCardProps) {
                 <div className="text-[0.6rem] print:text-[7pt] p-1 print:p-0.5 space-y-1">
                   <div className="flex justify-between border-b border-gray-200 pb-0.5">
                     <span>Unjustified Absences</span>
-                    <span className="font-mono font-bold">{data.discipline.absences}hrs</span>
+                    <span className="font-mono font-bold"></span>
                   </div>
                   <div className="flex justify-between">
                     <span>Suspensions / Warnings</span>
-                    <span className="font-mono font-bold">{data.discipline.warnings}</span>
+                    <span className="font-mono font-bold"></span>
                   </div>
                 </div>
               </div>
@@ -1202,14 +1190,11 @@ export function TermReportCard({ data }: TermReportCardProps) {
             </div>
           </div>
           
-          <div className="text-[0.5rem] print:text-[6pt] text-left text-gray-400 mt-1 print:mt-0.5 font-mono uppercase relative z-10">
-            This document is computer generated and contains no alterations.
-          </div>
 
         </div>
         
         {/* Bottom Border */}
-        <div className="h-1 print:h-0.5 w-full bg-black print:block" />
+        <div className="h-1 print:h-0.5 w-full bg-black print:block text-white" />
         </div>
       </div>
 
@@ -1238,10 +1223,7 @@ export function TermReportCard({ data }: TermReportCardProps) {
                 marginBottom: `calc(-297mm * ${1 - previewScale})` // Compensate for scale
               }}
             >
-              {/* Top Border */}
-              <div className="h-1 print:h-0.5 w-full bg-black print:block" style={{ color: 'rgba(17, 24, 39, 1)' }} />
-
-              <div className="px-8 print:px-3 pt-2 print:pt-2 pb-2 print:pb-2 flex flex-col gap-0 relative" style={{ color: 'rgba(26, 26, 26, 1)' }}>
+              <div className="px-8 print:px-3 pt-0 print:pt-2 pb-0 print:pb-2 flex flex-col gap-0 relative" style={{ color: 'rgba(26, 26, 26, 1)' }}>
                 
                 {/* Watermark */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
@@ -1279,7 +1261,7 @@ export function TermReportCard({ data }: TermReportCardProps) {
                       )}
                     </div>
                     <div className="text-[0.5rem] print:text-[6pt] font-mono text-left">
-                      ORDER Nº: <span className="text-red-600 font-bold">{data.academic.orderNo}</span>
+                      ORDER Nº: <span className="text-red-600 font-bold">714/24/MINESEC/SG/DESTP/SSEPTP OF 31 DECEMBER 2024</span>
                     </div>
                   </div>
 
@@ -1416,7 +1398,8 @@ export function TermReportCard({ data }: TermReportCardProps) {
                                 (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
                                   ? (seqs.seq1 + seqs.seq2) / 2 
                                   : seqs.seq1 ?? seqs.seq2 ?? 0)
-                              const totalScore = avg * subject.coefficient
+                              // Only calculate totalScore if coefficient > 0 (subject has marks)
+                              const totalScore = subject.coefficient > 0 ? avg * subject.coefficient : 0
                               const grade = subject.grade || calculateGrade(avg)
                               const remarks = subject.remarks || calculateRemarks(grade)
 
@@ -1437,7 +1420,7 @@ export function TermReportCard({ data }: TermReportCardProps) {
                                     </td>
                                   )}
                                   <td className="p-1 print:p-0.5 border-r border-gray-300 font-medium">{subject.subjectName}</td>
-                                  <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{subject.coefficient}</td>
+                                  <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{subject.coefficient > 0 ? subject.coefficient : '-'}</td>
                                   <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{seqs.seq1?.toFixed(1) ?? '-'}</td>
                                   <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{seqs.seq2?.toFixed(1) ?? '-'}</td>
                                   <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{avg > 0 ? avg.toFixed(1) : '-'}</td>
@@ -1522,11 +1505,11 @@ export function TermReportCard({ data }: TermReportCardProps) {
                       <div className="text-[0.6rem] print:text-[7pt] p-1 print:p-0.5 space-y-1">
                         <div className="flex justify-between border-b border-gray-200 pb-0.5">
                           <span>Unjustified Absences</span>
-                          <span className="font-mono font-bold">{data.discipline.absences}hrs</span>
+                          <span className="font-mono font-bold"></span>
                         </div>
                         <div className="flex justify-between">
                           <span>Suspensions / Warnings</span>
-                          <span className="font-mono font-bold">{data.discipline.warnings}</span>
+                          <span className="font-mono font-bold"></span>
                         </div>
                       </div>
                     </div>
@@ -1565,9 +1548,6 @@ export function TermReportCard({ data }: TermReportCardProps) {
                     </div>
                 </div>
                 
-                <div className="text-[0.5rem] print:text-[6pt] text-left text-gray-400 mt-1 print:mt-0.5 font-mono uppercase relative z-10">
-                  This document is computer generated and contains no alterations.
-                </div>
 
               </div>
               

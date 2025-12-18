@@ -43,7 +43,7 @@ interface UseGradeEntryResult {
  * @returns Grade management functions and state
  */
 export function useGradeEntry(
-  students: Student[],
+  _students: Student[],
   coefficient: number,
   maxMarks: number
 ): UseGradeEntryResult {
@@ -166,10 +166,12 @@ export function useGradeEntry(
     setGrades(prev => {
       const newGrades = { ...prev }
       entries.forEach(entry => {
+        const numMark = typeof entry.mark === 'number' ? entry.mark : parseFloat(entry.mark as string)
+        const isValidMark = typeof entry.mark === 'number' || (typeof entry.mark === 'string' && !isNaN(parseFloat(entry.mark)))
         newGrades[entry.studentId] = {
            ...entry,
-           totalMarks: calculateTotalMarks(entry.mark as number, coefficient),
-           grade: typeof entry.mark === 'number' ? calculateGrade(entry.mark) : '',
+           totalMarks: isValidMark ? calculateTotalMarks(numMark, coefficient) : 0,
+           grade: isValidMark ? calculateGrade(numMark) : '',
            rank: 0 // Will be calculated below
         }
       })
@@ -177,16 +179,14 @@ export function useGradeEntry(
       // Recalculate ranks
       const ranks = calculateRanks(newGrades, coefficient)
       Object.keys(ranks).forEach(id => {
-        const studentIdNum = parseInt(id)
-        if (newGrades[studentIdNum]) {
-            newGrades[studentIdNum].rank = ranks[studentIdNum]
+        if (newGrades[id]) {
+          newGrades[id].rank = ranks[id]
         }
       })
 
       return newGrades
     })
   }, [coefficient])
-
   return {
     grades,
     updateGrade,

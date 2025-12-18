@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
@@ -32,8 +33,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const subjectName = subject.name.trim()
-
+    const subjectName = subject.name?.trim() ?? ''
     // 2. Determine Title
     let title = examinationName
     if (!title && sequenceId) {
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
     const { data: grades, error: gradesError } = await supabase
       .from('grades')
       .select('student_id, marks_obtained, remarks')
-      .eq('assessment_id', assessment.id)
+      .eq('assessment_id', assessment!.id)
 
     if (gradesError) {
       throw gradesError
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ grades: formattedGrades })
 
-  } catch (error: any) {
+  } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     console.error("Error in GET /api/grades:", error)
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
   }
@@ -236,19 +236,20 @@ export async function POST(request: NextRequest) {
     // Since we don't know the schema constraint for sure, we'll try to DELETE existing grades 
     // for these students in this assessment first, then INSERT.
     
-    const studentIds = grades.map((g: any) => g.studentId)
+    const studentIds = grades.map((g: { studentId: string }) => g.studentId)
     
     // Delete existing grades for these students in this assessment
     if (studentIds.length > 0) {
         await supabase
             .from('grades')
             .delete()
-            .eq('assessment_id', assessment.id)
+            .eq('assessment_id', assessment!.id)
             .in('student_id', studentIds)
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const gradesToInsert = grades.map((g: any) => ({
-      assessment_id: assessment.id,
+      assessment_id: assessment!.id,
       student_id: g.studentId,
       marks_obtained: g.marks, // Raw mark
       percentage: (g.marks / 20) * 100,
@@ -266,9 +267,9 @@ export async function POST(request: NextRequest) {
         throw insertError
     }
 
-    return NextResponse.json({ success: true, assessmentId: assessment.id })
+    return NextResponse.json({ success: true, assessmentId: assessment!.id })
 
-  } catch (error: any) {
+  } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     console.error("Error in POST /api/grades:", error)
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
   }

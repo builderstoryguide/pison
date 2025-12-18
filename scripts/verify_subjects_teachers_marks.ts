@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -68,6 +69,7 @@ async function getAllClassSubjects(): Promise<ClassSubjectInfo[]> {
     }
 
     for (const cs of classSubjects || []) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const subjectData = cs.subjects as any;
       if (!subjectData) continue;
 
@@ -159,6 +161,7 @@ async function checkTeacherAssignments(classSubjects: ClassSubjectInfo[]): Promi
         cs.hasTeacher = true;
         cs.teacherNames = assignments
           .map(a => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const teacher = (a as any).teachers;
             return teacher ? `${teacher.first_name} ${teacher.last_name}` : 'Unknown';
           })
@@ -189,15 +192,18 @@ async function checkTeacherAssignments(classSubjects: ClassSubjectInfo[]): Promi
     
     // Get teacher names
     const teacherIds = [...new Set(branchAssignments.map(ba => ba.teacher_id))];
+    if (teacherIds.length === 0) {
+      return;
+    }
     const { data: teachers } = await supabase
       .from('teachers')
       .select('id, first_name, last_name')
-      .in('id', teacherIds);
-    
+      .in('id', teacherIds);    
     const teacherMap = new Map(teachers?.map(t => [t.id, `${t.first_name} ${t.last_name}`]) || []);
 
     for (const cs of classSubjects) {
       const relevantAssignments = branchAssignments.filter(ba => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const branch = ba.subject_branches as any;
         return ba.class_id === cs.classId && branch?.subject_id === cs.subjectId;
       });

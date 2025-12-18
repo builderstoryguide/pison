@@ -1,37 +1,10 @@
 "use client"
+/* eslint-disable no-console */
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { supabase, isSupabaseAvailable } from "./supabase"
 
-// Helper function to generate initials from name
-function generateInitials(name: string): string {
-  if (!name || typeof name !== 'string') {
-    return 'U'
-  }
-  
-  return name
-    .trim()
-    .split(' ')
-    .filter(word => word.length > 0)
-    .map(word => word[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2) // Limit to 2 characters
-}
 
-// Fallback UUID generation function
-const generateUUID = (): string => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID()
-  }
-  
-  // Fallback implementation
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0
-    const v = c === 'x' ? r : (r & 0x3 | 0x8)
-    return v.toString(16)
-  })
-}
 
 export interface TeacherFormData {
   title: string
@@ -113,7 +86,6 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [dbConnected, setDbConnected] = useState(false)
 
   // Check database connection on mount
   useEffect(() => {
@@ -123,18 +95,14 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
           const { error } = await supabase!.from("teachers").select("count", { count: "exact", head: true })
           if (!error) {
             console.log("✅ Database connection established - using Supabase")
-            setDbConnected(true)
           } else {
             console.log("⚠️ Database connection failed, using mock data:", error.message)
-            setDbConnected(false)
           }
         } catch (err) {
           console.log("⚠️ Database connection failed, using mock data:", err)
-          setDbConnected(false)
         }
       } else {
         console.log("⚠️ Supabase not available - using mock data")
-        setDbConnected(false)
       }
     }
 
@@ -176,6 +144,7 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
       }
 
       const formattedTeachers: Teacher[] =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         teachersData?.map((teacher: any) => ({
           id: teacher.id,
           teacherId: teacher.teacher_id,
@@ -249,10 +218,11 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
       })
 
       if (!response.ok) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let errorData: any = { error: 'Unknown error' }
         try {
           errorData = await response.json()
-        } catch (parseError) {
+        } catch (_parseError) {
           // If response is not JSON, use status text
           errorData = { 
             error: `Server error: ${response.statusText || 'Unknown error'}`,
@@ -291,6 +261,7 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
         throw new Error(errorMessage)
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let result: any
       try {
         result = await response.json()
@@ -536,7 +507,7 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
       }
 
       // Delete from teachers table
-      const { error: teacherDeleteError, count } = await supabase
+      const { error: teacherDeleteError } = await supabase
         .from("teachers")
         .delete()
         .eq("id", id)
@@ -587,7 +558,7 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
 
   const resetTeacherPassword = async (teacherId: string): Promise<{ success: boolean; password?: string; error?: string }> => {
     if (!supabase) {
-      return { success: false, error: 'Supabase client not available' }
+      throw new Error('Supabase client not available')
     }
 
     setIsLoading(true)
@@ -602,7 +573,7 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
         .maybeSingle()
 
       if (teacherError || !teacher) {
-        return { success: false, error: 'Teacher not found' }
+        throw new Error('Teacher not found')
       }
 
       // Find the user account
@@ -637,7 +608,7 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
       }
 
       if (!userId) {
-        return { success: false, error: 'User account not found for this teacher. Please create a user account first.' }
+        throw new Error('User account not found for this teacher. Please create a user account first.')
       }
 
       // Call the password reset API
@@ -654,25 +625,24 @@ export function TeacherManagementProvider({ children }: { children: ReactNode })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Failed to reset password' }))
-        return { success: false, error: errorData.error || 'Failed to reset password' }
+        throw new Error(errorData.error || 'Failed to reset password')
       }
 
       const result = await response.json()
-      if (result.success && result.password) {
-        return { success: true, password: result.password }
-      } else {
-        return { success: false, error: result.error || 'Password reset failed' }
+      if (!result.success || !result.password) {
+        throw new Error(result.error || 'Password reset failed')
       }
+
+      return { success: true, password: result.password }
     } catch (err) {
       console.error('Error resetting teacher password:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to reset password'
       setError(errorMessage)
-      return { success: false, error: errorMessage }
+      throw new Error(errorMessage)
     } finally {
       setIsLoading(false)
     }
   }
-
   const value: TeacherManagementContextType = {
     teachers,
     isLoading,

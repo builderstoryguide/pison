@@ -15,7 +15,7 @@ import { ProfileProvider } from "@/lib/profile-context"
 import { AlertsProvider } from "@/lib/alerts-context"
 import { BursarProvider } from "@/lib/bursar-context"
 
-import { useNotifications } from "@/lib/notification-context"
+
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useCurrencyFormatter } from "@/lib/app-configuration-context-v2"
 
@@ -43,7 +43,6 @@ import { ProfileSettings } from "./profile/profile-settings"
 import { BursarProfile } from "./bursar/bursar-profile"
 import { QuickActionsDashboard } from "./admin/quick-actions-dashboard"
 import { HeaderNotifications } from "./admin/header-notifications"
-import { QuickActionsDashboard as QuickActionsDashboardOriginal } from "./admin/quick-actions-dashboard"
 
 // Teacher Components
 import { TeacherDashboardNew as TeacherDashboard } from "./teacher/teacher-dashboard-new"
@@ -98,10 +97,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { UserAvatar } from "@/components/ui/user-avatar"
 import { SchoolBranding } from "@/components/ui/school-branding"
-import { ScrollArea } from "@/components/ui/scroll-area"
+
 
 // Icons
 import {
@@ -119,10 +117,6 @@ import {
   MessageSquare,
   Bell,
   User,
-  CheckCircle,
-  AlertCircle,
-  Clock,
-  X,
   ChevronRight,
   Briefcase,
   ClipboardList,
@@ -142,6 +136,7 @@ type AdminView =
 
 
   | "sales"
+  | "fee-structures"
   | "payment"
   | "expenditures"
   | "financial-reports"
@@ -161,91 +156,7 @@ type BursarView = "dashboard" | "financial" | "sales" | "payment" | "expenditure
 
 
 
-// Notification Component
-function NotificationDropdown() {
-  const { notifications, markAsRead, markAllAsRead, unreadCount } = useNotifications()
-  const [isOpen, setIsOpen] = useState(false)
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "success":
-        return <CheckCircle className="h-4 w-4 text-green-500" />
-      case "warning":
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />
-      case "error":
-        return <X className="h-4 w-4 text-red-500" />
-      default:
-        return <Clock className="h-4 w-4 text-blue-500" />
-    }
-  }
-
-  return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="relative">
-          <Bell className="h-4 w-4" />
-          {unreadCount > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center"
-            >
-              {unreadCount}
-            </Badge>
-          )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h4 className="font-semibold">Notifications</h4>
-          {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={markAllAsRead}>
-              Mark all as read
-            </Button>
-          )}
-        </div>
-        <ScrollArea className="h-80">
-          <div className="p-2">
-            {notifications.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground">
-                <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No notifications</p>
-              </div>
-            ) : (
-              notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-3 rounded-lg mb-2 cursor-pointer transition-colors ${
-                    notification.read
-                      ? "bg-muted/50 hover:bg-muted"
-                      : "bg-blue-50 hover:bg-blue-100 border border-blue-200"
-                  }`}
-                  onClick={() => markAsRead(notification.id)}
-                >
-                  <div className="flex items-start gap-3">
-                    {getNotificationIcon(notification.type)}
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium ${!notification.read ? "text-blue-900" : ""}`}>
-                        {notification.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">{notification.message}</p>
-                      <p className="text-xs text-muted-foreground mt-2">{notification.time}</p>
-                    </div>
-                    {!notification.read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-1" />}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </ScrollArea>
-        <div className="p-3 border-t">
-          <Button variant="outline" className="w-full bg-transparent" size="sm">
-            View All Notifications
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
-  )
-}
 
 // User Profile Dropdown Component
 function UserProfileDropdown({
@@ -253,6 +164,7 @@ function UserProfileDropdown({
   onProfileClick,
   onLogout,
 }: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   user: any
   onProfileClick: () => void
   onLogout: () => void
@@ -299,6 +211,7 @@ function DashboardHeader({
   onProfileClick,
   onLogout,
 }: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   user: any
   onProfileClick: () => void
   onLogout: () => void
@@ -817,6 +730,7 @@ export function Dashboard() {
     const adminMenuItems: Array<{
       id: string
       label: string
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       icon: any
       subItems?: Array<{ id: string; label: string }>
     }> = [
@@ -1152,7 +1066,7 @@ export function Dashboard() {
         setSelectedSubjectId(subjectId)
         localStorage.setItem('selectedSubjectId', subjectId)
       } else {
-        setSelectedSubjectId(null)
+        setSelectedSubjectId(undefined)
         localStorage.removeItem('selectedSubjectId')
       }
     }
@@ -1287,6 +1201,7 @@ export function Dashboard() {
     const bursarMenuItems: Array<{
       id: string
       label: string
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       icon: any
       subItems?: Array<{ id: string; label: string }>
     }> = [

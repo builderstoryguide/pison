@@ -201,15 +201,7 @@ export function ManageClassSubjectsDialog({
   const handleSaveSubjects = async (updatedSubjects: ClassSubject[]) => {
     setIsSaving(true)
     try {
-      // Normalize all subjects to ClassSubject[] format before passing to callback
-      const normalizedSubjects: ClassSubject[] = updatedSubjects.map(subject => 
-        typeof subject === 'string' 
-          ? { subjectId: '', subjectName: subject, isTradeSubject: false }
-          : subject
-      )
-      
-      onSuccess(normalizedSubjects)
-      
+      onSuccess(updatedSubjects)      
       toastSuccess("Subjects updated successfully", {
         description: `Subjects for ${classData.name} have been updated.`
       })
@@ -217,7 +209,7 @@ export function ManageClassSubjectsDialog({
       setSelectedSubjects([])
       setSearchQuery("")
       onOpenChange(false)
-    } catch (error) {
+    } catch (_error) {
       toastError("Error updating subjects", {
         description: "Failed to update subjects. Please try again."
       })
@@ -271,7 +263,7 @@ export function ManageClassSubjectsDialog({
                       <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                       <h4 className="text-lg font-medium mb-2">No subjects assigned</h4>
                       <p className="text-muted-foreground">
-                        This class doesn't have any subjects assigned yet.
+                        This class doesn&apos;t have any subjects assigned yet.
                       </p>
                     </div>
                   ) : (

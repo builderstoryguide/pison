@@ -44,12 +44,56 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
   };
 
   return (
+    <>
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @media print, screen {
+            .pison-report-card,
+            .pison-report-card * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+              box-sizing: border-box !important;
+            }
+            .pison-report-card {
+              width: 210mm !important;
+              min-height: 297mm !important;
+              max-width: 210mm !important;
+              margin: 0 auto !important;
+              background: white !important;
+              padding: 0 !important;
+            }
+            
+            .pison-report-card table {
+              border-collapse: collapse !important;
+              width: 100% !important;
+            }
+            
+            .pison-report-card table td,
+            .pison-report-card table th {
+              border: 1px solid #000 !important;
+              padding: 2px 4px !important;
+              vertical-align: middle !important;
+              text-align: left;
+            }
+            
+            .pison-report-card .text-center { text-align: center !important; }
+            .pison-report-card .text-right { text-align: right !important; }
+            .pison-report-card .text-left { text-align: left !important; }
+            
+            @media print {
+              .pison-report-card .print\\:p-0\\.5 { padding: 0.125rem !important; }
+              .pison-report-card .print\\:p-1 { padding: 0.25rem !important; }
+            }
+          }
+        `
+      }} />
     <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans text-gray-900 print:p-0">
       
       {/* Control Bar removed */}
 
       {/* Main Report Card Sheet */}
-      <div className="max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none print:w-full print:max-w-full text-xs print:text-[8pt] relative min-h-[297mm]">
+      <div className="pison-report-card max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none print:w-full print:max-w-full text-xs print:text-[8pt] relative min-h-[297mm]">
         
         {/* Top Border Decoration */}
         <div className="h-1 print:h-0.5 w-full bg-black print:block" />
@@ -159,7 +203,7 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
             {/* Row 1 */}
             <div className="col-span-12 md:col-span-4 p-2 border-b md:border-r border-black border-dotted md:border-solid">
               <span className="block text-[0.6rem] text-gray-500 uppercase">Unique Identifier No / Matricule</span>
-              <Input value={data.student.id} onChange={(v) => handleInputChange('student', 'id', v)} className="font-bold" />
+              <Input value={data.student.studentId} onChange={(v) => handleInputChange('student', 'studentId', v)} className="font-bold" />
             </div>
             <div className="col-span-12 md:col-span-6 p-2 border-b md:border-r border-black border-dotted md:border-solid">
                <span className="block text-[0.6rem] text-gray-500 uppercase">Name & Surname / Noms et Prénoms</span>
@@ -432,6 +476,7 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
       </div>
 
     </div>
+    </>
   );
 };
 

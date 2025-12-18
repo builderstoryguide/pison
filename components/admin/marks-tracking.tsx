@@ -86,16 +86,21 @@ async function fetchClasses(filters: { academicYear?: string; status?: string })
     params.set('status', filters.status)
   }
 
-  const response = await fetch(`/api/classes?${params.toString()}`)
-  if (!response.ok) {
-    throw new Error('Failed to fetch classes')
+  try {
+    const response = await fetch(`/api/classes?${params.toString()}`)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch classes: ${response.statusText}`)
+    }
+    
+    const classesData = await response.json()
+    return (classesData || []).map((cls: any) => ({
+      id: cls.id,
+      name: cls.name || cls.class_name || 'Unknown Class'
+    }))
+  } catch (error) {
+    console.error('Error in fetchClasses:', error)
+    throw error
   }
-  
-  const classesData = await response.json()
-  return (classesData || []).map((cls: any) => ({
-    id: cls.id,
-    name: cls.name || cls.class_name || 'Unknown Class'
-  }))
 }
 
 export function MarksTracking() {
@@ -142,7 +147,7 @@ export function MarksTracking() {
   } = useQuery({
     queryKey: classesKeys.list({ academicYear, status: 'active' }),
     queryFn: () => fetchClasses({ academicYear, status: 'active' }),
-    enabled: !!academicYear,
+    enabled: !!academicYear && typeof window !== 'undefined', // Only run in browser
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   })

@@ -4,7 +4,6 @@ import React, { useRef, useMemo, useState } from 'react'
 import { 
   Printer, 
   Download,
-  GraduationCap,
   School,
   User,
   Star,
@@ -135,49 +134,69 @@ export function AnnualReportCard({ data }: AnnualReportCardProps) {
       const a4Width = 210
       const a4Height = 297
       
+      // Add a small delay to ensure all styles and images are fully loaded
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Calculate scaling to fit on single page
+      const originalStyle = element.getAttribute('style') || ''
+      const a4HeightPx = 1122 // Approx 297mm at 96 DPI
+      const contentHeight = element.scrollHeight
+      
+      let scale = 1
+      if (contentHeight > a4HeightPx) {
+        scale = (a4HeightPx - 20) / contentHeight 
+      }
+
+      if (scale < 1) {
+        element.style.transform = `scale(${scale})`
+        element.style.transformOrigin = 'top left'
+        element.style.width = `${210 / scale}mm` 
+      }
+      
       // Configure PDF options with optimized settings for high-quality output
       const opt = {
         margin: [0, 0, 0, 0],
         filename: filename,
         image: { 
           type: 'jpeg', 
-          quality: 1.0 // Maximum quality for crisp text and barcodes
+          quality: 1.0 
         },
         html2canvas: { 
-          scale: 2, // High DPI (2x) for crisp text and barcodes
-          useCORS: true, // CORS support for external images (logos, student photos)
+          scale: 2, 
+          useCORS: true, 
           logging: false,
           backgroundColor: '#ffffff',
-          letterRendering: true, // Better text rendering
-          allowTaint: false, // Prevent canvas tainting, ensures CORS images work
+          letterRendering: true, 
+          allowTaint: false, 
+          scrollY: 0,
           windowWidth: element.scrollWidth,
           windowHeight: element.scrollHeight
         },
         jsPDF: { 
           unit: 'mm', 
-          format: [a4Width, a4Height], // A4 format: 210mm × 297mm
+          format: 'a4',
           orientation: 'portrait',
-          compress: false, // Disable compression for better quality
+          compress: true,
           precision: 16
-        },
-        pagebreak: { 
-          mode: ['avoid-all', 'css'], // Better page break handling
-          before: '.page-break-before',
-          after: '.page-break-after',
-          avoid: ['tr', '.no-break']
         }
       }
 
-      // Add a small delay to ensure all styles and images are fully loaded
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
       // Generate and download PDF
       await html2pdf().set(opt).from(element).save()
+
+      // Revert styles
+      element.setAttribute('style', originalStyle)
       
       toast.success('PDF downloaded successfully', {
         description: `Report card saved as ${filename}`
       })
     } catch (error) {
+      if (printRef.current) {
+         const element = printRef.current;
+         element.style.transform = '';
+         element.style.width = '';
+         element.style.transformOrigin = '';
+      }
       console.error('Error generating PDF:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       toast.error('PDF generation failed', {
@@ -218,18 +237,24 @@ export function AnnualReportCard({ data }: AnnualReportCardProps) {
       category,
       subjects: groups[category] || []
     })).filter(group => group.subjects.length > 0)
-  }, [data.subjects])
+  }, [categoryOrder, data.subjects])
 
   // Calculate category summaries
+  // Only include coefficients for subjects that have marks (coefficient > 0)
   const calculateCategorySummary = (subjects: typeof data.subjects, category: string) => {
-    const coef = subjects.reduce((sum, s) => sum + s.coefficient, 0)
+    // Only count coefficients for subjects with marks (coefficient > 0)
+    const coef = subjects.reduce((sum, s) => sum + (s.coefficient > 0 ? s.coefficient : 0), 0)
     const totalScore = subjects.reduce((sum, s) => {
+      // Skip subjects without marks (coefficient = 0)
+      if (s.coefficient === 0) return sum
       const avg = s.annualAverage ?? 0
       return sum + (avg * s.coefficient)
     }, 0)
     const avg = coef > 0 ? totalScore / coef : 0
     const rank = subjects.length > 0 ? Math.min(...subjects.map(s => s.rank ?? 0).filter(r => r > 0)) || 0 : 0
     const passed = subjects.filter(s => {
+      // Skip subjects without marks
+      if (s.coefficient === 0) return false
       const avg = s.annualAverage ?? 0
       return avg >= 10
     }).length
@@ -306,6 +331,84 @@ export function AnnualReportCard({ data }: AnnualReportCardProps) {
   }, [data])
 
   return (
+    <>
+      {/* Embedded styles for PDF generation - ensures styles are preserved */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          @media print, screen {
+            .pdf-report-card,
+            .pdf-report-card * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+              box-sizing: border-box !important;
+            }
+            .pdf-report-card {
+              width: 210mm !important;
+              min-height: 297mm !important;
+              max-width: 210mm !important;
+              margin: 0 auto !important;
+              background: white !important;
+              padding: 0 !important;
+            }
+            
+            /* Table Styles */
+            .pdf-report-card table {
+              border-collapse: collapse !important;
+              width: 100% !important;
+              table-layout: fixed !important;
+            }
+            .pdf-report-card table td,
+            .pdf-report-card table th {
+              border: 1px solid #000 !important;
+              padding: 2px 4px !important;
+              vertical-align: middle !important; /* Fix for bottom alignment */
+              text-align: left; /* Default to left alignment */
+            }
+            
+            /* Alignment Overrides */
+            .pdf-report-card .text-center { text-align: center !important; }
+            .pdf-report-card .text-right { text-align: right !important; }
+            .pdf-report-card .text-left { text-align: left !important; }
+            
+            /* Flexbox utilities */
+            .pdf-report-card .flex { display: flex !important; }
+            .pdf-report-card .flex-col { flex-direction: column !important; }
+            .pdf-report-card .items-center { align-items: center !important; }
+            .pdf-report-card .justify-center { justify-content: center !important; }
+            .pdf-report-card .justify-between { justify-content: space-between !important; }
+            
+            /* Grid utilities */
+            .pdf-report-card .grid { display: grid !important; }
+            .pdf-report-card .grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)) !important; }
+            .pdf-report-card .col-span-12 { grid-column: span 12 / span 12 !important; }
+            .pdf-report-card .col-span-2 { grid-column: span 2 / span 2 !important; }
+            .pdf-report-card .col-span-3 { grid-column: span 3 / span 3 !important; }
+            .pdf-report-card .col-span-4 { grid-column: span 4 / span 4 !important; }
+            .pdf-report-card .col-span-5 { grid-column: span 5 / span 5 !important; }
+            .pdf-report-card .col-span-6 { grid-column: span 6 / span 6 !important; }
+            .pdf-report-card .col-span-7 { grid-column: span 7 / span 7 !important; }
+            .pdf-report-card .row-span-2 { grid-row: span 2 / span 2 !important; }
+
+            /* Spacing & Sizing from TermReportCard */
+            .pdf-report-card .p-0\\.5 { padding: 0.125rem !important; }
+            .pdf-report-card .p-1 { padding: 0.25rem !important; }
+            .pdf-report-card .text-\\[0\\.5rem\\] { font-size: 0.5rem !important; }
+            .pdf-report-card .text-\\[0\\.6rem\\] { font-size: 0.6rem !important; }
+            .pdf-report-card .text-\\[0\\.55rem\\] { font-size: 0.55rem !important; }
+            .pdf-report-card .text-\\[6pt\\] { font-size: 6pt !important; }
+            .pdf-report-card .text-\[7pt\\] { font-size: 7pt !important; }
+
+             /* Print-specific overrides */
+            @media print {
+              .pdf-report-card .print\\\\:text-\\[6pt\\] { font-size: 6pt !important; }
+              .pdf-report-card .print\\\\:text-\\[7pt\\] { font-size: 7pt !important; }
+              .pdf-report-card .print\\\\:p-0\\.5 { padding: 0.125rem !important; }
+            }
+          }
+        `
+      }} />
+
     <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans text-gray-900 print:p-0">
       
       {/* Control Bar */}
@@ -321,7 +424,7 @@ export function AnnualReportCard({ data }: AnnualReportCardProps) {
       </div>
 
       {/* Main Report Card Sheet */}
-      <div className="max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none print:w-full print:max-w-full overflow-hidden text-xs print:text-[8pt] relative print:h-[297mm]" ref={printRef}>
+      <div className="pdf-report-card max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none print:w-full print:max-w-full overflow-hidden text-xs print:text-[8pt] relative print:h-[297mm]" ref={printRef}>
         
         {/* Top Border */}
         <div className="h-1 print:h-0.5 w-full bg-black print:block" style={{ color: 'rgba(17, 24, 39, 1)' }} />
@@ -501,7 +604,8 @@ export function AnnualReportCard({ data }: AnnualReportCardProps) {
                     <React.Fragment key={group.category}>
                       {group.subjects.map((subject, idx) => {
                         const avg = subject.annualAverage ?? 0
-                        const totalScore = avg * subject.coefficient
+                        // Only calculate totalScore if coefficient > 0 (subject has marks)
+                        const totalScore = subject.coefficient > 0 ? avg * subject.coefficient : 0
                         const grade = subject.grade || calculateGrade(avg)
                         const remarks = subject.remarks || calculateRemarks(grade)
 
@@ -523,7 +627,7 @@ export function AnnualReportCard({ data }: AnnualReportCardProps) {
                             )}
                             <td className="p-1 print:p-0.5 border-r border-gray-300 font-medium">{subject.subjectName}</td>
                             <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{avg > 0 ? avg.toFixed(1) : '-'}</td>
-                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{subject.coefficient}</td>
+                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{subject.coefficient > 0 ? subject.coefficient : '-'}</td>
                             <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{totalScore > 0 ? totalScore.toFixed(0) : '-'}</td>
                             <td className={`p-1 print:p-0.5 border-r border-gray-300 text-center font-bold ${grade === 'F' || grade === 'E' || grade === 'U' ? 'text-red-600' : ''}`}>
                               {grade}
@@ -683,6 +787,7 @@ export function AnnualReportCard({ data }: AnnualReportCardProps) {
         <div className="h-1 print:h-0.5 w-full bg-black print:block" />
       </div>
     </div>
+    </>
   )
 }
 

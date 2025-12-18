@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from 'react'
-import { User, GraduationCap, Users, UserCheck, DollarSign } from 'lucide-react'
+import { User, GraduationCap, Users, UserCheck, DollarSign, Info } from 'lucide-react'
 import { useUserManagement, User as UserType } from '@/lib/user-management-context'
 
 // Local type to carry created-user credentials for the success dialog
@@ -31,7 +31,6 @@ import { StudentEnrollmentForm } from './student-enrollment-form'
 import { TeacherEnrollmentForm } from './teacher-enrollment-form'
 import { UserCreationSuccessDialog } from './user-creation-success-dialog'
 import { StudentSearch } from '@/components/ui/student-search'
-import { Info } from 'lucide-react'
 
 const roleIcons = {
   admin: User,
@@ -111,6 +110,7 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleTeacherEnrollmentSuccess = async (result: { teacherId: string; teacherData: any }) => {
     // Create user account for the teacher
     const userData = {
@@ -144,6 +144,7 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleAdminBursarParentSuccess = async (formData: any) => {
     const userResult = await createUser(formData)
     if (userResult.success) {
@@ -279,6 +280,7 @@ function AdminBursarParentForm({
   onCancel 
 }: { 
   role: 'admin' | 'bursar' | 'parent'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onSuccess: (data: any) => void
   onCancel: () => void
 }) {
@@ -295,6 +297,7 @@ function AdminBursarParentForm({
     studentId: '' as string | undefined,
     relationship: 'guardian' as 'father' | 'mother' | 'guardian' | 'other'
   })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [selectedStudent, setSelectedStudent] = useState<any>(null)
   const [isCheckingEmail, setIsCheckingEmail] = useState(false)
   const [isTeacherEmail, setIsTeacherEmail] = useState(false)
@@ -331,6 +334,7 @@ function AdminBursarParentForm({
       if (response.ok) {
         const data = await response.json()
         const users = data.users || []
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const teacherUser = users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase())
         
         if (teacherUser && teacherUser.role === 'teacher') {
@@ -348,6 +352,7 @@ function AdminBursarParentForm({
         setTeacherInfo(null)
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('Error checking teacher email:', err)
       setIsTeacherEmail(false)
       setTeacherInfo(null)
@@ -356,21 +361,29 @@ function AdminBursarParentForm({
     }
   }
 
+  const emailCheckTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const email = e.target.value
     setFormData(prev => ({ ...prev, email }))
+    
+    // Clear previous timeout
+    if (emailCheckTimeoutRef.current) {
+      clearTimeout(emailCheckTimeoutRef.current)
+    }
+    
     // Check if email belongs to teacher (debounced)
     if (email && email.includes('@')) {
-      const timeoutId = setTimeout(() => {
+      emailCheckTimeoutRef.current = setTimeout(() => {
         checkTeacherEmail(email)
       }, 500)
-      return () => clearTimeout(timeoutId)
     } else {
       setIsTeacherEmail(false)
       setTeacherInfo(null)
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleStudentSelect = (student: any) => {
     if (student) {
       setSelectedStudent({

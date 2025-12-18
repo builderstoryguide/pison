@@ -65,6 +65,11 @@ export interface StatsInfo {
   max?: number
   min?: number
   percent?: number
+  gceTradeSubjects?: number
+  gceRelatedTrade?: number
+  gceLanguageSubjects?: number
+  gceOtherSubjects?: number
+  gceSubjectsPassed?: number
 }
 
 export interface DisciplineInfo {
