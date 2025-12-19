@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 import { NextRequest, NextResponse } from 'next/server'
+import { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { authenticateUser, isAdmin } from '@/lib/auth/server'
 import { getAcademicYearFromConfig } from '@/lib/app-config-server'
@@ -22,7 +23,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is admin
-    if (!isAdmin(user)) {
+    const isUserAdmin = isAdmin(user)
+    if (!isUserAdmin) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
@@ -108,7 +110,6 @@ export async function POST(request: NextRequest) {
         studentId,
         subjectId,
         classId,
-        sequenceNumber,
         sequenceName,
         mark,
         term,
@@ -120,19 +121,18 @@ export async function POST(request: NextRequest) {
       return await handleRegularSubjectMark(
         supabase,
         studentId,
-        subjectId,
         subjectName,
         classId,
-        sequenceNumber,
         sequenceName,
         mark,
         user.id
       )
     }
-  } catch (error: any) {
-    console.error('Error in POST /api/admin/manual-marks:', error)
+  } catch (error: unknown) {
+    const err = error as Error
+    console.error('Error in POST /api/admin/manual-marks:', err)
     return NextResponse.json(
-      { success: false, error: error.message || 'Internal server error' },
+      { success: false, error: err.message || 'Internal server error' },
       { status: 500 }
     )
   }
@@ -142,12 +142,10 @@ export async function POST(request: NextRequest) {
  * Handle mark entry for regular subjects
  */
 async function handleRegularSubjectMark(
-  supabase: any,
+  supabase: SupabaseClient,
   studentId: string,
-  subjectId: string,
   subjectName: string,
   classId: string,
-  sequenceNumber: number,
   sequenceName: string,
   mark: number,
   adminUserId: string
@@ -171,7 +169,7 @@ async function handleRegularSubjectMark(
 
     if (allMatches && allMatches.length > 0) {
       const normalizedSubject = subjectName.toLowerCase().trim()
-      const match = allMatches.find((a: any) =>
+      const match = allMatches.find((a: { subject: string }) =>
         a.subject && a.subject.trim().toLowerCase() === normalizedSubject
       )
       if (match) {
@@ -207,6 +205,13 @@ async function handleRegularSubjectMark(
     assessment = newAssessment
   }
 
+  if (!assessment) {
+    return NextResponse.json(
+      { success: false, error: 'Failed to find or create assessment' },
+      { status: 500 }
+    )
+  }
+
   const totalMarks = assessment.total_marks || 20
   const percentage = (mark / totalMarks) * 100
   const gradeLetter = calculateGrade(mark, totalMarks)
@@ -229,7 +234,6 @@ async function handleRegularSubjectMark(
         percentage: Math.round(percentage * 100) / 100,
         grade_letter: gradeLetter,
         remarks: remarks,
-        updated_at: new Date().toISOString(),
       })
       .eq('id', existingGrade.id)
 
@@ -282,11 +286,10 @@ async function handleRegularSubjectMark(
  * Handle mark entry for branch subjects
  */
 async function handleBranchSubjectMark(
-  supabase: any,
+  supabase: SupabaseClient,
   studentId: string,
   subjectId: string,
   classId: string,
-  sequenceNumber: number,
   sequenceName: string,
   mark: number,
   term: string | undefined,
@@ -309,7 +312,7 @@ async function handleBranchSubjectMark(
 
   const oldBranches = oldBranchesResult.data || []
   const newBranches = newBranchesResult.data || []
-  const allBranchIds = [...oldBranches.map((b: any) => b.id), ...newBranches.map((b: any) => b.id)]
+  const allBranchIds = [...oldBranches.map((b: { id: string }) => b.id), ...newBranches.map((b: { id: string }) => b.id)]
 
   if (allBranchIds.length === 0) {
     return NextResponse.json(
@@ -324,7 +327,7 @@ async function handleBranchSubjectMark(
 
   for (const branchId of allBranchIds) {
     // Find or create branch assessment
-    let { data: branchAssessment, error: lookupError } = await supabase
+    let { data: branchAssessment } = await supabase
       .from('branch_assessments')
       .select('id, total_marks')
       .eq('branch_id', branchId)
@@ -359,6 +362,11 @@ async function handleBranchSubjectMark(
       branchAssessment = newAssessment
     }
 
+    if (!branchAssessment) {
+      console.error(`Failed to find or create assessment for branch ${branchId}`)
+      continue
+    }
+
     const totalMarks = branchAssessment.total_marks || 20
     const percentage = (mark / totalMarks) * 100
     const gradeLetter = calculateGrade(mark, totalMarks)
@@ -366,7 +374,7 @@ async function handleBranchSubjectMark(
     const gradePoint = calculateGradePoint(percentage)
 
     // Check if branch grade already exists
-    const { data: existingBranchGrade, error: gradeLookupError } = await supabase
+    const { data: existingBranchGrade } = await supabase
       .from('branch_grades')
       .select('id')
       .eq('assessment_id', branchAssessment.id)
@@ -379,6 +387,7 @@ async function handleBranchSubjectMark(
         marks_obtained: mark,
         percentage: Math.round(percentage * 100) / 100,
         grade_letter: gradeLetter,
+        grade_point: gradePoint,
         remarks: remarks,
         updated_at: new Date().toISOString(),
       }
@@ -394,11 +403,10 @@ async function handleBranchSubjectMark(
         console.error(`Error updating branch grade for branch ${branchId}:`, updateError)
       }
     } else {
-      // Generate unique grade_id
-      const gradeId = `GRADE-${branchAssessment.id}-${studentId}-${Date.now()}`
-      
       // Create new branch grade
-      const insertData = {
+      // Generate unique grade_id
+      const gradeId = `GRADE-${branchAssessment.id}-${studentId}-${crypto.randomUUID()}`
+            const insertData = {
         grade_id: gradeId,
         assessment_id: branchAssessment.id,
         student_id: studentId,
@@ -417,10 +425,6 @@ async function handleBranchSubjectMark(
         submitted_at: new Date().toISOString(),
       }
       
-      // #region agent log - before grade insert
-      console.log('[BRANCH MARK] Inserting grade', JSON.stringify({branchId,insertData}))
-      // #endregion
-
       const { data: newBranchGrade, error: insertError } = await supabase
         .from('branch_grades')
         .insert(insertData)

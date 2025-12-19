@@ -59,11 +59,15 @@ export async function isBranchSubject(
         .limit(1),
     ])
 
+    if (oldBranches.error || newBranches.error) {
+      console.error('Error checking branches:', oldBranches.error || newBranches.error)
+      return false
+    }
+
     const hasOldBranches = oldBranches.data && oldBranches.data.length > 0
     const hasNewBranches = newBranches.data && newBranches.data.length > 0
 
-    return hasOldBranches || hasNewBranches
-  } catch (error) {
+    return hasOldBranches || hasNewBranches  } catch (error) {
     console.error('Error checking if subject has branches:', error)
     return false
   }

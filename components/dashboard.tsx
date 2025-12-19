@@ -25,6 +25,7 @@ import { StudentManagement } from "./admin/student-management"
 import { StudentIdCards } from "./admin/student-id-cards"
 import { ReportCardsWrapper } from "./admin/report-cards-wrapper"
 import { TeacherManagement } from "./admin/teacher-management"
+import { ManageMarks } from "./admin/manage-marks/manage-marks"
 import { EmployeeManagement } from "./admin/employee-management"
 import { ClassManagement } from "./admin/class-management"
 import { SubjectManagement } from "./admin/subject-management"
@@ -129,6 +130,7 @@ type AdminView =
   | "students-list"
   | "student-id-cards"
   | "report-cards"
+  | "manage-marks"
   | "teachers"
   | "employees"
   | "classes"
@@ -266,7 +268,7 @@ export function Dashboard() {
   const [studentsMenuOpen, setStudentsMenuOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('adminCurrentView')
-      return saved === "students-list" || saved === "student-id-cards" || saved === "report-cards" || saved === "students"
+      return saved === "students-list" || saved === "student-id-cards" || saved === "report-cards" || saved === "manage-marks" || saved === "students"
     }
     return false
   })
@@ -301,9 +303,10 @@ export function Dashboard() {
   // Update students menu open state when view changes
   useEffect(() => {
     if (user?.role === "admin") {
-      const isSubItemActive = adminCurrentView === "students-list" || 
-                             adminCurrentView === "student-id-cards" || 
-                             adminCurrentView === "report-cards" || 
+      const isSubItemActive = adminCurrentView === "students-list" ||
+                             adminCurrentView === "student-id-cards" ||
+                             adminCurrentView === "report-cards" ||
+                             adminCurrentView === "manage-marks" ||
                              adminCurrentView === "students"
       // Only auto-open if a sub-item is active and menu wasn't manually closed
       if (isSubItemActive && !studentsMenuManuallyClosed) {
@@ -744,6 +747,7 @@ export function Dashboard() {
           { id: "students-list", label: "Students" },
           { id: "student-id-cards", label: "Student ID" },
           { id: "report-cards", label: "Report cards" },
+          { id: "manage-marks", label: "Manage Marks" },
         ],
       },
       { id: "teachers", label: "Manage Teachers", icon: UserCheck },
@@ -790,6 +794,8 @@ export function Dashboard() {
           return <StudentIdCards />
         case "report-cards":
           return <ReportCardsWrapper />
+        case "manage-marks":
+          return <ManageMarks />
         case "teachers":
           return <TeacherManagement />
         case "employees":

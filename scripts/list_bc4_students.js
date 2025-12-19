@@ -3,8 +3,13 @@ require('dotenv').config({ path: '.env.local' });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Missing required environment variables: NEXT_PUBLIC_SUPABASE_URL and/or NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 async function listStudents() {
   // First get class ID
   const { data: cls } = await supabase.from('classes').select('id').eq('name', 'Form 4 BC').single();
@@ -14,8 +19,10 @@ async function listStudents() {
     .from('students')
     .select('first_name, last_name')
     .eq('class', cls.id);
-    
-  console.log('Students in Form 4 BC:');
+listStudents().catch(error => {
+  console.error('Failed to list students:', error);
+  process.exit(1);
+});  console.log('Students in Form 4 BC:');
   students.forEach(s => console.log(` - ${s.first_name} ${s.last_name}`));
 }
 

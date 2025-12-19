@@ -19,8 +19,7 @@ async function verifyConstructionProcessMarks() {
   const { data: subjects, error: subjectError } = await supabase
     .from('subjects')
     .select('id, name, code')
-    .or('name.ilike.%Construction%Process%Building%Practice%,code.ilike.%CPB%');
-
+    .or('name.ilike.%Construction%,name.ilike.%Process%,name.ilike.%Building%,name.ilike.%Practice%,code.ilike.%CPB%');
   if (subjectError) {
     console.error('Error fetching subject:', subjectError);
     return;

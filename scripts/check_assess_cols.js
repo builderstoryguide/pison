@@ -7,8 +7,15 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function checkAssessmentColumns() {
   const { data, error } = await supabase.from('assessments').select('*').limit(1);
-  if (error) console.error(error);
+async function checkAssessmentColumns() {
+  const { data, error } = await supabase.from('assessments').select('*').limit(1);
+  if (error) {
+    console.error('Error fetching assessments:', error);
+    process.exit(1);
+  }
   if (data && data.length > 0) {
+    console.log('Columns:', Object.keys(data[0]));
+  } else {  if (data && data.length > 0) {
     console.log('Columns:', Object.keys(data[0]));
   } else {
     // If no data, we can't see columns via select *.

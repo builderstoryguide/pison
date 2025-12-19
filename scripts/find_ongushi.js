@@ -21,4 +21,9 @@ async function findStudent() {
   console.log('Search Results:', data);
 }
 
-findStudent();
+findStudent()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error('Unexpected error:', error);
+    process.exit(1);
+  });

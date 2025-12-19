@@ -4,8 +4,15 @@ require('dotenv').config({ path: '.env.local' });
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Missing required environment variables:');
+  if (!supabaseUrl) console.error('   - NEXT_PUBLIC_SUPABASE_URL');
+  if (!supabaseKey) console.error('   - NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  console.error('\nEnsure .env.local exists and contains these values.');
+  process.exit(1);
+}
 
+const supabase = createClient(supabaseUrl, supabaseKey);
 async function verifyConstructionProcessMarks() {
   console.log('=== FINAL VERIFICATION: Construction Process and Building Practice Marks for Form 1 BC ===\n');
 

@@ -224,6 +224,7 @@ function AppSidebar({
             children: [
               { id: "students", label: "All Students", icon: GraduationCap },
               { id: "reports", label: "Report Cards", icon: FileText, href: "/dashboard/admin/reports" },
+              { id: "manage-marks", label: "Manage Marks", icon: ClipboardList },
             ],
           },
           { id: "teachers", label: "Manage Teachers", icon: UserCheck },

@@ -3,13 +3,10 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react'
 import { 
   Download, 
-  GraduationCap,
   School,
-  User,
   Star,
   Award,
   BookOpen,
-  Eye,
   X,
   Pencil,
 } from 'lucide-react'
@@ -25,7 +22,7 @@ import {
 } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/lib/auth-context'
-import { getSequenceName, getSequenceNumberFromKey } from '@/lib/report-card-utils'
+import { getSequenceName } from '@/lib/report-card-utils'
 import { EditMarkDialog } from './EditMarkDialog'
 // html2pdf.js will be dynamically imported to avoid SSR issues
 
@@ -210,8 +207,8 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
       const filename = `ReportCard_${studentName}_${data.academic.year}_Term${data.academic.term}.pdf`
       
       // A4 format dimensions in mm
-      const a4Width = 210
-      const a4Height = 297
+      const a4Width = 210 // in mm used for calculation
+      // const a4Height = 297 // unused but kept for reference
       
       // Add a small delay to ensure all styles and images are fully loaded
       await new Promise(resolve => setTimeout(resolve, 100))
@@ -220,7 +217,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
       const originalStyle = element.getAttribute('style') || ''
       const a4HeightPx = 1122 // Approx 297mm at 96 DPI
       const contentHeight = element.scrollHeight
-      const contentWidth = element.scrollWidth
+      // const contentWidth = element.scrollWidth
       
       let scale = 1
       if (contentHeight > a4HeightPx) {
@@ -249,7 +246,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
 
       // Configure PDF options with optimized settings for high-quality output
       const opt = {
-        margin: [0, 0, 0, 0], // No margins, we handle padding in CSS
+        margin: 0, // No margins, we handle padding in CSS
         filename: filename,
         image: { 
           type: 'jpeg', 
@@ -276,6 +273,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
       }
 
       // Generate and download PDF
+      // @ts-ignore - html2pdf types are loose
       await html2pdf().set(opt).from(element).save()
       
       // Revert styles
@@ -293,7 +291,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
       }
       
       console.error('Error generating PDF:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      // const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       toast.error('PDF generation failed', {
         description: 'Opening print dialog as fallback option'
       })
@@ -323,10 +321,10 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
     }
   }, [])
 
-  const handleShowPreview = () => {
-    setShowPreview(true)
-    calculatePreviewScale()
-  }
+  // const handleShowPreview = () => {
+  //   setShowPreview(true)
+  //   calculatePreviewScale()
+  // }
 
   // Update scale on window resize when preview is open
   useEffect(() => {
@@ -524,7 +522,8 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
   // Count subjects that are PASSED (termAverage >= 10) from each category
   const gceCounts = React.useMemo(() => {
     // Helper to check if a subject passed (termAverage >= 10)
-    const isPassed = (s: SubjectData) => {
+    // Use proper SubjectGrade type instead of missing SubjectData
+    const isPassed = (s: SubjectGrade) => {
       const seqs = getSequenceValues(s)
       const avg = s.termAverage ?? 
         (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
@@ -635,9 +634,9 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             
             /* Spacing - Padding */
             .pdf-report-card .p-0 { padding: 0 !important; }
-            .pdf-report-card .p-0\.5 { padding: 0.125rem !important; }
+            .pdf-report-card .p-0.5 { padding: 0.125rem !important; }
             .pdf-report-card .p-1 { padding: 0.25rem !important; }
-            .pdf-report-card .p-1\.5 { padding: 0.375rem !important; }
+            .pdf-report-card .p-1.5 { padding: 0.375rem !important; }
             .pdf-report-card .p-2 { padding: 0.5rem !important; }
             .pdf-report-card .p-4 { padding: 1rem !important; }
             .pdf-report-card .p-6 { padding: 1.5rem !important; }
@@ -654,28 +653,28 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             .pdf-report-card .m-2 { margin: 0.5rem !important; }
             .pdf-report-card .mx-auto { margin-left: auto !important; margin-right: auto !important; }
             .pdf-report-card .mb-0 { margin-bottom: 0 !important; }
-            .pdf-report-card .mb-0\.5 { margin-bottom: 0.125rem !important; }
+            .pdf-report-card .mb-0.5 { margin-bottom: 0.125rem !important; }
             .pdf-report-card .mb-1 { margin-bottom: 0.25rem !important; }
             .pdf-report-card .mb-2 { margin-bottom: 0.5rem !important; }
             .pdf-report-card .mb-4 { margin-bottom: 1rem !important; }
             .pdf-report-card .mt-0 { margin-top: 0 !important; }
-            .pdf-report-card .mt-0\.5 { margin-top: 0.125rem !important; }
+            .pdf-report-card .mt-0.5 { margin-top: 0.125rem !important; }
             .pdf-report-card .mt-1 { margin-top: 0.25rem !important; }
             .pdf-report-card .mt-auto { margin-top: auto !important; }
             
             /* Spacing - Gap */
             .pdf-report-card .gap-0 { gap: 0 !important; }
-            .pdf-report-card .gap-0\.5 { gap: 0.125rem !important; }
+            .pdf-report-card .gap-0.5 { gap: 0.125rem !important; }
             .pdf-report-card .gap-1 { gap: 0.25rem !important; }
             .pdf-report-card .gap-2 { gap: 0.5rem !important; }
             .pdf-report-card .gap-4 { gap: 1rem !important; }
             
             /* Typography - Font Sizes */
-            .pdf-report-card .text-\[0\.5rem\] { font-size: 0.5rem !important; }
-            .pdf-report-card .text-\[0\.55rem\] { font-size: 0.55rem !important; }
-            .pdf-report-card .text-\[0\.6rem\] { font-size: 0.6rem !important; }
-            .pdf-report-card .text-\[0\.65rem\] { font-size: 0.65rem !important; }
-            .pdf-report-card .text-\[0\.7rem\] { font-size: 0.7rem !important; }
+            .pdf-report-card .text-[0.5rem] { font-size: 0.5rem !important; }
+            .pdf-report-card .text-[0.55rem] { font-size: 0.55rem !important; }
+            .pdf-report-card .text-[0.6rem] { font-size: 0.6rem !important; }
+            .pdf-report-card .text-[0.65rem] { font-size: 0.65rem !important; }
+            .pdf-report-card .text-[0.7rem] { font-size: 0.7rem !important; }
             .pdf-report-card .text-xs { font-size: 0.75rem !important; }
             .pdf-report-card .text-sm { font-size: 0.875rem !important; }
             .pdf-report-card .text-base { font-size: 1rem !important; }
@@ -696,29 +695,29 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             /* Typography - Letter Spacing */
             .pdf-report-card .tracking-tighter { letter-spacing: -0.05em !important; }
             .pdf-report-card .tracking-widest { letter-spacing: 0.1em !important; }
-            .pdf-report-card .tracking-\[0\.2em\] { letter-spacing: 0.2em !important; }
+            .pdf-report-card .tracking-[0.2em] { letter-spacing: 0.2em !important; }
             
             /* Typography - Line Height */
             .pdf-report-card .leading-none { line-height: 1 !important; }
             .pdf-report-card .leading-tight { line-height: 1.25 !important; }
-            .pdf-report-card .leading-\[1\.1\] { line-height: 1.1 !important; }
+            .pdf-report-card .leading-[1.1] { line-height: 1.1 !important; }
             
             /* Layout - Width */
             .pdf-report-card .w-full { width: 100% !important; }
             .pdf-report-card .w-6 { width: 1.5rem !important; }
             .pdf-report-card .w-16 { width: 4rem !important; }
             .pdf-report-card .w-24 { width: 6rem !important; }
-            .pdf-report-card .max-w-\[60\%\] { max-width: 60% !important; }
-            .pdf-report-card .max-w-\[210mm\] { max-width: 210mm !important; }
+            .pdf-report-card .max-w-[60%] { max-width: 60% !important; }
+            .pdf-report-card .max-w-[210mm] { max-width: 210mm !important; }
             
             /* Layout - Height */
-            .pdf-report-card .h-0\.5 { height: 0.125rem !important; }
+            .pdf-report-card .h-0.5 { height: 0.125rem !important; }
             .pdf-report-card .h-1 { height: 0.25rem !important; }
             .pdf-report-card .h-4 { height: 1rem !important; }
             .pdf-report-card .h-16 { height: 4rem !important; }
             .pdf-report-card .h-24 { height: 6rem !important; }
-            .pdf-report-card .h-\[119px\] { height: 119px !important; }
-            .pdf-report-card .h-\[297mm\] { height: 297mm !important; }
+            .pdf-report-card .h-[119px] { height: 119px !important; }
+            .pdf-report-card .h-[297mm] { height: 297mm !important; }
             .pdf-report-card .min-h-screen { min-height: 100vh !important; }
             
             /* Layout - Position */
@@ -778,10 +777,10 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             .pdf-report-card .bg-black { background-color: #000000 !important; }
             
             /* Background with Opacity */
-            .pdf-report-card .bg-white\/90 { background-color: rgba(255, 255, 255, 0.9) !important; }
-            .pdf-report-card .bg-black\/30 { background-color: rgba(0, 0, 0, 0.3) !important; }
-            .pdf-report-card .bg-black\/5 { background-color: rgba(0, 0, 0, 0.05) !important; }
-            .pdf-report-card .bg-white\/50 { background-color: rgba(255, 255, 255, 0.5) !important; }
+            .pdf-report-card .bg-white/90 { background-color: rgba(255, 255, 255, 0.9) !important; }
+            .pdf-report-card .bg-black/30 { background-color: rgba(0, 0, 0, 0.3) !important; }
+            .pdf-report-card .bg-black/5 { background-color: rgba(0, 0, 0, 0.05) !important; }
+            .pdf-report-card .bg-white/50 { background-color: rgba(255, 255, 255, 0.5) !important; }
             
             /* Text Colors */
             .pdf-report-card .text-white { color: #ffffff !important; }
@@ -795,8 +794,8 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             .pdf-report-card .text-blue-800 { color: #1e40af !important; }
             
             /* Text Colors with Opacity */
-            .pdf-report-card .text-black\/80 { color: rgba(0, 0, 0, 0.8) !important; }
-            .pdf-report-card .text-black\/60 { color: rgba(0, 0, 0, 0.6) !important; }
+            .pdf-report-card .text-black/80 { color: rgba(0, 0, 0, 0.8) !important; }
+            .pdf-report-card .text-black/60 { color: rgba(0, 0, 0, 0.6) !important; }
             
             /* Opacity */
             .pdf-report-card .opacity-20 { opacity: 0.2 !important; }
@@ -1064,11 +1063,11 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
           <div className="border border-black grid grid-cols-12 mb-1 print:mb-0.5 font-mono text-[0.65rem] print:text-[7pt] relative z-10 bg-white/90" style={{ border: '1px solid #000', backgroundColor: 'rgba(255, 255, 255, 0.9)' }}>
             <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">First Name / Prénom</span>
-              <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.firstName || data.student.name.split(' ')[0]}</span>
+              <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.name.split(' ')[0]}</span>
             </div>
             <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Last Name / Nom</span>
-              <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.lastName || data.student.name.split(' ').slice(1).join(' ')}</span>
+              <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.name.split(' ').slice(1).join(' ')}</span>
             </div>
             <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b border-black" style={{ borderBottom: '1px solid #000', padding: '2px 4px' }}>
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Unique Identifier No / Matricule</span>
@@ -1484,11 +1483,11 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                 <div className="border border-black grid grid-cols-12 mb-1 print:mb-0.5 font-mono text-[0.65rem] print:text-[7pt] relative z-10 bg-white/90">
                   <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black">
                     <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">First Name / Prénom</span>
-                    <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.firstName || data.student.name.split(' ')[0]}</span>
+                    <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.name.split(' ')[0]}</span>
                   </div>
                   <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black">
                     <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Last Name / Nom</span>
-                    <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.lastName || data.student.name.split(' ').slice(1).join(' ')}</span>
+                    <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.name.split(' ').slice(1).join(' ')}</span>
                   </div>
                   <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b border-black">
                     <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Unique Identifier No / Matricule</span>

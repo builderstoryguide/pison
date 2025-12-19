@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Pencil } from 'lucide-react'
 import {
   Dialog,
@@ -121,9 +121,13 @@ export function EditMarkDialog({
     setSaving(true)
     try {
       // Get user ID from localStorage for authentication
-      const storedUser = typeof window !== 'undefined' ? localStorage.getItem('school_user') : null
-      const user = storedUser ? JSON.parse(storedUser) : null
-      
+      let user = null
+      try {
+        const storedUser = typeof window !== 'undefined' ? localStorage.getItem('school_user') : null
+        user = storedUser ? JSON.parse(storedUser) : null
+      } catch {
+        // Ignore malformed localStorage data
+      }      
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       }
@@ -133,8 +137,8 @@ export function EditMarkDialog({
       }
 
       // Track which operations succeeded
-      let markSaved = false
-      let coefficientSaved = false
+      // let markSaved = false
+      // let coefficientSaved = false
 
       // Save mark if editing mark
       if (editType === 'mark' || editType === 'both') {
@@ -163,7 +167,7 @@ export function EditMarkDialog({
           throw new Error(data.error || 'Failed to save mark')
         }
         
-        markSaved = true
+        // markSaved = true
       }
 
       // Save coefficient if editing coefficient
@@ -184,7 +188,7 @@ export function EditMarkDialog({
           throw new Error(data.error || 'Failed to save coefficient')
         }
         
-        coefficientSaved = true
+        // coefficientSaved = true
       }
 
       // Only show success and trigger refresh if all operations succeeded
@@ -203,11 +207,12 @@ export function EditMarkDialog({
       // This ensures refresh only happens when data is actually saved
       onSave()
       onOpenChange(false)
-    } catch (error: any) {
-      console.error('Error saving:', error)
+    } catch (error: unknown) {
+      // console.error('Error saving:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save. Please try again.'
       toast({
         title: 'Error',
-        description: error.message || 'Failed to save. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       })
     } finally {

@@ -16,11 +16,12 @@ async function findStudent() {
   console.log('Search "Akikea":', data);
 
   const term2 = 'Marus';
-    const { data: data2 } = await supabase
+    const { data: data2, error: error2 } = await supabase
       .from('students')
       .select('first_name, last_name, class, classes(name)')
       .or(`first_name.ilike.%${term2}%,last_name.ilike.%${term2}%`);
-    console.log('Search "Marus":', data2);
-}
+    
+    if (error2) console.error(error2);
+    console.log('Search "Marus":', data2);}
 
 findStudent();

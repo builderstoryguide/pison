@@ -113,7 +113,9 @@ async function getSubject(subjectName) {
     
   if (exact) return exact;
 
-  // Partial match: Replace special chars like () with % to avoid query syntax errors and handle fuzziness
+  // Escape SQL wildcards, then replace special chars for fuzziness
+  const sanitized = subjectName
+    .replace(/[%_\\]/g, '\\  // Partial match: Replace special chars like () with % to avoid query syntax errors and handle fuzziness
   const sanitized = subjectName.replace(/[()]/g, '%');
   
   const { data, error } = await supabase
@@ -122,7 +124,15 @@ async function getSubject(subjectName) {
     .or(`name.ilike.%${sanitized}%,code.ilike.%${sanitized}%`)
     .limit(1)
     .single();
-    
+')  // Escape wildcards first
+    .replace(/[()]/g, '%');      // Then allow fuzzy matching on parentheses
+  
+  const { data, error } = await supabase
+    .from('subjects')
+    .select('id, name, code')
+    .or(`name.ilike.%${sanitized}%,code.ilike.%${sanitized}%`)
+    .limit(1)
+    .single();    
   if (error || !data) return null;
   return data;
 }
