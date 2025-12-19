@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config({ path: '.env.local' });
 
@@ -10,16 +11,22 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
 async function findSubject() {
   const term = 'Food';
+  console.log(`Searching for subjects matching "${term}"...`);
+
+  const { data, error } = await supabase
+    .from('subjects')
+    .select('id, name, code')
+    .ilike('name', `%${term}%`);
+    
   if (error) {
     console.error('Error searching for subjects:', error);
     return;
   }
-  console.log('Search "Food":', data);    .select('id, name, code')
-    .ilike('name', `%${term}%`);
-    
-  if (error) console.error(error);
-  console.log(`Search "${term}":`, data);}
+  
+  console.log('Results:', data);
+}
 
-findSubject();
+findSubject().catch(console.error);

@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config({ path: '.env.local' });
 
@@ -11,20 +12,22 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
 async function checkStudentsStructure() {
   const { data, error } = await supabase
     .from('students')
     .select('*')
     .limit(1);
 
+  if (error) {
+    console.error('Error fetching students:', error);
+    return;
+  }
+
   if (data && data.length > 0) {
     console.log('Student columns:', Object.keys(data[0]));
   } else {
     console.log('Students table is empty. Cannot determine columns from data.');
-  }  }
-
-  if (data && data.length > 0) {
-    console.log('Student columns:', Object.keys(data[0]));
   }
 }
 

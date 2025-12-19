@@ -1,5 +1,5 @@
+/* eslint-disable no-console */
 const { createClient } = require('@supabase/supabase-js');
-const fs = require('fs');
 require('dotenv').config({ path: '.env.local' });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -12,13 +12,19 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
 async function checkSequences() {
-checkSequences().catch((err) => {
-  console.error('Unexpected error:', err);
-  process.exit(1);
-});  if (error) console.error(error);
+  const { data, error } = await supabase.from('academic_sequences').select('*');
+  
+  if (error) {
+    console.error('Error fetching sequences:', error);
+    process.exit(1);
+  }  
   console.log('Available Sequences:');
   console.log(data);
 }
 
-checkSequences();
+checkSequences().catch((err) => {
+  console.error('Unexpected error:', err);
+  process.exit(1);
+});

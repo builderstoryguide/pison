@@ -1,6 +1,7 @@
+/* eslint-disable no-console */
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
-const path = require('path');
+// const path = require('path');
 require('dotenv').config({ path: '.env.local' });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -114,17 +115,9 @@ async function getSubject(subjectName) {
   if (exact) return exact;
 
   // Escape SQL wildcards, then replace special chars for fuzziness
+  // Partial match: Replace special chars like () with % to avoid query syntax errors and handle fuzziness
   const sanitized = subjectName
-    .replace(/[%_\\]/g, '\\  // Partial match: Replace special chars like () with % to avoid query syntax errors and handle fuzziness
-  const sanitized = subjectName.replace(/[()]/g, '%');
-  
-  const { data, error } = await supabase
-    .from('subjects')
-    .select('id, name, code')
-    .or(`name.ilike.%${sanitized}%,code.ilike.%${sanitized}%`)
-    .limit(1)
-    .single();
-')  // Escape wildcards first
+    .replace(/[%_\\]/g, '\\$&') // Escape wildcards first
     .replace(/[()]/g, '%');      // Then allow fuzzy matching on parentheses
   
   const { data, error } = await supabase
@@ -258,7 +251,7 @@ async function main() {
         if (parts.length > 1) lastName = parts.slice(1).join(' ');
     }
     
-    let subjectName = row.subject || CONFIG.defaultSubjectName;
+    const subjectName = row.subject || CONFIG.defaultSubjectName;
     
     if (!subjectName) {
       console.log(`SKIP: No subject for ${firstName} ${lastName}`);

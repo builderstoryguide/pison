@@ -1,3 +1,5 @@
+import { SupabaseClient } from '@supabase/supabase-js'
+
 /**
  * Helper functions for report card operations
  */
@@ -39,7 +41,7 @@ export function getSequenceNumberFromKey(sequenceKey: string): number | null {
  * @returns True if subject has branches, false otherwise
  */
 export async function isBranchSubject(
-  supabase: any,
+  supabase: SupabaseClient,
   subjectId: string
 ): Promise<boolean> {
   try {
@@ -60,15 +62,15 @@ export async function isBranchSubject(
     ])
 
     if (oldBranches.error || newBranches.error) {
-      console.error('Error checking branches:', oldBranches.error || newBranches.error)
+      // console.error('Error checking branches:', oldBranches.error || newBranches.error)
       return false
     }
 
     const hasOldBranches = oldBranches.data && oldBranches.data.length > 0
     const hasNewBranches = newBranches.data && newBranches.data.length > 0
 
-    return hasOldBranches || hasNewBranches  } catch (error) {
-    console.error('Error checking if subject has branches:', error)
+    return hasOldBranches || hasNewBranches  } catch (_error) {
+    // console.error('Error checking if subject has branches:', error)
     return false
   }
 }

@@ -207,7 +207,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
       const filename = `ReportCard_${studentName}_${data.academic.year}_Term${data.academic.term}.pdf`
       
       // A4 format dimensions in mm
-      const a4Width = 210 // in mm used for calculation
+      // const a4Width = 210 // in mm used for calculation
       // const a4Height = 297 // unused but kept for reference
       
       // Add a small delay to ensure all styles and images are fully loaded
@@ -450,23 +450,30 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
   }
 
   // Group subjects by category
-  const categoryOrder: Array<'languages' | 'related_trade_subjects' | 'trade_subjects' | 'others'> = [
+  const categoryOrder = React.useMemo(() => [
+    'general',
+    'science',
+    'arts',
     'languages',
     'related_trade_subjects',
     'trade_subjects',
-    'others'
-  ]
+    'other_subjects'
+  ], [])
 
   const groupedSubjects = React.useMemo(() => {
+    if (!data?.subjects) return []
     const groups: Record<string, typeof data.subjects> = {
+      general: [],
+      science: [],
+      arts: [],
       languages: [],
       related_trade_subjects: [],
       trade_subjects: [],
-      others: []
+      other_subjects: []
     }
 
     data.subjects.forEach(subject => {
-      const category = subject.category || 'others'
+      const category = subject.category || 'other_subjects'
       groups[category] = groups[category] || []
       groups[category].push(subject)
     })
@@ -475,7 +482,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
       category,
       subjects: groups[category] || []
     })).filter(group => group.subjects.length > 0)
-  }, [data.subjects])
+  }, [data, categoryOrder])
 
   // Calculate category summaries
   // Only include coefficients for subjects that have marks (coefficient > 0)
@@ -522,7 +529,6 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
   // Count subjects that are PASSED (termAverage >= 10) from each category
   const gceCounts = React.useMemo(() => {
     // Helper to check if a subject passed (termAverage >= 10)
-    // Use proper SubjectGrade type instead of missing SubjectData
     const isPassed = (s: SubjectGrade) => {
       const seqs = getSequenceValues(s)
       const avg = s.termAverage ?? 
@@ -532,22 +538,24 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
       return avg >= 10
     }
     
-    // Count passed subjects in trade_subjects category
-    const tradeSubjects = groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.filter(isPassed).length || 0
+    const tradePassed = groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.filter(isPassed).length || 0
+    const relatedPassed = groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.filter(isPassed).length || 0
     
-    // Count passed subjects in related_trade_subjects category
-    const relatedTrade = groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.filter(isPassed).length || 0
-    
-    // Count passed subjects in languages and others categories combined
+    const generalPassed = groupedSubjects.find(g => g.category === 'general')?.subjects.filter(isPassed).length || 0
+    const sciencePassed = groupedSubjects.find(g => g.category === 'science')?.subjects.filter(isPassed).length || 0
+    const artsPassed = groupedSubjects.find(g => g.category === 'arts')?.subjects.filter(isPassed).length || 0
     const languagesPassed = groupedSubjects.find(g => g.category === 'languages')?.subjects.filter(isPassed).length || 0
-    const othersPassed = groupedSubjects.find(g => g.category === 'others')?.subjects.filter(isPassed).length || 0
-    const otherSubjects = languagesPassed + othersPassed
+    const otherSubjectsPassed = groupedSubjects.find(g => g.category === 'other_subjects')?.subjects.filter(isPassed).length || 0
+
+    const otherPassed = generalPassed + sciencePassed + artsPassed + languagesPassed + otherSubjectsPassed
     
-    // Total passed subjects
-    const passed = tradeSubjects + relatedTrade + otherSubjects
-    
-    return { tradeSubjects, relatedTrade, otherSubjects, passed }
-  }, [groupedSubjects])
+    return { 
+      tradeSubjects: tradePassed, 
+      relatedTrade: relatedPassed, 
+      otherSubjects: otherPassed, 
+      passed: tradePassed + relatedPassed + otherPassed
+    }
+  }, [groupedSubjects, getSequenceValues])
 
   // Generate QR Code data with report card information
   const qrCodeData = useMemo(() => {
@@ -802,7 +810,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             .pdf-report-card .opacity-30 { opacity: 0.3 !important; }
             .pdf-report-card .opacity-70 { opacity: 0.7 !important; }
             .pdf-report-card .opacity-80 { opacity: 0.8 !important; }
-            .pdf-report-card .opacity-\[0\.06\] { opacity: 0.06 !important; }
+            .pdf-report-card .opacity-\\[0\\.06\\] { opacity: 0.06 !important; }
             
             /* Overflow */
             .pdf-report-card .overflow-hidden { overflow: hidden !important; }
@@ -815,7 +823,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             .pdf-report-card .transform { transform: var(--tw-transform) !important; }
             .pdf-report-card .-rotate-6 { transform: rotate(-6deg) !important; }
             .pdf-report-card .rotate-12 { transform: rotate(12deg) !important; }
-            .pdf-report-card .-translate-y-1\/2 { transform: translateY(-50%) !important; }
+            .pdf-report-card .-translate-y-1\\/2 { transform: translateY(-50%) !important; }
             .pdf-report-card .grayscale { filter: grayscale(100%) !important; }
             
             /* Shadow */
@@ -832,7 +840,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             
             /* Space Between */
             .pdf-report-card .space-y-0 { }
-            .pdf-report-card .space-y-0\.5 > * + * { margin-top: 0.125rem !important; }
+            .pdf-report-card .space-y-0\\.5 > * + * { margin-top: 0.125rem !important; }
             .pdf-report-card .space-y-1 > * + * { margin-top: 0.25rem !important; }
             .pdf-report-card .space-y-2 > * + * { margin-top: 0.5rem !important; }
             
@@ -877,9 +885,9 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
               .pdf-report-card .print\\:mb-0\\.5 { margin-bottom: 0.125rem !important; }
               .pdf-report-card .print\\:mb-1 { margin-bottom: 0.25rem !important; }
               .pdf-report-card .print\\:mt-0\\.5 { margin-top: 0.125rem !important; }
-              .pdf-report-card .print\\:text-\[6pt\] { font-size: 6pt !important; }
-              .pdf-report-card .print\\:text-\[7pt\] { font-size: 7pt !important; }
-              .pdf-report-card .print\\:text-\[8pt\] { font-size: 8pt !important; }
+              .pdf-report-card .print\\:text-\\[6pt\\] { font-size: 6pt !important; }
+              .pdf-report-card .print\\:text-\\[7pt\\] { font-size: 7pt !important; }
+              .pdf-report-card .print\\:text-\\[8pt\\] { font-size: 8pt !important; }
               .pdf-report-card .print\\:text-2xl { font-size: 1.5rem !important; }
               .pdf-report-card .print\\:text-lg { font-size: 1.125rem !important; }
               .pdf-report-card .print\\:text-base { font-size: 1rem !important; }
@@ -899,9 +907,9 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
               .pdf-report-card .print\\:shadow-none { box-shadow: none !important; }
               .pdf-report-card .print\\:w-full { width: 100% !important; }
               .pdf-report-card .print\\:max-w-full { max-width: 100% !important; }
-              .pdf-report-card .print\\:h-\[297mm\] { height: 297mm !important; }
+              .pdf-report-card .print\\:h-\\[297mm\\] { height: 297mm !important; }
               .pdf-report-card .print\\:border { border-width: 1px !important; }
-              .pdf-report-card .print\\:leading-\[1\\.1\] { line-height: 1.1 !important; }
+              .pdf-report-card .print\\:leading-\\[1\\.1\\] { line-height: 1.1 !important; }
               .pdf-report-card .print\\:space-y-2 > * + * { margin-top: 0.5rem !important; }
               /* Hide edit functionality in print */
               .pdf-report-card [class*="cursor-pointer"] { cursor: default !important; }
@@ -913,23 +921,14 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
               .pdf-report-card .md\\:grid-cols-3 {
                 grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
               }
-              .pdf-report-card .md\\:grid-cols-4 {
-                grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-              }
-              .pdf-report-card .md\\:col-span-4 {
-                grid-column: span 4 / span 4 !important;
-              }
-              .pdf-report-card .md\\:col-span-6 {
-                grid-column: span 6 / span 6 !important;
+              .pdf-report-card .md\\:col-span-12 {
+                grid-column: span 12 / span 12 !important;
               }
               .pdf-report-card .md\\:border-r {
                 border-right-width: 1px !important;
               }
               .pdf-report-card .md\\:border-b-0 {
                 border-bottom-width: 0 !important;
-              }
-              .pdf-report-card .md\\:flex {
-                display: flex !important;
               }
               .pdf-report-card .md\\:flex-row {
                 flex-direction: row !important;
@@ -938,10 +937,15 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                 text-align: left !important;
               }
               .pdf-report-card .md\\:block {
-                display: block !important;
+                 display: block !important;
               }
-              .pdf-report-card .md\\:hidden {
-                display: none !important;
+              .pdf-report-card .md\\:flex {
+                 display: flex !important;
+              }
+              
+              /* Layout - Width */
+              .pdf-report-card .md\\:w-\\[210mm\\] {
+                 width: 210mm !important;
               }
             }
           }
@@ -1274,7 +1278,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             <div className="col-span-12 md:col-span-6 flex flex-col gap-0">
               <div className="border border-black bg-white/90">
                 <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
-                  Student's Evaluation Results
+                  Student&apos;s Evaluation Results
                 </div>
                 <table className="w-full text-[0.6rem] print:text-[7pt]">
                   <thead>
@@ -1365,7 +1369,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
               Print Preview
             </DialogTitle>
             <DialogDescription>
-              Review how your report card will look when printed. Click "Print" to open the print dialog.
+              Review how your report card will look when printed. Click &quot;Print&quot; to open the print dialog.
             </DialogDescription>
           </DialogHeader>
           
@@ -1668,7 +1672,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                   <div className="col-span-12 md:col-span-6 flex flex-col gap-0">
                     <div className="border border-black bg-white/90">
                       <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
-                        Student's Evaluation Results
+                        Student&apos;s Evaluation Results
                       </div>
                       <table className="w-full text-[0.6rem] print:text-[7pt]">
                         <thead>
