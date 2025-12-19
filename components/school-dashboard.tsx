@@ -6,10 +6,11 @@ import { AuthPage } from "./auth/auth-page"
 import { SubjectManagementProvider } from "@/lib/subject-management-context"
 import { QuickActionsDashboard } from "./admin/quick-actions-dashboard"
 import { UserManagement } from "./admin/user-management"
+import { SubjectManagement } from "./admin/subject-management"
+import { ManageMarks } from "./admin/manage-marks/manage-marks"
 import { StudentManagement } from "./admin/student-management"
 import { TeacherManagement } from "./admin/teacher-management"
 import { ClassManagement } from "./admin/class-management"
-import { SubjectManagement } from "./admin/subject-management"
 
 import { FinancialManagement } from "./admin/financial-management"
 import { ProfileSettings } from "./profile/profile-settings"
@@ -542,7 +543,8 @@ export function SchoolDashboard() {
                 <SubjectManagement />
               </SubjectManagementProvider>
             )
-
+          case "manage-marks":
+            return <ManageMarks />
           case "financial":
             return <FinancialManagement />
           case "profile":

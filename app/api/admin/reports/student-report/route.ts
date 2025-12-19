@@ -5,21 +5,29 @@ import { PisonReportCardData } from '@/components/admin/reports/report-card-type
 
 export async function GET(req: NextRequest) {
   /* eslint-disable no-console */
-  const { searchParams } = new URL(req.url);
-  const studentId = searchParams.get('studentId'); // This is the database ID (int or uuid)
-  const classId = searchParams.get('classId');
-  const academicTermId = searchParams.get('academicTermId'); // e.g., 'first', 'second' -> 1, 2, 3
-
-  if (!studentId || !classId || !academicTermId) {
-    return NextResponse.json(
-      { message: 'Missing studentId, classId, or academicTermId' },
-      { status: 400 }
-    );
-  }
-
-  const supabase = await createClient();
-
+  // #region agent log - function entry
+  fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:function-entry',message:'GET function started',data:{url:req.url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  // #endregion
+  
   try {
+    const { searchParams } = new URL(req.url);
+    const studentId = searchParams.get('studentId'); // This is the database ID (int or uuid)
+    const classId = searchParams.get('classId');
+    const academicTermId = searchParams.get('academicTermId'); // e.g., 'first', 'second' -> 1, 2, 3
+
+    // #region agent log - params extracted
+    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:params-extracted',message:'Parameters extracted',data:{studentId,classId,academicTermId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+
+    if (!studentId || !classId || !academicTermId) {
+      return NextResponse.json(
+        { message: 'Missing studentId, classId, or academicTermId' },
+        { status: 400 }
+      );
+    }
+
+    const supabase = await createClient();
+
     // 1. Fetch Student Details
     const { data: student, error: studentError } = await supabase
       .from('students')
@@ -229,6 +237,22 @@ export async function GET(req: NextRequest) {
       console.warn('Failed to fetch teacher-subject assignments', teacherAssignmentsError);
     }
 
+    // Fetch admin user IDs - admin-entered marks should always be included
+    const { data: adminUsers, error: adminUsersError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('role', 'admin');
+    
+    const adminUserIds = new Set<string>();
+    if (adminUsers && !adminUsersError) {
+      adminUsers.forEach((user: any) => {
+        if (user.id) adminUserIds.add(user.id);
+      });
+      console.log(`[Report Card] Found ${adminUserIds.size} admin users - their marks will always be included`);
+    } else if (adminUsersError) {
+      console.warn('Failed to fetch admin users', adminUsersError);
+    }
+
     // Create a map of subject_id -> array of teacher_ids who are assigned to teach it
     const subjectTeacherMap = new Map<string, Set<string>>();
     if (teacherAssignments) {
@@ -380,60 +404,87 @@ export async function GET(req: NextRequest) {
     fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:cpb-before-filter',message:'CPB grades before teacher filter',data:{count:cpbGradesBeforeFilter.length,grades:cpbGradesBeforeFilter.map((g:any)=>({subject:g.assessment?.subject,mark:g.marks_obtained,title:g.assessment?.title,teacherId:g.assessment?.teacher_id})),classId,studentId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'CPB'})}).catch(()=>{});
     // #endregion
     
+    // #region agent log - filter start
+    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:filter-start',message:'Starting grade filtering',data:{hasGradesData:!!gradesData,gradesCount:typedGradesData.length,subjectTeacherMapSize:subjectTeacherMap.size,adminUserIdsDefined:typeof adminUserIds!=='undefined',adminUserIdsCount:adminUserIds?.size||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
+    
     if (gradesData && subjectTeacherMap.size > 0) {
       filteredGradesData = typedGradesData.filter((grade) => {
-        const assessment = grade.assessment;
-        const assessSubject = assessment?.subject || '';
-        const assessTeacherId = assessment?.teacher_id;
-        const normalizedSubject = normalizeSubjectName(assessSubject);
-        const isOfficePractice = normalizedSubject.includes('office practice') || normalizedSubject === 'office practice';
-        
-        // ALWAYS include Office Practice grades regardless of teacher assignment
-        if (isOfficePractice) {
-          console.log(`[OFFICE PRACTICE] ✓ Including grade (marks: ${grade.marks_obtained}) - Office Practice grades are always included regardless of teacher assignment`);
-          return true;
-        }
-        
-        // Find the subject ID for this grade's subject name
-        let matchingSubjectId: string | null = null;
-        for (const cs of classSubjects) {
-          const subj = Array.isArray(cs.subjects) ? cs.subjects[0] : cs.subjects;
-          if (subj && subjectNamesMatch(subj.name, assessSubject)) {
-            matchingSubjectId = subj.id;
-            break;
+        try {
+          const assessment = grade.assessment;
+          const assessSubject = assessment?.subject || '';
+          const assessTeacherId = assessment?.teacher_id;
+          const normalizedSubject = normalizeSubjectName(assessSubject);
+          const isOfficePractice = normalizedSubject.includes('office practice') || normalizedSubject === 'office practice';
+          
+          // ALWAYS include Office Practice grades regardless of teacher assignment
+          if (isOfficePractice) {
+            console.log(`[OFFICE PRACTICE] ✓ Including grade (marks: ${grade.marks_obtained}) - Office Practice grades are always included regardless of teacher assignment`);
+            return true;
           }
+          
+          // ALWAYS include grades entered by admin users
+          // #region agent log - admin check
+          if (assessTeacherId) {
+            const isAdmin = typeof adminUserIds !== 'undefined' && adminUserIds.has(assessTeacherId);
+            fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:admin-check',message:'Checking if teacher is admin',data:{assessTeacherId,assessSubject,adminUserIdsDefined:typeof adminUserIds!=='undefined',adminUserIdsCount:adminUserIds?.size||0,isAdmin},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
+            if (isAdmin) {
+              console.log(`[ADMIN MARK] ✓ Including grade (marks: ${grade.marks_obtained}) for subject "${assessSubject}" - Admin-entered marks are always included`);
+              return true;
+            }
+          }
+          
+          // Find the subject ID for this grade's subject name
+          let matchingSubjectId: string | null = null;
+          for (const cs of classSubjects) {
+            const subj = Array.isArray(cs.subjects) ? cs.subjects[0] : cs.subjects;
+            if (subj && subjectNamesMatch(subj.name, assessSubject)) {
+              matchingSubjectId = subj.id;
+              break;
+            }
+          }
+          
+          if (!matchingSubjectId) {
+            console.warn(`[Report Card] No matching subject found for grade subject: "${assessSubject}"`);
+            return false;
+          }
+          
+          // Check if the teacher who entered this grade is assigned to teach this subject
+          const assignedTeachers = subjectTeacherMap.get(matchingSubjectId);
+          if (!assignedTeachers || assignedTeachers.size === 0) {
+            // No teachers assigned to this subject - log warning but include the grade
+            // (might be legacy data or subject without explicit assignment)
+            console.warn(`[Report Card] No teachers assigned to subject "${assessSubject}" (ID: ${matchingSubjectId}). Including grade for backward compatibility.`);
+            return true; // Include it anyway to avoid losing data
+          }
+          
+          if (assessTeacherId && !assignedTeachers.has(assessTeacherId)) {
+            console.warn(`[Report Card] Grade for subject "${assessSubject}" entered by teacher ${assessTeacherId} who is not assigned to teach this subject. Excluding from report card.`);
+            return false;
+          }
+          
+          // If teacher_id is null/undefined, we can't verify, so include it (might be legacy data)
+          if (!assessTeacherId) {
+            console.warn(`[Report Card] Grade for subject "${assessSubject}" has no teacher_id. Including for backward compatibility.`);
+          }
+          
+          return true;
+        } catch (error: any) {
+          // #region agent log - filter error
+          fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:filter-error',message:'Error in grade filter',data:{error:error?.message||String(error),errorStack:error?.stack,assessSubject:grade?.assessment?.subject,assessTeacherId:grade?.assessment?.teacher_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          console.error(`[Report Card] Error filtering grade:`, error);
+          return false; // Exclude on error to be safe
         }
-        
-        if (!matchingSubjectId) {
-          console.warn(`[Report Card] No matching subject found for grade subject: "${assessSubject}"`);
-          return false;
-        }
-        
-        // Check if the teacher who entered this grade is assigned to teach this subject
-        const assignedTeachers = subjectTeacherMap.get(matchingSubjectId);
-        if (!assignedTeachers || assignedTeachers.size === 0) {
-          // No teachers assigned to this subject - log warning but include the grade
-          // (might be legacy data or subject without explicit assignment)
-          console.warn(`[Report Card] No teachers assigned to subject "${assessSubject}" (ID: ${matchingSubjectId}). Including grade for backward compatibility.`);
-          return true; // Include it anyway to avoid losing data
-        }
-        
-        if (assessTeacherId && !assignedTeachers.has(assessTeacherId)) {
-          console.warn(`[Report Card] Grade for subject "${assessSubject}" entered by teacher ${assessTeacherId} who is not assigned to teach this subject. Excluding from report card.`);
-          return false;
-        }
-        
-        // If teacher_id is null/undefined, we can't verify, so include it (might be legacy data)
-        if (!assessTeacherId) {
-          console.warn(`[Report Card] Grade for subject "${assessSubject}" has no teacher_id. Including for backward compatibility.`);
-        }
-        
-        return true;
       });
       
       if (filteredGradesData.length !== gradesData.length) {
         console.log(`[Report Card] Filtered ${gradesData.length - filteredGradesData.length} grades that don't match teacher assignments`);
       }
+      // #region agent log - filter complete
+      fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:filter-complete',message:'Grade filtering completed',data:{originalCount:typedGradesData.length,filteredCount:filteredGradesData.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
     }
 
     // Use filtered grades data (only marks from assigned teachers)
@@ -1800,6 +1851,10 @@ export async function GET(req: NextRequest) {
         }
     };
 
+    // #region agent log - success return
+    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:success-return',message:'Function completed successfully',data:{subjectsCount:reportData.subjects?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    
     return NextResponse.json(reportData, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -1810,6 +1865,9 @@ export async function GET(req: NextRequest) {
 
 
   } catch (error: unknown) {
+    // #region agent log - catch error
+    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:catch-error',message:'Error caught in GET function',data:{error:error instanceof Error?error.message:String(error),errorStack:error instanceof Error?error.stack:null,errorName:error instanceof Error?error.name:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     console.error('Report Generation Error:', error);
     const message = error instanceof Error ? error.message : 'Internal Server Error';
     return NextResponse.json(
@@ -1944,6 +2002,9 @@ const SUBJECT_ALIASES: Record<string, string[]> = {
     'office practice': ['op', 'o.p.', 'o.p', 'officepractice', 'office prac', 'off practice'],
     'mathematics': ['math', 'maths', 'general mathematics', 'general math', 'gen math'],
     'business mathematics': ['business math', 'biz math', 'business maths', 'bm', 'b.m.', 'commercial math', 'commercial mathematics'],
+    'resource management': ['resource management on home studies (rmhs)', 'resource management on home studies', 'rmhs', 'r.m.h.s.', 'r.m.h.s'],
+    'family life': ['family life education and gerontology (fleg)', 'family life education and gerontology', 'fleg', 'f.l.e.g.', 'f.l.e.g'],
+    'food and nutrition': ['food, nutrition and health (fnh)', 'food nutrition and health (fnh)', 'food, nutrition and health', 'food nutrition and health', 'fnh', 'f.n.h.', 'f.n.h'],
 };
 
 /**
