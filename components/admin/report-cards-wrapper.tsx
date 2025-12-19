@@ -155,10 +155,17 @@ export function ReportCardsWrapper() {
     setLoadingReport(true)
     setError(null)
     try {
-      const url = `/api/report-cards/${studentId}?term=${term}`
+      // Add cache-busting parameter to ensure fresh data
+      const timestamp = Date.now()
+      const url = `/api/report-cards/${studentId}?term=${term}&_t=${timestamp}`
       console.log('[ReportCards] Fetching report data:', { url, studentId, term })
       
-      const response = await fetch(url)
+      const response = await fetch(url, {
+        cache: 'no-store', // Ensure no caching
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      })
       console.log('[ReportCards] Response status:', response.status, response.statusText)
       
       if (response.ok) {
@@ -167,6 +174,7 @@ export function ReportCardsWrapper() {
         
         if (result.success) {
           setReportData(result.data)
+          // Report data refreshed successfully - the loading state will clear automatically
         } else {
           const errorMessage = typeof result.error === 'string' ? result.error : (result.error?.message || 'Failed to fetch report data')
           console.error('[ReportCards] API returned success=false:', errorMessage)
@@ -202,6 +210,22 @@ export function ReportCardsWrapper() {
     setReportData(null)
     setError(null)
   }
+
+  // Refresh report data after mark save
+  const handleRefreshReport = async () => {
+    if (selectedStudent) {
+      // Set loading state to show visual feedback
+      setLoadingReport(true)
+      try {
+        await fetchReportData(selectedStudent.id, selectedTerm)
+      } catch (error) {
+        console.error('Error refreshing report:', error)
+        setError('Failed to refresh report card. Please try again.')
+      } finally {
+        // Loading state will be cleared by fetchReportData
+      }
+    }
+  }
   // Filter students by search query
   const filteredStudents = students.filter(student => {
     const fullName = `${student.first_name} ${student.last_name}`.toLowerCase()
@@ -224,15 +248,19 @@ export function ReportCardsWrapper() {
 
         {/* Render appropriate report card */}
         {selectedTerm === 'annual' ? (
-          <AnnualReportCard data={reportData} />
+          <AnnualReportCard data={reportData} onRefresh={handleRefreshReport} />
         ) : (
-          <TermReportCard data={{
-            ...reportData,
-            academic: {
-              ...reportData.academic,
-              term: selectedTerm === '1' ? 1 : 2
-            }
-          }} />
+          <TermReportCard 
+            data={{
+              ...reportData,
+              academic: {
+                ...reportData.academic,
+                term: selectedTerm === '1' ? 1 : 2
+              }
+            }}
+            classId={selectedClass}
+            onRefresh={handleRefreshReport}
+          />
         )}      </div>
     )
   }

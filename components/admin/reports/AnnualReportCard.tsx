@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast'
 import { SubjectGrade } from './report-card-types'
 
 interface AnnualReportCardProps {
+  onRefresh?: () => void
   data: {
     student: {
       id: string
@@ -105,7 +106,7 @@ function getCategoryFullLabel(category: string | undefined): string {
   }
 }
 
-export function AnnualReportCard({ data }: AnnualReportCardProps) {
+export function AnnualReportCard({ data, onRefresh }: AnnualReportCardProps) {
   const printRef = useRef<HTMLDivElement>(null)
   const [logoError, setLogoError] = React.useState(false)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)

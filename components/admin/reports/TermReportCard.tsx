@@ -11,6 +11,7 @@ import {
   BookOpen,
   Eye,
   X,
+  Pencil,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import { Button } from '@/components/ui/button'
@@ -23,6 +24,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/lib/auth-context'
+import { getSequenceName, getSequenceNumberFromKey } from '@/lib/report-card-utils'
+import { EditMarkDialog } from './EditMarkDialog'
 // html2pdf.js will be dynamically imported to avoid SSR issues
 
 import { SubjectGrade } from './report-card-types'
@@ -77,6 +81,8 @@ interface TermReportCardProps {
       rank?: number
     }
   }
+  classId?: string
+  onRefresh?: () => void
 }
 
 const TERM_NAMES: Record<number, { en: string, fr: string, ordinal: string }> = {
@@ -164,7 +170,7 @@ function getSpecialityFromClass(className: string | undefined, speciality: strin
   return ''
 }
 
-export function TermReportCard({ data }: TermReportCardProps) {
+export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps) {
   const printRef = useRef<HTMLDivElement>(null)
   const previewRef = useRef<HTMLDivElement>(null)
   const [logoError, setLogoError] = React.useState(false)
@@ -172,6 +178,21 @@ export function TermReportCard({ data }: TermReportCardProps) {
   const [previewScale, setPreviewScale] = useState(0.75)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
   const { toast } = useToast()
+  const { user } = useAuth()
+  
+  // Edit mark/coefficient dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingSubject, setEditingSubject] = useState<{
+    subjectId: string
+    subjectName: string
+    sequenceNumber?: number
+    sequenceName?: string
+    currentMark?: number
+    currentCoefficient?: number
+    editType: 'mark' | 'coefficient' | 'both'
+  } | null>(null)
+  
+  const isAdmin = user?.role === 'admin'
 
   const handleDownloadPDF = async () => {
     if (!printRef.current) return
@@ -331,6 +352,102 @@ export function TermReportCard({ data }: TermReportCardProps) {
       return { seq1: subject.sequences?.seq3 ?? subject.seq3, seq2: subject.sequences?.seq4 ?? subject.seq4 }
     } else {
       return { seq1: subject.sequences?.seq5, seq2: subject.sequences?.seq6 }
+    }
+  }
+
+  // Get global sequence number from term and sequence position (1 or 2)
+  const getGlobalSequenceNumber = (term: number, position: 1 | 2): number => {
+    if (term === 1) return position
+    if (term === 2) return position + 2
+    return position + 4
+  }
+
+  // Handle click on sequence cell
+  const handleSequenceClick = (
+    subject: SubjectGrade,
+    sequencePosition: 1 | 2
+  ) => {
+    if (!isAdmin || !classId) return
+
+    const seqs = getSequenceValues(subject)
+    const currentMark = sequencePosition === 1 ? seqs.seq1 : seqs.seq2
+    const globalSeqNum = getGlobalSequenceNumber(data.academic.term, sequencePosition)
+    const sequenceName = getSequenceName(globalSeqNum)
+
+    setEditingSubject({
+      subjectId: subject.subjectId || '',
+      subjectName: subject.subjectName,
+      sequenceNumber: globalSeqNum,
+      sequenceName,
+      currentMark,
+      currentCoefficient: subject.coefficient,
+      editType: 'mark',
+    })
+    setEditDialogOpen(true)
+  }
+
+  // Handle click on coefficient cell
+  const handleCoefficientClick = async (subject: SubjectGrade) => {
+    if (!isAdmin || !classId) return
+
+    let resolvedSubjectId = subject.subjectId
+
+    // If subjectId is missing, look it up by subject name
+    if (!resolvedSubjectId && subject.subjectName) {
+      try {
+        // Use search parameter to find subject by name
+        const response = await fetch(`/api/subjects?search=${encodeURIComponent(subject.subjectName)}`)
+        if (response.ok) {
+          const data = await response.json()
+          // Find exact match (case-insensitive)
+          if (Array.isArray(data) && data.length > 0) {
+            const exactMatch = data.find((s: any) => 
+              s.name && s.name.trim().toLowerCase() === subject.subjectName.trim().toLowerCase()
+            )
+            if (exactMatch) {
+              resolvedSubjectId = exactMatch.id
+            } else if (data.length === 1) {
+              // If only one result, use it
+              resolvedSubjectId = data[0].id
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error looking up subject ID:', error)
+      }
+    }
+
+    if (!resolvedSubjectId) {
+      toast({
+        title: 'Error',
+        description: 'Could not find subject ID. Please refresh the page and try again.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setEditingSubject({
+      subjectId: resolvedSubjectId,
+      subjectName: subject.subjectName,
+      currentCoefficient: subject.coefficient,
+      editType: 'coefficient',
+    })
+    setEditDialogOpen(true)
+  }
+
+  // Handle mark save completion
+  const handleMarkSaved = () => {
+    if (onRefresh) {
+      try {
+        onRefresh()
+      } catch (error) {
+        console.error('Error refreshing report card:', error)
+        toast({
+          title: 'Warning',
+          description: 'Changes saved but failed to refresh. Please refresh the page manually.',
+          variant: 'destructive',
+        })
+      }
     }
   }
 
@@ -787,6 +904,9 @@ export function TermReportCard({ data }: TermReportCardProps) {
               .pdf-report-card .print\\:border { border-width: 1px !important; }
               .pdf-report-card .print\\:leading-\[1\\.1\] { line-height: 1.1 !important; }
               .pdf-report-card .print\\:space-y-2 > * + * { margin-top: 0.5rem !important; }
+              /* Hide edit functionality in print */
+              .pdf-report-card [class*="cursor-pointer"] { cursor: default !important; }
+              .pdf-report-card [class*="hover:"] { background-color: transparent !important; }
             }
             
             /* Responsive - Medium screens and up */
@@ -1050,9 +1170,48 @@ export function TermReportCard({ data }: TermReportCardProps) {
                               </td>
                             )}
                             <td className="p-1 print:p-0.5 border-r border-gray-300 font-medium" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{subject.subjectName}</td>
-                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{subject.coefficient > 0 ? subject.coefficient : '-'}</td>
-                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{seqs.seq1?.toFixed(1) ?? '-'}</td>
-                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{seqs.seq2?.toFixed(1) ?? '-'}</td>
+                            <td 
+                              className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
+                              style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}
+                              onClick={() => {
+                                if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
+                                  handleCoefficientClick(subject)
+                                }
+                              }}
+                            >
+                              {subject.coefficient > 0 ? subject.coefficient : '-'}
+                              {isAdmin && classId && (
+                                <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
+                              )}
+                            </td>
+                            <td 
+                              className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
+                              style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}
+                              onClick={() => {
+                                if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
+                                  handleSequenceClick(subject, 1)
+                                }
+                              }}
+                            >
+                              {seqs.seq1?.toFixed(1) ?? '-'}
+                              {isAdmin && classId && (
+                                <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
+                              )}
+                            </td>
+                            <td 
+                              className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
+                              style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}
+                              onClick={() => {
+                                if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
+                                  handleSequenceClick(subject, 2)
+                                }
+                              }}
+                            >
+                              {seqs.seq2?.toFixed(1) ?? '-'}
+                              {isAdmin && classId && (
+                                <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
+                              )}
+                            </td>
                             <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{avg > 0 ? avg.toFixed(1) : '-'}</td>
                             <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{totalScore > 0 ? totalScore.toFixed(0) : '-'}</td>
                             <td className={`p-1 print:p-0.5 border-r border-gray-300 text-center font-bold ${grade === 'F' || grade === 'E' || grade === 'U' ? 'text-red-600' : ''}`} style={{ border: '1px solid #d1d5db', padding: '2px 4px', color: (grade === 'F' || grade === 'E' || grade === 'U') ? '#dc2626' : 'inherit' }}>
@@ -1420,9 +1579,45 @@ export function TermReportCard({ data }: TermReportCardProps) {
                                     </td>
                                   )}
                                   <td className="p-1 print:p-0.5 border-r border-gray-300 font-medium">{subject.subjectName}</td>
-                                  <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{subject.coefficient > 0 ? subject.coefficient : '-'}</td>
-                                  <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{seqs.seq1?.toFixed(1) ?? '-'}</td>
-                                  <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{seqs.seq2?.toFixed(1) ?? '-'}</td>
+                                  <td 
+                                    className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
+                                    onClick={() => {
+                                      if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
+                                        handleCoefficientClick(subject)
+                                      }
+                                    }}
+                                  >
+                                    {subject.coefficient > 0 ? subject.coefficient : '-'}
+                                    {isAdmin && classId && (
+                                      <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
+                                    )}
+                                  </td>
+                                  <td 
+                                    className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
+                                    onClick={() => {
+                                      if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
+                                        handleSequenceClick(subject, 1)
+                                      }
+                                    }}
+                                  >
+                                    {seqs.seq1?.toFixed(1) ?? '-'}
+                                    {isAdmin && classId && (
+                                      <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
+                                    )}
+                                  </td>
+                                  <td 
+                                    className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
+                                    onClick={() => {
+                                      if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
+                                        handleSequenceClick(subject, 2)
+                                      }
+                                    }}
+                                  >
+                                    {seqs.seq2?.toFixed(1) ?? '-'}
+                                    {isAdmin && classId && (
+                                      <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
+                                    )}
+                                  </td>
                                   <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{avg > 0 ? avg.toFixed(1) : '-'}</td>
                                   <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{totalScore > 0 ? totalScore.toFixed(0) : '-'}</td>
                                   <td className={`p-1 print:p-0.5 border-r border-gray-300 text-center font-bold ${grade === 'F' || grade === 'E' || grade === 'U' ? 'text-red-600' : ''}`}>
@@ -1575,6 +1770,26 @@ export function TermReportCard({ data }: TermReportCardProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Mark/Coefficient Dialog */}
+      {editingSubject && (
+        <EditMarkDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          subjectName={editingSubject.subjectName}
+          subjectId={editingSubject.subjectId}
+          sequenceNumber={editingSubject.sequenceNumber}
+          sequenceName={editingSubject.sequenceName}
+          currentMark={editingSubject.currentMark}
+          currentCoefficient={editingSubject.currentCoefficient}
+          studentId={editingSubject.editType === 'mark' || editingSubject.editType === 'both' ? data.student.id : undefined}
+          classId={editingSubject.editType === 'mark' || editingSubject.editType === 'both' ? classId : undefined}
+          term={editingSubject.editType === 'mark' || editingSubject.editType === 'both' ? data.academic.term : undefined}
+          academicYear={editingSubject.editType === 'mark' || editingSubject.editType === 'both' ? data.academic.year : undefined}
+          editType={editingSubject.editType}
+          onSave={handleMarkSaved}
+        />
+      )}
     </>
   )
 }

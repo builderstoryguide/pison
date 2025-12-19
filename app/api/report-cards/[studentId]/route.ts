@@ -190,6 +190,7 @@ export async function GET(
           
           return {
             subjectName: item.name,
+            subjectId: item.subjectId, // Include subjectId for editing functionality
             coefficient: item.coef,
             // Include individual sequence marks
             seq1: typeof item.seq1 === 'number' ? item.seq1 : undefined,
@@ -233,6 +234,12 @@ export async function GET(
       return NextResponse.json({
         success: true,
         data: transformedData
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
       })
     } catch (fetchError: any) {
       return NextResponse.json(

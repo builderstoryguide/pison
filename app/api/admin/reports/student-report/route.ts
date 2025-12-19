@@ -271,14 +271,46 @@ export async function GET(req: NextRequest) {
     );
 
     // 5. Fetch Sub-branches for these subjects
-    const { data: subBranches, error: subBranchesError } = await supabase
+    // Try both tables: subject_sub_branches (older) and subject_branches (newer)
+    let subBranches: any[] = [];
+    
+    // Try subject_sub_branches first (older system)
+    const { data: subBranchesOld, error: subBranchesError } = await supabase
       .from('subject_sub_branches')
       .select('*')
       .in('subject_id', subjectIds)
       .eq('is_active', true);
 
-    if (subBranchesError) {
-      console.warn('Failed to fetch sub-branches', subBranchesError);
+    if (subBranchesOld) {
+      subBranches = subBranchesOld.map((sb: any) => ({
+        ...sb,
+        id: sb.id,
+        subject_id: sb.subject_id,
+        name: sb.name,
+        is_active: sb.is_active
+      }));
+    }
+
+    // Also try subject_branches (newer system used by CPB)
+    const { data: subjectBranchesNew, error: subjectBranchesError } = await supabase
+      .from('subject_branches')
+      .select('*')
+      .in('subject_id', subjectIds)
+      .eq('is_active', true);
+
+    if (subjectBranchesNew) {
+      // Map subject_branches to the same format as subject_sub_branches
+      const mappedBranches = subjectBranchesNew.map((sb: any) => ({
+        id: sb.id,
+        subject_id: sb.subject_id,
+        name: sb.branch_name || sb.name, // Use branch_name from subject_branches
+        is_active: sb.is_active
+      }));
+      subBranches = [...subBranches, ...mappedBranches];
+    }
+
+    if (subBranchesError && subjectBranchesError) {
+      console.warn('Failed to fetch sub-branches from both tables:', { subBranchesError, subjectBranchesError });
     }
 
     // 6. Fetch Grades
@@ -459,16 +491,35 @@ export async function GET(req: NextRequest) {
       // For branch grades, we need to check the subject_id of the branch
       if (branchGradesData && subjectTeacherMap.size > 0) {
         // First, get branch details to map branch_id to subject_id
+        // Check both tables: subject_sub_branches (older) and subject_branches (newer, used by CPB)
         const branchIds = [...new Set(branchGradesData.map((bg: any) => bg.branch_id))];
-        const { data: branchDetails } = await supabase
+        
+        const branchToSubjectMap = new Map<string, string>();
+        
+        // Try subject_sub_branches (older system)
+        const { data: branchDetailsOld } = await supabase
           .from('subject_sub_branches')
           .select('id, subject_id')
           .in('id', branchIds);
         
-        const branchToSubjectMap = new Map<string, string>();
-        if (branchDetails) {
-          branchDetails.forEach((branch: any) => {
+        if (branchDetailsOld) {
+          branchDetailsOld.forEach((branch: any) => {
             branchToSubjectMap.set(branch.id, branch.subject_id);
+          });
+        }
+        
+        // Also try subject_branches (newer system, used by CPB)
+        const { data: branchDetailsNew } = await supabase
+          .from('subject_branches')
+          .select('id, subject_id')
+          .in('id', branchIds);
+        
+        if (branchDetailsNew) {
+          branchDetailsNew.forEach((branch: any) => {
+            // Only add if not already mapped (prefer older table if both exist)
+            if (!branchToSubjectMap.has(branch.id)) {
+              branchToSubjectMap.set(branch.id, branch.subject_id);
+            }
           });
         }
         
@@ -816,7 +867,17 @@ export async function GET(req: NextRequest) {
         // Mark this subject as processed
         processedSubjectNames.add(normalizedSubjectName);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const hasSubBranches = (subject as any).has_sub_branches;
+        const hasSubBranchesFlag = (subject as any).has_sub_branches;
+        
+        // Check if this subject has branches in either table
+        // Some subjects like CPB use subject_branches (newer system) even if has_sub_branches is false
+        const branchesFromOldTable = subBranches?.filter(sb => sb.subject_id === subjectId) || [];
+        // subjectBranchesNew is defined earlier in the function scope (line ~295)
+        const branchesFromNewTable = (typeof subjectBranchesNew !== 'undefined' && subjectBranchesNew) 
+          ? subjectBranchesNew.filter((sb: any) => sb.subject_id === subjectId) 
+          : [];
+        const hasSubBranches = hasSubBranchesFlag || branchesFromOldTable.length > 0 || branchesFromNewTable.length > 0;
+        
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const subjectCoef = (subject as any).coefficient || 1;
         // Check if this is a GCE subject (has a code)
@@ -847,7 +908,42 @@ export async function GET(req: NextRequest) {
 
         if (hasSubBranches) {
             // Logic for Sub-branches
-            const branches = subBranches?.filter(sb => sb.subject_id === subjectId) || [];
+            // Combine branches from both tables
+            const branchesOld = subBranches?.filter(sb => sb.subject_id === subjectId) || [];
+            const branchesNew = (typeof subjectBranchesNew !== 'undefined' && subjectBranchesNew)
+              ? subjectBranchesNew.filter((sb: any) => sb.subject_id === subjectId).map((sb: any) => ({
+                  id: sb.id,
+                  subject_id: sb.subject_id,
+                  name: sb.branch_name || sb.name,
+                  is_active: sb.is_active
+                }))
+              : [];
+            const branches = [...branchesOld, ...branchesNew];
+            
+            // Log CPB-specific diagnostics
+            const isCPB = normalizedSubjectName.includes('construction process') || normalizedSubjectName.includes('cpb');
+            if (isCPB) {
+              console.log(`[CPB DIAGNOSTIC] Subject: ${subjectName} (ID: ${subjectId}), hasSubBranches flag: ${hasSubBranchesFlag}`);
+              console.log(`[CPB DIAGNOSTIC] Branches found - Old table: ${branchesOld.length}, New table: ${branchesNew.length}, Total: ${branches.length}`);
+              console.log(`[CPB DIAGNOSTIC] Branch grades available: ${branchGradesData?.length || 0}`);
+              if (branches.length > 0) {
+                console.log(`[CPB DIAGNOSTIC] Branch IDs:`, branches.map(b => b.id));
+              }
+              if (branchGradesData && branchGradesData.length > 0) {
+                const cpbBranchGrades = branchGradesData.filter((bg: any) => {
+                  const branchId = bg.branch_id;
+                  return branches.some(b => b.id === branchId);
+                });
+                console.log(`[CPB DIAGNOSTIC] Branch grades matching CPB branches: ${cpbBranchGrades.length}`);
+                if (cpbBranchGrades.length > 0) {
+                  const termFiltered = cpbBranchGrades.filter((bg: any) => {
+                    const assessment = bg.assessment as any;
+                    return isTargetTerm(assessment?.term || null, assessment?.title || null);
+                  });
+                  console.log(`[CPB DIAGNOSTIC] Branch grades for target term: ${termFiltered.length}`);
+                }
+              }
+            }
             
             if (branches.length > 0) {
                 let sumScaledMarks = 0;
@@ -877,6 +973,21 @@ export async function GET(req: NextRequest) {
                     // Average of available branches
                     finalMark = sumScaledMarks / countBranchedGraded;
                     hasMark = true;
+                    
+                    // Log CPB calculation result
+                    if (isCPB) {
+                      console.log(`[CPB DIAGNOSTIC] Calculated final mark: ${finalMark}, from ${countBranchedGraded} branches`);
+                    }
+                } else {
+                    // Log if no branches had grades
+                    if (isCPB) {
+                      console.log(`[CPB DIAGNOSTIC] No branch grades found for target term. Branches checked: ${branches.length}`);
+                    }
+                }
+            } else {
+                // Log if no branches found
+                if (isCPB) {
+                  console.log(`[CPB DIAGNOSTIC] No branches found for CPB subject! This is the problem.`);
                 }
             }
 
@@ -1253,6 +1364,7 @@ export async function GET(req: NextRequest) {
             
             reportItems.push({
                 name: subjectName.trim(), // Ensure trimmed for consistency
+                subjectId: subjectId, // Include subjectId for editing functionality
                 code: subjectCode || undefined, // Include subject code for GCE identification
                 eval: parseFloat(finalMark.toFixed(2)),
                 coef: coef,
@@ -1269,6 +1381,7 @@ export async function GET(req: NextRequest) {
             // Set coefficient to 0 so it's excluded from all calculations and displays
             reportItems.push({
                 name: subjectName.trim(), // Ensure trimmed for consistency
+                subjectId: subjectId, // Include subjectId for editing functionality
                 code: subjectCode || undefined, // Include subject code for GCE identification
                 eval: '-',
                 coef: 0, // Set to 0 when no marks - excluded from calculations
@@ -1687,7 +1800,13 @@ export async function GET(req: NextRequest) {
         }
     };
 
-    return NextResponse.json(reportData);
+    return NextResponse.json(reportData, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
 
 
   } catch (error: unknown) {

@@ -155,12 +155,24 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(errorResponse, { status: 500 });
       }
     } catch (networkError) {
-      console.error('Network error when validating database setup:', networkError);
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      console.error('Network error when validating database setup:', {
+        error: networkError,
+        supabaseUrl: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'NOT SET',
+        errorMessage: networkError instanceof Error ? networkError.message : 'Unknown error',
+        errorCause: networkError instanceof Error ? networkError.cause : undefined
+      });
+      
       return NextResponse.json(
         { 
           error: 'Database connection error',
-          message: 'Unable to connect to the database. Please check your network connection.',
-          details: networkError instanceof Error ? networkError.message : 'Network connection failed'
+          message: 'Unable to connect to the database. Please check your network connection and Supabase URL configuration.',
+          details: networkError instanceof Error ? networkError.message : 'Network connection failed',
+          hint: !supabaseUrl 
+            ? 'NEXT_PUBLIC_SUPABASE_URL environment variable is not set.'
+            : supabaseUrl.includes('localhost') || supabaseUrl.includes('127.0.0.1')
+            ? 'If using local Supabase, ensure the service is running and accessible.'
+            : 'Verify that your Supabase project URL is correct and the service is accessible.'
         },
         { status: 500 }
       );
@@ -184,30 +196,103 @@ export async function GET(request: NextRequest) {
     // Try ordering by created_at; if it fails because the column doesn't exist in the view,
     // fall back to ordering by id.
     let users, error, count;
-    const firstAttempt = await baseQuery
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    users = firstAttempt.data as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    error = firstAttempt.error as any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    count = firstAttempt.count as any;
-
-    if (error && /created_at/i.test(error.message || '') && /column|does not exist/i.test(error.message || '')) {
-      const secondAttempt = await baseQuery
-        .order('id', { ascending: false })
+    try {
+      const firstAttempt = await baseQuery
+        .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      users = secondAttempt.data as any;
+      users = firstAttempt.data as any;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      error = secondAttempt.error as any;
+      error = firstAttempt.error as any;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      count = secondAttempt.count as any;
+      count = firstAttempt.count as any;
+
+      if (error && /created_at/i.test(error.message || '') && /column|does not exist/i.test(error.message || '')) {
+        const secondAttempt = await baseQuery
+          .order('id', { ascending: false })
+          .range(offset, offset + limit - 1);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        users = secondAttempt.data as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        error = secondAttempt.error as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        count = secondAttempt.count as any;
+      }
+    } catch (fetchError) {
+      // Catch network/fetch errors that might not be in the error property
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      console.error('Fetch error during query execution:', {
+        error: fetchError,
+        supabaseUrl: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'NOT SET',
+        errorMessage: fetchError instanceof Error ? fetchError.message : 'Unknown error',
+        errorCause: fetchError instanceof Error ? fetchError.cause : undefined
+      });
+      
+      return NextResponse.json(
+        { 
+          error: 'Database connection error',
+          message: 'Unable to connect to the database. Please check your network connection and Supabase URL configuration.',
+          details: fetchError instanceof Error ? fetchError.message : 'Network connection failed',
+          hint: !supabaseUrl 
+            ? 'NEXT_PUBLIC_SUPABASE_URL environment variable is not set.'
+            : supabaseUrl.includes('localhost') || supabaseUrl.includes('127.0.0.1')
+            ? 'If using local Supabase, ensure the service is running and accessible.'
+            : 'Verify that your Supabase project URL is correct and the service is accessible.',
+          code: 'FETCH_ERROR'
+        },
+        { status: 500 }
+      );
     }
 
     if (error) {
-      console.error('Error fetching users:', error);
+      // Log full error details for debugging
+      const errorDetails = {
+        message: error.message,
+        details: (error as any).details,
+        code: error.code,
+        cause: (error as any).cause,
+        hint: (error as any).hint,
+        stack: error instanceof Error ? error.stack : undefined
+      };
+      console.error('Error fetching users:', errorDetails);
+      
+      // Check if it's a network/fetch error
+      const errorMessage = error.message || (error as any).details || '';
+      const isNetworkError = 
+        errorMessage.includes('fetch failed') ||
+        errorMessage.includes('TypeError: fetch failed') ||
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('ENOTFOUND') ||
+        errorMessage.includes('ETIMEDOUT') ||
+        errorMessage.includes('network') ||
+        errorMessage.includes('ECONNRESET') ||
+        errorMessage.includes('socket hang up');
+      
+      if (isNetworkError) {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        console.error('Network error details:', {
+          supabaseUrl: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : 'NOT SET',
+          errorMessage: errorMessage,
+          errorCode: error.code,
+          errorCause: (error as any).cause,
+          fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+        });
+        
+        return NextResponse.json(
+          { 
+            error: 'Database connection error',
+            message: 'Unable to connect to the database. Please check your network connection and Supabase URL configuration.',
+            details: errorMessage || 'Network connection failed',
+            hint: !supabaseUrl 
+              ? 'NEXT_PUBLIC_SUPABASE_URL environment variable is not set.'
+              : supabaseUrl.includes('localhost') || supabaseUrl.includes('127.0.0.1')
+              ? 'If using local Supabase, ensure the service is running and accessible.'
+              : 'Verify that your Supabase project URL is correct and the service is accessible.',
+            code: error.code || 'NETWORK_ERROR'
+          },
+          { status: 500 }
+        );
+      }
       
       // Check if it's a schema-related error
       if (
