@@ -1,0 +1,42 @@
+{
+  "classSubjects": [
+    {
+      "id": "2b314146-9159-4895-8469-4ac79f639d74",
+      "subject_id": "b1daf2e6-413e-48a5-93b2-9f907b752fbb",
+      "subjects": {
+        "id": "b1daf2e6-413e-48a5-93b2-9f907b752fbb",
+        "code": null,
+        "name": "Computer Aided Management (CAM)",
+        "has_sub_branches": false
+      }
+    }
+  ],
+  "assessments": [
+    {
+      "id": "eb1e7eb9-dbb3-4718-99e1-a40f984ef861",
+      "title": "First Sequence",
+      "subject": "Computer Aided Management (CAM)",
+      "type": "exam"
+    },
+    {
+      "id": "fb908289-9491-4e77-9a87-8b42cd007e74",
+      "title": "Second Sequence",
+      "subject": "Computer Aided Management (CAM)",
+      "type": "exam"
+    }
+  ],
+  "gradesCount": 2,
+  "gradeSample": [
+    {
+      "id": "2186bbfb-b700-4150-afd4-1db7b357c18b",
+      "assessment_id": "eb1e7eb9-dbb3-4718-99e1-a40f984ef861",
+      "student_id": "1ebff7c4-d950-4fef-8d14-f6a1428f3d43",
+      "student_name": null,
+      "marks_obtained": 16,
+      "percentage": 80,
+      "grade_letter": "B",
+      "remarks": "Very Good",
+      "submitted_at": "2025-12-19T12:35:44.383+00:00"
+    }
+  ]
+}

@@ -106,13 +106,14 @@ export async function GET(
     }
 
     // Fetch class details
-    const { data: classData, error: classError } = await supabase
+    const { data: _classData, error: classError } = await supabase
       .from('classes')
       .select('*')
       .eq('id', classId)
       .single()
 
     if (classError) {
+      // eslint-disable-next-line no-console
       console.warn('Class not found', classError)
     }
 
@@ -154,12 +155,22 @@ export async function GET(
       }
 
       // Transform PisonReportCardData to ReportCardData format
-      if (!reportResult.student || !reportResult.subjects?.general?.items || !reportResult.totals) {
+      if (!reportResult.student || !reportResult.subjects || !reportResult.totals) {
         return NextResponse.json(
           { success: false, error: 'Invalid report data structure' },
           { status: 500 }
         )
       }
+
+      // Flatten all subject sections into a single array
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allSubjects: any[] = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      Object.values(reportResult.subjects).forEach((section: any) => {
+        if (section.items && Array.isArray(section.items)) {
+          allSubjects.push(...section.items);
+        }
+      });
 
       const transformedData: ReportCardData = {
         student: {
@@ -183,7 +194,9 @@ export async function GET(
           term: reportResult.academic.term,
           orderNo: reportResult.academic.orderNo
         },
-        subjects: reportResult.subjects.general?.items?.map((item: any) => {          // Ensure category is valid
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        subjects: allSubjects.map((item: any) => {
+          // Ensure category is valid
           const validCategories = ['languages', 'related_trade_subjects', 'trade_subjects', 'others'];
           const itemCategory = item.category || 'others';
           const category = validCategories.includes(itemCategory) ? itemCategory : 'others';
@@ -215,7 +228,7 @@ export async function GET(
             remarks: item.remark,
             category: category
           };
-        }) || [],
+        }),
         totals: {
           coefficient: reportResult.totals.coef,
           totalScore: reportResult.totals.score,
@@ -241,6 +254,7 @@ export async function GET(
           'Expires': '0',
         },
       })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (fetchError: any) {
       return NextResponse.json(
         { 
@@ -250,7 +264,9 @@ export async function GET(
         { status: 500 }
       )
     }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
+    // eslint-disable-next-line no-console
     console.error('Report card generation error:', error)
     return NextResponse.json(
       { 

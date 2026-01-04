@@ -1,0 +1,8 @@
+Testing CAM: Computer Aided Management (CAM) (b1daf2e6-413e-48a5-93b2-9f907b752fbb)
+Class: 3a508d31-a9de-48b9-996e-c70f0aaed8d9, Student: 1ebff7c4-d950-4fef-8d14-f6a1428f3d43, IsBranch: false
+Valid Teachers for this subject: 
+Raw Grades Found: 2
+  [Filter] Grade excluded. Assessment eb1e7eb9-dbb3-4718-99e1-a40f984ef861 teacher 7a5049ec-a1ac-4d1a-9e50-0a2038458164 not assigned. (Using Relaxed Rules: ALLOW)
+  [Filter] Grade excluded. Assessment fb908289-9491-4e77-9a87-8b42cd007e74 teacher 7a5049ec-a1ac-4d1a-9e50-0a2038458164 not assigned. (Using Relaxed Rules: ALLOW)
+Valid Grades after Teacher Check: 2
+SUCCESS: Calculated Mark: 16

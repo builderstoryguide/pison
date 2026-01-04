@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { authenticateUser, isAdmin } from '@/lib/auth/server'
 
 function calculateGrade(mark: number, totalMarks: number = 20): string {
+  if (totalMarks <= 0) return 'F'
   const percentage = (mark / totalMarks) * 100
   if (percentage >= 85) return 'A'
   if (percentage >= 70) return 'B'
@@ -11,7 +12,6 @@ function calculateGrade(mark: number, totalMarks: number = 20): string {
   if (percentage >= 40) return 'E'
   return 'F'
 }
-
 function calculateRemarks(grade: string): string {
   switch (grade) {
     case 'A': return 'Excellent'
@@ -63,28 +63,27 @@ export async function POST(request: NextRequest) {
 
     let successCount = 0
     const errors: string[] = []
-
-    // Get all assessments to calculate grades
-    const assessmentIds = [...new Set(marksData.map((m: any) => m.assessmentId))]
-    const { data: assessments } = await supabase
-      .from('assessments')
-      .select('id, total_marks')
-      .in('id', assessmentIds)
-
-    const assessmentMap: Record<string, number> = {}
-    if (assessments) {
-      assessments.forEach((a: any) => {
-        assessmentMap[a.id] = a.total_marks || 20
-      })
-    }
+    
+    // Prepare assessment cache to avoid repetitive DB calls
+    const assessmentCache: Record<string, { id: string, total_marks: number }> = {}
 
     // Process each mark
     for (const markData of marksData) {
       try {
-        const { studentId, assessmentId, marksObtained, remarks } = markData
+        const { 
+          studentId, 
+          assessmentId: providedAssessmentId, 
+          marksObtained, 
+          remarks,
+          // New fields for implicit creation
+          classId,
+          subjectName,
+          sequenceName
+          // sequenceType removed as it was unused
+        } = markData
 
-        if (!studentId || !assessmentId || marksObtained === undefined) {
-          errors.push(`Missing required fields for mark: ${JSON.stringify(markData)}`)
+        if (!studentId || marksObtained === undefined) {
+          errors.push(`Missing required fields (studentId, marksObtained) for mark: ${JSON.stringify(markData)}`)
           continue
         }
 
@@ -93,7 +92,95 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        const totalMarks = assessmentMap[assessmentId] || 20
+        let assessmentId = providedAssessmentId
+        let totalMarks = 20 // Default
+
+        // If no assessmentId provided, try to find or create one from context
+        if (!assessmentId) {
+          if (!classId || !subjectName || !sequenceName) {
+            errors.push(`Missing assessment context (classId, subjectName, sequenceName) for student ${studentId} when assessmentId is not provided`)
+            continue
+          }
+
+          // Generate a cache key
+          const cacheKey = `${classId}-${subjectName}-${sequenceName}`
+          
+          if (assessmentCache[cacheKey]) {
+             assessmentId = assessmentCache[cacheKey].id
+             totalMarks = assessmentCache[cacheKey].total_marks
+          } else {
+             // Find or create assessment
+             // 1. Try to find existing
+             let { data: existingAssessment } = await supabase
+               .from('assessments')
+               .select('id, total_marks')
+               .eq('class_id', classId)
+               .eq('subject', subjectName)
+               .eq('title', sequenceName)
+               .maybeSingle()
+
+             // Case-insensitive fallback
+             if (!existingAssessment) {
+                const { data: allMatches } = await supabase
+                  .from('assessments')
+                  .select('id, subject, total_marks')
+                  .eq('class_id', classId)
+                  .eq('title', sequenceName)
+                
+                if (allMatches && allMatches.length > 0) {
+                  const normalizedNew = subjectName.toLowerCase().trim();
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const match = allMatches.find((a: any) => 
+                    a.subject && a.subject.trim().toLowerCase() === normalizedNew
+                  );
+                  if (match) {
+                    existingAssessment = match;
+                  }
+                }
+             }
+
+             if (existingAssessment) {
+               assessmentId = existingAssessment.id
+               totalMarks = existingAssessment.total_marks || 20
+             } else {
+               // 2. Create new assessment
+               const { data: newAssessment, error: createError } = await supabase
+                .from('assessments')
+                .insert({
+                  title: sequenceName,
+                  type: 'exam', // Default type for bulk uploads
+                  subject: subjectName,
+                  class_id: classId,
+                  teacher_id: user.id, // Use admin ID as teacher
+                  total_marks: 20,
+                  status: 'published',
+                  assessment_date: new Date().toISOString().split('T')[0],
+                })
+                .select()
+                .single()
+               
+               if (createError) {
+                 errors.push(`Failed to create assessment for ${subjectName}: ${createError.message}`)
+                 continue
+               }
+               
+               assessmentId = newAssessment.id
+               totalMarks = newAssessment.total_marks || 20
+             }
+             
+             // Update cache
+             assessmentCache[cacheKey] = { id: assessmentId, total_marks: totalMarks }
+          }
+        } else {
+          const { data: assessmentData } = await supabase
+             .from('assessments')
+             .select('total_marks')
+             .eq('id', assessmentId)
+             .single()
+          
+          totalMarks = assessmentData?.total_marks || 20
+        }
+
         const percentage = Math.round((marksObtained / totalMarks) * 100 * 100) / 100
         const gradeLetter = calculateGrade(marksObtained, totalMarks)
         const gradeRemarks = remarks || calculateRemarks(gradeLetter)
@@ -143,7 +230,7 @@ export async function POST(request: NextRequest) {
             successCount++
           }
         }
-      } catch (err: any) {
+      } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
         errors.push(`Error processing mark: ${err.message}`)
       }
     }
@@ -153,7 +240,8 @@ export async function POST(request: NextRequest) {
       successCount,
       errors: errors.length > 0 ? errors : undefined,
     })
-  } catch (error: any) {
+  } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line no-console
     console.error('Error in POST /api/admin/marks/bulk:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
@@ -203,14 +291,17 @@ export async function PUT(request: NextRequest) {
     const errors: string[] = []
 
     // Get all grades to get assessment info
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const gradeIds = marksData.map((m: any) => m.gradeId).filter(Boolean)
     const { data: existingGrades } = await supabase
       .from('grades')
       .select('id, assessment_id, assessments!inner(total_marks)')
       .in('id', gradeIds)
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const gradeMap: Record<string, any> = {}
     if (existingGrades) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       existingGrades.forEach((g: any) => {
         gradeMap[g.id] = {
           assessmentId: g.assessment_id,
@@ -229,7 +320,7 @@ export async function PUT(request: NextRequest) {
           continue
         }
 
-        if (typeof marksObtained !== 'number' || marksObtained < 0 || marksObtained > 20) {
+        if (typeof marksObtained !== 'number' || marksObtained < 0) {
           errors.push(`Invalid mark value for grade ${gradeId}: ${marksObtained}`)
           continue
         }
@@ -241,7 +332,12 @@ export async function PUT(request: NextRequest) {
         }
 
         const totalMarks = gradeInfo.totalMarks
+        if (marksObtained > totalMarks) {
+          errors.push(`Mark ${marksObtained} exceeds total marks ${totalMarks} for grade ${gradeId}`)
+          continue
+        }
         const percentage = Math.round((marksObtained / totalMarks) * 100 * 100) / 100
+
         const gradeLetter = calculateGrade(marksObtained, totalMarks)
         const gradeRemarks = remarks !== undefined ? remarks : calculateRemarks(gradeLetter)
 
@@ -260,7 +356,7 @@ export async function PUT(request: NextRequest) {
         } else {
           successCount++
         }
-      } catch (err: any) {
+      } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
         errors.push(`Error processing mark update: ${err.message}`)
       }
     }
@@ -270,7 +366,8 @@ export async function PUT(request: NextRequest) {
       successCount,
       errors: errors.length > 0 ? errors : undefined,
     })
-  } catch (error: any) {
+  } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line no-console
     console.error('Error in PUT /api/admin/marks/bulk:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
@@ -323,6 +420,7 @@ export async function DELETE(request: NextRequest) {
       .in('id', gradeIds)
 
     if (deleteError) {
+      // eslint-disable-next-line no-console
       console.error('Error deleting grades:', deleteError)
       return NextResponse.json(
         { error: 'Failed to delete grades' },
@@ -334,7 +432,8 @@ export async function DELETE(request: NextRequest) {
       success: true,
       deletedCount: count || 0,
     })
-  } catch (error: any) {
+  } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line no-console
     console.error('Error in DELETE /api/admin/marks/bulk:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },

@@ -530,12 +530,12 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
 
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
-                  <Label htmlFor="matricule_number">Matricule Number</Label>
+                  <Label htmlFor="matricule_number">Unique Identifier Number</Label>
                   <Input
                     id="matricule_number"
                     value={formData.matricule_number || ""}
                     onChange={(e) => handleInputChange("matricule_number", e.target.value)}
-                    placeholder="Matricule number"
+                    placeholder="Unique identifier number"
                   />
                 </div>
               </div>

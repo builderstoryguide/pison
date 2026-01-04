@@ -1,0 +1,5 @@
+Checking Teacher: 7a5049ec-a1ac-4d1a-9e50-0a2038458164
+Error: {"code":"PGRST116","details":"The result contains 0 rows","hint":null,"message":"Cannot coerce the result to a single JSON object"}
+
+Assigned Subjects:
+No subjects assigned.

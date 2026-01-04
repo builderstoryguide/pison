@@ -177,7 +177,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
   const isStepValid = (step: number): boolean => {
     switch (step) {
       case 1:
-        return !!(formData.firstName && formData.lastName && formData.matriculeNumber && formData.dateOfBirth && formData.placeOfBirth)
+        return !!(formData.firstName && formData.lastName && formData.dateOfBirth && formData.placeOfBirth)
       case 2:
         return !!(formData.address && formData.city && (!formData.email || formData.email.includes('@')) && (!formData.phone || isValidPhoneFormat(formData.phone)))
       case 3:
@@ -199,7 +199,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
       case 1:
         if (!formData.firstName) return "First name is required"
         if (!formData.lastName) return "Last name is required"
-        if (!formData.matriculeNumber) return "Matricule number is required"
+        
         if (!formData.dateOfBirth) return "Date of birth is required"
         if (!formData.placeOfBirth) return "Place of birth is required"
         break
@@ -310,14 +310,13 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
 
                 <div className="space-y-2">
                   <Label htmlFor="matriculeNumber">
-                    Matricule Number <span className="text-destructive">*</span>
+                    Unique Identifier Number
                   </Label>
                   <Input
                     id="matriculeNumber"
                     value={formData.matriculeNumber}
                     onChange={(e) => updateFormData('matriculeNumber', e.target.value)}
-                    placeholder="Enter matricule number"
-                    required
+                    placeholder="Enter unique identifier number"
                   />
                 </div>
 

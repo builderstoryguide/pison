@@ -214,35 +214,14 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
       await new Promise(resolve => setTimeout(resolve, 100))
       
       // Calculate scaling to fit on single page
+      // REMOVED scaling logic to allow multi-page
       const originalStyle = element.getAttribute('style') || ''
-      const a4HeightPx = 1122 // Approx 297mm at 96 DPI
-      const contentHeight = element.scrollHeight
-      // const contentWidth = element.scrollWidth
+      // const a4HeightPx = 1122 // Approx 297mm at 96 DPI
+      // const contentHeight = element.scrollHeight
       
-      let scale = 1
-      if (contentHeight > a4HeightPx) {
-        // Calculate scale needed to fit height, with small buffer
-        scale = (a4HeightPx - 20) / contentHeight 
-      }
+      // let scale = 1
+      // WE DO NOT SCALE DOWN ANYMORE so it can span multiple pages
 
-      // Apply scaling if needed
-      if (scale < 1) {
-        // We need to scale down the content
-        // We also need to adjust margins/width to keep it centered effectively if needed,
-        // but simple scaling is usually enough for "fit to page"
-        element.style.transform = `scale(${scale})`
-        element.style.transformOrigin = 'top left'
-        // Adjust width to compensate for scaling so it still fills the PDF width visually if appropriate,
-        // but usually we just want it to fit.
-        // Actually, if we scale down, the visual width shrinks. 
-        // HTML2PDF captures the visual state.
-        // If we want it to still look "full width" on the PDF paper, we'd need to change page size, but we want A4.
-        // So visually it will look smaller on the A4 page. This is the definition of scaling to fit.
-        element.style.width = `${100 / scale}%` // Compensate width to fill page?
-        // If we increase width, flow might change and height might decrease?
-        // Let's just scale the container. preserving aspect ratio is key for "exact match".
-        element.style.width = `${210 / scale}mm` // Compensate width
-      }
 
       // Configure PDF options with optimized settings for high-quality output
       const opt = {
@@ -269,7 +248,8 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
           orientation: 'portrait',
           compress: true,
           precision: 16
-        }
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       }
 
       // Generate and download PDF
@@ -473,7 +453,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
     }
 
     data.subjects.forEach(subject => {
-      const category = subject.category || 'other_subjects'
+      const category = subject.category === 'others' ? 'other_subjects' : (subject.category || 'other_subjects')
       groups[category] = groups[category] || []
       groups[category].push(subject)
     })
@@ -482,7 +462,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
       category,
       subjects: groups[category] || []
     })).filter(group => group.subjects.length > 0)
-  }, [data, categoryOrder])
+  }, [categoryOrder, data.subjects])
 
   // Calculate category summaries
   // Only include coefficients for subjects that have marks (coefficient > 0)
@@ -907,7 +887,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
               .pdf-report-card .print\\:shadow-none { box-shadow: none !important; }
               .pdf-report-card .print\\:w-full { width: 100% !important; }
               .pdf-report-card .print\\:max-w-full { max-width: 100% !important; }
-              .pdf-report-card .print\\:h-\\[297mm\\] { height: 297mm !important; }
+              .pdf-report-card .print\\:h-\\[297mm\\] { min-height: 297mm !important; height: auto !important; }
               .pdf-report-card .print\\:border { border-width: 1px !important; }
               .pdf-report-card .print\\:leading-\\[1\\.1\\] { line-height: 1.1 !important; }
               .pdf-report-card .print\\:space-y-2 > * + * { margin-top: 0.5rem !important; }
@@ -963,7 +943,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
         </div>
 
         {/* Main Report Card Sheet */}
-        <div className="pdf-report-card max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none print:w-full print:max-w-full overflow-hidden text-xs print:text-[8pt] relative print:h-[297mm]" ref={printRef}>
+        <div className="pdf-report-card max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none print:w-full print:max-w-full text-xs print:text-[8pt] relative print:h-[297mm]" ref={printRef}>
         
         <div className="px-8 print:px-3 pt-0 print:pt-6 pb-0 print:pb-2 flex flex-col gap-0 relative" style={{ color: 'rgba(26, 26, 26, 1)' }}>
           

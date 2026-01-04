@@ -1,0 +1,46 @@
+{
+  "classId": "01e6f09f-28ec-49df-9d1d-bc37d6f38cc9",
+  "camAssignments": [
+    {
+      "name": "Computer Aided Management (CAM)",
+      "id": "b1daf2e6-413e-48a5-93b2-9f907b752fbb"
+    }
+  ],
+  "camAssessments": [
+    {
+      "subject": "Resource Management on Home Studies (RMHS)",
+      "id": "230ff330-07fc-4d0a-a278-f5c2552297f6"
+    },
+    {
+      "subject": "Resource Management on Home Studies (RMHS)",
+      "id": "5908f9d3-e572-40f1-adee-dfd59f65cf05"
+    },
+    {
+      "subject": "Resource Management on Home Studies (RMHS)",
+      "id": "9bd17349-a61f-4114-ab6a-ac637667c43a"
+    },
+    {
+      "subject": "Resource Management on Home Studies (RMHS)",
+      "id": "e716fb4e-553b-43ff-ad99-6068c4a06ac0"
+    }
+  ],
+  "allAssessmentSubjects": [
+    "Citizenship (CTZ)",
+    "Physical Education (PE)",
+    "Manual Labour (LB)",
+    "ENGLISH LANGUAGE (ENG LAN)",
+    "Family Life Education and Gerontology (FLEG)",
+    "French Language",
+    "Food, Nutrition and Health (FNH)",
+    "MATHEMATICS",
+    "Entrepreneurship",
+    "Business Mathematics",
+    "Resource Management on Home Studies (RMHS)",
+    "Natural Science"
+  ],
+  "match": false,
+  "comparison": {
+    "assigned": "Computer Aided Management (CAM)",
+    "assessment": "Resource Management on Home Studies (RMHS)"
+  }
+}
