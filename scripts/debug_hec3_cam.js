@@ -1,10 +1,20 @@
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config({ path: '.env.local' });
-
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    console.error('Missing required environment variables: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY)');
+    process.exit(1);
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+    console.error('Missing required environment variables: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY)');
+    process.exit(1);
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 async function debugHEC3() {
     console.log('--- Debugging HEC 3 CAM ---');
 
@@ -22,8 +32,7 @@ async function debugHEC3() {
         `)
         .eq('class_id', hec3.id);
     
-    const camAssignments = classSubjects.filter(cs => cs.subjects.name.match(/Computer Aided|CAM/i));
-    console.log(`\nAssigned CAM Subjects (${camAssignments.length}):`);
+    const camAssignments = classSubjects.filter(cs => cs.subjects.name.match(/Computer Aided Management|CAM(?!\w)/i));    console.log(`\nAssigned CAM Subjects (${camAssignments.length}):`);
     camAssignments.forEach(cs => {
         console.log(`- ${cs.subjects.name} (ID: ${cs.subjects.id})`);
         console.log(`  Target isBranch: ${cs.subjects.has_sub_branches}`);
@@ -73,7 +82,13 @@ async function debugHEC3() {
     }
     
     fs.writeFileSync('hec3_debug.json', JSON.stringify(output, null, 2));
-    console.log('Written to hec3_debug.json');
-}
-
-debugHEC3();
+    try {
+        fs.writeFileSync('hec3_debug.json', JSON.stringify(output, null, 2));
+        console.log('Written to hec3_debug.json');
+    } catch (error) {
+        console.error('Failed to write hec3_debug.json:', error.message);
+    }
+debugHEC3().catch(error => {
+    console.error('Debug script failed:', error);
+    process.exit(1);
+});

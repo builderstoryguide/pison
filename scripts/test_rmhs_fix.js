@@ -22,14 +22,16 @@ async function runTest() {
     
     const subjectId = rmhsConfig.subjects.id;
     const subjectName = rmhsConfig.subjects.name;
-    const hasSubBranchesFlag = rmhsConfig.subjects.has_sub_branches;
-    
     // Check tables
-    const { count: branchesOld } = await supabase.from('subject_sub_branches').select('*', { count: 'exact', head: true }).eq('subject_id', subjectId);
-    const { count: branchesNew } = await supabase.from('subject_branches').select('*', { count: 'exact', head: true }).eq('subject_id', subjectId);
+    const { count: branchesOld, error: oldErr } = await supabase.from('subject_sub_branches').select('*', { count: 'exact', head: true }).eq('subject_id', subjectId);
+    const { count: branchesNew, error: newErr } = await supabase.from('subject_branches').select('*', { count: 'exact', head: true }).eq('subject_id', subjectId);
+    if (oldErr) console.warn('Warning: Could not fetch subject_sub_branches:', oldErr);
+    if (newErr) console.warn('Warning: Could not fetch subject_branches:', newErr);
     
-    let hasSubBranches = hasSubBranchesFlag || (branchesOld > 0) || (branchesNew > 0);
-    console.log(`Subject: ${subjectName}`);
+    let hasSubBranches = hasSubBranchesFlag || ((branchesOld ?? 0) > 0) || ((branchesNew ?? 0) > 0);    if (oldErr) console.warn('Warning: Could not fetch subject_sub_branches:', oldErr);
+    if (newErr) console.warn('Warning: Could not fetch subject_branches:', newErr);
+    
+    let hasSubBranches = hasSubBranchesFlag || ((branchesOld ?? 0) > 0) || ((branchesNew ?? 0) > 0);    console.log(`Subject: ${subjectName}`);
     console.log(`Has Sub Branches (calculated): ${hasSubBranches}`);
 
     // 2. Fetch Grades

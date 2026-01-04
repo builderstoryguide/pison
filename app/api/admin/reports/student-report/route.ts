@@ -1131,16 +1131,6 @@ export async function GET(req: NextRequest) {
                     console.log(`[${subjectName.toUpperCase()} MATCHING] ✓ Assessment subject "${assessSubject}" MATCHES "${subjectName}"`);
                 }
                 
-                // FORCE MATCH for "Computer Aided Management" to handle potential data mismatches
-                const isCAM = assessSubject.toLowerCase().includes('computer aided management') || 
-                             subjectName.toLowerCase().includes('computer aided management');
-                
-                if (isCAM) {
-                     // If it's CAM, be very permissive about term/title matching to ensure visibility
-                     // especially if the academic year/term data is missing or mismatched
-                     return true;
-                }
-
                 return matches && 
                     isTargetTerm(assessment?.term || null, assessment?.title || null);
             }) || [];

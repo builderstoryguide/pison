@@ -51,12 +51,7 @@ async function runTest() {
     if (gradesError) { log(`Error fetching grades: ${gradesError.message}`); return; }
     if (!grades) { log('No grades data returned'); return; }
 
-    log(`Raw Grades Found: ${grades.length}`);
-    if (gradesError) { log(`Error fetching grades: ${gradesError.message}`); return; }
-    if (!grades) { log('No grades data returned'); return; }
-
-    log(`Raw Grades Found: ${grades.length}`);
-    // 4. Simulate Filter
+    log(`Raw Grades Found: ${grades.length}`);    // 4. Simulate Filter
     const validGrades = grades.filter(g => {
         const assessment = assessments.find(a => a.id === g.assessment_id);
         if (!assessment) return false;

@@ -20,10 +20,10 @@ async function checkTeacher() {
 
     // 2. Get User Name
     if (teacher && teacher.user_id) {
-         const { data: user } = await supabase.from('users').select('name, email').eq('id', teacher.user_id).single();
-         log('User Profile: ' + JSON.stringify(user));
+         const { data: user, error: userError } = await supabase.from('users').select('name, email').eq('id', teacher.user_id).single();
+         if (userError) log('User Error: ' + JSON.stringify(userError));
+         else log('User Profile: ' + JSON.stringify(user));
     }
-
     // 3. Get Assignments
     const { data: assignments } = await supabase.from('teacher_subjects')
         .select(`
@@ -35,9 +35,12 @@ async function checkTeacher() {
     log('\nAssigned Subjects:');
     if (assignments && assignments.length > 0) {
         assignments.forEach(a => {
-            log(`- ${a.subjects.name} (${a.subjects.code || 'No Code'}) [ID: ${a.subjects.id}]`);
-        });
-    } else {
+            if (a.subjects) {
+                log(`- ${a.subjects.name} (${a.subjects.code || 'No Code'}) [ID: ${a.subjects.id}]`);
+            } else {
+                log(`- [ERROR: Subject not found for subject_id: ${a.subject_id}]`);
+            }
+        });    } else {
         log('No subjects assigned.');
     }
 }

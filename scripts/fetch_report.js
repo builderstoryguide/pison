@@ -49,6 +49,7 @@ async function fetchReport() {
         
         let foundAny = false;
         Object.values(data.subjects).forEach(section => {
+            if (!section.items) return;
             section.items.forEach(item => {
                 if (subjectsToCheck.some(s => item.name.includes(s))) {
                     console.log(`Found "${item.name}" in section "${section.title}" (Category: ${item.category})`);
@@ -56,7 +57,6 @@ async function fetchReport() {
                 }
             });
         });
-
         if (!foundAny) {
             console.log('Did not find Citizenship or Physical Education in any section.');
         }

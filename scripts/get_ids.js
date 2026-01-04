@@ -29,9 +29,8 @@ async function check() {
          const { data: studentsByName } = await supabase
             .from('students')
             .select('id')
-            .eq('class', cls.class_name || cls.name)
-            .limit(1);
-         if (studentsByName && studentsByName.length > 0) {
+            .eq('class', cls.id)
+            .limit(1);         if (studentsByName && studentsByName.length > 0) {
             studentId = studentsByName[0].id;
          }
     }

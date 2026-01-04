@@ -9,8 +9,11 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.
 async function refresh() {
     console.log('Reloading schema...');
     const { data, error } = await supabase.from('assessments').select('id').limit(1);
-    if(error) console.log('Error:', error);
-    else console.log('Success - Connection OK.');
+    if(error) {
+      console.error('Error:', error);
+      throw error;
+    }
+    else console.log('Success - Connection OK.');    else console.log('Success - Connection OK.');
 }
 refresh()
   .catch(error => {
