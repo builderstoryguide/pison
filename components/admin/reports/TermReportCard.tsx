@@ -214,18 +214,29 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
       await new Promise(resolve => setTimeout(resolve, 100))
       
       // Calculate scaling to fit on single page
-      // REMOVED scaling logic to allow multi-page
       const originalStyle = element.getAttribute('style') || ''
-      // const a4HeightPx = 1122 // Approx 297mm at 96 DPI
-      // const contentHeight = element.scrollHeight
+      const a4WidthPx = 794  // 210mm at 96 DPI
+      const a4HeightPx = 1122 // 297mm at 96 DPI
+      const contentHeight = element.scrollHeight
+      const contentWidth = element.scrollWidth
       
-      // let scale = 1
-      // WE DO NOT SCALE DOWN ANYMORE so it can span multiple pages
+      let scale = 1
+      // Calculate scale based on both width and height to ensure fit
+      const scaleWidth = a4WidthPx / contentWidth
+      const scaleHeight = a4HeightPx / contentHeight
+      
+      if (contentHeight > a4HeightPx || contentWidth > a4WidthPx) {
+        // Use the smaller scale to ensure content fits in both dimensions
+        scale = Math.min(scaleWidth, scaleHeight, 1)
+        element.style.transform = `scale(${scale})`
+        element.style.transformOrigin = 'top center'
+        element.style.width = `${100 / scale}%`
+      }
 
 
       // Configure PDF options with optimized settings for high-quality output
       const opt = {
-        margin: 0, // No margins, we handle padding in CSS
+        margin: [0, 0, 0, 0], // No margins
         filename: filename,
         image: { 
           type: 'jpeg', 
@@ -238,9 +249,12 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
           backgroundColor: '#ffffff',
           letterRendering: true,
           allowTaint: false,
-          scrollY: 0, // Ensure we capture from top
-          windowWidth: element.scrollWidth, // Capture full scaled width
-          windowHeight: element.scrollHeight // Capture full scaled height
+          scrollY: 0,
+          scrollX: 0,
+          windowWidth: element.scrollWidth,
+          windowHeight: element.scrollHeight,
+          x: 0,
+          y: 0
         },
         jsPDF: { 
           unit: 'mm', 
@@ -249,7 +263,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
           compress: true,
           precision: 16
         },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        pagebreak: { mode: 'avoid-all' }
       }
 
       // Generate and download PDF
@@ -270,6 +284,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
         printRef.current.style.transformOrigin = ''
       }
       
+      // eslint-disable-next-line no-console
       console.error('Error generating PDF:', error)
       // const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       toast.error('PDF generation failed', {
@@ -323,7 +338,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
   const seqLabels = SEQUENCE_LABELS[term]
 
   // Get sequence values based on term
-  const getSequenceValues = (subject: SubjectGrade) => {
+  const getSequenceValues = React.useCallback((subject: SubjectGrade) => {
     if (term === 1) {
       return { seq1: subject.sequences?.seq1 ?? subject.seq1, seq2: subject.sequences?.seq2 ?? subject.seq2 }
     } else if (term === 2) {
@@ -331,7 +346,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
     } else {
       return { seq1: subject.sequences?.seq5, seq2: subject.sequences?.seq6 }
     }
-  }
+  }, [term])
 
   // Get global sequence number from term and sequence position (1 or 2)
   const getGlobalSequenceNumber = (term: number, position: 1 | 2): number => {
@@ -379,7 +394,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
           const data = await response.json()
           // Find exact match (case-insensitive)
           if (Array.isArray(data) && data.length > 0) {
-            const exactMatch = data.find((s: any) => 
+            const exactMatch = data.find((s: { id: string; name: string }) => 
               s.name && s.name.trim().toLowerCase() === subject.subjectName.trim().toLowerCase()
             )
             if (exactMatch) {
@@ -391,6 +406,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
           }
         }
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error('Error looking up subject ID:', error)
       }
     }
@@ -419,6 +435,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
       try {
         onRefresh()
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error('Error refreshing report card:', error)
         toast({
           title: 'Warning',
@@ -943,7 +960,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
         </div>
 
         {/* Main Report Card Sheet */}
-        <div className="pdf-report-card max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none print:w-full print:max-w-full text-xs print:text-[8pt] relative print:h-[297mm]" ref={printRef}>
+        <div className="pdf-report-card max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none print:w-full print:max-w-full text-xs print:text-[8pt] relative overflow-hidden print:h-[297mm]" ref={printRef}>
         
         <div className="px-8 print:px-3 pt-0 print:pt-6 pb-0 print:pb-2 flex flex-col gap-0 relative" style={{ color: 'rgba(26, 26, 26, 1)' }}>
           
@@ -952,8 +969,8 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             <img 
               src="/pison.png" 
               alt="Watermark" 
-              className="w-[90%] h-auto opacity-[0.06] transform -rotate-6 grayscale"
-              style={{ filter: 'grayscale(100%) contrast(1.5) brightness(1.5)' }}
+              className="w-[90%] h-auto opacity-[0.06] transform -rotate-6"
+              style={{ filter: 'contrast(1.5) brightness(1.5)' }}
             />
           </div>
 
@@ -977,7 +994,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                   <img 
                     src="/pison.png" 
                     alt="Pison Academy Logo" 
-                    className="max-w-full max-h-full object-contain grayscale" 
+                    className="max-w-full max-h-full object-contain" 
                     onError={() => setLogoError(true)}
                   />
                 )}
@@ -1009,7 +1026,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-100 to-transparent opacity-30"></div>
               
               {/* QR Code */}
-              <div className="absolute left-2 print:left-1 top-1/2 -translate-y-1/2 hidden md:flex flex-col items-center opacity-80 z-20">
+              <div className="absolute left-2 print:left-1 top-1/2 -translate-y-1/2 flex flex-col items-center opacity-80 z-20" style={{ transform: 'translateY(-50%)' }}>
                 <div className="bg-white p-0.5 print:p-0.5 border border-black shadow-sm">
                   <QRCode
                     value={qrCodeData}
@@ -1045,15 +1062,15 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
 
           {/* Student Info Grid */}
           <div className="border border-black grid grid-cols-12 mb-1 print:mb-0.5 font-mono text-[0.65rem] print:text-[7pt] relative z-10 bg-white/90" style={{ border: '1px solid #000', backgroundColor: 'rgba(255, 255, 255, 0.9)' }}>
-            <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
+            <div className="col-span-4 p-1 print:p-0.5 border-b border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">First Name / Prénom</span>
               <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.name.split(' ')[0]}</span>
             </div>
-            <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
+            <div className="col-span-4 p-1 print:p-0.5 border-b border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Last Name / Nom</span>
               <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.name.split(' ').slice(1).join(' ')}</span>
             </div>
-            <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b border-black" style={{ borderBottom: '1px solid #000', padding: '2px 4px' }}>
+            <div className="col-span-4 p-1 print:p-0.5 border-b border-black" style={{ borderBottom: '1px solid #000', padding: '2px 4px' }}>
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Unique Identifier No / Matricule</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.studentId}</span>
             </div>
@@ -1140,16 +1157,23 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                             {idx === 0 && (
                               <td 
                                 rowSpan={group.subjects.length + 1} 
-                                className="border-r border-black bg-gray-200 text-center font-bold text-[0.55rem] print:text-[6pt] p-0.5 print:p-0.5 uppercase whitespace-nowrap"
+                                className="border-r border-black bg-gray-200 text-center font-bold text-[0.55rem] print:text-[6pt] p-0 print:p-0 uppercase whitespace-nowrap relative"
                                 style={{ 
-                                  writingMode: 'vertical-rl', 
-                                  transform: 'rotate(180deg)',
                                   border: '1px solid #000',
                                   backgroundColor: '#e5e7eb',
-                                  padding: '2px 4px'
+                                  width: '30px',
+                                  minWidth: '30px'
                                 }}
                               >
-                                {categoryLabel}
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <span style={{ 
+                                    transform: 'rotate(-90deg)',
+                                    display: 'inline-block',
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    {categoryLabel}
+                                  </span>
+                                </div>
                               </td>
                             )}
                             <td className="p-1 print:p-0.5 border-r border-gray-300 font-medium" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{subject.subjectName}</td>
@@ -1252,66 +1276,63 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
           </div>
 
           {/* Footer Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 print:gap-1 mb-2 print:mb-1 relative z-10">
+          <div className="grid grid-cols-3 gap-2 print:gap-1 mb-2 print:mb-1 relative z-10">
             
-            {/* Left Column: Term History & Discipline */}
-            <div className="col-span-12 md:col-span-6 flex flex-col gap-0">
-              <div className="border border-black bg-white/90">
-                <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
-                  Student&apos;s Evaluation Results
-                </div>
-                <table className="w-full text-[0.6rem] print:text-[7pt]">
-                  <thead>
-                    <tr className="border-b border-gray-300">
-                      <th className="p-0.5 print:p-0.5 border-r border-gray-300 text-left">TERM</th>
-                      <th className="p-0.5 print:p-0.5 text-left">{data.academic.term}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-gray-300 font-mono">
-                      <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">AVERAGE</td>
-                      <td className="p-0.5 print:p-0.5 font-bold">
-                        {data.totals.average.toFixed(1)}
-                      </td>
-                    </tr>
-                    <tr className="font-mono">
-                      <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">RANK</td>
-                      <td className="p-0.5 print:p-0.5">{data.history?.rank ?? '-'}</td>
-                    </tr>
-                  </tbody>
-                </table>
+            {/* Student Evaluation Results */}
+            <div className="border border-black bg-white/90">
+              <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
+                Student&apos;s Evaluation Results
               </div>
+              <table className="w-full text-[0.6rem] print:text-[7pt]">
+                <thead>
+                  <tr className="border-b border-gray-300">
+                    <th className="p-0.5 print:p-0.5 border-r border-gray-300 text-left">TERM</th>
+                    <th className="p-0.5 print:p-0.5 text-left">{data.academic.term}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-gray-300 font-mono">
+                    <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">AVERAGE</td>
+                    <td className="p-0.5 print:p-0.5 font-bold">
+                      {data.totals.average.toFixed(1)}
+                    </td>
+                  </tr>
+                  <tr className="font-mono">
+                    <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">RANK</td>
+                    <td className="p-0.5 print:p-0.5">{data.history?.rank ?? '-'}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
-              <div className="border border-black bg-white/90">
-                <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
-                  Discipline And Conduct
+            {/* Discipline And Conduct */}
+            <div className="border border-black bg-white/90">
+              <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
+                Discipline And Conduct
+              </div>
+              <div className="text-[0.6rem] print:text-[7pt] p-1 print:p-0.5 space-y-1">
+                <div className="flex justify-between border-b border-gray-200 pb-0.5">
+                  <span>Unjustified Absences</span>
+                  <span className="font-mono font-bold"></span>
                 </div>
-                <div className="text-[0.6rem] print:text-[7pt] p-1 print:p-0.5 space-y-1">
-                  <div className="flex justify-between border-b border-gray-200 pb-0.5">
-                    <span>Unjustified Absences</span>
-                    <span className="font-mono font-bold"></span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Suspensions / Warnings</span>
-                    <span className="font-mono font-bold"></span>
-                  </div>
+                <div className="flex justify-between">
+                  <span>Suspensions / Warnings</span>
+                  <span className="font-mono font-bold"></span>
                 </div>
               </div>
             </div>
 
-            {/* Right Column: GCE Section */}
-            <div className="col-span-12 md:col-span-6">
-              <div className="border border-black bg-white/90">
-                <div className="border-b border-gray-300 p-1 print:p-0.5">
-                  <h4 className="font-bold text-[0.6rem] print:text-[7pt] text-left">GCE SECTION</h4>
-                </div>
-                <div className="space-y-0.5 font-mono text-[0.6rem] print:text-[7pt] p-1 print:p-0.5">
-                  <div className="flex justify-between"><span>Trade Subjects:</span> <span>{gceCounts.tradeSubjects.toString().padStart(2, '0')}</span></div>
-                  <div className="flex justify-between"><span>Related Trade:</span> <span>{gceCounts.relatedTrade.toFixed(1)}</span></div>
-                  <div className="flex justify-between"><span>Other Subjects:</span> <span>{gceCounts.otherSubjects.toFixed(1)}</span></div>
-                  <div className="flex justify-between font-bold pt-1 border-t border-gray-300 mt-1">
-                    <span>GCE SUBJECTS PASSED:</span> <span>{gceCounts.passed.toString().padStart(2, '0')}</span>
-                  </div>
+            {/* GCE Section */}
+            <div className="border border-black bg-white/90">
+              <div className="border-b border-gray-300 p-1 print:p-0.5 bg-gray-100">
+                <h4 className="font-bold text-[0.6rem] print:text-[7pt] text-left uppercase">GCE SECTION</h4>
+              </div>
+              <div className="space-y-0.5 font-mono text-[0.6rem] print:text-[7pt] p-1 print:p-0.5">
+                <div className="flex justify-between"><span>Trade Subjects:</span> <span>{gceCounts.tradeSubjects.toString().padStart(2, '0')}</span></div>
+                <div className="flex justify-between"><span>Related Trade:</span> <span>{gceCounts.relatedTrade.toFixed(1)}</span></div>
+                <div className="flex justify-between"><span>Other Subjects:</span> <span>{gceCounts.otherSubjects.toFixed(1)}</span></div>
+                <div className="flex justify-between font-bold pt-1 border-t border-gray-300 mt-1">
+                  <span>GCE SUBJECTS PASSED:</span> <span>{gceCounts.passed.toString().padStart(2, '0')}</span>
                 </div>
               </div>
             </div>

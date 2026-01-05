@@ -106,7 +106,7 @@ function getCategoryFullLabel(category: string | undefined): string {
   }
 }
 
-export function AnnualReportCard({ data, onRefresh }: AnnualReportCardProps) {
+export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCardProps) {
   const printRef = useRef<HTMLDivElement>(null)
   const [logoError, setLogoError] = React.useState(false)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
@@ -132,8 +132,8 @@ export function AnnualReportCard({ data, onRefresh }: AnnualReportCardProps) {
       const filename = `ReportCard_${studentName}_${data.academic.year}_Annual.pdf`
       
       // A4 format dimensions in mm
-      const a4Width = 210
-      const a4Height = 297
+      // const a4Width = 210
+      // const a4Height = 297
       
       // Add a small delay to ensure all styles and images are fully loaded
       await new Promise(resolve => setTimeout(resolve, 100))
@@ -156,10 +156,10 @@ export function AnnualReportCard({ data, onRefresh }: AnnualReportCardProps) {
       
       // Configure PDF options with optimized settings for high-quality output
       const opt = {
-        margin: [0, 0, 0, 0],
+        margin: [0, 0, 0, 0] as [number, number, number, number],
         filename: filename,
         image: { 
-          type: 'jpeg', 
+          type: 'jpeg' as const, 
           quality: 1.0 
         },
         html2canvas: { 
@@ -176,13 +176,14 @@ export function AnnualReportCard({ data, onRefresh }: AnnualReportCardProps) {
         jsPDF: { 
           unit: 'mm', 
           format: 'a4',
-          orientation: 'portrait',
+          orientation: 'portrait' as const,
           compress: true,
           precision: 16
         }
       }
 
       // Generate and download PDF
+      // @ts-ignore - html2pdf types are loose
       await html2pdf().set(opt).from(element).save()
 
       // Revert styles
@@ -198,6 +199,7 @@ export function AnnualReportCard({ data, onRefresh }: AnnualReportCardProps) {
          element.style.width = '';
          element.style.transformOrigin = '';
       }
+      // eslint-disable-next-line no-console
       console.error('Error generating PDF:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       toast.error('PDF generation failed', {
@@ -212,15 +214,13 @@ export function AnnualReportCard({ data, onRefresh }: AnnualReportCardProps) {
     }
   }
 
-  // Group subjects by category
-  const categoryOrder: Array<'languages' | 'related_trade_subjects' | 'trade_subjects' | 'others'> = [
-    'languages',
-    'related_trade_subjects',
-    'trade_subjects',
-    'others'
-  ]
-
   const groupedSubjects = React.useMemo(() => {
+    const categoryOrder: Array<'languages' | 'related_trade_subjects' | 'trade_subjects' | 'others'> = [
+      'languages',
+      'related_trade_subjects',
+      'trade_subjects',
+      'others'
+    ]
     const groups: Record<string, typeof data.subjects> = {
       languages: [],
       related_trade_subjects: [],
@@ -238,7 +238,7 @@ export function AnnualReportCard({ data, onRefresh }: AnnualReportCardProps) {
       category,
       subjects: groups[category] || []
     })).filter(group => group.subjects.length > 0)
-  }, [categoryOrder, data.subjects])
+  }, [data])
 
   // Calculate category summaries
   // Only include coefficients for subjects that have marks (coefficient > 0)
@@ -398,7 +398,7 @@ export function AnnualReportCard({ data, onRefresh }: AnnualReportCardProps) {
             .pdf-report-card .text-\\[0\\.6rem\\] { font-size: 0.6rem !important; }
             .pdf-report-card .text-\\[0\\.55rem\\] { font-size: 0.55rem !important; }
             .pdf-report-card .text-\\[6pt\\] { font-size: 6pt !important; }
-            .pdf-report-card .text-\[7pt\\] { font-size: 7pt !important; }
+            .pdf-report-card .text-\\[7pt\\] { font-size: 7pt !important; }
 
              /* Print-specific overrides */
             @media print {
@@ -437,8 +437,8 @@ export function AnnualReportCard({ data, onRefresh }: AnnualReportCardProps) {
             <img 
               src="/pison.png" 
               alt="Watermark" 
-              className="w-[90%] h-auto opacity-[0.06] transform -rotate-6 grayscale"
-              style={{ filter: 'grayscale(100%) contrast(1.5) brightness(1.5)' }}
+              className="w-[90%] h-auto opacity-[0.06] transform -rotate-6"
+              style={{ filter: 'contrast(1.5) brightness(1.5)' }}
             />
           </div>
 
@@ -462,7 +462,7 @@ export function AnnualReportCard({ data, onRefresh }: AnnualReportCardProps) {
                   <img 
                     src="/pison.png" 
                     alt="Pison Academy Logo" 
-                    className="max-w-full max-h-full object-contain grayscale" 
+                    className="max-w-full max-h-full object-contain" 
                     onError={() => setLogoError(true)}
                   />
                 )}
@@ -494,7 +494,7 @@ export function AnnualReportCard({ data, onRefresh }: AnnualReportCardProps) {
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-100 to-transparent opacity-30"></div>
               
               {/* QR Code */}
-              <div className="absolute left-2 print:left-1 top-1/2 -translate-y-1/2 hidden md:flex flex-col items-center opacity-80 z-20">
+              <div className="absolute left-2 print:left-1 top-1/2 -translate-y-1/2 flex flex-col items-center opacity-80 z-20" style={{ transform: 'translateY(-50%)' }}>
                 <div className="bg-white p-0.5 print:p-0.5 border border-black shadow-sm">
                   <QRCode
                     value={qrCodeData}
@@ -620,10 +620,21 @@ export function AnnualReportCard({ data, onRefresh }: AnnualReportCardProps) {
                             {idx === 0 && (
                               <td 
                                 rowSpan={group.subjects.length + 1} 
-                                className="border-r border-black bg-gray-200 text-center font-bold text-[0.55rem] print:text-[6pt] p-0.5 print:p-0.5 uppercase whitespace-nowrap"
-                                style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+                                className="border-r border-black bg-gray-200 text-center font-bold text-[0.55rem] print:text-[6pt] p-0 print:p-0 uppercase whitespace-nowrap relative"
+                                style={{ 
+                                  width: '30px',
+                                  minWidth: '30px'
+                                }}
                               >
-                                {categoryLabel}
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <span style={{ 
+                                    transform: 'rotate(-90deg)',
+                                    display: 'inline-block',
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    {categoryLabel}
+                                  </span>
+                                </div>
                               </td>
                             )}
                             <td className="p-1 print:p-0.5 border-r border-gray-300 font-medium">{subject.subjectName}</td>
@@ -679,7 +690,7 @@ export function AnnualReportCard({ data, onRefresh }: AnnualReportCardProps) {
             <div className="col-span-12 md:col-span-4 flex flex-col gap-0">
               <div className="border border-black bg-white/90">
                 <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
-                  Student's Evaluation Results
+                  Student&apos;s Evaluation Results
                 </div>
                 <table className="w-full text-[0.6rem] print:text-[7pt]">
                   <thead>
