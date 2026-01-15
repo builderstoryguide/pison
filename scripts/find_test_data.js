@@ -54,4 +54,7 @@ async function findTestData() {
   }
 }
 
-findTestData();
+findTestData().catch((error) => {
+  console.error('Unexpected error:', error);
+  process.exit(1);
+});

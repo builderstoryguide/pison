@@ -70,13 +70,14 @@ async function runCrudTest() {
     }
 
     // Check for existing grade
-    const { data: existingGrade } = await supabase
+    const { data: existingGrade, error: existingGradeError } = await supabase
       .from('grades')
       .select('id')
       .eq('assessment_id', assessment.id)
       .eq('student_id', studentId)
       .maybeSingle();
 
+    if (existingGradeError) throw existingGradeError;
     if (existingGrade) {
       console.log(`Updating existing grade: ${existingGrade.id}`);
       const { error: uError } = await supabase

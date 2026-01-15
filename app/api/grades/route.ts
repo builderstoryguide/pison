@@ -267,15 +267,13 @@ export async function POST(request: NextRequest) {
         throw insertError
     }
 
-    // Trigger Admin Notifications (Fire and forget style to not block response)
-    triggerAdminNotifications(supabase, {
+    // Trigger Admin Notifications
+    await triggerAdminNotifications(supabase, {
       teacherId,
       classId,
       subjectName,
       title
-    }).catch(err => console.error("Failed to trigger admin notifications:", err))
-
-    return NextResponse.json({ success: true, assessmentId: assessment!.id })
+    })    return NextResponse.json({ success: true, assessmentId: assessment!.id })
 
   } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     console.error("Error in POST /api/grades:", error)

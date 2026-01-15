@@ -36,22 +36,27 @@ async function verifyNotification() {
   console.log('Step 2: Triggering notification logic...');
   
   // Logic copied from route.ts
-  const { data: teacher } = await supabase
+  const { data: teacher, error: teacherError } = await supabase
     .from('teachers')
     .select('first_name, last_name')
     .eq('user_id', teacherUserId)
     .maybeSingle()
   
+  if (teacherError) {
+    console.error('Warning: Failed to fetch teacher:', teacherError);
+  }
   const teacherName = teacher ? `${teacher.first_name} ${teacher.last_name}` : 'A teacher'
 
-  const { data: classData } = await supabase
+  const { data: classData, error: classError } = await supabase
     .from('classes')
     .select('name, class_name')
     .eq('id', classId)
     .maybeSingle()
   
+  if (classError) {
+    console.error('Warning: Failed to fetch class:', classError);
+  }
   const className = classData?.name || classData?.class_name || 'an unknown class'
-
   const notificationPayloads = admins.map(admin => ({
     recipient_id: admin.id,
     title: '📝 New Marks Entered (Test)',
