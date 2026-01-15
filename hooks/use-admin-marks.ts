@@ -97,6 +97,40 @@ async function fetchMarks(filters?: MarkFilters): Promise<Mark[]> {
   return data.marks || []
 }
 
+// Fetch single mark function
+async function fetchMark(gradeId: string): Promise<Mark | null> {
+  const storedUser = typeof window !== 'undefined' ? localStorage.getItem('school_user') : null
+  const user = storedUser ? JSON.parse(storedUser) : null
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  
+  if (user?.id) {
+    headers['X-User-Id'] = user.id
+  }
+
+  const url = `/api/admin/marks/${gradeId}`
+  const response = await fetch(url, { headers })
+  
+  if (response.status === 404) {
+    return null
+  }
+
+  let data
+  try {
+    data = await response.json()
+  } catch (jsonError: any) {
+    throw new Error(`Failed to parse JSON from ${url}: ${jsonError.message}`)
+  }
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch mark')
+  }
+
+  return data.mark || null
+}
+
 // Create mark function
 async function createMark(markData: {
   studentId: string
@@ -674,13 +708,10 @@ export function usePrefetchMark() {
   const queryClient = useQueryClient()
 
   return (gradeId: string) => {
-    // Prefetch by finding the mark in cached lists
+    // Prefetch specific mark using the new API
     queryClient.prefetchQuery({
       queryKey: adminMarksKeys.detail(gradeId),
-      queryFn: async () => {
-        const allMarks = await fetchMarks()
-        return allMarks.find((m) => m.id === gradeId)
-      },
+      queryFn: () => fetchMark(gradeId),
       staleTime: 60 * 1000,
     })
   }

@@ -24,6 +24,132 @@ function calculateRemarks(grade: string): string {
   }
 }
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ gradeId: string }> }
+) {
+  try {
+    // Authenticate user
+    const { user, error: authError } = await authenticateUser(request)
+    if (authError || !user) {
+      return authError || NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
+    // Check if user is admin
+    if (!isAdmin(user)) {
+      return NextResponse.json(
+        { error: 'Admin access required' },
+        { status: 403 }
+      )
+    }
+
+    const { gradeId } = await params
+    const supabase = await createClient()
+    if (!supabase) {
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
+
+    // Fetch grade with full info
+    const { data: grade, error: gradeError } = await supabase
+      .from('grades')
+      .select(`
+        id,
+        student_id,
+        marks_obtained,
+        percentage,
+        grade_letter,
+        remarks,
+        submitted_at,
+        assessments!inner(
+          id,
+          title,
+          type,
+          subject,
+          class_id,
+          total_marks,
+          assessment_date
+        ),
+        students!inner(
+          id,
+          first_name,
+          last_name
+        )
+      `)
+      .eq('id', gradeId)
+      .maybeSingle()
+
+    if (gradeError) {
+      console.error('Error fetching grade:', gradeError)
+      return NextResponse.json(
+        { error: 'Failed to fetch grade' },
+        { status: 500 }
+      )
+    }
+
+    if (!grade) {
+      return NextResponse.json(
+        { error: 'Grade not found' },
+        { status: 404 }
+      )
+    }
+
+    // Fetch class name and subject ID
+    const { data: classData } = await supabase
+      .from('classes')
+      .select('name')
+      .eq('id', grade.assessments?.class_id)
+      .single()
+    
+    const { data: subjectData } = await supabase
+      .from('subjects')
+      .select('id')
+      .eq('name', grade.assessments?.subject)
+      .single()
+
+    // Transform to match frontend format
+    const student = grade.students
+    const assessmentData = grade.assessments
+    const studentName = `${student?.first_name || ''} ${student?.last_name || ''}`.trim()
+
+    const mark = {
+      id: grade.id,
+      studentId: grade.student_id,
+      studentName,
+      assessmentId: assessmentData?.id,
+      assessmentName: assessmentData?.title,
+      assessmentType: assessmentData?.type,
+      subjectName: assessmentData?.subject,
+      subjectId: subjectData?.id || '',
+      classId: assessmentData?.class_id,
+      className: classData?.name || assessmentData?.class_id,
+      marksObtained: parseFloat(grade.marks_obtained) || 0,
+      totalMarks: assessmentData?.total_marks || 20,
+      percentage: parseFloat(grade.percentage) || 0,
+      gradeLetter: grade.grade_letter,
+      remarks: grade.remarks,
+      submittedAt: grade.submitted_at,
+      assessmentDate: assessmentData?.assessment_date,
+    }
+
+    return NextResponse.json({
+      success: true,
+      mark,
+    })
+  } catch (error: any) {
+    console.error('Error in GET /api/admin/marks/[gradeId]:', error)
+    return NextResponse.json(
+      { error: error.message || 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ gradeId: string }> }

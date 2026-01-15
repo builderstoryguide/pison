@@ -267,11 +267,76 @@ export async function POST(request: NextRequest) {
         throw insertError
     }
 
+    // Trigger Admin Notifications (Fire and forget style to not block response)
+    triggerAdminNotifications(supabase, {
+      teacherId,
+      classId,
+      subjectName,
+      title
+    }).catch(err => console.error("Failed to trigger admin notifications:", err))
+
     return NextResponse.json({ success: true, assessmentId: assessment!.id })
 
   } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     console.error("Error in POST /api/grades:", error)
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
+  }
+}
+
+/**
+ * Trigger notifications for all admins when marks are entered
+ */
+async function triggerAdminNotifications(
+  supabase: any,
+  data: { teacherId: string; classId: string; subjectName: string; title: string }
+) {
+  try {
+    const { teacherId, classId, subjectName, title } = data
+
+    // 1. Fetch Teacher Name
+    const { data: teacher } = await supabase
+      .from('teachers')
+      .select('first_name, last_name')
+      .eq('user_id', teacherId)
+      .maybeSingle()
+    
+    const teacherName = teacher ? `${teacher.first_name} ${teacher.last_name}` : 'A teacher'
+
+    // 2. Fetch Class Name
+    const { data: classData } = await supabase
+      .from('classes')
+      .select('name, class_name')
+      .eq('id', classId)
+      .maybeSingle()
+    
+    const className = classData?.name || classData?.class_name || 'an unknown class'
+
+    // 3. Fetch All Admins
+    const { data: admins } = await supabase
+      .from('users')
+      .select('id')
+      .in('role', ['admin', 'superadmin'])
+
+    if (!admins || admins.length === 0) return
+
+    // 4. Create Notifications
+    const notificationPayloads = admins.map((admin: { id: string }) => ({
+      recipient_id: admin.id,
+      title: '📝 New Marks Entered',
+      message: `${teacherName} has entered/updated marks for **${subjectName}** in **${className}** (${title}).`,
+      type: 'success',
+      read: false,
+      created_at: new Date().toISOString()
+    }))
+
+    const { error } = await supabase
+      .from('notifications')
+      .insert(notificationPayloads)
+
+    if (error) throw error
+
+  } catch (error) {
+    console.error("Error in triggerAdminNotifications:", error)
   }
 }
 
