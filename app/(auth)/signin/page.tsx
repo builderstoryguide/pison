@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { RiErrorWarningFill } from '@remixicon/react';
-import { AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, LoaderCircleIcon } from 'lucide-react';
 import { signIn } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
@@ -20,9 +20,15 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { LoaderCircleIcon } from 'lucide-react';
-import { Icons } from '@/components/common/icons';
 import { getSigninSchema, SigninSchemaType } from '../forms/signin-schema';
+
+const isDev = process.env.NODE_ENV === 'development';
+
+const DEV_CREDENTIALS = [
+  { label: 'Admin', email: 'admin@dcm.local', password: 'admin123' },
+  { label: 'Accountant', email: 'accountant@dcm.local', password: 'accountant123' },
+  { label: 'Agent', email: 'agent1@dcm.local', password: 'agent123' },
+];
 
 export default function Page() {
   const router = useRouter();
@@ -83,36 +89,32 @@ export default function Page() {
           </p>
         </div>
 
-        <Alert size="sm" close={false}>
-          <AlertIcon>
-            <RiErrorWarningFill className="text-primary" />
-          </AlertIcon>
-          <AlertTitle className="text-accent-foreground">
-            Test credentials:{' '}
-            <span className="text-mono font-semibold">admin@dcm.local</span>{' '}
-            / <span className="text-mono font-semibold">admin123</span>
-          </AlertTitle>
-        </Alert>
-
-        <div className="flex flex-col gap-3.5">
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => signIn('google', { callbackUrl: '/' })}
-          >
-            <Icons.googleColorful className="size-5! opacity-100!" /> Sign in
-            with Google
-          </Button>
-        </div>
-
-        <div className="relative py-1.5">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
+        {isDev && (
+          <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
+            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <RiErrorWarningFill className="size-3.5 text-primary" />
+              Dev credentials (click to fill):
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {DEV_CREDENTIALS.map((cred) => (
+                <button
+                  key={cred.email}
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                  onClick={() => {
+                    form.setValue('email', cred.email, { shouldDirty: true });
+                    form.setValue('password', cred.password, { shouldDirty: true });
+                  }}
+                >
+                  {cred.label}
+                  <span className="text-muted-foreground font-normal">
+                    {cred.email} / {cred.password}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">or</span>
-          </div>
-        </div>
+        )}
 
         {error && (
           <Alert variant="destructive">
@@ -154,7 +156,7 @@ export default function Page() {
               <div className="relative">
                 <Input
                   placeholder="Your password"
-                  type={passwordVisible ? 'text' : 'password'} // Toggle input type
+                  type={passwordVisible ? 'text' : 'password'}
                   {...field}
                 />
                 <Button
@@ -162,7 +164,7 @@ export default function Page() {
                   variant="ghost"
                   mode="icon"
                   size="sm"
-                  onClick={() => setPasswordVisible(!passwordVisible)} // Toggle visibility
+                  onClick={() => setPasswordVisible(!passwordVisible)}
                   className="absolute end-0 top-1/2 -translate-y-1/2 h-7 w-7 me-1.5 bg-transparent!"
                   aria-label={
                     passwordVisible ? 'Hide password' : 'Show password'
@@ -205,18 +207,12 @@ export default function Page() {
         <div className="flex flex-col gap-2.5">
           <Button type="submit" disabled={isProcessing}>
             {isProcessing ? <LoaderCircleIcon className="size-4 animate-spin" /> : null}
-            Continue
+            Sign In
           </Button>
         </div>
 
-        <p className="text-sm text-muted-foreground text-center">
-          Don&apos;t have an account?{' '}
-          <Link
-            href="/signup"
-            className="text-sm font-semibold text-foreground hover:text-primary"
-          >
-            Sign Up
-          </Link>
+        <p className="text-xs text-muted-foreground text-center">
+          Contact your administrator if you need an account.
         </p>
       </form>
     </Form>

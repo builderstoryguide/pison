@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ColumnDef,
   getCoreRowModel,
@@ -13,15 +12,12 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { ChevronRight, Plus, Search, X, Users, Edit, Trash2, Wallet } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
 import { formatDate } from '@/lib/helpers';
 import { Badge, BadgeDot } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
 import {
   DataGrid,
-  DataGridApiFetchParams,
-  DataGridApiResponse,
 } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
@@ -49,30 +45,15 @@ import {
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-
-interface Client {
-  id: string;
-  clientNumber: string;
-  fullName: string;
-  phone?: string;
-  email?: string;
-  areaId: string;
-  area?: {
-    code: string;
-    name: string;
-  };
-  account?: {
-    balance: string;
-    accountNumber: string;
-  };
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'CLOSED';
-  isCommissionExempt: boolean;
-  createdAt: string;
-}
+import {
+  useClients,
+  useDeleteClient,
+  useCollectionAreas,
+  type Client,
+} from '@/hooks/queries';
 
 const ClientList = () => {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { data: session } = useSession();
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -85,71 +66,18 @@ const ClientList = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
-  // Fetch collection areas for filter
-  const { data: areasData } = useQuery({
-    queryKey: ['collection-areas'],
-    queryFn: async () => {
-      const response = await apiFetch('/api/collection-areas?status=ACTIVE');
-      if (!response.ok) return [];
-      const result = await response.json();
-      return result.data || [];
-    },
+  // Fetch collection areas for filter using centralized hook
+  const { data: areasData } = useCollectionAreas({ status: 'ACTIVE' });
+
+  // Fetch clients using centralized hook with optimistic updates built-in
+  const { data: clients, isLoading } = useClients({
+    status: selectedStatus || undefined,
+    areaId: selectedArea || undefined,
+    search: searchQuery || undefined,
   });
 
-  // Fetch clients
-  const fetchClients = async (): Promise<Client[]> => {
-    const params = new URLSearchParams();
-    if (selectedStatus && selectedStatus !== 'all') {
-      params.append('status', selectedStatus);
-    }
-    if (selectedArea && selectedArea !== 'all') {
-      params.append('areaId', selectedArea);
-    }
-    if (searchQuery) {
-      params.append('search', searchQuery);
-    }
-
-    const response = await apiFetch(`/api/clients?${params.toString()}`);
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch clients');
-    }
-
-    const result = await response.json();
-    return result.data || [];
-  };
-
-  // Clients query
-  const { data: clients, isLoading } = useQuery({
-    queryKey: ['clients', selectedStatus, selectedArea, searchQuery],
-    queryFn: fetchClients,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await apiFetch(`/api/clients/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to delete client');
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
-      toast.success('Client deactivated successfully');
-      setDeleteDialogOpen(false);
-      setClientToDelete(null);
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to deactivate client');
-    },
-  });
+  // Delete mutation with optimistic updates
+  const deleteMutation = useDeleteClient();
 
   const handleStatusSelection = (status: string) => {
     setSelectedStatus(status);
@@ -173,7 +101,13 @@ const ClientList = () => {
 
   const handleDeleteConfirm = () => {
     if (clientToDelete) {
-      deleteMutation.mutate(clientToDelete.id);
+      deleteMutation.mutate(clientToDelete.id, {
+        onSuccess: () => {
+          toast.success('Client deactivated successfully');
+          setDeleteDialogOpen(false);
+          setClientToDelete(null);
+        },
+      });
     }
   };
 
@@ -494,7 +428,7 @@ const ClientList = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All areas</SelectItem>
-                {areasData.map((area: any) => (
+                {areasData.map((area) => (
                   <SelectItem key={area.id} value={area.id}>
                     {area.name}
                   </SelectItem>

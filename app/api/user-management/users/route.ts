@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
+import bcrypt from 'bcrypt';
 import { getServerSession } from 'next-auth/next';
 import { getClientIP } from '@/lib/api';
 import { prisma } from '@/lib/prisma';
@@ -28,7 +29,16 @@ export async function GET(req: NextRequest) {
     if (!session) {
       return NextResponse.json(
         { message: 'Unauthorized request' },
-        { status: 401 }, // Unauthorized
+        { status: 401 },
+      );
+    }
+
+    // Only administrators can list user accounts
+    const requesterRole = session.user.roleName?.toLowerCase();
+    if (requesterRole !== 'administrator') {
+      return NextResponse.json(
+        { message: 'Only administrators can access user management.' },
+        { status: 403 },
       );
     }
 
@@ -125,7 +135,16 @@ export async function POST(request: NextRequest) {
     if (!session) {
       return NextResponse.json(
         { message: 'Unauthorized request' },
-        { status: 401 }, // Unauthorized
+        { status: 401 },
+      );
+    }
+
+    // Only administrators can create user accounts
+    const requesterRoleName = session.user.roleName?.toLowerCase();
+    if (requesterRoleName !== 'administrator') {
+      return NextResponse.json(
+        { message: 'Only administrators can create user accounts.' },
+        { status: 403 },
       );
     }
 
@@ -135,12 +154,12 @@ export async function POST(request: NextRequest) {
 
     if (!parsedData.success) {
       return NextResponse.json(
-        { error: 'Invalid input.' },
-        { status: 400 }, // Bad request
+        { error: 'Invalid input.', details: parsedData.error.flatten().fieldErrors },
+        { status: 400 },
       );
     }
 
-    const { name, email, roleId }: UserAddSchemaType = parsedData.data;
+    const { name, email, password, roleId }: UserAddSchemaType = parsedData.data;
 
     // Check if the email already exists
     const existingUser = await prisma.user.findUnique({
@@ -150,7 +169,7 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       return NextResponse.json(
         { message: 'Email is already registered.' },
-        { status: 409 }, // Conflict
+        { status: 409 },
       );
     }
 
@@ -165,34 +184,57 @@ export async function POST(request: NextRequest) {
           message:
             'Selected role does not exist. Someone might have deleted it already.',
         },
-        { status: 404 }, // Not found
+        { status: 404 },
       );
     }
 
+    // Prevent assigning the "client" role (clients cannot access the system)
+    if (existingRole.slug?.toLowerCase() === 'client') {
+      return NextResponse.json(
+        { message: 'Cannot create user accounts with the Client role. Clients do not have system access.' },
+        { status: 422 },
+      );
+    }
+
+    // Hash the password with bcrypt (cost factor 12)
+    const hashedPassword = await bcrypt.hash(password, 12);
+
     // Use a transaction to insert multiple records atomically
     const result = await prisma.$transaction(async (tx) => {
-      // Create a user
+      // Create the user with hashed password
       const user = await tx.user.create({
         data: {
           name,
           email,
+          password: hashedPassword,
           status: UserStatus.ACTIVE,
           roleId,
         },
       });
 
-      // Log the event
+      // System log for internal tracking
       await systemLog(
         {
           event: 'create',
           userId: session.user.id,
           entityId: user.id,
           entityType: 'user',
-          description: 'User added by user.',
+          description: `User account created by administrator (role: ${existingRole.name}).`,
           ipAddress: clientIp,
         },
         tx,
       );
+
+      // Audit log for financial compliance
+      await tx.auditLog.create({
+        data: {
+          userId: session.user.id,
+          action: 'USER_CREATED',
+          entityType: 'USER',
+          entityId: user.id,
+          description: `Administrator created user account for ${email} with role ${existingRole.name}.`,
+        },
+      });
 
       return user;
     });
@@ -200,9 +242,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         message: 'User successfully added.',
-        user: result,
+        user: {
+          id: result.id,
+          name: result.name,
+          email: result.email,
+          status: result.status,
+        },
       },
-      { status: 200 },
+      { status: 201 },
     );
   } catch {
     return NextResponse.json(

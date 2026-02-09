@@ -15,7 +15,6 @@ import { getToken } from 'next-auth/jwt';
 // Routes that do NOT require authentication
 const PUBLIC_PATHS = [
   '/signin',
-  '/signup',
   '/reset-password',
   '/change-password',
   '/verify-email',

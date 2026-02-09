@@ -13,7 +13,7 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from '@/components/ui/navigation-menu';
-import { MenuConfig } from '@/config/types';
+import { MenuConfig, MenuItem } from '@/config/types';
 
 export function MegaMenu() {
   const pathname = usePathname();
@@ -57,7 +57,7 @@ export function MegaMenu() {
                       : 'w-[400px] grid-cols-1',
                   )}
                 >
-                  {item.children.map((child, childIndex) => {
+                  {item.children.map((child: MenuItem, childIndex: number) => {
                     // Handle nested children structure (for multi-column layout)
                     if (child.children && child.children.length > 0) {
                       return (
@@ -67,7 +67,7 @@ export function MegaMenu() {
                               {child.title}
                             </div>
                           )}
-                          {child.children.map((subChild, subIndex) => {
+                          {child.children.map((subChild: MenuItem, subIndex: number) => {
                             if (!subChild.title) return null;
                             return (
                               <Link

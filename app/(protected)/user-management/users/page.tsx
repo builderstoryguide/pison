@@ -1,4 +1,6 @@
 import { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth/next';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14,6 +16,7 @@ import {
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
+import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
 import UserList from './components/user-list';
 
 export const metadata: Metadata = {
@@ -22,6 +25,13 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
+  const session = await getServerSession(authOptions);
+
+  // Only administrators can access user management
+  if (!session || session.user.roleName?.toLowerCase() !== 'administrator') {
+    redirect('/dashboard');
+  }
+
   return (
     <>
       <Container>

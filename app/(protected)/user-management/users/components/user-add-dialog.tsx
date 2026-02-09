@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { RiCheckboxCircleFill, RiErrorWarningFill } from '@remixicon/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Eye, EyeOff, LoaderCircleIcon } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api';
@@ -34,7 +35,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { LoaderCircleIcon } from 'lucide-react';
 import { UserRole } from '@/app/models/user';
 import { useRoleSelectQuery } from '../../roles/hooks/use-role-select-query';
 import { UserAddSchema, UserAddSchemaType } from '../forms/user-add-schema';
@@ -47,15 +47,28 @@ const UserAddDialog = ({
   closeDialog: () => void;
 }) => {
   const queryClient = useQueryClient();
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
 
   // Fetch available roles
   const { data: roleList } = useRoleSelectQuery();
+
+  // Filter out the "Client" role since clients cannot have system accounts
+  const allowedRoles = useMemo(() => {
+    if (!roleList) return [];
+    return roleList.filter(
+      (role: UserRole) =>
+        role.name?.toLowerCase() !== 'client',
+    );
+  }, [roleList]);
 
   const form = useForm<UserAddSchemaType>({
     resolver: zodResolver(UserAddSchema),
     defaultValues: {
       name: '',
       email: '',
+      password: '',
+      passwordConfirmation: '',
       roleId: '',
     },
     mode: 'onSubmit',
@@ -64,6 +77,8 @@ const UserAddDialog = ({
   useEffect(() => {
     if (open) {
       form.reset();
+      setPasswordVisible(false);
+      setConfirmVisible(false);
     }
   }, [open, form]);
 
@@ -74,7 +89,12 @@ const UserAddDialog = ({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          name: values.name,
+          email: values.email,
+          password: values.password,
+          roleId: values.roleId,
+        }),
       });
 
       if (!response.ok) {
@@ -163,6 +183,76 @@ const UserAddDialog = ({
               />
               <FormField
                 control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <div className="relative">
+                      <Input
+                        placeholder="Set initial password"
+                        type={passwordVisible ? 'text' : 'password'}
+                        {...field}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        mode="icon"
+                        size="sm"
+                        onClick={() => setPasswordVisible(!passwordVisible)}
+                        className="absolute end-0 top-1/2 -translate-y-1/2 h-7 w-7 me-1.5 bg-transparent!"
+                        aria-label={
+                          passwordVisible ? 'Hide password' : 'Show password'
+                        }
+                      >
+                        {passwordVisible ? (
+                          <EyeOff className="text-muted-foreground" />
+                        ) : (
+                          <Eye className="text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="passwordConfirmation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <div className="relative">
+                      <Input
+                        placeholder="Confirm password"
+                        type={confirmVisible ? 'text' : 'password'}
+                        {...field}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        mode="icon"
+                        size="sm"
+                        onClick={() => setConfirmVisible(!confirmVisible)}
+                        className="absolute end-0 top-1/2 -translate-y-1/2 h-7 w-7 me-1.5 bg-transparent!"
+                        aria-label={
+                          confirmVisible
+                            ? 'Hide password confirmation'
+                            : 'Show password confirmation'
+                        }
+                      >
+                        {confirmVisible ? (
+                          <EyeOff className="text-muted-foreground" />
+                        ) : (
+                          <Eye className="text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name="roleId"
                 render={({ field }) => (
                   <FormItem>
@@ -177,7 +267,7 @@ const UserAddDialog = ({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
-                            {roleList?.map((role: UserRole) => (
+                            {allowedRoles.map((role: UserRole) => (
                               <SelectItem key={role.id} value={role.id}>
                                 {role.name}
                               </SelectItem>

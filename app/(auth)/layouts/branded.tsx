@@ -35,16 +35,15 @@ export function BrandedLayout({ children }: { children: ReactNode }) {
 
             <div className="flex flex-col gap-3">
               <h3 className="text-2xl font-semibold text-mono">
-                Secure Dashboard Access
+                Daily Collection Management System
               </h3>
               <div className="text-base font-medium text-secondary-foreground">
-                A robust authentication gateway ensuring
-                <br /> secure&nbsp;
+                Secure access to your&nbsp;
                 <span className="text-mono font-semibold">
-                  efficient user access
+                  microfinance management
                 </span>
-                &nbsp;to the Metronic
-                <br /> Dashboard interface.
+                <br /> platform for daily collections,
+                <br /> client accounts, and financial operations.
               </div>
             </div>
           </div>
