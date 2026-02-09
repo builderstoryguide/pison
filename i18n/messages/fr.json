@@ -1,0 +1,55 @@
+{
+  "common": {
+    "buttons": {
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "edit": "Modifier",
+      "add": "Ajouter",
+      "remove": "Retirer",
+      "submit": "Soumettre",
+      "close": "Fermer"
+    },
+    "labels": {
+      "name": "Nom",
+      "email": "Email",
+      "password": "Mot de passe",
+      "username": "Nom d'utilisateur",
+      "phone": "Téléphone",
+      "address": "Adresse"
+    },
+    "messages": {
+      "welcome": "Bienvenue",
+      "loading": "Chargement...",
+      "error": "Une erreur s'est produite",
+      "success": "Opération effectuée avec succès",
+      "confirm": "Êtes-vous sûr ?"
+    }
+  },
+  "pages": {
+    "home": {
+      "title": "Bienvenue",
+      "description": "Bienvenue dans notre application"
+    },
+    "account": {
+      "title": "Paramètres du compte",
+      "notifications": {
+        "title": "Notifications",
+        "description": "Gérer vos préférences de notification"
+      }
+    }
+  },
+  "navigation": {
+    "home": "Accueil",
+    "dashboard": "Tableau de bord",
+    "settings": "Paramètres",
+    "profile": "Profil"
+  },
+  "messages": {
+    "unauthorized": "Accès non autorisé.",
+    "system_error": "Oups ! Quelque chose ne s'est pas passé comme prévu. Veuillez réessayer dans un instant.",
+    "invalid_input": "Saisie invalide. Veuillez vérifier vos données et réessayer.",
+    "data_not_found": "Données demandées introuvables.",
+    "delete_restricted_error": "Impossible de supprimer cet enregistrement car il est lié à d'autres enregistrements."
+  }
+}
