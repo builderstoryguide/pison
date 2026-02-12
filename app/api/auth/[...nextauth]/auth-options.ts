@@ -239,12 +239,16 @@ const authOptions: NextAuthOptions = {
             role?.permissions
               ?.map((rp) => rp.permission?.slug)
               .filter((slug): slug is string => Boolean(slug)) ?? [];
+        } else {
+          token.roleName = null;
+          token.permissions = [];
         }
+        token._permissionsHydrated = true;
       }
 
-      // Hydrate role info when missing (handles old sessions, token refresh, edge cases)
-      // Note: undefined means not yet hydrated; empty array [] means no permissions assigned
-      if (token.roleId && (!token.roleName || token.permissions === undefined)) {
+      // Hydrate role info when not yet hydrated (handles old sessions, token refresh, edge cases)
+      // Use sentinel to avoid re-fetching for legitimately role-less users (roleName null, permissions [])
+      if (token.roleId && !token._permissionsHydrated) {
         const role = await prisma.userRole.findUnique({
           where: { id: token.roleId },
           include: {
@@ -258,6 +262,7 @@ const authOptions: NextAuthOptions = {
           role?.permissions
             ?.map((rp) => rp.permission?.slug)
             .filter((slug): slug is string => Boolean(slug)) ?? [];
+        token._permissionsHydrated = true;
       }
 
       return token;

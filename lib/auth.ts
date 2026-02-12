@@ -36,6 +36,16 @@ export const PERMISSIONS = {
 } as const;
 
 /**
+ * Check if the role has full access (bypasses permission checks).
+ * Uses substring matching for manager roles (matches "Manager", "Branch Manager", etc.)
+ * and "administrator" for legacy role names. Matches client semantics in lib/auth-client.ts.
+ */
+function hasFullAccessByRole(roleName: string): boolean {
+  const r = (roleName || '').toLowerCase();
+  return r.includes('manager') || r.includes('administrator');
+}
+
+/**
  * Check if the user has a specific permission.
  * Manager bypass: always returns true (Manager has full access).
  * Other roles: checks session.user.permissions (no DB lookup).
@@ -48,8 +58,8 @@ export function hasPermission(
     return false;
   }
 
-  const roleName = (session.user?.roleName || '').toLowerCase();
-  if (roleName === 'manager') {
+  const roleName = session.user?.roleName ?? '';
+  if (hasFullAccessByRole(roleName)) {
     return true;
   }
 
@@ -68,8 +78,8 @@ export async function hasAnyPermission(
     return false;
   }
 
-  const roleName = (session.user?.roleName || '').toLowerCase();
-  if (roleName.includes('manager')) {
+  const roleName = session.user?.roleName ?? '';
+  if (hasFullAccessByRole(roleName)) {
     return true;
   }
 

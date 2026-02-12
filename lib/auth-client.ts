@@ -36,16 +36,20 @@ export const PERMISSIONS = {
   SETTINGS_MANAGE: 'settings.manage',
 } as const;
 
-/** Roles that bypass permission checks (exact match only - no substring) */
-const ROLES_WITH_FULL_ACCESS = new Set<string>([
-  'manager',
-  'administrator', // legacy role name (migrated to manager)
-]);
+/**
+ * Check if the role has full access (bypasses permission checks).
+ * Uses substring matching for manager roles (matches "Manager", "Branch Manager", etc.)
+ * and "administrator" for legacy role names. Matches server semantics in lib/auth.ts.
+ */
+function hasFullAccessByRole(roleName: string): boolean {
+  const r = roleName.toLowerCase();
+  return r.includes('manager') || r.includes('administrator');
+}
 
 /**
  * Check if the user has a specific permission (client-side).
  * Uses session.permissions from JWT - no database access.
- * Manager bypass: always returns true.
+ * Manager bypass: always returns true (substring match for manager roles).
  */
 export function hasPermission(
   session: Session | null,
@@ -55,8 +59,8 @@ export function hasPermission(
     return false;
   }
 
-  const roleName = (session.user?.roleName || '').toLowerCase();
-  if (ROLES_WITH_FULL_ACCESS.has(roleName)) {
+  const roleName = session.user?.roleName ?? '';
+  if (hasFullAccessByRole(roleName)) {
     return true;
   }
 
@@ -75,8 +79,8 @@ export function hasAnyPermission(
     return false;
   }
 
-  const roleName = (session.user?.roleName || '').toLowerCase();
-  if (ROLES_WITH_FULL_ACCESS.has(roleName)) {
+  const roleName = session.user?.roleName ?? '';
+  if (hasFullAccessByRole(roleName)) {
     return true;
   }
 

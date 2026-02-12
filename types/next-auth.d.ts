@@ -35,5 +35,7 @@ declare module 'next-auth/jwt' {
     roleName?: string | null;
     permissions?: string[];
     status: string;
+    /** Sentinel: true when roleName/permissions have been hydrated from DB. Avoids re-fetching for legitimately role-less users. */
+    _permissionsHydrated?: boolean;
   }
 }
