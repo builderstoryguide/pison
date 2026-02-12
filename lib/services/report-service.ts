@@ -6,6 +6,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { exportToCsv, exportToExcel } from '@/lib/utils/export';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -420,6 +421,20 @@ export class ReportService {
       surplusShortage: c.surplusShortage.toNumber(),
       closedBy: c.closer?.name ?? null,
     }));
+  }
+  /**
+   * Export report data to buffer
+   */
+  async exportReport(
+    data: any[],
+    format: 'csv' | 'excel',
+    filename: string = 'report'
+  ): Promise<Buffer> {
+    if (format === 'csv') {
+      return await exportToCsv(data);
+    } else {
+      return await exportToExcel(data, filename);
+    }
   }
 }
 

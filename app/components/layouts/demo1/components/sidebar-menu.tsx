@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { MENU_SIDEBAR } from '@/config/menu.config';
 import { MenuConfig, MenuItem } from '@/config/types';
+import { useTranslation } from '@/hooks/useTranslation';
 import { cn } from '@/lib/utils';
 import {
   AccordionMenu,
@@ -20,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 
 export function SidebarMenu() {
   const pathname = usePathname();
+  const { t } = useTranslation();
 
   // Memoize matchPath to prevent unnecessary re-renders
   const matchPath = useCallback(
@@ -62,7 +64,7 @@ export function SidebarMenu() {
           <AccordionMenuSubTrigger className="text-sm font-medium">
             <div className="flex items-center gap-2 flex-1">
               {item.icon && <item.icon data-slot="accordion-menu-icon" />}
-              <span data-slot="accordion-menu-title">{item.title}</span>
+              <span data-slot="accordion-menu-title">{item.title ? t(item.title) : ''}</span>
             </div>
           </AccordionMenuSubTrigger>
           <AccordionMenuSubContent
@@ -89,7 +91,7 @@ export function SidebarMenu() {
             className="flex items-center gap-2"
           >
             {item.icon && <item.icon data-slot="accordion-menu-icon" />}
-            <span data-slot="accordion-menu-title">{item.title}</span>
+            <span data-slot="accordion-menu-title">{item.title ? t(item.title) : ''}</span>
           </Link>
         </AccordionMenuItem>
       );
@@ -108,7 +110,7 @@ export function SidebarMenu() {
       >
         <div className="flex items-center gap-2 flex-1">
           {item.icon && <item.icon data-slot="accordion-menu-icon" />}
-          <span data-slot="accordion-menu-title">{item.title}</span>
+          <span data-slot="accordion-menu-title">{item.title ? t(item.title) : ''}</span>
         </div>
         {item.disabled && (
           <Badge variant="secondary" size="sm" className="ms-auto me-[-10px]">
@@ -156,7 +158,7 @@ export function SidebarMenu() {
                   </span>
                 </span>
               ) : (
-                <span>{item.title}</span>
+                <span>{item.title ? t(item.title) : ''}</span>
               )}
             </div>
           </AccordionMenuSubTrigger>
@@ -188,7 +190,7 @@ export function SidebarMenu() {
         >
           <Link href={item.path || '#'} className="flex items-center gap-2">
             {item.icon && <item.icon data-slot="accordion-menu-icon" />}
-            <span>{item.title}</span>
+            <span>{item.title ? t(item.title) : ''}</span>
           </Link>
         </AccordionMenuItem>
       );
@@ -208,7 +210,7 @@ export function SidebarMenu() {
       >
         <div className="flex items-center gap-2 flex-1">
           {item.icon && <item.icon data-slot="accordion-menu-icon" />}
-          <span data-slot="accordion-menu-title">{item.title}</span>
+          <span data-slot="accordion-menu-title">{item.title ? t(item.title) : ''}</span>
         </div>
         {item.disabled && (
           <Badge variant="secondary" size="sm" className="ms-auto me-[-10px]">
@@ -220,7 +222,7 @@ export function SidebarMenu() {
   };
 
   const buildMenuHeading = (item: MenuItem, index: number): JSX.Element => {
-    return <AccordionMenuLabel key={index}>{item.heading}</AccordionMenuLabel>;
+    return <AccordionMenuLabel key={index}>{item.heading ? t(item.heading) : ''}</AccordionMenuLabel>;
   };
 
   return (

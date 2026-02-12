@@ -333,6 +333,74 @@ export class LoanService {
   }
 
   /**
+   * Update a loan request
+   */
+  async updateLoan(id: string, data: Partial<CreateLoanInput>, userId: string) {
+    const loan = await prisma.loan.findUnique({ where: { id } });
+
+    if (!loan) {
+      throw new Error('Loan not found');
+    }
+
+    if (loan.status !== 'PENDING') {
+      throw new Error('Only pending loans can be updated');
+    }
+
+    let totalAmount = Number(loan.totalAmount);
+    let remainingBalance = Number(loan.remainingBalance);
+    const principalAmount = data.principalAmount ?? Number(loan.principalAmount);
+    const interestRate = data.interestRate ?? Number(loan.interestRate);
+    
+    // Recalculate if financial terms change
+    if (data.principalAmount || data.interestRate || data.maturityDate) {
+      // Calculate term in months
+      const startDate = new Date();
+      
+      let maturityDate = data.maturityDate;
+      if (!maturityDate) {
+        if (loan.maturityDate) {
+          maturityDate = new Date(loan.maturityDate);
+        } else {
+          maturityDate = new Date();
+          maturityDate.setFullYear(maturityDate.getFullYear() + 1);
+        }
+      }
+      
+      const diffTime = Math.abs(maturityDate.getTime() - startDate.getTime());
+      const termMonths = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30)); 
+      
+      const interestAmount = this.calculateInterest(
+        principalAmount,
+        interestRate,
+        termMonths || 12 // fallback
+      );
+      
+      totalAmount = principalAmount + interestAmount;
+      remainingBalance = totalAmount;
+    }
+
+    return await prisma.loan.update({
+      where: { id },
+      data: {
+        principalAmount,
+        interestRate,
+        ...(data.purpose !== undefined && { purpose: data.purpose }),
+        ...(data.maturityDate !== undefined && { maturityDate: data.maturityDate }),
+        totalAmount,
+        remainingBalance,
+      },
+      include: {
+        account: true,
+        client: {
+          include: {
+            area: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
    * Get all loans with filters
    */
   async getAllLoans(filters?: {

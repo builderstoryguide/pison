@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   ColumnDef,
   getCoreRowModel,
@@ -54,6 +55,7 @@ import {
 
 const ClientList = () => {
   const router = useRouter();
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -103,7 +105,7 @@ const ClientList = () => {
     if (clientToDelete) {
       deleteMutation.mutate(clientToDelete.id, {
         onSuccess: () => {
-          toast.success('Client deactivated successfully');
+          toast.success(t('pages.clients.clientDeactivatedSuccess'));
           setDeleteDialogOpen(false);
           setClientToDelete(null);
         },
@@ -122,7 +124,7 @@ const ClientList = () => {
         id: 'clientNumber',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Client"
+            title={t('pages.clients.columnClient')}
             visibility={true}
             column={column}
           />
@@ -145,7 +147,7 @@ const ClientList = () => {
         },
         size: 250,
         meta: {
-          headerTitle: 'Client',
+          headerTitle: t('pages.clients.columnClient'),
           skeleton: (
             <div className="flex items-center gap-3">
               <Skeleton className="size-8 rounded-md" />
@@ -164,7 +166,7 @@ const ClientList = () => {
         id: 'area',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Area"
+            title={t('pages.clients.columnArea')}
             visibility={true}
             column={column}
           />
@@ -182,7 +184,7 @@ const ClientList = () => {
         },
         size: 150,
         meta: {
-          headerTitle: 'Area',
+          headerTitle: t('pages.clients.columnArea'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: false,
@@ -193,7 +195,7 @@ const ClientList = () => {
         id: 'balance',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Balance"
+            title={t('pages.clients.columnBalance')}
             visibility={true}
             column={column}
           />
@@ -217,7 +219,7 @@ const ClientList = () => {
         },
         size: 150,
         meta: {
-          headerTitle: 'Balance',
+          headerTitle: t('pages.clients.columnBalance'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: false,
@@ -228,7 +230,7 @@ const ClientList = () => {
         id: 'phone',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Phone"
+            title={t('pages.clients.columnPhone')}
             visibility={true}
             column={column}
           />
@@ -236,7 +238,7 @@ const ClientList = () => {
         cell: ({ row }) => row.original.phone || '-',
         size: 150,
         meta: {
-          headerTitle: 'Phone',
+          headerTitle: t('pages.clients.columnPhone'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: false,
@@ -247,7 +249,7 @@ const ClientList = () => {
         id: 'status',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Status"
+            title={t('pages.clients.columnStatus')}
             visibility={true}
             column={column}
           />
@@ -261,16 +263,22 @@ const ClientList = () => {
             CLOSED: 'destructive',
           };
           const variant = variantMap[status] || 'secondary';
+          const statusLabels: Record<string, string> = {
+            ACTIVE: t('status.active'),
+            INACTIVE: t('status.inactive'),
+            SUSPENDED: t('status.suspended'),
+            CLOSED: t('status.closed'),
+          };
           return (
             <Badge variant={variant} appearance="ghost">
               <BadgeDot />
-              {status}
+              {statusLabels[status] ?? status}
             </Badge>
           );
         },
         size: 125,
         meta: {
-          headerTitle: 'Status',
+          headerTitle: t('pages.clients.columnStatus'),
           skeleton: <Skeleton className="w-14 h-7" />,
         },
         enableSorting: true,
@@ -281,7 +289,7 @@ const ClientList = () => {
         id: 'createdAt',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Created"
+            title={t('pages.clients.columnCreated')}
             visibility={true}
             column={column}
           />
@@ -335,7 +343,7 @@ const ClientList = () => {
         enableResizing: false,
       },
     ],
-    [router, canCreate],
+    [router, canCreate, t],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -378,7 +386,7 @@ const ClientList = () => {
           <div className="relative">
             <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Search clients..."
+              placeholder={t('pages.clients.searchPlaceholder')}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -406,14 +414,14 @@ const ClientList = () => {
             disabled={isLoading}
           >
             <SelectTrigger className="w-full sm:w-36">
-              <SelectValue placeholder="Filter by status" />
+              <SelectValue placeholder={t('pages.clients.filterByStatus')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="INACTIVE">Inactive</SelectItem>
-              <SelectItem value="SUSPENDED">Suspended</SelectItem>
-              <SelectItem value="CLOSED">Closed</SelectItem>
+              <SelectItem value="all">{t('pages.clients.allStatuses')}</SelectItem>
+              <SelectItem value="ACTIVE">{t('status.active')}</SelectItem>
+              <SelectItem value="INACTIVE">{t('status.inactive')}</SelectItem>
+              <SelectItem value="SUSPENDED">{t('status.suspended')}</SelectItem>
+              <SelectItem value="CLOSED">{t('status.closed')}</SelectItem>
             </SelectContent>
           </Select>
           {areasData && areasData.length > 0 && (
@@ -424,10 +432,10 @@ const ClientList = () => {
               disabled={isLoading}
             >
               <SelectTrigger className="w-full sm:w-36">
-                <SelectValue placeholder="Filter by area" />
+                <SelectValue placeholder={t('pages.clients.filterByArea')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All areas</SelectItem>
+                <SelectItem value="all">{t('pages.clients.allAreas')}</SelectItem>
                 {areasData.map((area) => (
                   <SelectItem key={area.id} value={area.id}>
                     {area.name}
@@ -442,7 +450,7 @@ const ClientList = () => {
             <Link href="/clients/new">
               <Button disabled={isLoading}>
                 <Plus />
-                Add Client
+                {t('pages.clients.addClient')}
               </Button>
             </Link>
           </div>
@@ -485,20 +493,18 @@ const ClientList = () => {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Deactivate Client</AlertDialogTitle>
+            <AlertDialogTitle>{t('pages.clients.deactivateClient')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to deactivate "{clientToDelete?.fullName}"?
-              This will mark the client as inactive but will not delete their
-              account or transaction history.
+              {t('pages.clients.deactivateConfirm', { name: clientToDelete?.fullName ?? '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.buttons.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               disabled={deleteMutation.isPending}
             >
-              {deleteMutation.isPending ? 'Deactivating...' : 'Deactivate'}
+              {deleteMutation.isPending ? t('pages.clients.deactivating') : t('pages.clients.deactivate')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

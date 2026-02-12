@@ -1,4 +1,5 @@
-import { Metadata } from 'next';
+'use client';
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14,32 +15,30 @@ import {
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
+import { useTranslation } from '@/hooks/useTranslation';
 import ClientStatementReport from './components/client-statement-report';
 
-export const metadata: Metadata = {
-  title: 'Client Statement',
-  description: 'View client account statements.',
-};
+export default function Page() {
+  const { t } = useTranslation();
 
-export default async function Page() {
   return (
     <>
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>Client Statement</ToolbarTitle>
+            <ToolbarTitle>{t('pages.reports.clientStatement')}</ToolbarTitle>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/">Home</BreadcrumbLink>
+                  <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/reports">Reports</BreadcrumbLink>
+                  <BreadcrumbLink href="/reports">{t('menu.reports')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Client Statement</BreadcrumbPage>
+                  <BreadcrumbPage>{t('pages.reports.clientStatement')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>

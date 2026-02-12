@@ -1,4 +1,5 @@
-import { Metadata } from 'next';
+'use client';
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,34 +14,30 @@ import {
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
+import { useTranslation } from '@/hooks/useTranslation';
 import AreaAssignments from './components/area-assignments';
 
-export const metadata: Metadata = {
-  title: 'Area Assignments',
-  description: 'Manage agent area assignments.',
-};
+export default function Page() {
+  const { t } = useTranslation();
 
-export default async function Page() {
   return (
     <>
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>Area Assignments</ToolbarTitle>
+            <ToolbarTitle>{t('pages.collectionAreas.areaAssignments')}</ToolbarTitle>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/">Home</BreadcrumbLink>
+                  <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/collection-areas">
-                    Collection Areas
-                  </BreadcrumbLink>
+                  <BreadcrumbLink href="/collection-areas">{t('menu.collectionAreas')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Assignments</BreadcrumbPage>
+                  <BreadcrumbPage>{t('common.breadcrumbs.assignments')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>

@@ -1,8 +1,3 @@
-/**
- * Agent Account Refill API
- * POST /api/agents/[id]/refill - Refill agent account (Accountant/Admin)
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
@@ -39,13 +34,10 @@ export async function POST(
       session.user?.id || ''
     );
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: transaction,
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({
+      success: true,
+      data: transaction,
+    });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

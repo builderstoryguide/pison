@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { MENU_MEGA } from '@/config/menu.config';
 import { cn } from '@/lib/utils';
 import { useMenu } from '@/hooks/use-menu';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -17,6 +18,7 @@ import { MenuConfig, MenuItem } from '@/config/types';
 
 export function MegaMenu() {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const { isActive, hasActiveChild } = useMenu(pathname);
 
   const linkClass = `
@@ -46,7 +48,7 @@ export function MegaMenu() {
                   hasActiveChild(item.children || []) || undefined
                 }
               >
-                {item.title}
+                {item.title ? t(item.title) : ''}
               </NavigationMenuTrigger>
               <NavigationMenuContent className="p-4">
                 <div
@@ -64,7 +66,7 @@ export function MegaMenu() {
                         <div key={childIndex} className="space-y-2">
                           {child.title && (
                             <div className="text-xs font-semibold text-muted-foreground uppercase mb-2">
-                              {child.title}
+                              {child.title ? t(child.title) : ''}
                             </div>
                           )}
                           {child.children.map((subChild: MenuItem, subIndex: number) => {
@@ -82,7 +84,7 @@ export function MegaMenu() {
                                 {subChild.icon && (
                                   <subChild.icon className="w-4 h-4 shrink-0" />
                                 )}
-                                <span>{subChild.title}</span>
+                                <span>{subChild.title ? t(subChild.title) : ''}</span>
                               </Link>
                             );
                           })}
@@ -103,7 +105,7 @@ export function MegaMenu() {
                         {child.icon && (
                           <child.icon className="w-4 h-4 shrink-0" />
                         )}
-                        <span>{child.title}</span>
+                        <span>{child.title ? t(child.title) : ''}</span>
                       </Link>
                     );
                   })}
@@ -122,7 +124,7 @@ export function MegaMenu() {
                 className={cn(linkClass)}
                 data-active={isActive(item.path) || undefined}
               >
-                {item.title}
+                {item.title ? t(item.title) : ''}
               </Link>
             </NavigationMenuLink>
           </NavigationMenuItem>

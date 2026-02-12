@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { SearchDialog } from '@/partials/dialogs/search/search-dialog';
+import { LanguageSwitcher } from '@/partials/topbar/language-switcher';
 import { AppsDropdownMenu } from '@/partials/topbar/apps-dropdown-menu';
 import { ChatSheet } from '@/partials/topbar/chat-sheet';
 import { NotificationsSheet } from '@/partials/topbar/notifications-sheet';
 import { UserDropdownMenu } from '@/partials/topbar/user-dropdown-menu';
 import {
   Bell,
+  Globe,
   LayoutGrid,
   Menu,
   MessageCircleMore,
@@ -55,7 +57,7 @@ export function Header() {
   return (
     <header
       className={cn(
-        'header fixed top-0 z-50 start-0 flex items-stretch shrink-0 border-b border-transparent bg-background end-0 pe-[var(--removed-body-scroll-bar-size,0px)]',
+        'header fixed top-0 z-10 start-0 flex items-stretch shrink-0 border-b border-transparent bg-background end-0 pe-[var(--removed-body-scroll-bar-size,0px)]',
         headerSticky && 'border-b border-border',
       )}
     >

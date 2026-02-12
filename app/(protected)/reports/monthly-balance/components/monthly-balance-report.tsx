@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useQuery } from '@tanstack/react-query';
 import {
   ColumnDef,
@@ -29,7 +30,8 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiFetch } from '@/lib/api';
-import { formatCurrency, buildUrl } from '@/lib/hooks/use-api';
+import { buildUrl } from '@/lib/hooks/use-api';
+import { formatCurrency } from '@/lib/helpers';
 
 interface MonthlyBalanceRow {
   clientId: string;
@@ -57,6 +59,7 @@ function getCurrentMonth(): string {
 }
 
 export default function MonthlyBalanceReport() {
+  const { t } = useTranslation();
   const [month, setMonth] = useState(getCurrentMonth());
   const [areaId, setAreaId] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -310,7 +313,7 @@ export default function MonthlyBalanceReport() {
             }}
           >
             <SelectTrigger className="w-full sm:w-44">
-              <SelectValue placeholder="All areas" />
+              <SelectValue placeholder={t('pages.reports.allAreas')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All areas</SelectItem>
@@ -326,7 +329,7 @@ export default function MonthlyBalanceReport() {
           <div className="relative">
             <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Search client..."
+              placeholder={t('pages.reports.searchClient')}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => {

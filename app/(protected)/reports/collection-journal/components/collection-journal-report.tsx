@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useQuery } from '@tanstack/react-query';
 import {
   ColumnDef,
@@ -30,8 +31,8 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiFetch } from '@/lib/api';
-import { formatCurrency, buildUrl } from '@/lib/hooks/use-api';
-import { formatDate, formatDateTime } from '@/lib/helpers';
+import { buildUrl } from '@/lib/hooks/use-api';
+import { formatCurrency, formatDateTime } from '@/lib/helpers';
 
 interface CollectionJournalRow {
   transactionNumber: string;
@@ -62,6 +63,7 @@ function getDefaultDates() {
 }
 
 export default function CollectionJournalReport() {
+  const { t } = useTranslation();
   const defaults = getDefaultDates();
   const [startDate, setStartDate] = useState(defaults.startDate);
   const [endDate, setEndDate] = useState(defaults.endDate);
@@ -296,7 +298,7 @@ export default function CollectionJournalReport() {
             }}
           >
             <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder="All areas" />
+              <SelectValue placeholder={t('pages.reports.allAreas')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All areas</SelectItem>
@@ -312,7 +314,7 @@ export default function CollectionJournalReport() {
           <div className="relative">
             <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Search..."
+              placeholder={t('pages.reports.search')}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => {

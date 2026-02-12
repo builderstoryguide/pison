@@ -1,4 +1,8 @@
-import { Metadata } from 'next';
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -10,37 +14,51 @@ import {
 import { Container } from '@/components/common/container';
 import {
   Toolbar,
-  ToolbarActions,
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
+import { useTranslation } from '@/hooks/useTranslation';
 import RoleList from './components/role-list';
 
-export const metadata: Metadata = {
-  title: 'Roles',
-  description: 'Manage user roles.',
-};
+export default function Page() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const { t } = useTranslation();
 
-export default async function Page() {
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/signin');
+    } else if (status === 'authenticated' && session?.user?.roleName?.toLowerCase() !== 'administrator') {
+      router.replace('/');
+    }
+  }, [session, status, router]);
+
+  if (status === 'loading' || (status === 'authenticated' && session?.user?.roleName?.toLowerCase() !== 'administrator')) {
+    return null;
+  }
+
   return (
     <>
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>Roles</ToolbarTitle>
+            <ToolbarTitle>{t('pages.userManagement.roles')}</ToolbarTitle>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/">Home</BreadcrumbLink>
+                  <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Users</BreadcrumbPage>
+                  <BreadcrumbLink href="/user-management/users">{t('common.breadcrumbs.userManagement')}</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{t('pages.userManagement.roles')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </ToolbarHeading>
-          <ToolbarActions></ToolbarActions>
         </Toolbar>
       </Container>
       <Container>

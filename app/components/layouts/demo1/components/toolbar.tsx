@@ -8,6 +8,7 @@ import { MENU_SIDEBAR } from '@/config/menu.config';
 import { MenuItem } from '@/config/types';
 import { cn } from '@/lib/utils';
 import { useMenu } from '@/hooks/use-menu';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export interface ToolbarHeadingProps {
   title?: string | ReactNode;
@@ -28,6 +29,7 @@ function ToolbarActions({ children }: { children?: ReactNode }) {
 
 function ToolbarBreadcrumbs() {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const { getBreadcrumb, isActive } = useMenu(pathname);
   const items: MenuItem[] = getBreadcrumb(MENU_SIDEBAR);
 
@@ -41,6 +43,7 @@ function ToolbarBreadcrumbs() {
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
           const active = item.path ? isActive(item.path) : false;
+          const titleText = item.title ? t(item.title) : '';
 
           return (
             <Fragment key={index}>
@@ -54,13 +57,13 @@ function ToolbarBreadcrumbs() {
                       : 'text-muted-foreground hover:text-primary',
                   )}
                 >
-                  {item.title}
+                  {titleText}
                 </Link>
               ) : (
                 <span
                   className={cn(isLast ? 'text-mono' : 'text-muted-foreground')}
                 >
-                  {item.title}
+                  {titleText}
                 </span>
               )}
               {!isLast && (
@@ -76,13 +79,14 @@ function ToolbarBreadcrumbs() {
 
 function ToolbarHeading({ title = '', description }: ToolbarHeadingProps) {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const { getCurrentItem } = useMenu(pathname);
   const item = getCurrentItem(MENU_SIDEBAR);
 
   return (
     <div className="flex flex-col justify-center gap-2">
       <h1 className="text-xl font-medium leading-none text-mono">
-        {title || item?.title || 'Untitled'}
+        {title || (item?.title ? t(item.title) : '') || t('menu.untitled')}
       </h1>
       {description && (
         <div className="flex items-center gap-2 text-sm font-normal text-muted-foreground">

@@ -1,6 +1,8 @@
-import { Metadata } from 'next';
-import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth/next';
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -16,20 +18,24 @@ import {
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
-import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
+import { useTranslation } from '@/hooks/useTranslation';
 import UserList from './components/user-list';
 
-export const metadata: Metadata = {
-  title: 'Users',
-  description: 'Manage users.',
-};
+export default function Page() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const { t } = useTranslation();
 
-export default async function Page() {
-  const session = await getServerSession(authOptions);
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/signin');
+    } else if (status === 'authenticated' && session?.user?.roleName?.toLowerCase() !== 'administrator') {
+      router.replace('/');
+    }
+  }, [session, status, router]);
 
-  // Only administrators can access user management
-  if (!session || session.user.roleName?.toLowerCase() !== 'administrator') {
-    redirect('/dashboard');
+  if (status === 'loading' || (status === 'authenticated' && session?.user?.roleName?.toLowerCase() !== 'administrator')) {
+    return null;
   }
 
   return (
@@ -37,15 +43,15 @@ export default async function Page() {
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>Users</ToolbarTitle>
+            <ToolbarTitle>{t('pages.userManagement.users')}</ToolbarTitle>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/">Home</BreadcrumbLink>
+                  <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>User Management</BreadcrumbPage>
+                  <BreadcrumbPage>{t('common.breadcrumbs.userManagement')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>

@@ -1,4 +1,6 @@
-import { Metadata } from 'next';
+'use client';
+
+import { useParams } from 'next/navigation';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -17,45 +19,41 @@ import {
 import { Button } from '@/components/ui/button';
 import { Edit } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 import ClientDetails from './components/client-details';
 
-export const metadata: Metadata = {
-  title: 'Client Details',
-  description: 'View client details.',
-};
+export default function Page() {
+  const params = useParams();
+  const { t } = useTranslation();
+  const id = params.id as string;
 
-export default async function Page({
-  params,
-}: {
-  params: { id: string };
-}) {
   return (
     <>
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>Client Details</ToolbarTitle>
+            <ToolbarTitle>{t('pages.clientDetails.title')}</ToolbarTitle>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/">Home</BreadcrumbLink>
+                  <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/clients">Clients</BreadcrumbLink>
+                  <BreadcrumbLink href="/clients">{t('menu.clients')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Details</BreadcrumbPage>
+                  <BreadcrumbPage>{t('common.breadcrumbs.details')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </ToolbarHeading>
           <ToolbarActions>
-            <Link href={`/clients/${params.id}/edit`}>
+            <Link href={`/clients/${id}/edit`}>
               <Button variant="outline">
                 <Edit className="mr-2 size-4" />
-                Edit
+                {t('common.buttons.edit')}
               </Button>
             </Link>
           </ToolbarActions>
@@ -63,7 +61,7 @@ export default async function Page({
       </Container>
 
       <Container>
-        <ClientDetails clientId={params.id} />
+        <ClientDetails clientId={id} />
       </Container>
     </>
   );

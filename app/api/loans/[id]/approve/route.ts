@@ -1,8 +1,3 @@
-/**
- * Approve Loan API
- * POST /api/loans/[id]/approve - Approve and disburse loan (Admin only)
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
@@ -25,7 +20,10 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const loan = await loanService.approveLoan(params.id, session.user?.id || '');
+    const loan = await loanService.approveLoan(
+      params.id,
+      session.user?.id || ''
+    );
 
     return NextResponse.json({
       success: true,

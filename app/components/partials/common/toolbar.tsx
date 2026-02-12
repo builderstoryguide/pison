@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { MENU_SIDEBAR } from '@/config/menu.config';
 import { useMenu } from '@/hooks/use-menu';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const Toolbar = ({ children }: { children: ReactNode }) => {
   return (
@@ -19,12 +20,13 @@ const ToolbarActions = ({ children }: { children: ReactNode }) => {
 
 const ToolbarPageTitle = ({ text }: { text?: string }) => {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const { getCurrentItem } = useMenu(pathname);
   const item = getCurrentItem(MENU_SIDEBAR);
 
   return (
     <h1 className="text-xl font-medium leading-none text-mono">
-      {text ?? item?.title}
+      {text ?? (item?.title ? t(item.title) : '')}
     </h1>
   );
 };

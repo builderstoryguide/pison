@@ -1,4 +1,5 @@
-import { Metadata } from 'next';
+'use client';
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,32 +14,30 @@ import {
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
+import { useTranslation } from '@/hooks/useTranslation';
 import ClientForm from '../components/client-form';
 
-export const metadata: Metadata = {
-  title: 'New Client',
-  description: 'Create a new client.',
-};
+export default function Page() {
+  const { t } = useTranslation();
 
-export default async function Page() {
   return (
     <>
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>New Client</ToolbarTitle>
+            <ToolbarTitle>{t('pages.clientDetails.newClient')}</ToolbarTitle>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/">Home</BreadcrumbLink>
+                  <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/clients">Clients</BreadcrumbLink>
+                  <BreadcrumbLink href="/clients">{t('menu.clients')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>New</BreadcrumbPage>
+                  <BreadcrumbPage>{t('common.breadcrumbs.new')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>

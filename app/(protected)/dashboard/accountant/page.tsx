@@ -1,186 +1,217 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '@/lib/api';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
-  DollarSign,
-  Users,
-  TrendingUp,
-  CreditCard,
-  FileText,
-  CalendarCheck,
-  UserCheck,
-} from 'lucide-react';
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import { Container } from '@/components/common/container';
 import {
   Toolbar,
+  ToolbarActions,
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
-import { StatCard } from '../components/stat-card';
-import { PendingTransactionsCard } from '../components/pending-transactions-card';
-import { RecentActivityCard } from '../components/recent-activity-card';
-import { ContentLoader } from '@/components/common/content-loader';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Users, UserCheck, Wallet, FileText, MapPin, Activity } from 'lucide-react';
+import { formatCurrency, formatDate } from '@/lib/helpers';
+import { Badge } from '@/components/ui/badge';
 
 export default function AccountantDashboard() {
-  const { data: session } = useSession();
-
-  // Mock data - Replace with actual API calls
-  const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ['accountant-dashboard'],
+  const { t } = useTranslation();
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['dashboard-stats'],
     queryFn: async () => {
-      // TODO: Replace with actual API endpoint
-      return {
-        pendingTransactions: 8,
-        todayDeposits: 85000,
-        todayWithdrawals: 45000,
-        totalClients: 156,
-        totalAgents: 8,
-        officeTransactions: 3,
-        pendingTransactionsList: [
-          {
-            id: '1',
-            type: 'deposit' as const,
-            amount: 50000,
-            clientName: 'Jean Dupont',
-            date: 'Today, 10:30 AM',
-            status: 'pending' as const,
-          },
-          {
-            id: '2',
-            type: 'withdrawal' as const,
-            amount: 25000,
-            clientName: 'Sophie Laurent',
-            date: 'Today, 09:15 AM',
-            status: 'pending' as const,
-          },
-        ],
-        recentActivity: [
-          {
-            id: '1',
-            type: 'transaction' as const,
-            description: 'Processed deposit for client',
-            user: 'You',
-            time: '5 minutes ago',
-            amount: 50000,
-          },
-          {
-            id: '2',
-            type: 'collection' as const,
-            description: 'Agent collection received',
-            user: 'Marie Martin',
-            time: '30 minutes ago',
-            amount: 75000,
-          },
-          {
-            id: '3',
-            type: 'transaction' as const,
-            description: 'Withdrawal processed',
-            user: 'You',
-            time: '1 hour ago',
-            amount: 30000,
-          },
-        ],
-      };
+      const response = await apiFetch('/api/dashboard/stats');
+      if (!response.ok) return null;
+      const result = await response.json();
+      return result.data;
     },
   });
-
-  if (isLoading) {
-    return <ContentLoader className="mt-[30%]" />;
-  }
-
-  const stats = dashboardData || {
-    pendingTransactions: 0,
-    todayDeposits: 0,
-    todayWithdrawals: 0,
-    totalClients: 0,
-    totalAgents: 0,
-    officeTransactions: 0,
-    pendingTransactionsList: [],
-    recentActivity: [],
-  };
 
   return (
     <>
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>Accountant Dashboard</ToolbarTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Welcome back, {session?.user?.name || 'Accountant'}
-            </p>
+            <ToolbarTitle>{t('pages.dashboard.accountantTitle')}</ToolbarTitle>
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{t('navigation.dashboard')}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
           </ToolbarHeading>
         </Toolbar>
       </Container>
 
       <Container>
-        <div className="grid gap-5 lg:gap-7.5">
-          {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            <StatCard
-              title="Pending Transactions"
-              value={stats.pendingTransactions}
-              description="Awaiting validation"
-              icon={CalendarCheck}
-              className="border-orange-200 dark:border-orange-800"
-              onClick={() => window.location.href = '/transactions/pending'}
-            />
-            <StatCard
-              title="Today's Deposits"
-              value={new Intl.NumberFormat('fr-FR', {
-                style: 'currency',
-                currency: 'XOF',
-                minimumFractionDigits: 0,
-              }).format(stats.todayDeposits)}
-              description="Office deposits"
-              icon={TrendingUp}
-              trend={{ value: 8.3, isPositive: true }}
-            />
-            <StatCard
-              title="Today's Withdrawals"
-              value={new Intl.NumberFormat('fr-FR', {
-                style: 'currency',
-                currency: 'XOF',
-                minimumFractionDigits: 0,
-              }).format(stats.todayWithdrawals)}
-              description="Office withdrawals"
-              icon={CreditCard}
-            />
-            <StatCard
-              title="Office Transactions"
-              value={stats.officeTransactions}
-              description="Processed today"
-              icon={FileText}
-            />
-          </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Today's Collections
+              </CardTitle>
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-7 w-20" />
+              ) : (
+                <div className="text-2xl font-bold">{formatCurrency(stats?.dailyCollections || 0)}</div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Verified collections
+              </p>
+            </CardContent>
+          </Card>
 
-          {/* Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <StatCard
-              title="Total Clients"
-              value={stats.totalClients}
-              description="Active client accounts"
-              icon={Users}
-            />
-            <StatCard
-              title="Total Agents"
-              value={stats.totalAgents}
-              description="Active collection agents"
-              icon={UserCheck}
-            />
-          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Active Loans
+              </CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-7 w-20" />
+              ) : (
+                <div className="text-2xl font-bold">{stats?.totalLoans || 0}</div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                {stats?.pendingLoans || 0} pending approval
+              </p>
+            </CardContent>
+          </Card>
 
-          {/* Main Content Grid */}
-          <div className="grid lg:grid-cols-2 gap-5 lg:gap-7.5">
-            <PendingTransactionsCard
-              transactions={stats.pendingTransactionsList}
-              viewAllPath="/transactions/pending"
-            />
-            <RecentActivityCard
-              activities={stats.recentActivity}
-              title="Recent Transactions"
-            />
-          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Active Clients
+              </CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-7 w-20" />
+              ) : (
+                <div className="text-2xl font-bold">{stats?.activeClients || 0}</div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Managed accounts
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Active Agents
+              </CardTitle>
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-7 w-20" />
+              ) : (
+                <div className="text-2xl font-bold">{stats?.activeAgents || 0}</div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Field collectors
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+          <Card className="col-span-4">
+            <CardHeader>
+              <CardTitle>Recent Transactions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {stats?.recentTransactions?.length > 0 ? (
+                    stats.recentTransactions.map((txn: any) => (
+                      <div key={txn.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium leading-none">{txn.type}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {txn.reference} • {formatDate(txn.date)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <Badge variant={txn.status === 'COMPLETED' ? 'success' : 'secondary'}>
+                            {txn.status}
+                          </Badge>
+                          <div className={`font-medium ${
+                            ['DEPOSIT', 'COLLECTION'].includes(txn.type) 
+                              ? 'text-green-600' 
+                              : 'text-red-600'
+                          }`}>
+                            {['DEPOSIT', 'COLLECTION'].includes(txn.type) ? '+' : '-'}
+                            {formatCurrency(txn.amount)}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground">
+                      No recent transactions
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="col-span-3">
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <a href="/clients/new" className="flex items-center p-4 border rounded-lg hover:bg-accent transition-colors">
+                <Users className="h-5 w-5 mr-3 text-primary" />
+                <div className="space-y-1">
+                  <p className="font-medium">New Client</p>
+                  <p className="text-xs text-muted-foreground">Register new account</p>
+                </div>
+              </a>
+              <a href="/loans/new" className="flex items-center p-4 border rounded-lg hover:bg-accent transition-colors">
+                <Wallet className="h-5 w-5 mr-3 text-primary" />
+                <div className="space-y-1">
+                  <p className="font-medium">New Loan Request</p>
+                  <p className="text-xs text-muted-foreground">Initiate loan process</p>
+                </div>
+              </a>
+              <a href="/reports/monthly-balance" className="flex items-center p-4 border rounded-lg hover:bg-accent transition-colors">
+                <FileText className="h-5 w-5 mr-3 text-primary" />
+                <div className="space-y-1">
+                  <p className="font-medium">Reports</p>
+                  <p className="text-xs text-muted-foreground">View financial reports</p>
+                </div>
+              </a>
+            </CardContent>
+          </Card>
         </div>
       </Container>
     </>

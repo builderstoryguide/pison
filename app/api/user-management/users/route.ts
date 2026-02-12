@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
           action: 'USER_CREATED',
           entityType: 'USER',
           entityId: user.id,
-          description: `Administrator created user account for ${email} with role ${existingRole.name}.`,
+          description: `Administrator created user account (id: ${user.id}) with role ${existingRole.name}.`,
         },
       });
 

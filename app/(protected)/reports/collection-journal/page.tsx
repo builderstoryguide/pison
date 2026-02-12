@@ -1,4 +1,5 @@
-import { Metadata } from 'next';
+'use client';
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14,32 +15,30 @@ import {
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
+import { useTranslation } from '@/hooks/useTranslation';
 import CollectionJournalReport from './components/collection-journal-report';
 
-export const metadata: Metadata = {
-  title: 'Collection Journal',
-  description: 'View daily collection transactions.',
-};
+export default function Page() {
+  const { t } = useTranslation();
 
-export default async function Page() {
   return (
     <>
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>Collection Journal</ToolbarTitle>
+            <ToolbarTitle>{t('pages.reports.collectionJournal')}</ToolbarTitle>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/">Home</BreadcrumbLink>
+                  <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/reports">Reports</BreadcrumbLink>
+                  <BreadcrumbLink href="/reports">{t('menu.reports')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Collection Journal</BreadcrumbPage>
+                  <BreadcrumbPage>{t('pages.reports.collectionJournal')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>

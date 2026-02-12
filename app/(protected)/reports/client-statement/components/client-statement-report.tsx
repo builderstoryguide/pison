@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useQuery } from '@tanstack/react-query';
 import {
   ColumnDef,
@@ -28,8 +29,8 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiFetch } from '@/lib/api';
-import { formatCurrency, buildUrl } from '@/lib/hooks/use-api';
-import { formatDateTime } from '@/lib/helpers';
+import { buildUrl } from '@/lib/hooks/use-api';
+import { formatDateTime, formatCurrency } from '@/lib/helpers';
 
 interface ClientStatementRow {
   transactionNumber: string;
@@ -66,6 +67,7 @@ function getDefaultDates() {
 }
 
 export default function ClientStatementReport() {
+  const { t } = useTranslation();
   const defaults = getDefaultDates();
   const [clientId, setClientId] = useState<string>('');
   const [clientSearch, setClientSearch] = useState('');
@@ -266,7 +268,7 @@ export default function ClientStatementReport() {
               <label className="text-xs text-muted-foreground mb-1.5 block">Client</label>
               <Select value={clientId} onValueChange={setClientId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a client..." />
+                  <SelectValue placeholder={t('pages.reports.selectClient')} />
                 </SelectTrigger>
                 <SelectContent>
                   {clients?.map((c) => (

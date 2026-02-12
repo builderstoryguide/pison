@@ -1,4 +1,6 @@
-import { Metadata } from 'next';
+'use client';
+
+import { useParams } from 'next/navigation';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,38 +15,32 @@ import {
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
+import { useTranslation } from '@/hooks/useTranslation';
 import CollectionAreaForm from '../../components/collection-area-form';
 
-export const metadata: Metadata = {
-  title: 'Edit Collection Area',
-  description: 'Edit collection area details.',
-};
+export default function Page() {
+  const params = useParams();
+  const { t } = useTranslation();
+  const id = params.id as string;
 
-export default async function Page({
-  params,
-}: {
-  params: { id: string };
-}) {
   return (
     <>
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>Edit Collection Area</ToolbarTitle>
+            <ToolbarTitle>{t('pages.collectionAreas.editArea')}</ToolbarTitle>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/">Home</BreadcrumbLink>
+                  <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/collection-areas">
-                    Collection Areas
-                  </BreadcrumbLink>
+                  <BreadcrumbLink href="/collection-areas">{t('menu.collectionAreas')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Edit</BreadcrumbPage>
+                  <BreadcrumbPage>{t('common.breadcrumbs.edit')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -53,7 +49,7 @@ export default async function Page({
       </Container>
 
       <Container>
-        <CollectionAreaForm areaId={params.id} />
+        <CollectionAreaForm areaId={id} />
       </Container>
     </>
   );

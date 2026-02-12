@@ -1,4 +1,6 @@
-import { Metadata } from 'next';
+'use client';
+
+import { useParams } from 'next/navigation';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,36 +15,32 @@ import {
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
+import { useTranslation } from '@/hooks/useTranslation';
 import ClientForm from '../../components/client-form';
 
-export const metadata: Metadata = {
-  title: 'Edit Client',
-  description: 'Edit client details.',
-};
+export default function Page() {
+  const params = useParams();
+  const { t } = useTranslation();
+  const id = params.id as string;
 
-export default async function Page({
-  params,
-}: {
-  params: { id: string };
-}) {
   return (
     <>
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>Edit Client</ToolbarTitle>
+            <ToolbarTitle>{t('pages.clientDetails.editClient')}</ToolbarTitle>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/">Home</BreadcrumbLink>
+                  <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/clients">Clients</BreadcrumbLink>
+                  <BreadcrumbLink href="/clients">{t('menu.clients')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Edit</BreadcrumbPage>
+                  <BreadcrumbPage>{t('common.breadcrumbs.edit')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -51,7 +49,7 @@ export default async function Page({
       </Container>
 
       <Container>
-        <ClientForm clientId={params.id} />
+        <ClientForm clientId={id} />
       </Container>
     </>
   );

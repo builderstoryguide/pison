@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ interface CollectionEntry {
 }
 
 export default function DailyCollectionForm() {
+  const { t } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
@@ -201,7 +203,7 @@ export default function DailyCollectionForm() {
     return (
       <Card>
         <CardContent className="py-12 text-center text-muted-foreground">
-          Agent record not found. Please contact administrator.
+          {t('pages.collections.agentNotFound')}
         </CardContent>
       </Card>
     );
@@ -211,9 +213,9 @@ export default function DailyCollectionForm() {
     <div className="grid gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>Select Collection Area</CardTitle>
+          <CardTitle>{t('pages.collections.selectCollectionArea')}</CardTitle>
           <CardDescription>
-            Choose the area where you collected money today
+            {t('pages.collections.selectCollectionAreaDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -221,12 +223,12 @@ export default function DailyCollectionForm() {
             <Skeleton className="h-10 w-full" />
           ) : areas.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No collection areas assigned. Please contact administrator.
+              {t('pages.collections.noAreasAssigned')}
             </div>
           ) : (
             <Select value={selectedAreaId} onValueChange={handleAreaSelect}>
               <SelectTrigger>
-                <SelectValue placeholder="Select a collection area" />
+                <SelectValue placeholder={t('pages.collections.selectArea')} />
               </SelectTrigger>
               <SelectContent>
                 {areas.map((area) => (
@@ -249,9 +251,9 @@ export default function DailyCollectionForm() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Enter Collection Amounts</CardTitle>
+                <CardTitle>{t('pages.collections.enterCollectionAmounts')}</CardTitle>
                 <CardDescription>
-                  Enter the amount collected for each client
+                  {t('pages.collections.enterCollectionAmountsDesc')}
                 </CardDescription>
               </div>
               <Button
@@ -261,7 +263,7 @@ export default function DailyCollectionForm() {
                 disabled={isLoadingClients || clients.length === 0}
               >
                 <Plus className="mr-2 size-4" />
-                Add All Clients
+                {t('pages.collections.addAllClients')}
               </Button>
             </div>
           </CardHeader>
@@ -274,7 +276,7 @@ export default function DailyCollectionForm() {
               </div>
             ) : clients.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                No active clients in this area
+                {t('pages.collections.noActiveClientsInArea')}
               </div>
             ) : (
               <>
@@ -303,7 +305,7 @@ export default function DailyCollectionForm() {
                               </div>
                             </div>
                             <div className="mt-2 text-sm text-muted-foreground">
-                              Current Balance:{' '}
+                              {t('pages.collections.currentBalance')}:{' '}
                               {new Intl.NumberFormat('fr-FR', {
                                 style: 'currency',
                                 currency: 'XOF',
@@ -339,7 +341,7 @@ export default function DailyCollectionForm() {
                     <DollarSign className="size-5 text-primary" />
                     <div>
                       <div className="text-sm text-muted-foreground">
-                        Total Amount
+                        {t('pages.collections.totalAmount')}
                       </div>
                       <div className="text-2xl font-bold">
                         {new Intl.NumberFormat('fr-FR', {
@@ -362,12 +364,12 @@ export default function DailyCollectionForm() {
                     {submitMutation.isPending ? (
                       <>
                         <Loader2 className="mr-2 size-4 animate-spin" />
-                        Submitting...
+                        {t('pages.collections.submitting')}
                       </>
                     ) : (
                       <>
                         <Save className="mr-2 size-4" />
-                        Submit Collections
+                        {t('pages.collections.submitCollections')}
                       </>
                     )}
                   </Button>

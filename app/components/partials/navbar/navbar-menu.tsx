@@ -6,6 +6,7 @@ import { ChevronDown } from 'lucide-react';
 import { MenuConfig } from '@/config/types';
 import { cn } from '@/lib/utils';
 import { useMenu } from '@/hooks/use-menu';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   Menubar,
   MenubarContent,
@@ -19,6 +20,7 @@ import {
 
 const NavbarMenu = ({ items }: { items: MenuConfig }) => {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const { isActive, hasActiveChild } = useMenu(pathname);
 
   const buildMenu = (items: MenuConfig) => {
@@ -38,7 +40,7 @@ const NavbarMenu = ({ items }: { items: MenuConfig }) => {
               data-active={isActive(item.path) || undefined}
               data-here={hasActiveChild(item.children) || undefined}
             >
-              {item.title}
+              {item.title ? t(item.title) : ''}
               <ChevronDown className="ms-auto size-3.5" />
             </MenubarTrigger>
             <MenubarContent className="min-w-[175px]">
@@ -64,7 +66,7 @@ const NavbarMenu = ({ items }: { items: MenuConfig }) => {
                 data-active={isActive(item.path) || undefined}
                 data-here={hasActiveChild(item.children) || undefined}
               >
-                {item.title}
+                {item.title ? t(item.title) : ''}
               </Link>
             </MenubarTrigger>
           </MenubarMenu>
@@ -82,7 +84,7 @@ const NavbarMenu = ({ items }: { items: MenuConfig }) => {
               data-active={isActive(item.path) || undefined}
               data-here={hasActiveChild(item.children) || undefined}
             >
-              <span>{item.title}</span>
+              <span>{item.title ? t(item.title) : ''}</span>
             </MenubarSubTrigger>
             <MenubarSubContent className="min-w-[175px]">
               {buildSubMenu(item.children)}
@@ -97,7 +99,7 @@ const NavbarMenu = ({ items }: { items: MenuConfig }) => {
             data-active={isActive(item.path) || undefined}
             data-here={hasActiveChild(item.children) || undefined}
           >
-            <Link href={item.path || ''}>{item.title}</Link>
+            <Link href={item.path || ''}>{item.title ? t(item.title) : ''}</Link>
           </MenubarItem>
         );
       }

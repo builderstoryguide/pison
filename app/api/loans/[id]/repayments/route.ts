@@ -1,8 +1,3 @@
-/**
- * Loan Repayment API
- * POST /api/loans/[id]/repayments - Record loan repayment
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
@@ -33,19 +28,16 @@ export async function POST(
     const body = await request.json();
     const validatedData = repaymentSchema.parse(body);
 
-    const result = await loanService.recordRepayment(
+    const repayment = await loanService.recordRepayment(
       params.id,
       validatedData.amount,
       session.user?.id || ''
     );
 
-    return NextResponse.json(
-      {
-        success: true,
-        data: result,
-      },
-      { status: 201 }
-    );
+    return NextResponse.json({
+      success: true,
+      data: repayment,
+    });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -61,13 +53,13 @@ export async function POST(
       );
     }
 
-    console.error('Error recording loan repayment:', error);
+    console.error('Error recording repayment:', error);
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'REPAYMENT_ERROR',
-          message: error.message || 'Failed to record loan repayment',
+          message: error.message || 'Failed to record repayment',
         },
       },
       { status: 500 }

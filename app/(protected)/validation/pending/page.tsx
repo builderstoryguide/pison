@@ -1,4 +1,5 @@
-import { Metadata } from 'next';
+'use client';
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,28 +14,26 @@ import {
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
+import { useTranslation } from '@/hooks/useTranslation';
 import PendingTransactionsList from './components/pending-transactions-list';
 
-export const metadata: Metadata = {
-  title: 'Pending Transactions',
-  description: 'Review and approve pending transactions.',
-};
+export default function Page() {
+  const { t } = useTranslation();
 
-export default async function Page() {
   return (
     <>
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>Pending Transactions</ToolbarTitle>
+            <ToolbarTitle>{t('pages.validation.pendingTransactions')}</ToolbarTitle>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/">Home</BreadcrumbLink>
+                  <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Validation</BreadcrumbPage>
+                  <BreadcrumbPage>{t('pages.validation.validation')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>

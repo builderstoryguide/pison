@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ColumnDef,
@@ -34,8 +35,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { apiFetch } from '@/lib/api';
-import { formatCurrency, buildUrl } from '@/lib/hooks/use-api';
-import { formatDateTime } from '@/lib/helpers';
+import { buildUrl } from '@/lib/hooks/use-api';
+import { formatDateTime, formatCurrency } from '@/lib/helpers';
 
 interface CommissionReportRow {
   commissionId: string;
@@ -55,6 +56,7 @@ function getCurrentMonth(): string {
 }
 
 export default function CommissionReport() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [period, setPeriod] = useState(getCurrentMonth());
   const [searchQuery, setSearchQuery] = useState('');
@@ -283,7 +285,7 @@ export default function CommissionReport() {
           <div className="relative">
             <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Search client..."
+              placeholder={t('pages.reports.searchClient')}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => {
@@ -327,7 +329,7 @@ export default function CommissionReport() {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>{t('common.buttons.cancel')}</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => calculateMutation.mutate()}
                   disabled={calculateMutation.isPending}

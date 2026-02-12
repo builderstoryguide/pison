@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -46,6 +47,7 @@ interface CollectionAreaFormProps {
 }
 
 export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
   const isEditMode = !!areaId;
@@ -171,7 +173,7 @@ export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) 
     <Card>
       <CardHeader>
         <CardTitle>
-          {isEditMode ? 'Edit Collection Area' : 'Create New Collection Area'}
+          {isEditMode ? t('pages.collectionAreas.editCollectionArea') : t('pages.collectionAreas.createNewArea')}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -183,16 +185,16 @@ export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) 
                 name="code"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Code *</FormLabel>
+                    <FormLabel>{t('pages.collectionAreas.code')}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="ZONE-A"
+                        placeholder={t('common.placeholders.areaCode')}
                         {...field}
                         disabled={isEditMode || isLoading}
                       />
                     </FormControl>
                     <FormDescription>
-                      Unique code for the collection area (e.g., ZONE-A, ZONE-B)
+                      {t('pages.collectionAreas.codeDesc')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -204,16 +206,16 @@ export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) 
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name *</FormLabel>
+                    <FormLabel>{t('pages.collectionAreas.name')}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Zone A - Downtown"
+                        placeholder={t('common.placeholders.areaName')}
                         {...field}
                         disabled={isLoading}
                       />
                     </FormControl>
                     <FormDescription>
-                      Display name for the collection area
+                      {t('pages.collectionAreas.nameDesc')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -226,17 +228,17 @@ export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) 
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>{t('pages.collectionAreas.description')}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Description of the collection area..."
+                      placeholder={t('common.placeholders.areaDescription')}
                       {...field}
                       disabled={isLoading}
                       rows={3}
                     />
                   </FormControl>
                   <FormDescription>
-                    Optional description of the collection area
+                    {t('pages.collectionAreas.descriptionDesc')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -249,10 +251,10 @@ export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) 
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>City</FormLabel>
+                    <FormLabel>{t('common.labels.city')}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Yaoundé"
+                        placeholder={t('common.placeholders.city')}
                         {...field}
                         disabled={isLoading}
                       />
@@ -267,10 +269,10 @@ export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) 
                 name="region"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Region</FormLabel>
+                    <FormLabel>{t('common.labels.region')}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Centre"
+                        placeholder={t('common.placeholders.region')}
                         {...field}
                         disabled={isLoading}
                       />
@@ -287,7 +289,7 @@ export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) 
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status</FormLabel>
+                    <FormLabel>{t('common.labels.status')}</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
@@ -295,16 +297,16 @@ export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) 
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
+                          <SelectValue placeholder={t('common.placeholders.selectStatus')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="ACTIVE">Active</SelectItem>
-                        <SelectItem value="INACTIVE">Inactive</SelectItem>
+                        <SelectItem value="ACTIVE">{t('status.active')}</SelectItem>
+                        <SelectItem value="INACTIVE">{t('status.inactive')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Active areas can be assigned to agents and used for collections
+                      {t('pages.collectionAreas.statusDesc')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -319,11 +321,11 @@ export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) 
                 onClick={() => router.back()}
                 disabled={isLoading}
               >
-                Cancel
+                {t('common.buttons.cancel')}
               </Button>
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                {isEditMode ? 'Update Area' : 'Create Area'}
+                {isEditMode ? t('pages.collectionAreas.updateArea') : t('pages.collectionAreas.createArea')}
               </Button>
             </div>
           </form>

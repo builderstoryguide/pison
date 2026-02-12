@@ -7,9 +7,11 @@ import { MENU_SIDEBAR } from '@/config/menu.config';
 import { MenuItem } from '@/config/types';
 import { cn } from '@/lib/utils';
 import { useMenu } from '@/hooks/use-menu';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export function Breadcrumb() {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const { getBreadcrumb, isActive } = useMenu(pathname);
   const items: MenuItem[] = getBreadcrumb(MENU_SIDEBAR);
 
@@ -29,7 +31,7 @@ export function Breadcrumb() {
               className={cn(active ? 'text-mono' : 'text-secondary-foreground')}
               key={`item-${index}`}
             >
-              {item.title}
+              {item.title ? t(item.title) : ''}
             </span>
             {!last && (
               <ChevronRight

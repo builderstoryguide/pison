@@ -24,6 +24,7 @@ export interface UpdateAgentInput {
   email?: string;
   address?: string;
   status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  areaIds?: string[]; // Collection areas to assign
 }
 
 export class AgentService {
@@ -155,6 +156,7 @@ export class AgentService {
 
   /**
    * Update an agent
+   * If areaIds are provided, updates both agent data and area assignments in a single transaction
    */
   async updateAgent(id: string, data: UpdateAgentInput, userId: string) {
     const agent = await prisma.agent.findUnique({ where: { id } });
@@ -163,10 +165,65 @@ export class AgentService {
       throw new Error('Agent not found');
     }
 
+    // Extract areaIds from data to handle separately
+    const { areaIds, ...agentData } = data;
+
+    // If areaIds are provided, use a transaction to update both agent and areas
+    if (areaIds !== undefined) {
+      return await prisma.$transaction(async (tx) => {
+        // Update agent data
+        const updatedAgent = await tx.agent.update({
+          where: { id },
+          data: {
+            ...agentData,
+            updatedBy: userId,
+          },
+        });
+
+        // Remove existing area assignments
+        await tx.agentAreaAssignment.deleteMany({
+          where: { agentId: id },
+        });
+
+        // Create new area assignments if areaIds array is not empty
+        if (areaIds.length > 0) {
+          await tx.agentAreaAssignment.createMany({
+            data: areaIds.map((areaId, index) => ({
+              agentId: id,
+              areaId,
+              isPrimary: index === 0,
+              assignedBy: userId,
+            })),
+          });
+        }
+
+        // Return the complete updated agent with all relations
+        return await tx.agent.findUnique({
+          where: { id },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+              },
+            },
+            account: true,
+            areaAssignments: {
+              include: {
+                area: true,
+              },
+            },
+          },
+        });
+      });
+    }
+
+    // If no areaIds, just update agent data (no transaction needed)
     return await prisma.agent.update({
       where: { id },
       data: {
-        ...data,
+        ...agentData,
         updatedBy: userId,
       },
       include: {

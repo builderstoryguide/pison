@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { I18N_LANGUAGES, Language } from '@/i18n/config';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   BetweenHorizontalStart,
   Coffee,
@@ -40,6 +41,7 @@ import { Switch } from '@/components/ui/switch';
 
 export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const { changeLanguage, language } = useLanguage();
   const { theme, setTheme } = useTheme();
@@ -102,7 +104,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
             className="flex items-center gap-2"
           >
             <UserCircle />
-            Public Profile
+            {t('menu.publicProfile')}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
@@ -111,7 +113,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
             className="flex items-center gap-2"
           >
             <User />
-            My Profile
+            {t('menu.myProfile')}
           </Link>
         </DropdownMenuItem>
 
@@ -119,7 +121,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="flex items-center gap-2">
             <Settings />
-            My Account
+            {t('menu.myAccount')}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-48">
             <DropdownMenuItem asChild>
@@ -128,7 +130,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
                 className="flex items-center gap-2"
               >
                 <Coffee />
-                Get Started
+                {t('menu.getStarted')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -137,7 +139,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
                 className="flex items-center gap-2"
               >
                 <FileText />
-                My Profile
+                {t('menu.myProfile')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -146,7 +148,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
                 className="flex items-center gap-2"
               >
                 <CreditCard />
-                Billing
+                {t('menu.billing')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -155,7 +157,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
                 className="flex items-center gap-2"
               >
                 <Shield />
-                Security
+                {t('menu.security')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -164,7 +166,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
                 className="flex items-center gap-2"
               >
                 <Users />
-                Members & Roles
+                {t('menu.membersRoles')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -173,7 +175,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
                 className="flex items-center gap-2"
               >
                 <BetweenHorizontalStart />
-                Integrations
+                {t('menu.integrations')}
               </Link>
             </DropdownMenuItem>
           </DropdownMenuSubContent>
@@ -185,7 +187,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
             className="flex items-center gap-2"
           >
             <FileText />
-            Dev Forum
+            {t('menu.devForum')}
           </Link>
         </DropdownMenuItem>
 
@@ -194,7 +196,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
           <DropdownMenuSubTrigger className="flex items-center gap-2 [&_[data-slot=dropdown-menu-sub-trigger-indicator]]:hidden hover:[&_[data-slot=badge]]:border-input data-[state=open]:[&_[data-slot=badge]]:border-input">
             <Globe />
             <span className="flex items-center justify-between gap-2 grow relative">
-              Language
+              {t('menu.language')}
               <Badge
                 variant="outline"
                 className="absolute end-0 top-1/2 -translate-y-1/2"
@@ -245,7 +247,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
         >
           <Moon />
           <div className="flex items-center gap-2 justify-between grow">
-            Dark Mode
+            {t('menu.darkMode')}
             <Switch
               size="sm"
               checked={theme === 'dark'}
@@ -262,7 +264,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
             onClick={handleLogout}
           >
             <LogOut className="mr-2 w-4 h-4" />
-            Logout
+            {t('menu.logout')}
           </Button>
         </div>
       </DropdownMenuContent>

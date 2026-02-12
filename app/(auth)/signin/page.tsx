@@ -22,19 +22,21 @@ import {
 import { Input } from '@/components/ui/input';
 import { getSigninSchema, SigninSchemaType } from '../forms/signin-schema';
 
-const isDev = process.env.NODE_ENV === 'development';
-
-const DEV_CREDENTIALS = [
-  { label: 'Admin', email: 'admin@dcm.local', password: 'admin123' },
-  { label: 'Accountant', email: 'accountant@dcm.local', password: 'accountant123' },
-  { label: 'Agent', email: 'agent1@dcm.local', password: 'agent123' },
-];
-
 export default function Page() {
   const router = useRouter();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Dev credentials are only initialized in development to keep them out of prod bundles
+  const devCredentials =
+    process.env.NODE_ENV === 'development'
+      ? [
+          { label: 'Admin', email: 'admin@dcm.local', password: 'admin123' },
+          { label: 'Accountant', email: 'accountant@dcm.local', password: 'accountant123' },
+          { label: 'Agent', email: 'agent1@dcm.local', password: 'agent123' },
+        ]
+      : [];
 
   const form = useForm<SigninSchemaType>({
     resolver: zodResolver(getSigninSchema()),
@@ -89,14 +91,14 @@ export default function Page() {
           </p>
         </div>
 
-        {isDev && (
+        {process.env.NODE_ENV === 'development' && devCredentials.length > 0 && (
           <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
             <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
               <RiErrorWarningFill className="size-3.5 text-primary" />
               Dev credentials (click to fill):
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {DEV_CREDENTIALS.map((cred) => (
+              {devCredentials.map((cred) => (
                 <button
                   key={cred.email}
                   type="button"

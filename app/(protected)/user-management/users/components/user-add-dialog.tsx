@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { RiCheckboxCircleFill, RiErrorWarningFill } from '@remixicon/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -46,6 +47,7 @@ const UserAddDialog = ({
   open: boolean;
   closeDialog: () => void;
 }) => {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
@@ -150,7 +152,7 @@ const UserAddDialog = ({
     <Dialog open={open} onOpenChange={closeDialog}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add User</DialogTitle>
+          <DialogTitle>{t('pages.userManagement.addUserTitle')}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)}>
@@ -160,9 +162,9 @@ const UserAddDialog = ({
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>{t('common.labels.name')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter name" {...field} />
+                      <Input placeholder={t('common.placeholders.enterName')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -173,9 +175,9 @@ const UserAddDialog = ({
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t('common.labels.email')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter user email" {...field} />
+                      <Input placeholder={t('common.placeholders.enterEmail')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -186,10 +188,10 @@ const UserAddDialog = ({
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t('common.labels.password')}</FormLabel>
                     <div className="relative">
                       <Input
-                        placeholder="Set initial password"
+                        placeholder={t('common.placeholders.setPassword')}
                         type={passwordVisible ? 'text' : 'password'}
                         {...field}
                       />
@@ -220,10 +222,10 @@ const UserAddDialog = ({
                 name="passwordConfirmation"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
+                    <FormLabel>{t('common.labels.confirmPassword')}</FormLabel>
                     <div className="relative">
                       <Input
-                        placeholder="Confirm password"
+                        placeholder={t('common.placeholders.confirmPassword')}
                         type={confirmVisible ? 'text' : 'password'}
                         {...field}
                       />
@@ -256,14 +258,14 @@ const UserAddDialog = ({
                 name="roleId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Role</FormLabel>
+                    <FormLabel>{t('common.labels.role')}</FormLabel>
                     <FormControl>
                       <Select
                         onValueChange={(value) => field.onChange(value)}
                         defaultValue={field.value}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a role" />
+                          <SelectValue placeholder={t('common.placeholders.selectRole')} />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
@@ -283,14 +285,14 @@ const UserAddDialog = ({
             </DialogBody>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog}>
-                Cancel
+                {t('common.buttons.cancel')}
               </Button>
               <Button
                 type="submit"
                 disabled={!form.formState.isDirty || isProcessing}
               >
                 {isProcessing && <LoaderCircleIcon className="animate-spin" />}
-                Add user
+                {t('pages.userManagement.addUserButton')}
               </Button>
             </DialogFooter>
           </form>

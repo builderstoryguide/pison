@@ -17,6 +17,7 @@ const updateAgentSchema = z.object({
   email: z.string().email().optional(),
   address: z.string().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED']).optional(),
+  areaIds: z.array(z.string().uuid()).optional(),
 });
 
 export async function GET(
@@ -75,7 +76,8 @@ export async function PUT(
     const body = await request.json();
     const validatedData = updateAgentSchema.parse(body);
 
-    const agent = await agentService.updateAgent(
+    // updateAgent now handles both agent data and area assignments in a single transaction
+    const updatedAgent = await agentService.updateAgent(
       params.id,
       validatedData,
       session.user?.id || ''
@@ -83,7 +85,7 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      data: agent,
+      data: updatedAgent,
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {

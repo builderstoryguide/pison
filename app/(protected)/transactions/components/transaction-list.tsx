@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useQuery } from '@tanstack/react-query';
 import {
   ColumnDef,
@@ -50,6 +51,7 @@ interface Transaction {
 
 const TransactionList = () => {
   const router = useRouter();
+  const { t } = useTranslation();
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
@@ -105,7 +107,7 @@ const TransactionList = () => {
         id: 'transactionNumber',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Transaction"
+            title={t('pages.transactions.columnTransaction')}
             visibility={true}
             column={column}
           />
@@ -122,7 +124,13 @@ const TransactionList = () => {
                   {transaction.transactionNumber}
                 </div>
                 <div className="text-muted-foreground text-xs">
-                  {transaction.type.replace(/_/g, ' ')}
+                  {{
+                    COLLECTION: t('pages.transactions.typeCollection'),
+                    DEPOSIT: t('pages.transactions.typeDeposit'),
+                    WITHDRAWAL: t('pages.transactions.typeWithdrawal'),
+                    LOAN_REPAYMENT: t('pages.transactions.typeLoanRepayment'),
+                    LOAN_DISBURSEMENT: t('pages.transactions.typeLoanDisbursement'),
+                  }[transaction.type] || transaction.type}
                 </div>
               </div>
             </div>
@@ -130,7 +138,7 @@ const TransactionList = () => {
         },
         size: 250,
         meta: {
-          headerTitle: 'Transaction',
+          headerTitle: t('pages.transactions.columnTransaction'),
           skeleton: (
             <div className="flex items-center gap-3">
               <Skeleton className="size-8 rounded-md" />
@@ -149,7 +157,7 @@ const TransactionList = () => {
         id: 'amount',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Amount"
+            title={t('pages.transactions.columnAmount')}
             visibility={true}
             column={column}
           />
@@ -176,7 +184,7 @@ const TransactionList = () => {
         },
         size: 150,
         meta: {
-          headerTitle: 'Amount',
+          headerTitle: t('pages.transactions.columnAmount'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: true,
@@ -187,7 +195,7 @@ const TransactionList = () => {
         id: 'status',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Status"
+            title={t('pages.transactions.columnStatus')}
             visibility={true}
             column={column}
           />
@@ -202,16 +210,22 @@ const TransactionList = () => {
             REVERSED: 'secondary',
           };
           const variant = variantMap[status] || 'secondary';
+          const statusLabels: Record<string, string> = {
+            COMPLETED: t('pages.transactions.statusCompleted'),
+            APPROVED: t('pages.transactions.statusApproved'),
+            PENDING_APPROVAL: t('pages.transactions.statusPending'),
+            REJECTED: t('pages.transactions.statusRejected'),
+          };
           return (
             <Badge variant={variant} appearance="ghost">
               <BadgeDot />
-              {status.replace(/_/g, ' ')}
+              {statusLabels[status] ?? status.replace(/_/g, ' ')}
             </Badge>
           );
         },
         size: 150,
         meta: {
-          headerTitle: 'Status',
+          headerTitle: t('pages.transactions.columnStatus'),
           skeleton: <Skeleton className="w-14 h-7" />,
         },
         enableSorting: true,
@@ -222,7 +236,7 @@ const TransactionList = () => {
         id: 'createdAt',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Date"
+            title={t('pages.transactions.columnDate')}
             visibility={true}
             column={column}
           />
@@ -230,7 +244,7 @@ const TransactionList = () => {
         cell: (info) => formatDateTime(new Date(info.getValue() as string)),
         size: 175,
         meta: {
-          headerTitle: 'Date',
+          headerTitle: t('pages.transactions.columnDate'),
           skeleton: <Skeleton className="w-24 h-7" />,
         },
         enableSorting: true,
@@ -251,7 +265,7 @@ const TransactionList = () => {
         enableResizing: false,
       },
     ],
-    [],
+    [t],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -294,7 +308,7 @@ const TransactionList = () => {
           <div className="relative">
             <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Search transactions..."
+              placeholder={t('pages.transactions.searchPlaceholder')}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -322,15 +336,15 @@ const TransactionList = () => {
             disabled={isLoading}
           >
             <SelectTrigger className="w-full sm:w-36">
-              <SelectValue placeholder="Filter by type" />
+              <SelectValue placeholder={t('pages.transactions.filterByType')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
-              <SelectItem value="COLLECTION">Collection</SelectItem>
-              <SelectItem value="DEPOSIT">Deposit</SelectItem>
-              <SelectItem value="WITHDRAWAL">Withdrawal</SelectItem>
-              <SelectItem value="LOAN_DISBURSEMENT">Loan Disbursement</SelectItem>
-              <SelectItem value="LOAN_REPAYMENT">Loan Repayment</SelectItem>
+              <SelectItem value="all">{t('pages.transactions.allTypes')}</SelectItem>
+              <SelectItem value="COLLECTION">{t('pages.transactions.typeCollection')}</SelectItem>
+              <SelectItem value="DEPOSIT">{t('pages.transactions.typeDeposit')}</SelectItem>
+              <SelectItem value="WITHDRAWAL">{t('pages.transactions.typeWithdrawal')}</SelectItem>
+              <SelectItem value="LOAN_DISBURSEMENT">{t('pages.transactions.typeLoanDisbursement')}</SelectItem>
+              <SelectItem value="LOAN_REPAYMENT">{t('pages.transactions.typeLoanRepayment')}</SelectItem>
             </SelectContent>
           </Select>
           <Select
@@ -340,14 +354,14 @@ const TransactionList = () => {
             disabled={isLoading}
           >
             <SelectTrigger className="w-full sm:w-36">
-              <SelectValue placeholder="Filter by status" />
+              <SelectValue placeholder={t('pages.transactions.filterByStatus')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="PENDING_APPROVAL">Pending</SelectItem>
-              <SelectItem value="APPROVED">Approved</SelectItem>
-              <SelectItem value="COMPLETED">Completed</SelectItem>
-              <SelectItem value="REJECTED">Rejected</SelectItem>
+              <SelectItem value="all">{t('pages.transactions.allStatuses')}</SelectItem>
+              <SelectItem value="PENDING_APPROVAL">{t('pages.transactions.statusPending')}</SelectItem>
+              <SelectItem value="APPROVED">{t('pages.transactions.statusApproved')}</SelectItem>
+              <SelectItem value="COMPLETED">{t('pages.transactions.statusCompleted')}</SelectItem>
+              <SelectItem value="REJECTED">{t('pages.transactions.statusRejected')}</SelectItem>
             </SelectContent>
           </Select>
         </div>

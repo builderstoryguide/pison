@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ interface CollectionArea {
 }
 
 export default function AreaAssignments() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
   const [selectedAreaIds, setSelectedAreaIds] = useState<Set<string>>(new Set());
@@ -157,9 +159,9 @@ export default function AreaAssignments() {
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>Select Agent</CardTitle>
+          <CardTitle>{t('pages.collectionAreas.selectAgent')}</CardTitle>
           <CardDescription>
-            Choose an agent to manage their area assignments
+            {t('pages.collectionAreas.selectAgentDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -171,7 +173,7 @@ export default function AreaAssignments() {
               onValueChange={handleAgentSelect}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select an agent" />
+                <SelectValue placeholder={t('pages.collectionAreas.selectAgentPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
                 {agents.map((agent) => (
@@ -191,7 +193,7 @@ export default function AreaAssignments() {
 
           {selectedAgentId && (
             <div className="space-y-2">
-              <div className="text-sm font-medium">Current Assignments</div>
+              <div className="text-sm font-medium">{t('pages.collectionAreas.currentAssignments')}</div>
               {isLoadingAssignments ? (
                 <div className="space-y-2">
                   <Skeleton className="h-8 w-full" />
@@ -214,7 +216,7 @@ export default function AreaAssignments() {
                 </div>
               ) : (
                 <div className="text-sm text-muted-foreground">
-                  No areas assigned
+                  {t('pages.collectionAreas.noAreasAssigned')}
                 </div>
               )}
             </div>
@@ -224,15 +226,15 @@ export default function AreaAssignments() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Assign Collection Areas</CardTitle>
+          <CardTitle>{t('pages.collectionAreas.assignCollectionAreas')}</CardTitle>
           <CardDescription>
-            Select the areas this agent should have access to
+            {t('pages.collectionAreas.assignCollectionAreasDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {!selectedAgentId ? (
             <div className="text-center py-8 text-muted-foreground">
-              Please select an agent first
+              {t('pages.collectionAreas.selectAgentFirst')}
             </div>
           ) : isLoadingAreas ? (
             <div className="space-y-2">
@@ -242,7 +244,7 @@ export default function AreaAssignments() {
             </div>
           ) : areas.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No active collection areas available
+              {t('pages.collectionAreas.noActiveAreasAvailable')}
             </div>
           ) : (
             <>
@@ -287,12 +289,12 @@ export default function AreaAssignments() {
                   {assignMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" />
-                      Saving...
+                      {t('pages.collectionAreas.saving')}
                     </>
                   ) : (
                     <>
                       <Save className="mr-2 size-4" />
-                      Save Assignments
+                      {t('pages.collectionAreas.saveAssignments')}
                     </>
                   )}
                 </Button>

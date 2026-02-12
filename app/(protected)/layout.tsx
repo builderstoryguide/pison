@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Demo1Layout } from '../components/layouts/demo1/layout';
+import { ScreenLoader } from '@/components/common/screen-loader';
 
 export default function ProtectedLayout({
   children,
@@ -22,14 +23,7 @@ export default function ProtectedLayout({
 
   // Show nothing while loading session
   if (status === 'loading') {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="flex flex-col items-center gap-3">
-          <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <ScreenLoader />;
   }
 
   // Don't render protected content if unauthenticated

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -68,6 +69,7 @@ interface CollectionArea {
 
 const CollectionAreaList = () => {
   const router = useRouter();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -393,7 +395,7 @@ const CollectionAreaList = () => {
           <div className="relative">
             <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Search areas..."
+              placeholder={t('pages.collectionAreas.searchPlaceholder')}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -421,7 +423,7 @@ const CollectionAreaList = () => {
             disabled={isLoading}
           >
             <SelectTrigger className="w-full sm:w-36">
-              <SelectValue placeholder="Filter by status" />
+              <SelectValue placeholder={t('pages.collectionAreas.filterByStatus')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All areas</SelectItem>
@@ -484,7 +486,7 @@ const CollectionAreaList = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.buttons.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               disabled={deleteMutation.isPending}

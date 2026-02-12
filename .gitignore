@@ -12,3 +12,8 @@ dist
 dist-ssr
 
 .next
+
+# Test results
+playwright-report/
+test-results/
+e2e/.auth/

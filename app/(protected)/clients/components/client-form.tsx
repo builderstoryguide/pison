@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -49,6 +50,7 @@ interface ClientFormProps {
 
 export default function ClientForm({ clientId }: ClientFormProps) {
   const router = useRouter();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const isEditMode = !!clientId;
 
@@ -201,10 +203,10 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                 name="fullName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Full Name *</FormLabel>
+                    <FormLabel>{t('common.labels.fullName')} *</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Jean Dupont"
+                        placeholder={t('common.placeholders.fullName')}
                         {...field}
                         disabled={isLoading}
                       />
@@ -219,10 +221,10 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                 name="nationalId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>National ID</FormLabel>
+                    <FormLabel>{t('common.labels.nationalId')}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="1234567890123"
+                        placeholder={t('common.placeholders.nationalId')}
                         {...field}
                         disabled={isLoading}
                       />
@@ -239,10 +241,10 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone</FormLabel>
+                    <FormLabel>{t('common.labels.phone')}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="+237 6XX XXX XXX"
+                        placeholder={t('common.placeholders.phoneNumber')}
                         {...field}
                         disabled={isLoading}
                       />
@@ -257,11 +259,11 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t('common.labels.email')}</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
-                        placeholder="client@example.com"
+                        placeholder={t('common.placeholders.emailAddress')}
                         {...field}
                         disabled={isLoading}
                       />
@@ -278,10 +280,10 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                 name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Address</FormLabel>
+                    <FormLabel>{t('common.labels.address')}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="123 Main Street"
+                        placeholder={t('common.placeholders.streetAddress')}
                         {...field}
                         disabled={isLoading}
                       />
@@ -296,10 +298,10 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>City</FormLabel>
+                    <FormLabel>{t('common.labels.city')}</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Yaoundé"
+                        placeholder={t('common.placeholders.city')}
                         {...field}
                         disabled={isLoading}
                       />
@@ -315,7 +317,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
               name="areaId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Collection Area *</FormLabel>
+                  <FormLabel>{t('common.labels.collectionArea')} *</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
@@ -323,7 +325,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a collection area" />
+                        <SelectValue placeholder={t('common.placeholders.selectArea')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -335,7 +337,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    The collection area where this client is located
+                    {t('pages.clients.collectionAreaDesc')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -349,10 +351,10 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">
-                      Commission Exempt
+                      {t('pages.clients.commissionExempt')}
                     </FormLabel>
                     <FormDescription>
-                      If enabled, this client will not be charged commissions on withdrawals
+                      {t('pages.clients.commissionExemptDesc')}
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -373,11 +375,11 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                 onClick={() => router.back()}
                 disabled={isLoading}
               >
-                Cancel
+                {t('common.buttons.cancel')}
               </Button>
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                {isEditMode ? 'Update Client' : 'Create Client'}
+                {isEditMode ? t('pages.clients.updateClient') : t('pages.clients.createClient')}
               </Button>
             </div>
           </form>

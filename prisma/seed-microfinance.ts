@@ -4,9 +4,17 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
 import bcrypt from 'bcrypt';
+import dotenv from 'dotenv';
 
-const prisma = new PrismaClient();
+dotenv.config();
+
+// Initialize Prisma Client with Adapter (same as lib/prisma.ts)
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log('🌱 Seeding microfinance data...\n');

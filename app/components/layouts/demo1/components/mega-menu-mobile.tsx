@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { LucideIcon } from 'lucide-react';
 import { MENU_MEGA_MOBILE } from '@/config/menu.config';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   AccordionMenu,
   AccordionMenuClassNames,
@@ -38,6 +39,7 @@ export type MenuConfig = MenuItem[];
 
 export function MegaMenuMobile() {
   const pathname = usePathname();
+  const { t } = useTranslation();
 
   // Memoize matchPath to prevent unnecessary re-renders
   const matchPath = useCallback(
@@ -80,10 +82,10 @@ export function MegaMenuMobile() {
           <AccordionMenuSubTrigger className="text-sm font-medium">
             {item.icon && <item.icon data-slot="accordion-menu-icon" />}
             <div className="flex items-center justify-between grow gap-2">
-              <span data-slot="accordion-menu-title">{item.title}</span>
+              <span data-slot="accordion-menu-title">{item.title ? t(item.title) : ''}</span>
               {item.badge && (
                 <Badge variant="secondary" size="sm" className="ms-auto">
-                  {item.badge}
+                  {t(item.badge)}
                 </Badge>
               )}
             </div>
@@ -110,10 +112,10 @@ export function MegaMenuMobile() {
           <Link href={item.path || '#'} className="">
             {item.icon && <item.icon data-slot="accordion-menu-icon" />}
             <div className="flex items-center justify-between grow gap-2">
-              <span data-slot="accordion-menu-title">{item.title}</span>
+              <span data-slot="accordion-menu-title">{item.title ? t(item.title) : ''}</span>
               {item.badge && (
                 <Badge variant="secondary" size="sm" className="ms-auto">
-                  {item.badge}
+                  {t(item.badge)}
                 </Badge>
               )}
             </div>
@@ -159,14 +161,14 @@ export function MegaMenuMobile() {
                 </span>
               </span>
             ) : (
-              item.title
+              item.title ? t(item.title) : ''
             )}
-            {item.badge && (
-              <Badge variant="secondary" size="sm" className="ms-auto">
-                {item.badge}
-              </Badge>
-            )}
-          </AccordionMenuSubTrigger>
+{item.badge && (
+                <Badge variant="secondary" size="sm" className="ms-auto">
+                  {t(item.badge)}
+                </Badge>
+              )}
+            </AccordionMenuSubTrigger>
           <AccordionMenuSubContent
             type="single"
             collapsible
@@ -192,10 +194,10 @@ export function MegaMenuMobile() {
           <Link href={item.path || '#'}>
             {item.icon && <item.icon data-slot="accordion-menu-icon" />}
             <div className="flex items-center justify-between grow gap-2">
-              <span>{item.title}</span>
+              <span>{item.title ? t(item.title) : ''}</span>
               {item.badge && (
                 <Badge variant="secondary" size="sm" className="ms-auto">
-                  {item.badge}
+                  {t(item.badge)}
                 </Badge>
               )}
             </div>
@@ -206,7 +208,7 @@ export function MegaMenuMobile() {
   };
 
   const buildMenuHeading = (item: MenuItem, index: number): JSX.Element => {
-    return <AccordionMenuLabel key={index}>{item.heading}</AccordionMenuLabel>;
+    return <AccordionMenuLabel key={index}>{item.heading ? t(item.heading) : ''}</AccordionMenuLabel>;
   };
 
   return (

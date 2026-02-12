@@ -44,6 +44,8 @@ export const transactionKeys = {
   detail: (id: string) => [...transactionKeys.details(), id] as const,
   byAccount: (accountId: string) =>
     [...transactionKeys.all, 'account', accountId] as const,
+  byAccountFiltered: (accountId: string, filters: Record<string, string | undefined>) =>
+    [...transactionKeys.byAccount(accountId), filters] as const,
 };
 
 export const loanKeys = {

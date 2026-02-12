@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useQuery } from '@tanstack/react-query';
 import {
   ColumnDef,
@@ -28,7 +29,8 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiFetch } from '@/lib/api';
-import { formatCurrency, buildUrl } from '@/lib/hooks/use-api';
+import { buildUrl } from '@/lib/hooks/use-api';
+import { formatCurrency } from '@/lib/helpers';
 
 interface AreaStatisticsRow {
   areaId: string;
@@ -59,6 +61,7 @@ function getDefaultDates() {
 }
 
 export default function AreaStatisticsReport() {
+  const { t } = useTranslation();
   const defaults = getDefaultDates();
   const [startDate, setStartDate] = useState(defaults.startDate);
   const [endDate, setEndDate] = useState(defaults.endDate);
@@ -339,7 +342,7 @@ export default function AreaStatisticsReport() {
                 onValueChange={setAreaId}
               >
                 <SelectTrigger className="w-full sm:w-44">
-                  <SelectValue placeholder="All areas" />
+                  <SelectValue placeholder={t('pages.reports.allAreas')} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All areas</SelectItem>

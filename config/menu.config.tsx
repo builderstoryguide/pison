@@ -70,242 +70,200 @@ import {
 import { type MenuConfig } from './types';
 
 // Microfinance Management System Menu Configuration
+// Titles and headings use translation keys (menu.xxx) - components translate them via t()
 export const MENU_SIDEBAR: MenuConfig = [
+  { title: 'menu.dashboard', icon: LayoutGrid, path: '/' },
+  { heading: 'menu.operations' },
+  { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily' },
   {
-    title: 'Dashboard',
-    icon: LayoutGrid,
-    path: '/',
-  },
-  { heading: 'Operations' },
-  {
-    title: 'Daily Collections',
-    icon: Receipt,
-    path: '/collections/daily',
-  },
-  {
-    title: 'Transactions',
+    title: 'menu.transactions',
     icon: CreditCard,
     children: [
-      { title: 'All Transactions', path: '/transactions' },
-      { title: 'Pending Validation', path: '/transactions/pending' },
-      { title: 'Deposits', path: '/transactions/deposits' },
-      { title: 'Withdrawals', path: '/transactions/withdrawals' },
+      { title: 'menu.allTransactions', path: '/transactions' },
+      { title: 'menu.pendingValidation', path: '/transactions/pending' },
+      { title: 'menu.deposits', path: '/transactions/deposits' },
+      { title: 'menu.withdrawals', path: '/transactions/withdrawals' },
     ],
   },
   {
-    title: 'Loans',
+    title: 'menu.loans',
     icon: DollarSign,
     children: [
-      { title: 'All Loans', path: '/loans' },
-      { title: 'Loan Requests', path: '/loans/requests' },
-      { title: 'Active Loans', path: '/loans/active' },
-      { title: 'Loan Repayments', path: '/loans/repayments' },
+      { title: 'menu.allLoans', path: '/loans' },
+      { title: 'menu.loanRequests', path: '/loans/requests' },
+      { title: 'menu.activeLoans', path: '/loans/active' },
+      { title: 'menu.loanRepayments', path: '/loans/repayments' },
     ],
   },
-  { heading: 'Management' },
+  { heading: 'menu.management' },
   {
-    title: 'Clients',
+    title: 'menu.clients',
     icon: Users,
     children: [
-      { title: 'All Clients', path: '/clients' },
-      { title: 'Add Client', path: '/clients/new' },
-      { title: 'Client Accounts', path: '/clients/accounts' },
+      { title: 'menu.allClients', path: '/clients' },
+      { title: 'menu.addClient', path: '/clients/new' },
+      { title: 'menu.clientAccounts', path: '/clients/accounts' },
     ],
   },
   {
-    title: 'Agents',
+    title: 'menu.agents',
     icon: UserCheck,
     children: [
-      { title: 'All Agents', path: '/agents' },
-      { title: 'Add Agent', path: '/agents/new' },
-      { title: 'Agent Accounts', path: '/agents/accounts' },
+      { title: 'menu.allAgents', path: '/agents' },
+      { title: 'menu.addAgent', path: '/agents/new' },
+      { title: 'menu.agentAccounts', path: '/agents/accounts' },
     ],
   },
   {
-    title: 'Collection Areas',
+    title: 'menu.collectionAreas',
     icon: MapPin,
     children: [
-      { title: 'All Areas', path: '/collection-areas' },
-      { title: 'Add Area', path: '/collection-areas/new' },
-      { title: 'Area Assignments', path: '/collection-areas/assignments' },
+      { title: 'menu.allAreas', path: '/collection-areas' },
+      { title: 'menu.addArea', path: '/collection-areas/new' },
+      { title: 'menu.areaAssignments', path: '/collection-areas/assignments' },
     ],
   },
-  { heading: 'Reports & Analytics' },
+  { heading: 'menu.reportsAnalytics' },
   {
-    title: 'Reports',
+    title: 'menu.reports',
     icon: ReportIcon,
     children: [
-      { title: 'Monthly Balance', path: '/reports/monthly-balance' },
-      { title: 'Collection Journal', path: '/reports/collection-journal' },
-      { title: 'Client Statement', path: '/reports/client-statement' },
-      { title: 'Statistics by Area', path: '/reports/area-statistics' },
-      { title: 'Commission Report', path: '/reports/commissions' },
-      { title: 'Surplus/Shortage', path: '/reports/surplus-shortage' },
+      { title: 'menu.monthlyBalance', path: '/reports/monthly-balance' },
+      { title: 'menu.collectionJournal', path: '/reports/collection-journal' },
+      { title: 'menu.clientStatement', path: '/reports/client-statement' },
+      { title: 'menu.statisticsByArea', path: '/reports/area-statistics' },
+      { title: 'menu.commissionReport', path: '/reports/commissions' },
+      { title: 'menu.surplusShortage', path: '/reports/surplus-shortage' },
     ],
   },
   {
-    title: 'Analytics',
+    title: 'menu.analytics',
     icon: BarChart3,
     children: [
-      { title: 'Overview', path: '/analytics' },
-      { title: 'Financial Summary', path: '/analytics/financial' },
-      { title: 'Transaction Trends', path: '/analytics/transactions' },
-      { title: 'Agent Performance', path: '/analytics/agents' },
+      { title: 'menu.overview', path: '/analytics' },
+      { title: 'menu.financialSummary', path: '/analytics/financial' },
+      { title: 'menu.transactionTrends', path: '/analytics/transactions' },
+      { title: 'menu.agentPerformance', path: '/analytics/agents' },
     ],
   },
-  { heading: 'System' },
+  { heading: 'menu.system' },
   {
-    title: 'Validation',
+    title: 'menu.validation',
     icon: CheckCircle2,
     path: '/validation/pending',
-    badge: 'Pending',
+    badge: 'menu.pending',
   },
   {
-    title: 'Daily Operations',
+    title: 'menu.dailyOperations',
     icon: CalendarCheck,
     children: [
-      { title: 'Session Status', path: '/operations/session' },
-      { title: 'Day Closure', path: '/operations/day-closure' },
-      { title: 'Cash Reconciliation', path: '/operations/reconciliation' },
+      { title: 'menu.sessionStatus', path: '/operations/session' },
+      { title: 'menu.dayClosure', path: '/operations/day-closure' },
+      { title: 'menu.cashReconciliation', path: '/operations/reconciliation' },
     ],
   },
   {
-    title: 'Settings',
+    title: 'menu.settings',
     icon: Settings,
     children: [
-      { title: 'System Settings', path: '/settings/system' },
-      { title: 'Commission Rates', path: '/settings/commissions' },
-      { title: 'Collection Areas', path: '/settings/areas' },
-      { title: 'User Management', path: '/settings/users' },
-      { title: 'Permissions', path: '/settings/permissions' },
+      { title: 'menu.systemSettings', path: '/settings/system' },
+      { title: 'menu.commissionRates', path: '/settings/commissions' },
+      { title: 'menu.collectionAreas', path: '/settings/areas' },
+      { title: 'menu.userManagement', path: '/user-management/users' },
+      { title: 'menu.roles', path: '/user-management/roles' },
+      { title: 'menu.permissions', path: '/user-management/permissions' },
     ],
   },
   {
-    title: 'My Account',
+    title: 'menu.myAccount',
     icon: UserCircle,
     children: [
-      { title: 'Profile', path: '/account/profile' },
-      { title: 'Account Status', path: '/account/status' },
-      { title: 'Transaction History', path: '/account/transactions' },
-      { title: 'Change Password', path: '/account/password' },
+      { title: 'menu.myProfile', path: '/account/profile' },
+      { title: 'menu.accountStatus', path: '/account/status' },
+      { title: 'menu.transactionHistory', path: '/account/transactions' },
+      { title: 'menu.changePassword', path: '/account/password' },
     ],
   },
 ];
 
 // Compact menu for mobile/smaller screens
 export const MENU_SIDEBAR_COMPACT: MenuConfig = [
-  {
-    title: 'Dashboard',
-    icon: LayoutGrid,
-    path: '/',
-  },
-  {
-    title: 'Daily Collections',
-    icon: Receipt,
-    path: '/collections/daily',
-  },
-  {
-    title: 'Transactions',
-    icon: CreditCard,
-    path: '/transactions',
-  },
-  {
-    title: 'Clients',
-    icon: Users,
-    path: '/clients',
-  },
-  {
-    title: 'Reports',
-    icon: ReportIcon,
-    path: '/reports',
-  },
-  {
-    title: 'Settings',
-    icon: Settings,
-    path: '/settings',
-  },
+  { title: 'menu.dashboard', icon: LayoutGrid, path: '/' },
+  { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily' },
+  { title: 'menu.transactions', icon: CreditCard, path: '/transactions' },
+  { title: 'menu.clients', icon: Users, path: '/clients' },
+  { title: 'menu.reports', icon: ReportIcon, path: '/reports' },
+  { title: 'menu.settings', icon: Settings, path: '/settings' },
 ];
 
 // Custom menu (can be used for specific contexts)
 export const MENU_SIDEBAR_CUSTOM: MenuConfig = [
-  {
-    title: 'Dashboard',
-    icon: LayoutGrid,
-    path: '/',
-  },
-  {
-    title: 'Daily Collections',
-    icon: Receipt,
-    path: '/collections/daily',
-  },
-  {
-    title: 'My Clients',
-    icon: Users,
-    path: '/clients',
-  },
+  { title: 'menu.dashboard', icon: LayoutGrid, path: '/' },
+  { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily' },
+  { title: 'menu.myClients', icon: Users, path: '/clients' },
 ];
 
 // Mega menu for header navigation
 export const MENU_MEGA: MenuConfig = [
-  { title: 'Dashboard', path: '/' },
+  { title: 'menu.dashboard', path: '/' },
   {
-    title: 'Operations',
+    title: 'menu.operations',
     children: [
       {
         children: [
-          { title: 'Daily Collections', icon: Receipt, path: '/collections/daily' },
-          { title: 'All Transactions', icon: CreditCard, path: '/transactions' },
-          { title: 'Pending Validation', icon: CheckCircle2, path: '/transactions/pending' },
-          { title: 'Deposits', icon: TrendingUp, path: '/transactions/deposits' },
-          { title: 'Withdrawals', icon: TrendingDown, path: '/transactions/withdrawals' },
+          { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily' },
+          { title: 'menu.allTransactions', icon: CreditCard, path: '/transactions' },
+          { title: 'menu.pendingValidation', icon: CheckCircle2, path: '/transactions/pending' },
+          { title: 'menu.deposits', icon: TrendingUp, path: '/transactions/deposits' },
+          { title: 'menu.withdrawals', icon: TrendingDown, path: '/transactions/withdrawals' },
         ],
       },
       {
         children: [
-          { title: 'All Loans', icon: DollarSign, path: '/loans' },
-          { title: 'Loan Requests', icon: FileText, path: '/loans/requests' },
-          { title: 'Active Loans', icon: Wallet, path: '/loans/active' },
-          { title: 'Loan Repayments', icon: Calculator, path: '/loans/repayments' },
+          { title: 'menu.allLoans', icon: DollarSign, path: '/loans' },
+          { title: 'menu.loanRequests', icon: FileText, path: '/loans/requests' },
+          { title: 'menu.activeLoans', icon: Wallet, path: '/loans/active' },
+          { title: 'menu.loanRepayments', icon: Calculator, path: '/loans/repayments' },
         ],
       },
     ],
   },
   {
-    title: 'Management',
+    title: 'menu.management',
     children: [
       {
         children: [
-          { title: 'All Clients', icon: Users, path: '/clients' },
-          { title: 'Add Client', icon: UserCircle, path: '/clients/new' },
-          { title: 'Client Accounts', icon: Wallet, path: '/clients/accounts' },
+          { title: 'menu.allClients', icon: Users, path: '/clients' },
+          { title: 'menu.addClient', icon: UserCircle, path: '/clients/new' },
+          { title: 'menu.clientAccounts', icon: Wallet, path: '/clients/accounts' },
         ],
       },
       {
         children: [
-          { title: 'All Agents', icon: UserCheck, path: '/agents' },
-          { title: 'Add Agent', icon: UserCircle, path: '/agents/new' },
-          { title: 'Agent Accounts', icon: Wallet, path: '/agents/accounts' },
-          { title: 'Collection Areas', icon: MapPin, path: '/collection-areas' },
+          { title: 'menu.allAgents', icon: UserCheck, path: '/agents' },
+          { title: 'menu.addAgent', icon: UserCircle, path: '/agents/new' },
+          { title: 'menu.agentAccounts', icon: Wallet, path: '/agents/accounts' },
+          { title: 'menu.collectionAreas', icon: MapPin, path: '/collection-areas' },
         ],
       },
     ],
   },
   {
-    title: 'Reports',
+    title: 'menu.reports',
     children: [
       {
         children: [
-          { title: 'Monthly Balance', icon: BarChart3, path: '/reports/monthly-balance' },
-          { title: 'Collection Journal', icon: ReportIcon, path: '/reports/collection-journal' },
-          { title: 'Client Statement', icon: FileText, path: '/reports/client-statement' },
-          { title: 'Area Statistics', icon: PieChart, path: '/reports/area-statistics' },
+          { title: 'menu.monthlyBalance', icon: BarChart3, path: '/reports/monthly-balance' },
+          { title: 'menu.collectionJournal', icon: ReportIcon, path: '/reports/collection-journal' },
+          { title: 'menu.clientStatement', icon: FileText, path: '/reports/client-statement' },
+          { title: 'menu.areaStatistics', icon: PieChart, path: '/reports/area-statistics' },
         ],
       },
       {
         children: [
-          { title: 'Commission Report', icon: Calculator, path: '/reports/commissions' },
-          { title: 'Surplus/Shortage', icon: AlertTriangle, path: '/reports/surplus-shortage' },
-          { title: 'Analytics', icon: BarChart3, path: '/analytics' },
+          { title: 'menu.commissionReport', icon: Calculator, path: '/reports/commissions' },
+          { title: 'menu.surplusShortage', icon: AlertTriangle, path: '/reports/surplus-shortage' },
+          { title: 'menu.analytics', icon: BarChart3, path: '/analytics' },
         ],
       },
     ],
@@ -314,98 +272,54 @@ export const MENU_MEGA: MenuConfig = [
 
 // Mega menu mobile version
 export const MENU_MEGA_MOBILE: MenuConfig = [
-  { title: 'Dashboard', path: '/' },
+  { title: 'menu.dashboard', path: '/' },
   {
-    title: 'Operations',
+    title: 'menu.operations',
     children: [
-      { title: 'Daily Collections', icon: Receipt, path: '/collections/daily' },
-      { title: 'All Transactions', icon: CreditCard, path: '/transactions' },
-      { title: 'Pending Validation', icon: CheckCircle2, path: '/transactions/pending' },
-      { title: 'Deposits', icon: TrendingUp, path: '/transactions/deposits' },
-      { title: 'Withdrawals', icon: TrendingDown, path: '/transactions/withdrawals' },
-      { title: 'All Loans', icon: DollarSign, path: '/loans' },
-      { title: 'Loan Requests', icon: FileText, path: '/loans/requests' },
+      { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily' },
+      { title: 'menu.allTransactions', icon: CreditCard, path: '/transactions' },
+      { title: 'menu.pendingValidation', icon: CheckCircle2, path: '/transactions/pending' },
+      { title: 'menu.deposits', icon: TrendingUp, path: '/transactions/deposits' },
+      { title: 'menu.withdrawals', icon: TrendingDown, path: '/transactions/withdrawals' },
+      { title: 'menu.allLoans', icon: DollarSign, path: '/loans' },
+      { title: 'menu.loanRequests', icon: FileText, path: '/loans/requests' },
     ],
   },
   {
-    title: 'Management',
+    title: 'menu.management',
     children: [
-      { title: 'All Clients', icon: Users, path: '/clients' },
-      { title: 'Add Client', icon: UserCircle, path: '/clients/new' },
-      { title: 'All Agents', icon: UserCheck, path: '/agents' },
-      { title: 'Add Agent', icon: UserCircle, path: '/agents/new' },
-      { title: 'Collection Areas', icon: MapPin, path: '/collection-areas' },
+      { title: 'menu.allClients', icon: Users, path: '/clients' },
+      { title: 'menu.addClient', icon: UserCircle, path: '/clients/new' },
+      { title: 'menu.allAgents', icon: UserCheck, path: '/agents' },
+      { title: 'menu.addAgent', icon: UserCircle, path: '/agents/new' },
+      { title: 'menu.collectionAreas', icon: MapPin, path: '/collection-areas' },
     ],
   },
   {
-    title: 'Reports',
+    title: 'menu.reports',
     children: [
-      { title: 'Monthly Balance', icon: BarChart3, path: '/reports/monthly-balance' },
-      { title: 'Collection Journal', icon: ReportIcon, path: '/reports/collection-journal' },
-      { title: 'Client Statement', icon: FileText, path: '/reports/client-statement' },
-      { title: 'Commission Report', icon: Calculator, path: '/reports/commissions' },
+      { title: 'menu.monthlyBalance', icon: BarChart3, path: '/reports/monthly-balance' },
+      { title: 'menu.collectionJournal', icon: ReportIcon, path: '/reports/collection-journal' },
+      { title: 'menu.clientStatement', icon: FileText, path: '/reports/client-statement' },
+      { title: 'menu.commissionReport', icon: Calculator, path: '/reports/commissions' },
     ],
   },
 ];
 
 // Help menu (can be customized)
 export const MENU_HELP: MenuConfig = [
-  {
-    title: 'Documentation',
-    icon: FileQuestion,
-    path: '/help/documentation',
-  },
-  {
-    title: 'Support',
-    icon: HelpCircle,
-    path: '/help/support',
-  },
+  { title: 'menu.documentation', icon: FileQuestion, path: '/help/documentation' },
+  { title: 'menu.support', icon: HelpCircle, path: '/help/support' },
   { separator: true },
-  { title: 'Contact Us', icon: Share2, path: '/help/contact' },
+  { title: 'menu.contactUs', icon: Share2, path: '/help/contact' },
 ];
 
 // Root menu items for navigation
 export const MENU_ROOT: MenuConfig = [
-  {
-    title: 'Dashboard',
-    icon: LayoutGrid,
-    rootPath: '/',
-    path: '/',
-    childrenIndex: 0,
-  },
-  {
-    title: 'Collections',
-    icon: Receipt,
-    rootPath: '/collections/',
-    path: '/collections/daily',
-    childrenIndex: 1,
-  },
-  {
-    title: 'Transactions',
-    icon: CreditCard,
-    rootPath: '/transactions/',
-    path: '/transactions',
-    childrenIndex: 2,
-  },
-  {
-    title: 'Clients',
-    icon: Users,
-    rootPath: '/clients/',
-    path: '/clients',
-    childrenIndex: 3,
-  },
-  {
-    title: 'Reports',
-    icon: ReportIcon,
-    rootPath: '/reports/',
-    path: '/reports/monthly-balance',
-    childrenIndex: 4,
-  },
-  {
-    title: 'Settings',
-    icon: Settings,
-    rootPath: '/settings/',
-    path: '/settings/system',
-    childrenIndex: 5,
-  },
+  { title: 'menu.dashboard', icon: LayoutGrid, rootPath: '/', path: '/', childrenIndex: 0 },
+  { title: 'menu.collections', icon: Receipt, rootPath: '/collections/', path: '/collections/daily', childrenIndex: 1 },
+  { title: 'menu.transactions', icon: CreditCard, rootPath: '/transactions/', path: '/transactions', childrenIndex: 2 },
+  { title: 'menu.clients', icon: Users, rootPath: '/clients/', path: '/clients', childrenIndex: 3 },
+  { title: 'menu.reports', icon: ReportIcon, rootPath: '/reports/', path: '/reports/monthly-balance', childrenIndex: 4 },
+  { title: 'menu.settings', icon: Settings, rootPath: '/settings/', path: '/settings/system', childrenIndex: 5 },
 ];

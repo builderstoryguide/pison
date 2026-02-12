@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -52,6 +53,7 @@ interface Agent {
 
 const AgentList = () => {
   const router = useRouter();
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -321,7 +323,7 @@ const AgentList = () => {
           <div className="relative">
             <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Search agents..."
+              placeholder={t('pages.agents.searchPlaceholder')}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -349,7 +351,7 @@ const AgentList = () => {
             disabled={isLoading}
           >
             <SelectTrigger className="w-full sm:w-36">
-              <SelectValue placeholder="Filter by status" />
+              <SelectValue placeholder={t('pages.agents.filterByStatus')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>

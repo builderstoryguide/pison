@@ -1,108 +1,66 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
-import Link from 'next/link';
+import { apiFetch } from '@/lib/api';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
-  MapPin,
-  DollarSign,
-  Users,
-  TrendingUp,
-  Receipt,
-  CalendarCheck,
-} from 'lucide-react';
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import { Container } from '@/components/common/container';
 import {
   Toolbar,
+  ToolbarActions,
   ToolbarHeading,
   ToolbarTitle,
-  ToolbarActions,
 } from '@/components/common/toolbar';
-import { Button } from '@/components/ui/button';
-import { StatCard } from '../components/stat-card';
-import { RecentActivityCard } from '../components/recent-activity-card';
-import { ContentLoader } from '@/components/common/content-loader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Users, Wallet, MapPin, PlusCircle } from 'lucide-react';
+import { formatCurrency, formatDate } from '@/lib/helpers';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function AgentDashboard() {
-  const { data: session } = useSession();
-
-  // Mock data - Replace with actual API calls
-  const { data: dashboardData, isLoading } = useQuery({
-    queryKey: ['agent-dashboard'],
+  const { t } = useTranslation();
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['dashboard-stats'],
     queryFn: async () => {
-      // TODO: Replace with actual API endpoint
-      return {
-        assignedAreas: ['Area A', 'Area B'],
-        todayCollections: 125000,
-        todayClients: 15,
-        totalClients: 45,
-        pendingEntries: 3,
-        recentCollections: [
-          {
-            id: '1',
-            type: 'collection' as const,
-            description: 'Collection from Area A',
-            user: 'Jean Dupont',
-            time: '30 minutes ago',
-            amount: 50000,
-          },
-          {
-            id: '2',
-            type: 'collection' as const,
-            description: 'Collection from Area B',
-            user: 'Sophie Laurent',
-            time: '1 hour ago',
-            amount: 30000,
-          },
-          {
-            id: '3',
-            type: 'collection' as const,
-            description: 'Collection from Area A',
-            user: 'Paul Bernard',
-            time: '2 hours ago',
-            amount: 45000,
-          },
-        ],
-        clientList: [
-          { id: '1', name: 'Jean Dupont', area: 'Area A', balance: 150000 },
-          { id: '2', name: 'Sophie Laurent', area: 'Area B', balance: 85000 },
-          { id: '3', name: 'Paul Bernard', area: 'Area A', balance: 200000 },
-        ],
-      };
+      const response = await apiFetch('/api/dashboard/stats');
+      if (!response.ok) return null;
+      const result = await response.json();
+      return result.data;
     },
   });
-
-  if (isLoading) {
-    return <ContentLoader className="mt-[30%]" />;
-  }
-
-  const stats = dashboardData || {
-    assignedAreas: [],
-    todayCollections: 0,
-    todayClients: 0,
-    totalClients: 0,
-    pendingEntries: 0,
-    recentCollections: [],
-    clientList: [],
-  };
 
   return (
     <>
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>Agent Dashboard</ToolbarTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Welcome back, {session?.user?.name || 'Agent'}
-            </p>
+            <ToolbarTitle>{t('pages.dashboard.agentTitle')}</ToolbarTitle>
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{t('navigation.dashboard')}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
           </ToolbarHeading>
           <ToolbarActions>
             <Link href="/collections/daily">
               <Button>
-                <Receipt className="mr-2 w-4 h-4" />
-                Enter Collections
+                <PlusCircle className="mr-2 h-4 w-4" />
+                New Collection
               </Button>
             </Link>
           </ToolbarActions>
@@ -110,120 +68,129 @@ export default function AgentDashboard() {
       </Container>
 
       <Container>
-        <div className="grid gap-5 lg:gap-7.5">
-          {/* Key Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            <StatCard
-              title="Today's Collections"
-              value={new Intl.NumberFormat('fr-FR', {
-                style: 'currency',
-                currency: 'XOF',
-                minimumFractionDigits: 0,
-              }).format(stats.todayCollections)}
-              description="Total collected today"
-              icon={DollarSign}
-              trend={{ value: 15.2, isPositive: true }}
-            />
-            <StatCard
-              title="Clients Served"
-              value={stats.todayClients}
-              description="Today"
-              icon={Users}
-            />
-            <StatCard
-              title="Total Clients"
-              value={stats.totalClients}
-              description="In your areas"
-              icon={Users}
-            />
-            <StatCard
-              title="Pending Entries"
-              value={stats.pendingEntries}
-              description="Awaiting validation"
-              icon={Receipt}
-              className="border-orange-200 dark:border-orange-800"
-            />
-          </div>
-
-          {/* Assigned Areas */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <MapPin className="w-5 h-5" />
-                Assigned Collection Areas
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                My Clients
               </CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {stats.assignedAreas.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No areas assigned
-                  </p>
-                ) : (
-                  stats.assignedAreas.map((area: string, index: number) => (
-                    <Badge key={index} variant="secondary" className="text-sm py-1.5 px-3">
-                      {area}
-                    </Badge>
-                  ))
-                )}
-              </div>
+              {isLoading ? (
+                <Skeleton className="h-7 w-20" />
+              ) : (
+                <div className="text-2xl font-bold">{stats?.activeClients || 0}</div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Assigned clients
+              </p>
             </CardContent>
           </Card>
 
-          {/* Main Content Grid */}
-          <div className="grid lg:grid-cols-2 gap-5 lg:gap-7.5">
-            <RecentActivityCard
-              activities={stats.recentCollections}
-              title="Recent Collections"
-            />
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  My Clients
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {stats.clientList.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No clients assigned
-                    </p>
-                  ) : (
-                    <>
-                      {stats.clientList.slice(0, 5).map((client: any) => (
-                        <div
-                          key={client.id}
-                          className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors"
-                        >
-                          <div>
-                            <p className="text-sm font-medium">{client.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {client.area}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-semibold">
-                              {new Intl.NumberFormat('fr-FR', {
-                                style: 'currency',
-                                currency: 'XOF',
-                                minimumFractionDigits: 0,
-                              }).format(client.balance)}
-                            </p>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Today's Collections
+              </CardTitle>
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-7 w-20" />
+              ) : (
+                <div className="text-2xl font-bold">{formatCurrency(stats?.dailyCollections || 0)}</div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Collected today
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                My Zones
+              </CardTitle>
+              <MapPin className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-7 w-20" />
+              ) : (
+                <div className="text-2xl font-bold">{stats?.activeAreas || 0}</div>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Assigned collection areas
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+          <Card className="col-span-4">
+            <CardHeader>
+              <CardTitle>Recent Collections</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {stats?.recentTransactions?.filter((t: any) => t.type === 'COLLECTION').length > 0 ? (
+                    stats.recentTransactions
+                      .filter((t: any) => t.type === 'COLLECTION')
+                      .map((txn: any) => (
+                      <div key={txn.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium leading-none">{txn.reference}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {formatDate(txn.date)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <Badge variant={txn.status === 'COMPLETED' ? 'success' : 'secondary'}>
+                            {txn.status}
+                          </Badge>
+                          <div className="font-medium text-green-600">
+                            +{formatCurrency(txn.amount)}
                           </div>
                         </div>
-                      ))}
-                      <Link href="/clients">
-                        <Button variant="ghost" className="w-full">
-                          View All Clients
-                        </Button>
-                      </Link>
-                    </>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground">
+                      No recent collections
+                    </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="col-span-3">
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <Link href="/collections/daily">
+                <Button className="w-full justify-start" variant="outline">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Start Daily Collection
+                </Button>
+              </Link>
+              <Link href="/clients">
+                <Button className="w-full justify-start" variant="outline">
+                  <Users className="mr-2 h-4 w-4" />
+                  View Clients
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
         </div>
       </Container>
     </>

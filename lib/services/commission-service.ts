@@ -3,6 +3,7 @@
  * Handles automatic commission calculation
  */
 
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { transactionService } from './transaction-service';
 
@@ -55,7 +56,9 @@ export class CommissionService {
   /**
    * Calculate commission for a single withdrawal transaction
    */
-  async calculateCommissionForTransaction(transactionId: string): Promise<CommissionCalculationResult | null> {
+  async calculateCommissionForTransaction(
+    transactionId: string,
+  ): Promise<CommissionCalculationResult | null> {
     const transaction = await prisma.transaction.findUnique({
       where: { id: transactionId },
       include: {
@@ -124,7 +127,9 @@ export class CommissionService {
   /**
    * Calculate commissions for a period (month)
    */
-  async calculateCommissions(period: string): Promise<CommissionCalculationResult[]> {
+  async calculateCommissions(
+    period: string,
+  ): Promise<CommissionCalculationResult[]> {
     // Parse period (format: YYYY-MM)
     const [year, month] = period.split('-').map(Number);
     const startDate = new Date(year, month - 1, 1);
@@ -152,7 +157,9 @@ export class CommissionService {
     const results: CommissionCalculationResult[] = [];
 
     for (const transaction of transactions) {
-      const result = await this.calculateCommissionForTransaction(transaction.id);
+      const result = await this.calculateCommissionForTransaction(
+        transaction.id,
+      );
       if (result) {
         results.push(result);
       }
@@ -167,9 +174,26 @@ export class CommissionService {
   async createCommissionsForPeriod(period: string, userId: string) {
     const calculations = await this.calculateCommissions(period);
 
-    const commissions = await prisma.$transaction(
-      calculations.map((calc) =>
-        prisma.commission.create({
+    // Filter out already existing commissions (where we fetched them from DB)
+    // We can check if a commission record already exists for the transactionId
+    // But calculateCommissions returns the structure.
+    // Let's filter by checking DB again or better, try to create and ignore duplicates?
+    // Better: Check existence before create.
+
+    const createdCommissions = [];
+
+    for (const calc of calculations) {
+      // Use a transaction to ensure atomicity
+      const result = await prisma.$transaction(async (tx) => {
+        const exists = await tx.commission.findUnique({
+          where: { transactionId: calc.transactionId },
+        });
+
+        if (exists) {
+          return null;
+        }
+
+        const commission = await tx.commission.create({
           data: {
             transactionId: calc.transactionId,
             clientId: calc.clientId,
@@ -178,44 +202,40 @@ export class CommissionService {
             calculationMethod: 'PERCENTAGE',
             period,
           },
-        })
-      )
-    );
+        });
 
-    // Create commission transactions (deduct from client accounts)
-    for (const commission of commissions) {
-      const transaction = await prisma.transaction.findUnique({
-        where: { id: commission.transactionId },
-        include: {
-          account: {
-            include: {
-              client: true,
-            },
-          },
-        },
+        const transaction = await tx.transaction.findUnique({
+          where: { id: calc.transactionId },
+        });
+
+        return { commission, transaction };
       });
 
-      if (transaction && transaction.account.client) {
-        await transactionService.createTransaction(
-          {
-            accountId: transaction.accountId,
-            type: 'COMMISSION',
-            amount: commission.amount.toNumber(),
-            description: `Commission for withdrawal transaction ${transaction.transactionNumber}`,
-          },
-          userId
-        );
+      if (result) {
+        createdCommissions.push(result.commission);
+
+        if (result.transaction) {
+          await transactionService.createTransaction(
+            {
+              accountId: result.transaction.accountId,
+              type: 'COMMISSION',
+              amount: calc.commission,
+              description: `Commission for withdrawal transaction ${result.transaction.transactionNumber}`,
+            },
+            userId,
+          );
+        }
       }
     }
 
-    return commissions;
+    return createdCommissions;
   }
 
   /**
    * Get commissions for a period
    */
   async getCommissions(period?: string, clientId?: string) {
-    const where: any = {};
+    const where: Prisma.CommissionWhereInput = {};
 
     if (period) {
       where.period = period;

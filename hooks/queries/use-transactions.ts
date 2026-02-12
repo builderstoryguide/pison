@@ -166,7 +166,12 @@ export function useTransactionsByAccount(
   enabled = true
 ) {
   return useQuery({
-    queryKey: transactionKeys.byAccount(accountId),
+    queryKey: transactionKeys.byAccountFiltered(accountId, {
+      type: filters.type,
+      status: filters.status,
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+    }),
     queryFn: () => fetchTransactionsByAccount(accountId, filters),
     enabled: !!accountId && enabled,
   });

@@ -115,3 +115,21 @@ export function formatDateTime(input: Date | string | number): string {
     hour12: true,
   });
 }
+
+// ─── Currency formatting helper ─────────────────────────────────
+
+const XOF = new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: 'XOF',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
+/**
+ * Format a number as CFA Franc (XOF).
+ */
+export function formatCurrency(value: number | string): string {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) return '0 XOF';
+  return XOF.format(num);
+}
