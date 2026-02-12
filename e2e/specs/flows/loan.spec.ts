@@ -10,7 +10,7 @@ test.describe('Loan Lifecycle API', () => {
   let loanId;
 
   test.beforeAll(async ({ browser }) => {
-    adminUser = await createTestUser('administrator');
+    adminUser = await createTestUser('manager');
     const area = await createCollectionArea();
     client = await createClient(area.id, adminUser.id);
     

@@ -90,7 +90,7 @@ const authOptions: NextAuthOptions = {
 
           throw new Error(
             JSON.stringify({
-              message: 'Your account has been blocked. Please contact an administrator.',
+              message: 'Your account has been blocked. Please contact a manager.',
             }),
           );
         }
@@ -224,13 +224,40 @@ const authOptions: NextAuthOptions = {
         token.status = user.status;
         token.roleId = user.roleId;
 
-        // Fetch role name from DB
+        // Fetch role name and permissions from DB (for client-side permission checks)
         if (user.roleId) {
           const role = await prisma.userRole.findUnique({
             where: { id: user.roleId },
+            include: {
+              permissions: {
+                include: { permission: true },
+              },
+            },
           });
           token.roleName = role?.name ?? null;
+          token.permissions =
+            role?.permissions
+              ?.map((rp) => rp.permission?.slug)
+              .filter((slug): slug is string => Boolean(slug)) ?? [];
         }
+      }
+
+      // Hydrate role info when missing (handles old sessions, token refresh, edge cases)
+      // Note: undefined means not yet hydrated; empty array [] means no permissions assigned
+      if (token.roleId && (!token.roleName || token.permissions === undefined)) {
+        const role = await prisma.userRole.findUnique({
+          where: { id: token.roleId },
+          include: {
+            permissions: {
+              include: { permission: true },
+            },
+          },
+        });
+        token.roleName = role?.name ?? null;
+        token.permissions =
+          role?.permissions
+            ?.map((rp) => rp.permission?.slug)
+            .filter((slug): slug is string => Boolean(slug)) ?? [];
       }
 
       return token;
@@ -245,6 +272,7 @@ const authOptions: NextAuthOptions = {
         session.user.status = token.status;
         session.user.roleId = token.roleId;
         session.user.roleName = token.roleName;
+        session.user.permissions = token.permissions ?? [];
       }
       return session;
     },

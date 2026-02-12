@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission, requireAnyPermission } from '@/lib/auth';
 import { loanService } from '@/lib/services';
 import { z } from 'zod';
 
@@ -18,10 +19,8 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const forbidden = await requirePermission(session, 'loans.view');
+    if (forbidden) return forbidden;
 
     const loan = await loanService.getLoanById(params.id);
 
@@ -54,18 +53,8 @@ export async function PUT(
 ) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Accountant and Admin can update loans
-    // Accountant and Admin can update loans
-    const allowedRoles = ['admin', 'accountant'];
-    const roleName = (session.user?.roleName || '').toLowerCase();
-    if (!allowedRoles.includes(roleName)) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const forbidden = await requireAnyPermission(session, ['loans.create', 'loans.approve']);
+    if (forbidden) return forbidden;
 
     const body = await request.json();
     const validatedData = updateLoanSchema.parse(body);

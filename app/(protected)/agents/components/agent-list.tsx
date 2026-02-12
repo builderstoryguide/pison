@@ -113,7 +113,7 @@ const AgentList = () => {
 
   // Check if user can create agents
   const roleName = (session?.user?.roleName || '').toLowerCase();
-  const canCreate = roleName.includes('admin') || roleName.includes('accountant');
+  const canCreate = roleName.includes('manager') || roleName.includes('accountant');
 
   const columns = useMemo<ColumnDef<Agent>[]>(
     () => [

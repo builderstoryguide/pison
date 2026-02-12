@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission } from '@/lib/auth';
 import { transactionService } from '@/lib/services';
 import { agentService } from '@/lib/services';
 import { z } from 'zod';
@@ -25,16 +26,8 @@ const createCollectionSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Only Agents can create collections
-    const roleName = (session.user?.roleName || '').toLowerCase();
-    if (!roleName.includes('agent') && !roleName.includes('collector')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const forbidden = await requirePermission(session, 'collections.create');
+    if (forbidden) return forbidden;
 
     // Verify agent ID matches session user
     const agent = await agentService.getAgentByUserId(session.user?.id || '');

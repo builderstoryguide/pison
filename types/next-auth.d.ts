@@ -10,6 +10,7 @@ declare module 'next-auth' {
       avatar?: string | null;
       roleId?: string | null;
       roleName?: string | null;
+      permissions?: string[];
       status: string;
     };
   }
@@ -32,6 +33,7 @@ declare module 'next-auth/jwt' {
     avatar?: string | null;
     roleId?: string | null;
     roleName?: string | null;
+    permissions?: string[];
     status: string;
   }
 }

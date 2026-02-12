@@ -8,6 +8,7 @@ import {
   UserProfileSchemaType,
 } from '@/app/(protected)/user-management/users/[id]/forms/user-profile-schema';
 import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission } from '@/lib/auth';
 import { UserStatus } from '@/app/models/user';
 
 // GET: Fetch a specific user by ID, including role
@@ -25,6 +26,9 @@ export async function GET(
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'users.manage');
+    if (forbidden) return forbidden;
 
     const { id } = await params;
 
@@ -67,6 +71,9 @@ export async function PUT(
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'users.manage');
+    if (forbidden) return forbidden;
 
     const { id } = await params;
 
@@ -151,6 +158,9 @@ export async function DELETE(
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'users.manage');
+    if (forbidden) return forbidden;
 
     const clientIp = getClientIP(request);
     const { id } = await params;

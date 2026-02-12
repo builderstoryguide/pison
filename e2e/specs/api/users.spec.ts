@@ -10,7 +10,7 @@ test.describe('User Management API', () => {
 
   test.beforeAll(async ({ browser }) => {
     // Create Admin user
-    adminUser = await createTestUser('administrator');
+    adminUser = await createTestUser('manager');
     
     // Login to get session
     browserContext = await browser.newContext();

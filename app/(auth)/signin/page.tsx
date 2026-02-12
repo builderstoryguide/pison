@@ -32,7 +32,7 @@ export default function Page() {
   const devCredentials =
     process.env.NODE_ENV === 'development'
       ? [
-          { label: 'Admin', email: 'admin@dcm.local', password: 'admin123' },
+          { label: 'Manager', email: 'admin@dcm.local', password: 'admin123' },
           { label: 'Accountant', email: 'accountant@dcm.local', password: 'accountant123' },
           { label: 'Agent', email: 'agent1@dcm.local', password: 'agent123' },
         ]
@@ -214,7 +214,7 @@ export default function Page() {
         </div>
 
         <p className="text-xs text-muted-foreground text-center">
-          Contact your administrator if you need an account.
+          Contact your manager if you need an account.
         </p>
       </form>
     </Form>

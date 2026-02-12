@@ -10,6 +10,7 @@ import {
   UserAddSchemaType,
 } from '@/app/(protected)/user-management/users/forms/user-add-schema';
 import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission } from '@/lib/auth';
 import { UserStatus } from '@/app/models/user';
 
 export async function GET(req: NextRequest) {
@@ -33,14 +34,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Only administrators can list user accounts
-    const requesterRole = session.user.roleName?.toLowerCase();
-    if (requesterRole !== 'administrator') {
-      return NextResponse.json(
-        { message: 'Only administrators can access user management.' },
-        { status: 403 },
-      );
-    }
+    const forbidden = await requirePermission(session, 'users.manage');
+    if (forbidden) return forbidden;
 
     // Map status query to enum type, fallback to null if invalid
     const statusFilter =
@@ -140,13 +135,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Only administrators can create user accounts
-    const requesterRoleName = session.user.roleName?.toLowerCase();
-    if (requesterRoleName !== 'administrator') {
-      return NextResponse.json(
-        { message: 'Only administrators can create user accounts.' },
-        { status: 403 },
-      );
-    }
+    const forbidden = await requirePermission(session, 'users.manage');
+    if (forbidden) return forbidden;
 
     const clientIp = getClientIP(request);
     const body = await request.json();
@@ -219,7 +209,7 @@ export async function POST(request: NextRequest) {
           userId: session.user.id,
           entityId: user.id,
           entityType: 'user',
-          description: `User account created by administrator (role: ${existingRole.name}).`,
+          description: `User account created by manager (role: ${existingRole.name}).`,
           ipAddress: clientIp,
         },
         tx,
@@ -232,7 +222,7 @@ export async function POST(request: NextRequest) {
           action: 'USER_CREATED',
           entityType: 'USER',
           entityId: user.id,
-          description: `Administrator created user account (id: ${user.id}) with role ${existingRole.name}.`,
+          description: `Manager created user account (id: ${user.id}) with role ${existingRole.name}.`,
         },
       });
 

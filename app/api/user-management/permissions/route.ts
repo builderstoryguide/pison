@@ -9,6 +9,7 @@ import {
   PermissionSchemaType,
 } from '@/app/(protected)/user-management/permissions/forms/permission-schema';
 import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission } from '@/lib/auth';
 
 // GET: Fetch all permissions
 export async function GET(request: Request) {
@@ -30,6 +31,9 @@ export async function GET(request: Request) {
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'roles.manage');
+    if (forbidden) return forbidden;
 
     // Count total records matching the filter
     const total = await prisma.userPermission.count({
@@ -107,6 +111,9 @@ export async function POST(request: NextRequest) {
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'roles.manage');
+    if (forbidden) return forbidden;
 
     const clientIp = getClientIP(request);
     const body = await request.json();

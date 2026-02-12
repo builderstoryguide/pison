@@ -10,6 +10,7 @@ import {
   RoleSchemaType,
 } from '@/app/(protected)/user-management/roles/forms/role-schema';
 import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission } from '@/lib/auth';
 import { UserRolePermission } from '@/app/models/user';
 
 // GET: Fetch a specific role by ID, including permissions
@@ -26,6 +27,9 @@ export async function GET(
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'roles.manage');
+    if (forbidden) return forbidden;
 
     const role = await prisma.userRole.findUnique({
       where: { id: (await params).id },
@@ -70,6 +74,9 @@ export async function PUT(
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'roles.manage');
+    if (forbidden) return forbidden;
 
     // Await the params to resolve correctly
     const { params } = context;
@@ -163,6 +170,9 @@ export async function DELETE(
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'roles.manage');
+    if (forbidden) return forbidden;
 
     const clientIp = getClientIP(request);
     const { id } = await params;

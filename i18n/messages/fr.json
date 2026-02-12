@@ -85,7 +85,7 @@
       }
     },
     "dashboard": {
-      "adminTitle": "Tableau de bord Admin",
+      "adminTitle": "Tableau de bord Manager",
       "accountantTitle": "Tableau de bord Comptable",
       "agentTitle": "Tableau de bord Agent",
       "home": "Accueil",
@@ -174,7 +174,7 @@
       "noActiveAreas": "Aucune zone de collecte active trouvée.",
       "refillAccount": "Recharger le compte",
       "refillAgentAccount": "Recharger le compte agent",
-      "refillAgentAccountDesc": "Ajouter des fonds au compte opérationnel de {{name}}. Cette transaction nécessitera l'approbation de l'administrateur.",
+      "refillAgentAccountDesc": "Ajouter des fonds au compte opérationnel de {{name}}. Cette transaction nécessitera l'approbation du manager.",
       "amountXof": "Montant (XOF)",
       "createRequest": "Créer la demande"
     },
@@ -276,7 +276,7 @@
       "selectArea": "Sélectionner une zone de collecte",
       "selectCollectionArea": "Sélectionner la zone de collecte",
       "selectCollectionAreaDesc": "Choisissez la zone où vous avez collecté de l'argent aujourd'hui",
-      "noAreasAssigned": "Aucune zone de collecte assignée. Veuillez contacter l'administrateur.",
+      "noAreasAssigned": "Aucune zone de collecte assignée. Veuillez contacter le manager.",
       "enterCollectionAmounts": "Saisir les montants collectés",
       "enterCollectionAmountsDesc": "Entrez le montant collecté pour chaque client",
       "addAllClients": "Ajouter tous les clients",
@@ -285,7 +285,7 @@
       "totalAmount": "Montant total",
       "submitting": "Envoi en cours...",
       "submitCollections": "Soumettre les collectes",
-      "agentNotFound": "Enregistrement agent introuvable. Veuillez contacter l'administrateur."
+      "agentNotFound": "Enregistrement agent introuvable. Veuillez contacter le manager."
     },
     "accounts": {
       "accountStatus": "Statut du compte",
@@ -377,6 +377,7 @@
     "sessionStatus": "Statut de session",
     "dayClosure": "Clôture du jour",
     "cashReconciliation": "Réconciliation des espèces",
+    "settings": "Paramètres",
     "systemSettings": "Paramètres système",
     "commissionRates": "Taux de commission",
     "userManagement": "Gestion des utilisateurs",

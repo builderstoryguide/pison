@@ -45,13 +45,13 @@ async function globalSetup(_config: FullConfig) {
       fs.mkdirSync(authDir, { recursive: true });
     }
     
-    // Launch browser and login as admin to create auth state
+    // Launch browser and login as manager to create auth state
     const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const browser = await chromium.launch();
     const context = await browser.newContext({ baseURL });
     const page = await context.newPage();
     
-    // Login as default admin user (from seed data)
+    // Login as default manager user (from seed data)
     await page.goto('/signin');
     await page.getByLabel('Email').fill('admin@dcm.local');
     await page.getByLabel('Password').fill('admin123');

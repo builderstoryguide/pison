@@ -48,10 +48,10 @@ export default async function Page({ params }: PageProps) {
     <>
       <Container>
         <Toolbar>
+          <ToolbarHeading>
+            <ToolbarTitle>Edit {agent.fullName}</ToolbarTitle>
             <div className="text-sm text-muted-foreground">
               Balance: {formatCurrency(Number(agent.account?.balance ?? 0))}
-            </div>
-              Balance: {formatCurrency(Number(agent.account.balance))}
             </div>
             <Breadcrumb>
               <BreadcrumbList>

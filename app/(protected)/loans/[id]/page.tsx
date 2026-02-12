@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
+import { hasPermission } from '@/lib/auth';
 import { loanService } from '@/lib/services';
 import LoanDetailContent from './components/loan-detail-content';
 
@@ -30,16 +31,18 @@ export default async function Page({ params }: PageProps) {
   }
 
   const roleName = (session?.user?.roleName || '').toLowerCase();
-  const isAdmin = roleName.includes('admin');
+  const isManager = roleName.includes('manager');
   const isPending = loan.status === 'PENDING';
   const isActive = ['DISBURSED', 'ACTIVE'].includes(loan.status);
+  const canRecordRepayment = hasPermission(session, 'loans.repayment');
 
   return (
     <LoanDetailContent
       loan={loan}
-      isAdmin={isAdmin}
+      isManager={isManager}
       isPending={isPending}
       isActive={isActive}
+      canRecordRepayment={canRecordRepayment}
     />
   );
 }

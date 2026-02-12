@@ -4,13 +4,13 @@ import { getClientIP } from '@/lib/api';
 import { prisma } from '@/lib/prisma';
 import { systemLog } from '@/services/system-log';
 import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission } from '@/lib/auth';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    // Validate user session
     const session = await getServerSession(authOptions);
 
     if (!session) {
@@ -19,6 +19,9 @@ export async function PATCH(
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'users.manage');
+    if (forbidden) return forbidden;
 
     const clientIp = getClientIP(request);
     const { id } = await params;

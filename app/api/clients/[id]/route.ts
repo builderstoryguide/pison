@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission } from '@/lib/auth';
 import { clientService } from '@/lib/services';
 import { z } from 'zod';
 
@@ -29,10 +30,8 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const forbidden = await requirePermission(session, 'clients.view');
+    if (forbidden) return forbidden;
 
     // Check if agent has access to this client's area
     const roleName = (session.user?.roleName || '').toLowerCase();
@@ -83,16 +82,8 @@ export async function PUT(
 ) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Accountant and Admin can update clients
-    const roleName = (session.user?.roleName || '').toLowerCase();
-    if (!roleName.includes('admin') && !roleName.includes('accountant')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const forbidden = await requirePermission(session, 'clients.edit');
+    if (forbidden) return forbidden;
 
     const body = await request.json();
     const validatedData = updateClientSchema.parse(body);
@@ -142,16 +133,8 @@ export async function DELETE(
 ) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Only Admin can deactivate clients
-    const roleName = (session.user?.roleName || '').toLowerCase();
-    if (!roleName.includes('admin')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const forbidden = await requirePermission(session, 'clients.delete');
+    if (forbidden) return forbidden;
 
     const client = await clientService.deactivateClient(
       params.id,

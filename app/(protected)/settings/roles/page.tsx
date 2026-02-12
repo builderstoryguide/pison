@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
@@ -17,24 +17,37 @@ import {
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
+import { ContentLoader } from '@/components/common/content-loader';
 import { useTranslation } from '@/hooks/useTranslation';
-import RoleList from './components/role-list';
+import RoleList from '@/app/(protected)/user-management/roles/components/role-list';
+import { hasPermission } from '@/lib/auth-client';
 
-export default function Page() {
+export default function SettingsRolesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { t } = useTranslation();
+  const [accessChecked, setAccessChecked] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.replace('/signin');
-    } else if (status === 'authenticated' && session?.user?.roleName?.toLowerCase() !== 'manager') {
-      router.replace('/');
+      return;
+    }
+    if (status === 'authenticated' && session) {
+      const allowed = hasPermission(session, 'roles.manage');
+      setAccessChecked(true);
+      if (!allowed) {
+        router.replace('/');
+      }
     }
   }, [session, status, router]);
 
-  if (status === 'loading' || (status === 'authenticated' && session?.user?.roleName?.toLowerCase() !== 'manager')) {
-    return null;
+  if (status === 'loading') {
+    return <ContentLoader className="mt-[30%]" />;
+  }
+
+  if (status === 'authenticated' && (!accessChecked || !hasPermission(session, 'roles.manage'))) {
+    return <ContentLoader className="mt-[30%]" />;
   }
 
   return (
@@ -50,7 +63,7 @@ export default function Page() {
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/user-management/users">{t('common.breadcrumbs.userManagement')}</BreadcrumbLink>
+                  <BreadcrumbLink href="/settings">{t('menu.settings')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ColumnDef,
@@ -70,7 +71,12 @@ interface CollectionArea {
 const CollectionAreaList = () => {
   const router = useRouter();
   const { t } = useTranslation();
+  const { data: session } = useSession();
   const queryClient = useQueryClient();
+
+  // Only Manager can create, edit, or delete collection zones
+  const roleName = (session?.user?.roleName || '').toLowerCase();
+  const isManager = roleName.includes('manager');
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
@@ -321,25 +327,29 @@ const CollectionAreaList = () => {
         header: '',
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
-            <Button
-              mode="icon"
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                router.push(`/collection-areas/${row.original.id}/edit`);
-              }}
-            >
-              <Edit className="size-4" />
-            </Button>
-            <Button
-              mode="icon"
-              variant="ghost"
-              size="sm"
-              onClick={(e) => handleDeleteClick(e, row.original)}
-            >
-              <Trash2 className="size-4 text-destructive" />
-            </Button>
+            {isManager && (
+              <>
+                <Button
+                  mode="icon"
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/collection-areas/${row.original.id}/edit`);
+                  }}
+                >
+                  <Edit className="size-4" />
+                </Button>
+                <Button
+                  mode="icon"
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => handleDeleteClick(e, row.original)}
+                >
+                  <Trash2 className="size-4 text-destructive" />
+                </Button>
+              </>
+            )}
             <ChevronRight className="text-muted-foreground/70 size-3.5" />
           </div>
         ),
@@ -352,7 +362,7 @@ const CollectionAreaList = () => {
         enableResizing: false,
       },
     ],
-    [router],
+    [router, isManager],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -432,14 +442,16 @@ const CollectionAreaList = () => {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center justify-end">
-          <Link href="/collection-areas/new">
-            <Button disabled={isLoading}>
-              <Plus />
-              Add Area
-            </Button>
-          </Link>
-        </div>
+        {isManager && (
+          <div className="flex items-center justify-end">
+            <Link href="/collection-areas/new">
+              <Button disabled={isLoading}>
+                <Plus />
+                Add Area
+              </Button>
+            </Link>
+          </div>
+        )}
       </CardHeader>
     );
   };

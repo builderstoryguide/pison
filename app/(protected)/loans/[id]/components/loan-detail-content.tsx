@@ -15,9 +15,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatCurrency, formatDate } from '@/lib/helpers';
-import LoanForm from '../components/loan-form';
-import RepaymentDialog from '../components/repayment-dialog';
-import ApproveButton from '../components/approve-button';
+import LoanForm from '../../components/loan-form';
+import RepaymentDialog from '../../components/repayment-dialog';
+import ApproveButton from '../../components/approve-button';
 
 interface LoanDetailContentProps {
   loan: {
@@ -45,9 +45,10 @@ interface LoanDetailContentProps {
       interest: string | number;
     }>;
   };
-  isAdmin: boolean;
+  isManager: boolean;
   isPending: boolean;
   isActive: boolean;
+  canRecordRepayment: boolean;
 }
 
 function getStatusVariant(status: string) {
@@ -69,9 +70,10 @@ function getStatusVariant(status: string) {
 
 export default function LoanDetailContent({
   loan,
-  isAdmin,
+  isManager,
   isPending,
   isActive,
+  canRecordRepayment,
 }: LoanDetailContentProps) {
   const { t } = useTranslation();
 
@@ -102,8 +104,8 @@ export default function LoanDetailContent({
             </Breadcrumb>
           </ToolbarHeading>
           <ToolbarActions>
-            {isPending && isAdmin && <ApproveButton loanId={loan.id} />}
-            {isActive && (
+            {isPending && isManager && <ApproveButton loanId={loan.id} />}
+            {isActive && canRecordRepayment && (
               <RepaymentDialog
                 loanId={loan.id}
                 loanNumber={loan.loanNumber}

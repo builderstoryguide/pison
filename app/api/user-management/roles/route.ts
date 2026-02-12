@@ -10,6 +10,7 @@ import {
   RoleSchemaType,
 } from '@/app/(protected)/user-management/roles/forms/role-schema';
 import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission } from '@/lib/auth';
 
 // GET: Fetch all roles with permissions
 export async function GET(request: Request) {
@@ -31,6 +32,10 @@ export async function GET(request: Request) {
         { status: 401 }, // Unauthorized
       );
     }
+
+    // Only users with roles.manage permission can view and manage roles
+    const forbidden = await requirePermission(session, 'roles.manage');
+    if (forbidden) return forbidden;
 
     // Count total records matching the filter
     const total = await prisma.userRole.count({
@@ -115,6 +120,9 @@ export async function POST(request: NextRequest) {
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'roles.manage');
+    if (forbidden) return forbidden;
 
     const clientIp = getClientIP(request);
     const body = await request.json();

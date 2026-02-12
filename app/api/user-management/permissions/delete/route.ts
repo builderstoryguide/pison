@@ -5,6 +5,7 @@ import { getClientIP } from '@/lib/api';
 import { prisma } from '@/lib/prisma'; // Adjust the import based on your Prisma setup
 import { systemLog } from '@/services/system-log';
 import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission } from '@/lib/auth';
 
 export async function DELETE(request: NextRequest) {
   try {
@@ -16,6 +17,9 @@ export async function DELETE(request: NextRequest) {
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'roles.manage');
+    if (forbidden) return forbidden;
 
     const clientIp = getClientIP(request);
     const body = await request.json();

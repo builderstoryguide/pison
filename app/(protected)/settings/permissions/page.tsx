@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {
@@ -18,22 +18,33 @@ import {
   ToolbarTitle,
 } from '@/components/common/toolbar';
 import { useTranslation } from '@/hooks/useTranslation';
-import RoleList from './components/role-list';
+import PermissionList from '@/app/(protected)/user-management/permissions/components/permission-list';
+import { hasPermission } from '@/lib/auth-client';
 
-export default function Page() {
+export default function SettingsPermissionsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { t } = useTranslation();
+  const [accessChecked, setAccessChecked] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.replace('/signin');
-    } else if (status === 'authenticated' && session?.user?.roleName?.toLowerCase() !== 'manager') {
-      router.replace('/');
+      return;
+    }
+    if (status === 'authenticated' && session) {
+      const allowed = hasPermission(session, 'roles.manage');
+      if (!allowed) {
+        router.replace('/');
+      }
+      setAccessChecked(true);
     }
   }, [session, status, router]);
 
-  if (status === 'loading' || (status === 'authenticated' && session?.user?.roleName?.toLowerCase() !== 'manager')) {
+  if (status === 'loading' || !accessChecked) {
+    return null;
+  }
+  if (status === 'authenticated' && session && !hasPermission(session, 'roles.manage')) {
     return null;
   }
 
@@ -42,7 +53,7 @@ export default function Page() {
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>{t('pages.userManagement.roles')}</ToolbarTitle>
+            <ToolbarTitle>{t('pages.userManagement.permissions')}</ToolbarTitle>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
@@ -50,11 +61,11 @@ export default function Page() {
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/user-management/users">{t('common.breadcrumbs.userManagement')}</BreadcrumbLink>
+                  <BreadcrumbLink href="/settings">{t('menu.settings')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{t('pages.userManagement.roles')}</BreadcrumbPage>
+                  <BreadcrumbPage>{t('pages.userManagement.permissions')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -62,7 +73,7 @@ export default function Page() {
         </Toolbar>
       </Container>
       <Container>
-        <RoleList />
+        <PermissionList />
       </Container>
     </>
   );

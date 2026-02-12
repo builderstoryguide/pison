@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { prisma } from '@/lib/prisma';
 import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission } from '@/lib/auth';
 
 export async function GET() {
   try {
@@ -13,6 +14,9 @@ export async function GET() {
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'roles.manage');
+    if (forbidden) return forbidden;
 
     const permissions = await prisma.userPermission.findMany({
       select: {

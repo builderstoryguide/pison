@@ -29,12 +29,12 @@ export default function Page() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.replace('/signin');
-    } else if (status === 'authenticated' && session?.user?.roleName?.toLowerCase() !== 'administrator') {
+    } else if (status === 'authenticated' && session?.user?.roleName?.toLowerCase() !== 'manager') {
       router.replace('/');
     }
   }, [session, status, router]);
 
-  if (status === 'loading' || (status === 'authenticated' && session?.user?.roleName?.toLowerCase() !== 'administrator')) {
+  if (status === 'loading' || (status === 'authenticated' && session?.user?.roleName?.toLowerCase() !== 'manager')) {
     return null;
   }
 

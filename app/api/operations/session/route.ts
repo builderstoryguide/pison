@@ -7,15 +7,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission } from '@/lib/auth';
 import { sessionService } from '@/lib/services';
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const forbidden = await requirePermission(session, 'dashboard.view');
+    if (forbidden) return forbidden;
 
     const currentSession = await sessionService.getCurrentSession();
     const isOpen = await sessionService.isSessionOpen();
@@ -47,16 +46,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Only Admin can open sessions
-    const roleName = (session.user?.roleName || '').toLowerCase();
-    if (!roleName.includes('admin')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const forbidden = await requirePermission(session, 'session.manage');
+    if (forbidden) return forbidden;
 
     const newSession = await sessionService.openSession(session.user?.id || '');
 

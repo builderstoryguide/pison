@@ -75,7 +75,7 @@ export default function SessionStatus() {
   });
 
   const roleName = (session?.user?.roleName || '').toLowerCase();
-  const isAdmin = roleName.includes('admin');
+  const isManager = roleName.includes('manager');
 
   if (isLoading) {
     return (
@@ -161,7 +161,7 @@ export default function SessionStatus() {
                 )}
               </div>
 
-              {isAdmin && isOpen && (
+              {isManager && isOpen && (
                 <div className="pt-4 border-t">
                   <Link href="/operations/day-closure">
                     <Button className="w-full">
@@ -172,7 +172,7 @@ export default function SessionStatus() {
                 </div>
               )}
 
-              {isAdmin && !sessionData && (
+              {isManager && !sessionData && (
                 <div className="pt-4 border-t">
                   <Button
                     onClick={() => openSessionMutation.mutate()}
@@ -201,7 +201,7 @@ export default function SessionStatus() {
               <p className="text-muted-foreground mb-4">
                 A daily session needs to be opened before transactions can be created.
               </p>
-              {isAdmin && (
+              {isManager && (
                 <Button
                   onClick={() => openSessionMutation.mutate()}
                   disabled={openSessionMutation.isPending}
@@ -241,10 +241,10 @@ export default function SessionStatus() {
                   Session opened at {formatDateTime(new Date(sessionData.openedAt))}
                 </span>
               </div>
-              {isAdmin && (
+              {isManager && (
                 <div className="pt-4 border-t mt-4">
                   <p className="text-muted-foreground text-xs">
-                    As an administrator, you can close this session at the end of the day
+                    As a manager, you can close this session at the end of the day
                     to lock all transactions for today.
                   </p>
                 </div>

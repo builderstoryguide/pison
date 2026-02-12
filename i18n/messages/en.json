@@ -85,7 +85,7 @@
       }
     },
     "dashboard": {
-      "adminTitle": "Admin Dashboard",
+      "adminTitle": "Manager Dashboard",
       "accountantTitle": "Accountant Dashboard",
       "agentTitle": "Agent Dashboard",
       "home": "Home",
@@ -174,7 +174,7 @@
       "noActiveAreas": "No active collection areas found.",
       "refillAccount": "Refill Account",
       "refillAgentAccount": "Refill Agent Account",
-      "refillAgentAccountDesc": "Add funds to {{name}}'s operational account. This transaction will require administrator approval.",
+      "refillAgentAccountDesc": "Add funds to {{name}}'s operational account. This transaction will require manager approval.",
       "amountXof": "Amount (XOF)",
       "createRequest": "Create Request"
     },
@@ -276,7 +276,7 @@
       "selectArea": "Select a collection area",
       "selectCollectionArea": "Select Collection Area",
       "selectCollectionAreaDesc": "Choose the area where you collected money today",
-      "noAreasAssigned": "No collection areas assigned. Please contact administrator.",
+      "noAreasAssigned": "No collection areas assigned. Please contact manager.",
       "enterCollectionAmounts": "Enter Collection Amounts",
       "enterCollectionAmountsDesc": "Enter the amount collected for each client",
       "addAllClients": "Add All Clients",
@@ -285,7 +285,7 @@
       "totalAmount": "Total Amount",
       "submitting": "Submitting...",
       "submitCollections": "Submit Collections",
-      "agentNotFound": "Agent record not found. Please contact administrator."
+      "agentNotFound": "Agent record not found. Please contact manager."
     },
     "accounts": {
       "accountStatus": "Account Status",
@@ -377,6 +377,7 @@
     "sessionStatus": "Session Status",
     "dayClosure": "Day Closure",
     "cashReconciliation": "Cash Reconciliation",
+    "settings": "Settings",
     "systemSettings": "System Settings",
     "commissionRates": "Commission Rates",
     "userManagement": "User Management",

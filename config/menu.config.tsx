@@ -165,13 +165,14 @@ export const MENU_SIDEBAR: MenuConfig = [
   {
     title: 'menu.settings',
     icon: Settings,
+    path: '/settings',
     children: [
-      { title: 'menu.systemSettings', path: '/settings/system' },
-      { title: 'menu.commissionRates', path: '/settings/commissions' },
-      { title: 'menu.collectionAreas', path: '/settings/areas' },
+      { title: 'menu.systemSettings', path: '/user-management/settings' },
+      { title: 'menu.commissionRates', path: '/reports/commissions' },
+      { title: 'menu.collectionAreas', path: '/collection-areas' },
       { title: 'menu.userManagement', path: '/user-management/users' },
-      { title: 'menu.roles', path: '/user-management/roles' },
-      { title: 'menu.permissions', path: '/user-management/permissions' },
+      { title: 'menu.roles', path: '/settings/roles' },
+      { title: 'menu.permissions', path: '/settings/permissions' },
     ],
   },
   {
@@ -321,5 +322,5 @@ export const MENU_ROOT: MenuConfig = [
   { title: 'menu.transactions', icon: CreditCard, rootPath: '/transactions/', path: '/transactions', childrenIndex: 2 },
   { title: 'menu.clients', icon: Users, rootPath: '/clients/', path: '/clients', childrenIndex: 3 },
   { title: 'menu.reports', icon: ReportIcon, rootPath: '/reports/', path: '/reports/monthly-balance', childrenIndex: 4 },
-  { title: 'menu.settings', icon: Settings, rootPath: '/settings/', path: '/settings/system', childrenIndex: 5 },
+  { title: 'menu.settings', icon: Settings, rootPath: '/settings/', path: '/settings', childrenIndex: 5 },
 ];

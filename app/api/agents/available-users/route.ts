@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const roleName = (session.user?.roleName || '').toLowerCase();
-    if (!roleName.includes('admin') && !roleName.includes('accountant')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const forbidden = await requirePermission(session, 'agents.create');
+    if (forbidden) return forbidden;
 
     // Find users with 'agent' role who don't have an agent profile
     const users = await prisma.user.findMany({

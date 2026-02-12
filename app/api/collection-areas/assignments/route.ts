@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission, hasPermission } from '@/lib/auth';
 import { agentService } from '@/lib/services';
 import { z } from 'zod';
 
@@ -18,10 +19,8 @@ const assignAreasSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const forbidden = await requirePermission(session, 'collection_areas.view');
+    if (forbidden) return forbidden;
 
     const searchParams = request.nextUrl.searchParams;
     const agentId = searchParams.get('agentId');
@@ -33,12 +32,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if user is admin or the agent themselves
-    const roleName = (session.user?.roleName || '').toLowerCase();
-    const isAdmin = roleName.includes('admin');
-    const isAgent = roleName.includes('agent') || roleName.includes('collector');
-
-    if (!isAdmin) {
+    // Agents can only view their own assignments; Manager can view any
+    const canManage = hasPermission(session, 'collection_areas.manage');
+    if (!canManage) {
       // Agents can only view their own assignments
       const agent = await agentService.getAgentByUserId(session.user?.id || '');
       if (!agent || agent.id !== agentId) {
@@ -70,16 +66,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Only Admin can assign areas
-    const roleName = (session.user?.roleName || '').toLowerCase();
-    if (!roleName.includes('admin')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const forbidden = await requirePermission(session, 'collection_areas.manage');
+    if (forbidden) return forbidden;
 
     const body = await request.json();
     const validatedData = assignAreasSchema.parse(body);

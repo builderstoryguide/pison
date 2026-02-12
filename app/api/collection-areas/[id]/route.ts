@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission } from '@/lib/auth';
 import { collectionAreaService } from '@/lib/services';
 import { z } from 'zod';
 
@@ -25,10 +26,8 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const forbidden = await requirePermission(session, 'collection_areas.view');
+    if (forbidden) return forbidden;
 
     const area = await collectionAreaService.getAreaById(params.id);
 
@@ -61,16 +60,8 @@ export async function PUT(
 ) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Only Admin can update areas
-    const roleName = (session.user?.roleName || '').toLowerCase();
-    if (!roleName.includes('admin')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const forbidden = await requirePermission(session, 'collection_areas.manage');
+    if (forbidden) return forbidden;
 
     const body = await request.json();
     const validatedData = updateAreaSchema.parse(body);
@@ -120,16 +111,8 @@ export async function DELETE(
 ) {
   try {
     const session = await getServerSession(authOptions);
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Only Admin can deactivate areas
-    const roleName = (session.user?.roleName || '').toLowerCase();
-    if (!roleName.includes('admin')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const forbidden = await requirePermission(session, 'collection_areas.manage');
+    if (forbidden) return forbidden;
 
     const area = await collectionAreaService.deactivateArea(
       params.id,

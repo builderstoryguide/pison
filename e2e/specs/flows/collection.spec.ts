@@ -11,7 +11,7 @@ test.describe('Daily Collection Flow', () => {
 
   test.beforeAll(async () => {
     // 1. Setup Data
-    adminUser = await createTestUser('administrator');
+    adminUser = await createTestUser('manager');
     agentUser = await createTestUser('agent');
     area = await createCollectionArea();
     
@@ -49,7 +49,7 @@ test.describe('Daily Collection Flow', () => {
     await logout(agentPage);
     await agentContext.close();
 
-    // 3. Admin logs in and approves
+    // 3. Manager logs in and approves
     const adminContext = await browser.newContext();
     const adminPage = await adminContext.newPage();
     await login(adminPage, adminUser.email, adminUser.password);

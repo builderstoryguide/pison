@@ -10,6 +10,7 @@ import {
   PermissionSchemaType,
 } from '@/app/(protected)/user-management/permissions/forms/permission-schema';
 import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
+import { requirePermission } from '@/lib/auth';
 
 // GET: Fetch a specific permission by ID
 export async function GET(
@@ -25,6 +26,9 @@ export async function GET(
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'roles.manage');
+    if (forbidden) return forbidden;
 
     const { id } = await params;
 
@@ -62,6 +66,9 @@ export async function PUT(
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'roles.manage');
+    if (forbidden) return forbidden;
 
     const { id } = await params;
     const clientIp = getClientIP(request);
@@ -142,6 +149,9 @@ export async function DELETE(
         { status: 401 }, // Unauthorized
       );
     }
+
+    const forbidden = await requirePermission(session, 'roles.manage');
+    if (forbidden) return forbidden;
 
     const { id } = await params;
     const clientIp = getClientIP(request);
