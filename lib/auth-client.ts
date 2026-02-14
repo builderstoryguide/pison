@@ -22,6 +22,7 @@ export const PERMISSIONS = {
   COLLECTION_AREAS_MANAGE: 'collection_areas.manage',
   COLLECTIONS_CREATE: 'collections.create',
   TRANSACTIONS_VIEW: 'transactions.view',
+  TRANSACTIONS_CREATE: 'transactions.create',
   TRANSACTIONS_APPROVE: 'transactions.approve',
   LOANS_VIEW: 'loans.view',
   LOANS_CREATE: 'loans.create',

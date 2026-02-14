@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
 import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { agentService } from '@/lib/services';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,14 +16,95 @@ export async function GET(request: NextRequest) {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Fetch counts
+    const roleName = (session?.user?.roleName ?? '').toLowerCase();
+    const isAgent = roleName.includes('agent') || roleName.includes('collector');
+
+    if (isAgent && session?.user?.id) {
+      // Agent-specific stats: only data relevant to their assigned areas
+      const agent = await agentService.getAgentByUserId(session.user.id);
+      if (!agent) {
+        return NextResponse.json({
+          success: true,
+          data: {
+            assignedClientsCount: 0,
+            assignedAreasCount: 0,
+            dailyCollections: 0,
+            recentTransactions: [],
+          },
+        });
+      }
+
+      const agentAreaIds = agent.areaAssignments?.map((a) => a.areaId) ?? [];
+
+      const [
+        assignedClientsCount,
+        assignedAreasCount,
+        dailyCollectionsAgg,
+        recentCollectionTxns,
+      ] = await Promise.all([
+        agentAreaIds.length > 0
+          ? prisma.client.count({
+              where: {
+                status: 'ACTIVE',
+                areaId: { in: agentAreaIds },
+              },
+            })
+          : 0,
+        prisma.agentAreaAssignment.count({ where: { agentId: agent.id } }),
+        prisma.transaction.aggregate({
+          _sum: { amount: true },
+          where: {
+            type: 'COLLECTION',
+            status: 'COMPLETED',
+            agentId: agent.id,
+            createdAt: { gte: today, lt: tomorrow },
+          },
+        }),
+        prisma.transaction.findMany({
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          where: {
+            type: 'COLLECTION',
+            agentId: agent.id,
+          },
+          include: {
+            account: {
+              include: {
+                client: true,
+                agent: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          assignedClientsCount,
+          assignedAreasCount,
+          dailyCollections: dailyCollectionsAgg._sum.amount?.toNumber() || 0,
+          recentTransactions: recentCollectionTxns.map((t) => ({
+            id: t.id,
+            type: t.type,
+            amount: t.amount.toNumber(),
+            status: t.status,
+            date: t.createdAt,
+            description: t.description,
+            reference: t.account.client?.fullName || t.account.agent?.fullName || 'System',
+          })),
+        },
+      });
+    }
+
+    // Accountant / Manager: global stats
     const [
       activeClients,
       activeAgents,
       totalLoans,
       pendingLoans,
       dailyCollections,
-      activeAreas
+      activeAreas,
     ] = await Promise.all([
       prisma.client.count({ where: { status: 'ACTIVE' } }),
       prisma.agent.count({ where: { status: 'ACTIVE' } }),
@@ -39,7 +121,6 @@ export async function GET(request: NextRequest) {
       prisma.collectionArea.count({ where: { status: 'ACTIVE' } }),
     ]);
 
-    // Fetch recent transactions
     const recentTransactions = await prisma.transaction.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
@@ -53,9 +134,6 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Determine role-specific data
-    // (For now, returning global stats, but could filter by agent's area if needed)
-
     return NextResponse.json({
       success: true,
       data: {
@@ -65,7 +143,7 @@ export async function GET(request: NextRequest) {
         pendingLoans,
         dailyCollections: dailyCollections._sum.amount?.toNumber() || 0,
         activeAreas,
-        recentTransactions: recentTransactions.map(t => ({
+        recentTransactions: recentTransactions.map((t) => ({
           id: t.id,
           type: t.type,
           amount: t.amount.toNumber(),

@@ -33,38 +33,48 @@ test.describe('Daily Collection Flow', () => {
   });
 
   test('should process a collection transaction end-to-end', async ({ browser }) => {
-    // 2. Agent logs in and posts collection
+    // 2. Agent logs in and enters ventilation (collection amounts)
     const agentContext = await browser.newContext();
     const agentPage = await agentContext.newPage();
     await login(agentPage, agentUser.email, agentUser.password);
-    
-    await agentPage.goto('/dashboard/agent/collections/new');
-    // Fill form
-    await agentPage.getByLabel('Client').fill(client.clientNumber); // Search by number
-    await agentPage.getByText(client.fullName).click(); // Select client
-    await agentPage.getByLabel('Amount').fill('100');
-    await agentPage.getByRole('button', { name: 'Submit' }).click();
-    
-    await expect(agentPage.getByText('Transaction created successfully')).toBeVisible();
+
+    await agentPage.goto('/collections/daily');
+    await agentPage.waitForLoadState('networkidle');
+
+    // Select collection area
+    await agentPage.getByRole('combobox').first().click();
+    await agentPage.getByRole('option', { name: area.name }).click();
+
+    // Wait for clients to load, then enter amount for the client
+    await agentPage.getByTestId(`collection-row-${client.id}`).waitFor({ state: 'visible' });
+    await agentPage.getByTestId(`collection-row-${client.id}`).getByRole('spinbutton').fill('100');
+
+    // Submit collections
+    await agentPage.getByRole('button', { name: /submit collections/i }).click();
+
+    await expect(agentPage.getByText(/collections submitted successfully/i)).toBeVisible();
     await logout(agentPage);
     await agentContext.close();
 
-    // 3. Manager logs in and approves
+    // 3. Manager logs in and approves pending transaction
     const adminContext = await browser.newContext();
     const adminPage = await adminContext.newPage();
     await login(adminPage, adminUser.email, adminUser.password);
-    
-    await adminPage.goto('/dashboard/admin/transactions/pending');
-    await expect(adminPage.getByText('100.00')).toBeVisible(); // Check amount
-    await adminPage.getByRole('button', { name: 'Approve' }).first().click();
-    
-    await expect(adminPage.getByText('Transaction approved')).toBeVisible();
 
-    // 4. Verify Balance
-    await adminPage.goto(`/dashboard/clients/${client.id}`);
-    await expect(adminPage.getByText('Balance')).toBeVisible();
-    await expect(adminPage.getByText('100.00')).toBeVisible(); // Assuming start 0 + 100
-    
+    await adminPage.goto('/validation/pending');
+    await adminPage.waitForLoadState('networkidle');
+
+    await expect(adminPage.getByText('100')).toBeVisible();
+    await adminPage.getByRole('button', { name: 'Approve' }).first().click();
+    await adminPage.getByRole('button', { name: 'Approve' }).last().click(); // Confirm in dialog
+
+    await expect(adminPage.getByText(/transaction approved/i)).toBeVisible();
+
+    // 4. Verify client balance updated
+    await adminPage.goto(`/clients/${client.id}`);
+    await expect(adminPage.getByText(/balance|solde/i)).toBeVisible();
+    await expect(adminPage.getByText('100')).toBeVisible();
+
     await adminContext.close();
   });
 });

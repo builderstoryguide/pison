@@ -72,6 +72,7 @@ async function main() {
       { slug: 'collection_areas.manage', name: 'Manage Collection Areas', description: 'Create, edit, and deactivate collection zones' },
       { slug: 'collections.create', name: 'Enter Collections', description: 'Enter daily collection amounts (ventilation)' },
       { slug: 'transactions.view', name: 'View Transactions', description: 'View transaction history' },
+      { slug: 'transactions.create', name: 'Create Transactions', description: 'Create deposit and withdrawal transactions for client accounts' },
       { slug: 'transactions.approve', name: 'Approve Transactions', description: 'Approve pending transactions' },
       { slug: 'loans.view', name: 'View Loans', description: 'View loan list and details' },
       { slug: 'loans.create', name: 'Create Loans', description: 'Create loan requests' },
@@ -120,7 +121,7 @@ async function main() {
     const accountantPermSlugs = [
       'dashboard.view', 'clients.view', 'clients.create', 'clients.edit',
       'agents.view', 'agents.create', 'agents.edit', 'collection_areas.view',
-      'collections.create', 'transactions.view', 'loans.view', 'loans.create', 'loans.repayment',
+      'collections.create', 'transactions.view', 'transactions.create', 'loans.view', 'loans.create', 'loans.repayment',
       'reports.view', 'reports.export',
     ];
     for (const slug of accountantPermSlugs) {

@@ -27,22 +27,31 @@ export interface CreateCollectionInput {
   }>;
 }
 
+export interface CreateTransferInput {
+  sourceAccountId: string;
+  destinationAccountId: string;
+  amount: number;
+  description?: string;
+}
+
 export class TransactionService {
   /**
    * Generate unique transaction number
+   * @param tx - Optional Prisma transaction client for use within $transaction callbacks
    */
-  private async generateTransactionNumber(): Promise<string> {
+  private async generateTransactionNumber(tx?: Prisma.TransactionClient): Promise<string> {
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     const transactionNumber = `TXN-${dateStr}-${random}`;
 
-    const exists = await prisma.transaction.findUnique({
+    const client = tx ?? prisma;
+    const exists = await client.transaction.findUnique({
       where: { transactionNumber },
     });
 
     if (exists) {
-      return this.generateTransactionNumber();
+      return this.generateTransactionNumber(tx);
     }
 
     return transactionNumber;
@@ -92,9 +101,9 @@ export class TransactionService {
       throw new Error('Amount must be positive');
     }
 
-    // For withdrawals, check available balance
+    // For withdrawals, check available balance (use .toNumber() for consistent Decimal comparison)
     if (data.type === 'WITHDRAWAL' || data.type === 'TRANSFER') {
-      if (account.availableBalance < data.amount) {
+      if (account.availableBalance.toNumber() < data.amount) {
         throw new Error('Insufficient available balance');
       }
     }
@@ -209,7 +218,92 @@ export class TransactionService {
   }
 
   /**
+   * Create a transfer (dual-entry: debit source, credit destination)
+   * Both transactions are linked via reference and require approval together
+   */
+  async createTransfer(data: CreateTransferInput, createdBy: string) {
+    const sessionOpen = await this.isSessionOpen();
+    if (!sessionOpen) {
+      throw new Error('Daily session is closed. No transactions allowed.');
+    }
+
+    if (data.sourceAccountId === data.destinationAccountId) {
+      throw new Error('Source and destination accounts must be different');
+    }
+
+    if (data.amount <= 0) {
+      throw new Error('Amount must be positive');
+    }
+
+    const [sourceAccount, destAccount] = await Promise.all([
+      prisma.financialAccount.findUnique({ where: { id: data.sourceAccountId } }),
+      prisma.financialAccount.findUnique({ where: { id: data.destinationAccountId } }),
+    ]);
+
+    if (!sourceAccount) throw new Error('Source account not found');
+    if (!destAccount) throw new Error('Destination account not found');
+    if (sourceAccount.status !== 'ACTIVE') throw new Error('Source account is not active');
+    if (destAccount.status !== 'ACTIVE') throw new Error('Destination account is not active');
+
+    if (sourceAccount.availableBalance.toNumber() < data.amount) {
+      throw new Error('Insufficient available balance in source account');
+    }
+
+    const transferRef = `transfer-${crypto.randomUUID()}`;
+
+    return await prisma.$transaction(async (tx) => {
+      const sourceTxnNumber = await this.generateTransactionNumber(tx);
+      const destTxnNumber = await this.generateTransactionNumber(tx);
+
+      const sourceBalanceAfter = sourceAccount.balance.toNumber() - data.amount;
+      const destBalanceAfter = destAccount.balance.toNumber() + data.amount;
+
+      const [sourceTxn, destTxn] = await Promise.all([
+        tx.transaction.create({
+          data: {
+            transactionNumber: sourceTxnNumber,
+            accountId: data.sourceAccountId,
+            type: 'TRANSFER',
+            amount: data.amount,
+            balanceBefore: sourceAccount.balance,
+            balanceAfter: sourceBalanceAfter,
+            status: 'PENDING_APPROVAL',
+            description: data.description || `Transfer to ${destAccount.accountNumber}`,
+            reference: transferRef,
+            createdBy,
+          },
+          include: {
+            account: { include: { client: true, agent: true } },
+            creator: { select: { id: true, name: true, email: true } },
+          },
+        }),
+        tx.transaction.create({
+          data: {
+            transactionNumber: destTxnNumber,
+            accountId: data.destinationAccountId,
+            type: 'DEPOSIT',
+            amount: data.amount,
+            balanceBefore: destAccount.balance,
+            balanceAfter: destBalanceAfter,
+            status: 'PENDING_APPROVAL',
+            description: data.description || `Transfer from ${sourceAccount.accountNumber}`,
+            reference: transferRef,
+            createdBy,
+          },
+          include: {
+            account: { include: { client: true, agent: true } },
+            creator: { select: { id: true, name: true, email: true } },
+          },
+        }),
+      ]);
+
+      return { sourceTransaction: sourceTxn, destinationTransaction: destTxn };
+    });
+  }
+
+  /**
    * Approve a transaction (four-eye principle)
+   * For transfers, approves both linked transactions together
    */
   async approveTransaction(transactionId: string, approverId: string, notes?: string) {
     const transaction = await prisma.transaction.findUnique({
@@ -231,48 +325,62 @@ export class TransactionService {
       throw new Error('Daily session is closed. Cannot approve transactions.');
     }
 
+    // For transfers, find the paired transaction
+    const isTransfer = transaction.reference?.startsWith('transfer-');
+    const pairedTransaction = isTransfer
+      ? await prisma.transaction.findFirst({
+          where: {
+            reference: transaction.reference,
+            id: { not: transactionId },
+            status: 'PENDING_APPROVAL',
+          },
+          include: { account: true },
+        })
+      : null;
+
     return await prisma.$transaction(async (tx) => {
-      // Update transaction status
-      const updatedTransaction = await tx.transaction.update({
-        where: { id: transactionId },
-        data: {
-          status: 'APPROVED',
-          approvedBy: approverId,
-          approvedAt: new Date(),
-        },
-      });
+      const transactionsToApprove = pairedTransaction
+        ? [transaction, pairedTransaction]
+        : [transaction];
 
-      // Update account balance atomically
-      await tx.financialAccount.update({
-        where: { id: transaction.accountId },
-        data: {
-          balance: transaction.balanceAfter,
-          availableBalance:
-            transaction.type === 'DEPOSIT' || transaction.type === 'COLLECTION'
-              ? transaction.account.availableBalance + transaction.amount
-              : transaction.account.availableBalance - transaction.amount,
-        },
-      });
+      for (const txn of transactionsToApprove) {
+        await tx.transaction.update({
+          where: { id: txn.id },
+          data: {
+            status: 'APPROVED',
+            approvedBy: approverId,
+            approvedAt: new Date(),
+          },
+        });
 
-      // Update transaction to COMPLETED
-      await tx.transaction.update({
-        where: { id: transactionId },
-        data: {
-          status: 'COMPLETED',
-        },
-      });
+        const isCredit =
+          txn.type === 'DEPOSIT' || txn.type === 'COLLECTION' || txn.type === 'LOAN_REPAYMENT';
+        await tx.financialAccount.update({
+          where: { id: txn.accountId },
+          data: {
+            balance: txn.balanceAfter,
+            availableBalance: isCredit
+              ? txn.account.availableBalance.toNumber() + txn.amount.toNumber()
+              : txn.account.availableBalance.toNumber() - txn.amount.toNumber(),
+          },
+        });
 
-      // Create audit log
-      await tx.auditLog.create({
-        data: {
-          userId: approverId,
-          action: 'APPROVE',
-          entityType: 'TRANSACTION',
-          entityId: transactionId,
-          transactionId,
-          description: `Transaction approved${notes ? `: ${notes}` : ''}`,
-        },
-      });
+        await tx.transaction.update({
+          where: { id: txn.id },
+          data: { status: 'COMPLETED' },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            userId: approverId,
+            action: 'APPROVE',
+            entityType: 'TRANSACTION',
+            entityId: txn.id,
+            transactionId: txn.id,
+            description: `Transaction approved${notes ? `: ${notes}` : ''}`,
+          },
+        });
+      }
 
       return await tx.transaction.findUnique({
         where: { id: transactionId },
@@ -306,32 +414,133 @@ export class TransactionService {
       throw new Error(`Transaction is not pending approval. Current status: ${transaction.status}`);
     }
 
+    const isTransfer = transaction.reference?.startsWith('transfer-');
+    const pairedTransaction = isTransfer
+      ? await prisma.transaction.findFirst({
+          where: {
+            reference: transaction.reference,
+            id: { not: transactionId },
+            status: 'PENDING_APPROVAL',
+          },
+        })
+      : null;
+
     return await prisma.$transaction(async (tx) => {
-      // Update transaction status
-      const updatedTransaction = await tx.transaction.update({
+      const transactionsToReject = pairedTransaction
+        ? [transaction, pairedTransaction]
+        : [transaction];
+
+      for (const txn of transactionsToReject) {
+        await tx.transaction.update({
+          where: { id: txn.id },
+          data: {
+            status: 'REJECTED',
+            approvedBy: approverId,
+            approvedAt: new Date(),
+            rejectedReason: reason,
+          },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            userId: approverId,
+            action: 'REJECT',
+            entityType: 'TRANSACTION',
+            entityId: txn.id,
+            transactionId: txn.id,
+            description: `Transaction rejected: ${reason}`,
+          },
+        });
+      }
+
+      return await tx.transaction.findUnique({
         where: { id: transactionId },
-        data: {
-          status: 'REJECTED',
-          approvedBy: approverId,
-          approvedAt: new Date(),
-          rejectedReason: reason,
-        },
+        include: { account: true },
       });
-
-      // Create audit log
-      await tx.auditLog.create({
-        data: {
-          userId: approverId,
-          action: 'REJECT',
-          entityType: 'TRANSACTION',
-          entityId: transactionId,
-          transactionId,
-          description: `Transaction rejected: ${reason}`,
-        },
-      });
-
-      return updatedTransaction;
     });
+  }
+
+  /**
+   * Get transactions with optional filters (for list view)
+   */
+  async getTransactions(filters?: {
+    type?: string;
+    status?: string;
+    accountId?: string;
+    areaId?: string;
+    agentId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    offset?: number;
+  }) {
+    const where: Prisma.TransactionWhereInput = {};
+
+    if (filters?.type) {
+      where.type = filters.type as any;
+    }
+    if (filters?.status) {
+      where.status = filters.status as any;
+    }
+    if (filters?.accountId) {
+      where.accountId = filters.accountId;
+    }
+    if (filters?.areaId) {
+      where.areaId = filters.areaId;
+    }
+    if (filters?.agentId) {
+      where.agentId = filters.agentId;
+    }
+    if (filters?.startDate || filters?.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) {
+        where.createdAt.gte = filters.startDate;
+      }
+      if (filters.endDate) {
+        where.createdAt.lte = filters.endDate;
+      }
+    }
+
+    const [transactions, total] = await Promise.all([
+      prisma.transaction.findMany({
+        where,
+        include: {
+          account: {
+            include: {
+              client: {
+                select: {
+                  id: true,
+                  clientNumber: true,
+                  fullName: true,
+                },
+              },
+              agent: {
+                select: {
+                  id: true,
+                  agentCode: true,
+                  fullName: true,
+                },
+              },
+            },
+          },
+          area: true,
+          agent: true,
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: filters?.limit ?? 50,
+        skip: filters?.offset ?? 0,
+      }),
+      prisma.transaction.count({ where }),
+    ]);
+
+    return { transactions, total };
   }
 
   /**

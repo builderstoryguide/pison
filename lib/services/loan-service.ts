@@ -4,7 +4,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+import { LoanStatus, Prisma } from '@prisma/client';
 import { transactionService } from './transaction-service';
 
 export interface CreateLoanInput {
@@ -184,6 +184,7 @@ export class LoanService {
 
   /**
    * Approve and disburse a loan
+   * Creates LOAN_DISBURSEMENT transaction and auto-approves it so the account balance updates immediately
    */
   async approveLoan(loanId: string, approverId: string) {
     const loan = await prisma.loan.findUnique({
@@ -202,66 +203,122 @@ export class LoanService {
       throw new Error(`Loan is not pending approval. Current status: ${loan.status}`);
     }
 
-    return await prisma.$transaction(async (tx) => {
-      // Update loan status
-      const updatedLoan = await tx.loan.update({
-        where: { id: loanId },
-        data: {
-          status: 'APPROVED',
-          approvedBy: approverId,
-          approvedAt: new Date(),
-        },
-      });
+    const disbursementRef = `loan-disbursement-${loanId}`;
 
-      // Disburse loan (create negative transaction)
-      await transactionService.createTransaction(
+    // Idempotency: check for existing pending disbursement (e.g. from a previous failed attempt)
+    const existingTxn = await prisma.transaction.findFirst({
+      where: {
+        reference: disbursementRef,
+        status: 'PENDING_APPROVAL',
+      },
+    });
+
+    let disbursementTxn;
+    if (existingTxn) {
+      await transactionService.approveTransaction(existingTxn.id, approverId);
+    } else {
+      disbursementTxn = await transactionService.createTransaction(
         {
           accountId: loan.accountId,
           type: 'LOAN_DISBURSEMENT',
-          amount: loan.principalAmount,
+          amount: loan.principalAmount.toNumber(),
           description: `Loan disbursement: ${loan.loanNumber}`,
+          reference: disbursementRef,
         },
         approverId
       );
+      await transactionService.approveTransaction(disbursementTxn.id, approverId);
+    }
 
-      // Update loan to DISBURSED
-      await tx.loan.update({
-        where: { id: loanId },
-        data: {
-          status: 'DISBURSED',
-        },
-      });
-
-      // Create audit log
-      await tx.auditLog.create({
-        data: {
-          userId: approverId,
-          action: 'APPROVE',
-          entityType: 'LOAN',
-          entityId: loanId,
-          description: `Loan approved and disbursed: ${loan.loanNumber}`,
-        },
-      });
-
-      return await tx.loan.findUnique({
-        where: { id: loanId },
-        include: {
-          account: true,
-          client: true,
-          approver: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
+    // Update loan status to APPROVED and DISBURSED
+    const updatedLoan = await prisma.loan.update({
+      where: { id: loanId },
+      data: {
+        status: 'DISBURSED',
+        approvedBy: approverId,
+        approvedAt: new Date(),
+        disbursedAt: new Date(),
+      },
+      include: {
+        account: true,
+        client: true,
+        approver: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
           },
         },
-      });
+      },
     });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: approverId,
+        action: 'APPROVE',
+        entityType: 'LOAN',
+        entityId: loanId,
+        description: `Loan approved and disbursed: ${loan.loanNumber}`,
+      },
+    });
+
+    return updatedLoan;
+  }
+
+  /**
+   * Reject a pending loan request
+   */
+  async rejectLoan(loanId: string, rejectorId: string, reason?: string) {
+    const loan = await prisma.loan.findUnique({
+      where: { id: loanId },
+    });
+
+    if (!loan) {
+      throw new Error('Loan not found');
+    }
+
+    if (loan.status !== 'PENDING') {
+      throw new Error(`Loan is not pending. Current status: ${loan.status}`);
+    }
+
+    const updatedLoan = await prisma.loan.update({
+      where: { id: loanId },
+      data: {
+        status: 'CANCELLED',
+        approvedBy: rejectorId,
+        approvedAt: new Date(),
+      },
+      include: {
+        account: true,
+        client: true,
+        approver: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: rejectorId,
+        action: 'REJECT',
+        entityType: 'LOAN',
+        entityId: loanId,
+        description: reason
+          ? `Loan rejected: ${loan.loanNumber} - ${reason}`
+          : `Loan rejected: ${loan.loanNumber}`,
+      },
+    });
+
+    return updatedLoan;
   }
 
   /**
    * Record a loan repayment
+   * Creates LOAN_REPAYMENT transaction and auto-approves it so the account balance updates immediately
    */
   async recordRepayment(loanId: string, amount: number, userId: string) {
     if (amount <= 0) {
@@ -283,25 +340,31 @@ export class LoanService {
       throw new Error('Loan is not active');
     }
 
-    if (amount > loan.remainingBalance) {
+    if (amount > loan.remainingBalance.toNumber()) {
       throw new Error('Repayment amount exceeds remaining balance');
     }
 
-    return await prisma.$transaction(async (tx) => {
-      // Create repayment transaction
-      const transaction = await transactionService.createTransaction(
-        {
-          accountId: loan.accountId,
-          type: 'LOAN_REPAYMENT',
-          amount,
-          description: `Loan repayment for ${loan.loanNumber}`,
-        },
-        userId
-      );
+    // Create repayment transaction
+    const transaction = await transactionService.createTransaction(
+      {
+        accountId: loan.accountId,
+        type: 'LOAN_REPAYMENT',
+        amount,
+        description: `Loan repayment for ${loan.loanNumber}`,
+        reference: `loan-repayment-${loanId}-${Date.now()}`,
+      },
+      userId
+    );
 
-      // Calculate principal vs interest
-      // Simple approach: pay interest first, then principal
-      const interestPortion = Math.min(amount, loan.totalAmount - loan.principalAmount);
+    // Auto-approve: recording repayment implies approval (user has loans.repayment)
+    await transactionService.approveTransaction(transaction.id, userId);
+
+    return await prisma.$transaction(async (tx) => {
+      // Calculate principal vs interest: pay interest first, then principal
+      const interestPortion = Math.min(
+        amount,
+        loan.totalAmount.toNumber() - loan.principalAmount.toNumber()
+      );
       const principalPortion = amount - interestPortion;
 
       // Create repayment record
@@ -316,7 +379,7 @@ export class LoanService {
       });
 
       // Update loan remaining balance
-      const newRemainingBalance = loan.remainingBalance - amount;
+      const newRemainingBalance = loan.remainingBalance.toNumber() - amount;
       const updatedLoan = await tx.loan.update({
         where: { id: loanId },
         data: {
@@ -335,7 +398,7 @@ export class LoanService {
   /**
    * Update a loan request
    */
-  async updateLoan(id: string, data: Partial<CreateLoanInput>, userId: string) {
+  async updateLoan(id: string, data: Partial<CreateLoanInput>, userId?: string) {
     const loan = await prisma.loan.findUnique({ where: { id } });
 
     if (!loan) {
@@ -379,7 +442,7 @@ export class LoanService {
       remainingBalance = totalAmount;
     }
 
-    return await prisma.loan.update({
+    const updated = await prisma.loan.update({
       where: { id },
       data: {
         principalAmount,
@@ -398,6 +461,20 @@ export class LoanService {
         },
       },
     });
+
+    if (userId) {
+      await prisma.auditLog.create({
+        data: {
+          userId,
+          action: 'UPDATE',
+          entityType: 'LOAN',
+          entityId: id,
+          description: `Loan request updated: ${updated.loanNumber}`,
+        },
+      });
+    }
+
+    return updated;
   }
 
   /**
@@ -405,19 +482,30 @@ export class LoanService {
    */
   async getAllLoans(filters?: {
     status?: string;
+    statusIn?: string[];
     clientId?: string;
     accountId?: string;
+    areaIds?: string[];
   }) {
     const where: Prisma.LoanWhereInput = {};
 
-    if (filters?.status) {
-      where.status = filters.status as any;
+    if (filters?.statusIn && filters.statusIn.length > 0) {
+      where.status = { in: filters.statusIn as LoanStatus[] };
+    } else if (filters?.status) {
+      where.status = filters.status as LoanStatus;
     }
     if (filters?.clientId) {
       where.clientId = filters.clientId;
     }
     if (filters?.accountId) {
       where.accountId = filters.accountId;
+    }
+    if (filters?.areaIds && filters.areaIds.length > 0) {
+      where.client = {
+        areaId: {
+          in: filters.areaIds,
+        },
+      };
     }
 
     return await prisma.loan.findMany({

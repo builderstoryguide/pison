@@ -3,20 +3,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import { useTranslation } from '@/hooks/useTranslation';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
 import { Container } from '@/components/common/container';
 import {
   Toolbar,
   ToolbarActions,
   ToolbarHeading,
-  ToolbarTitle,
 } from '@/components/common/toolbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,6 +16,15 @@ import { formatCurrency, formatDate } from '@/lib/helpers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+
+interface Transaction {
+  id: string;
+  type: string;
+  reference: string;
+  date: string;
+  status: string;
+  amount: number;
+}
 
 export default function AgentDashboard() {
   const { t } = useTranslation();
@@ -42,25 +42,14 @@ export default function AgentDashboard() {
     <>
       <Container>
         <Toolbar>
-          <ToolbarHeading>
-            <ToolbarTitle>{t('pages.dashboard.agentTitle')}</ToolbarTitle>
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>{t('navigation.dashboard')}</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </ToolbarHeading>
+          <ToolbarHeading
+            title={t('pages.dashboard.agentTitle')}
+          />
           <ToolbarActions>
             <Link href="/collections/daily">
               <Button>
                 <PlusCircle className="mr-2 h-4 w-4" />
-                New Collection
+                {t('pages.dashboard.startDailyCollection')}
               </Button>
             </Link>
           </ToolbarActions>
@@ -72,7 +61,7 @@ export default function AgentDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                My Clients
+                {t('pages.dashboard.myClients')}
               </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -80,10 +69,10 @@ export default function AgentDashboard() {
               {isLoading ? (
                 <Skeleton className="h-7 w-20" />
               ) : (
-                <div className="text-2xl font-bold">{stats?.activeClients || 0}</div>
+                <div className="text-2xl font-bold">{stats?.assignedClientsCount ?? stats?.activeClients ?? 0}</div>
               )}
               <p className="text-xs text-muted-foreground mt-1">
-                Assigned clients
+                {t('pages.dashboard.assignedClients')}
               </p>
             </CardContent>
           </Card>
@@ -91,7 +80,7 @@ export default function AgentDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Today's Collections
+                {t('pages.dashboard.todayCollections')}
               </CardTitle>
               <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -102,7 +91,7 @@ export default function AgentDashboard() {
                 <div className="text-2xl font-bold">{formatCurrency(stats?.dailyCollections || 0)}</div>
               )}
               <p className="text-xs text-muted-foreground mt-1">
-                Collected today
+                {t('pages.dashboard.collectedToday')}
               </p>
             </CardContent>
           </Card>
@@ -110,7 +99,7 @@ export default function AgentDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                My Zones
+                {t('pages.dashboard.myZones')}
               </CardTitle>
               <MapPin className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -118,10 +107,10 @@ export default function AgentDashboard() {
               {isLoading ? (
                 <Skeleton className="h-7 w-20" />
               ) : (
-                <div className="text-2xl font-bold">{stats?.activeAreas || 0}</div>
+                <div className="text-2xl font-bold">{stats?.assignedAreasCount ?? stats?.activeAreas ?? 0}</div>
               )}
               <p className="text-xs text-muted-foreground mt-1">
-                Assigned collection areas
+                {t('pages.dashboard.assignedCollectionAreas')}
               </p>
             </CardContent>
           </Card>
@@ -130,7 +119,7 @@ export default function AgentDashboard() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
           <Card className="col-span-4">
             <CardHeader>
-              <CardTitle>Recent Collections</CardTitle>
+              <CardTitle>{t('pages.dashboard.recentCollections')}</CardTitle>
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -141,10 +130,10 @@ export default function AgentDashboard() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {stats?.recentTransactions?.filter((t: any) => t.type === 'COLLECTION').length > 0 ? (
-                    stats.recentTransactions
-                      .filter((t: any) => t.type === 'COLLECTION')
-                      .map((txn: any) => (
+                  {(() => {
+                    const recentCollections = stats?.recentTransactions?.filter((t: Transaction) => t.type === 'COLLECTION') ?? [];
+                    return recentCollections.length > 0 ? (
+                      recentCollections.map((txn: Transaction) => (
                       <div key={txn.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
                         <div className="space-y-1">
                           <p className="text-sm font-medium leading-none">{txn.reference}</p>
@@ -164,9 +153,10 @@ export default function AgentDashboard() {
                     ))
                   ) : (
                     <div className="text-center py-4 text-muted-foreground">
-                      No recent collections
+                      {t('pages.dashboard.noRecentCollections')}
                     </div>
-                  )}
+                  );
+                  })()}
                 </div>
               )}
             </CardContent>
@@ -174,19 +164,19 @@ export default function AgentDashboard() {
 
           <Card className="col-span-3">
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+              <CardTitle>{t('pages.dashboard.quickActions')}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
               <Link href="/collections/daily">
                 <Button className="w-full justify-start" variant="outline">
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Start Daily Collection
+                  {t('pages.dashboard.startDailyCollection')}
                 </Button>
               </Link>
               <Link href="/clients">
                 <Button className="w-full justify-start" variant="outline">
                   <Users className="mr-2 h-4 w-4" />
-                  View Clients
+                  {t('pages.dashboard.viewClients')}
                 </Button>
               </Link>
             </CardContent>

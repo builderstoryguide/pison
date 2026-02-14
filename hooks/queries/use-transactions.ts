@@ -119,24 +119,32 @@ async function fetchTransaction(id: string): Promise<Transaction> {
   return result.data;
 }
 
-async function fetchTransactionsByAccount(
-  accountId: string,
+async function fetchAllTransactions(
   filters: TransactionFilters = {}
 ): Promise<Transaction[]> {
   const params = new URLSearchParams();
   if (filters.type) params.append('type', filters.type);
   if (filters.status) params.append('status', filters.status);
+  if (filters.accountId) params.append('accountId', filters.accountId);
+  if (filters.areaId) params.append('areaId', filters.areaId);
+  if (filters.agentId) params.append('agentId', filters.agentId);
   if (filters.startDate) params.append('startDate', filters.startDate);
   if (filters.endDate) params.append('endDate', filters.endDate);
+  params.append('limit', '100');
 
-  const response = await apiFetch(
-    `/api/transactions?accountId=${accountId}&${params.toString()}`
-  );
+  const response = await apiFetch(`/api/transactions?${params.toString()}`);
   if (!response.ok) {
     throw new Error('Failed to fetch transactions');
   }
   const result = await response.json();
   return result.data || [];
+}
+
+async function fetchTransactionsByAccount(
+  accountId: string,
+  filters: TransactionFilters = {}
+): Promise<Transaction[]> {
+  return fetchAllTransactions({ ...filters, accountId });
 }
 
 // Query Hooks
@@ -157,6 +165,25 @@ export function useTransaction(id: string, enabled = true) {
     queryKey: transactionKeys.detail(id),
     queryFn: () => fetchTransaction(id),
     enabled: !!id && enabled,
+  });
+}
+
+export function useTransactions(
+  filters: TransactionFilters = {},
+  enabled = true
+) {
+  return useQuery({
+    queryKey: transactionKeys.list({
+      type: filters.type,
+      status: filters.status,
+      accountId: filters.accountId,
+      areaId: filters.areaId,
+      agentId: filters.agentId,
+      startDate: filters.startDate,
+      endDate: filters.endDate,
+    }),
+    queryFn: () => fetchAllTransactions(filters),
+    enabled,
   });
 }
 
@@ -203,6 +230,43 @@ export function useCreateTransaction() {
           queryKey: transactionKeys.byAccount(variables.accountId),
         });
       }
+    },
+  });
+}
+
+export interface CreateTransferInput {
+  sourceAccountId: string;
+  destinationAccountId: string;
+  amount: number;
+  description?: string;
+}
+
+export function useCreateTransfer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CreateTransferInput) => {
+      const response = await apiFetch('/api/transactions/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Failed to create transfer');
+      }
+
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: transactionKeys.pending() });
+      queryClient.invalidateQueries({
+        queryKey: transactionKeys.byAccount(variables.sourceAccountId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: transactionKeys.byAccount(variables.destinationAccountId),
+      });
     },
   });
 }

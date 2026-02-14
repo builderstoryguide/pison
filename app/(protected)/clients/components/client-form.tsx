@@ -39,6 +39,7 @@ const clientSchema = z.object({
   address: z.string().optional(),
   city: z.string().optional(),
   areaId: z.string().uuid('Please select a collection area'),
+  agentId: z.union([z.string().uuid(), z.literal(''), z.literal('none')]).optional(),
   isCommissionExempt: z.boolean().default(false),
 });
 
@@ -59,6 +60,17 @@ export default function ClientForm({ clientId }: ClientFormProps) {
     queryKey: ['collection-areas'],
     queryFn: async () => {
       const response = await apiFetch('/api/collection-areas?status=ACTIVE');
+      if (!response.ok) return [];
+      const result = await response.json();
+      return result.data || [];
+    },
+  });
+
+  // Fetch agents for assignment
+  const { data: agentsData } = useQuery({
+    queryKey: ['agents', 'ACTIVE'],
+    queryFn: async () => {
+      const response = await apiFetch('/api/agents?status=ACTIVE');
       if (!response.ok) return [];
       const result = await response.json();
       return result.data || [];
@@ -89,6 +101,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
       address: '',
       city: '',
       areaId: '',
+      agentId: '',
       isCommissionExempt: false,
     },
   });
@@ -104,6 +117,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
         address: clientData.address || '',
         city: clientData.city || '',
         areaId: clientData.areaId,
+        agentId: clientData.assignedAgent?.id || '',
         isCommissionExempt: clientData.isCommissionExempt || false,
       });
     }
@@ -167,10 +181,14 @@ export default function ClientForm({ clientId }: ClientFormProps) {
   });
 
   const onSubmit = (data: ClientFormData) => {
+    const payload = { ...data };
+    if (!payload.agentId || payload.agentId === 'none') {
+      delete payload.agentId;
+    }
     if (isEditMode) {
-      updateMutation.mutate(data);
+      updateMutation.mutate(payload);
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(payload);
     }
   };
 
@@ -186,6 +204,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
 
   const isLoading = createMutation.isPending || updateMutation.isPending;
   const areas = areasData || [];
+  const agents = agentsData || [];
 
   return (
     <Card>
@@ -338,6 +357,41 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                   </Select>
                   <FormDescription>
                     {t('pages.clients.collectionAreaDesc')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="agentId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('common.labels.agent')}</FormLabel>
+                  <Select
+                    onValueChange={(v) => field.onChange(v === 'none' ? '' : v)}
+                    value={field.value || 'none'}
+                    disabled={isLoading}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('common.placeholders.selectAgent')} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        {t('common.labels.none')}
+                      </SelectItem>
+                      {agents.map((agent: { id: string; fullName: string }) => (
+                        <SelectItem key={agent.id} value={agent.id}>
+                          {agent.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    {t('pages.clients.agentDesc')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

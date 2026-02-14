@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -48,7 +48,12 @@ interface Loan {
   maturityDate?: string;
 }
 
-const LoanList = () => {
+interface LoanListProps {
+  /** Default status filter: "PENDING" for requests, "active" for repayments, "all" for all */
+  defaultStatus?: string | null;
+}
+
+const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
   const router = useRouter();
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -56,7 +61,11 @@ const LoanList = () => {
   });
   const [sorting, setSorting] = useState<SortingState>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<string | null>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(defaultStatus);
+
+  useEffect(() => {
+    setSelectedStatus(defaultStatus);
+  }, [defaultStatus]);
 
   // Fetch loans
   const fetchLoans = async (): Promise<Loan[]> => {
@@ -358,11 +367,13 @@ const LoanList = () => {
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
               <SelectItem value="PENDING">Pending</SelectItem>
+              <SelectItem value="active">Active (Disbursed/Active)</SelectItem>
               <SelectItem value="APPROVED">Approved</SelectItem>
               <SelectItem value="DISBURSED">Disbursed</SelectItem>
               <SelectItem value="ACTIVE">Active</SelectItem>
               <SelectItem value="PAID_OFF">Paid Off</SelectItem>
               <SelectItem value="DEFAULTED">Defaulted</SelectItem>
+              <SelectItem value="CANCELLED">Cancelled</SelectItem>
             </SelectContent>
           </Select>
         </div>

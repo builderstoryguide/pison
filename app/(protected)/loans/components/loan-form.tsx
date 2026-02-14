@@ -103,13 +103,16 @@ export default function LoanForm({ loanId }: LoanFormProps) {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: async (data: LoanFormData) => {
-      // Find client to get accountId
+      // Find client to get accountId (Prisma returns accountId; fallback to account.id)
       const client = clientsData?.find((c: any) => c.id === data.clientId);
       if (!client) throw new Error('Client not found');
 
+      const accountId = client.accountId ?? client.account?.id;
+      if (!accountId) throw new Error('Client has no account');
+
       const payload = {
         ...data,
-        accountId: client.accountId, // Use client's account ID
+        accountId,
       };
 
       const response = await apiFetch('/api/loans', {

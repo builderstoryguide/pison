@@ -18,6 +18,7 @@ import { formatCurrency, formatDate } from '@/lib/helpers';
 import LoanForm from '../../components/loan-form';
 import RepaymentDialog from '../../components/repayment-dialog';
 import ApproveButton from '../../components/approve-button';
+import RejectButton from '../../components/reject-button';
 
 interface LoanDetailContentProps {
   loan: {
@@ -104,7 +105,12 @@ export default function LoanDetailContent({
             </Breadcrumb>
           </ToolbarHeading>
           <ToolbarActions>
-            {isPending && isManager && <ApproveButton loanId={loan.id} />}
+            {isPending && isManager && (
+              <>
+                <ApproveButton loanId={loan.id} />
+                <RejectButton loanId={loan.id} />
+              </>
+            )}
             {isActive && canRecordRepayment && (
               <RepaymentDialog
                 loanId={loan.id}

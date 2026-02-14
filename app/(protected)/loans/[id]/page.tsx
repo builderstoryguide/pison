@@ -7,9 +7,7 @@ import { loanService } from '@/lib/services';
 import LoanDetailContent from './components/loan-detail-content';
 
 interface PageProps {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

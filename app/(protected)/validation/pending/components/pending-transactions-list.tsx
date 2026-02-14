@@ -51,6 +51,7 @@ interface Transaction {
   balanceAfter: string;
   status: string;
   description?: string;
+  reference?: string | null;
   createdAt: string;
   account?: {
     accountNumber: string;
@@ -192,6 +193,7 @@ export default function PendingTransactionsList() {
       case 'DEPOSIT':
         return <ArrowDown className="size-5 text-green-600" />;
       case 'WITHDRAWAL':
+      case 'TRANSFER':
         return <ArrowUp className="size-5 text-red-600" />;
       case 'LOAN_DISBURSEMENT':
         return <DollarSign className="size-5 text-blue-600" />;
@@ -220,7 +222,18 @@ export default function PendingTransactionsList() {
 
   const pendingTransactions: Transaction[] = transactions || [];
 
-  if (pendingTransactions.length === 0) {
+  // Group transfer pairs - show one card per transfer (approving one approves both)
+  const isTransferRef = (ref: string | null) => ref?.startsWith('transfer-');
+  const transferRefsSeen = new Set<string>();
+  const displayTransactions = pendingTransactions.filter((tx) => {
+    if (isTransferRef(tx.reference)) {
+      if (transferRefsSeen.has(tx.reference!)) return false;
+      transferRefsSeen.add(tx.reference!);
+    }
+    return true;
+  });
+
+  if (displayTransactions.length === 0) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
@@ -237,7 +250,7 @@ export default function PendingTransactionsList() {
   return (
     <>
       <div className="space-y-4">
-        {pendingTransactions.map((transaction) => {
+        {displayTransactions.map((transaction) => {
           const amount = parseFloat(transaction.amount);
           const isCredit = ['COLLECTION', 'DEPOSIT', 'LOAN_REPAYMENT'].includes(
             transaction.type,
@@ -251,7 +264,9 @@ export default function PendingTransactionsList() {
                     {getTransactionIcon(transaction.type)}
                     <div>
                       <CardTitle className="text-lg">
-                        {getTransactionTypeLabel(transaction.type)}
+                        {isTransferRef(transaction.reference)
+                          ? 'Transfer'
+                          : getTransactionTypeLabel(transaction.type)}
                       </CardTitle>
                       <div className="text-sm text-muted-foreground mt-1">
                         {transaction.transactionNumber}

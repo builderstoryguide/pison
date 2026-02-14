@@ -136,6 +136,7 @@ export class ReportService {
             totalDeposits += amt;
             break;
           case 'WITHDRAWAL':
+          case 'TRANSFER':
             totalWithdrawals += amt;
             break;
           case 'COLLECTION':
@@ -331,6 +332,7 @@ export class ReportService {
             totalDeposits += amt;
             break;
           case 'WITHDRAWAL':
+          case 'TRANSFER':
             totalWithdrawals += amt;
             break;
           case 'COLLECTION':

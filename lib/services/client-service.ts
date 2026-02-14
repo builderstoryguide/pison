@@ -14,6 +14,7 @@ export interface CreateClientInput {
   address?: string;
   city?: string;
   areaId: string;
+  agentId?: string;
   isCommissionExempt?: boolean;
 }
 
@@ -25,6 +26,7 @@ export interface UpdateClientInput {
   address?: string;
   city?: string;
   areaId?: string;
+  agentId?: string | null;
   status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'CLOSED';
   isCommissionExempt?: boolean;
 }
@@ -114,6 +116,7 @@ export class ClientService {
           address: data.address,
           city: data.city,
           areaId: data.areaId,
+          agentId: data.agentId,
           accountId: account.id,
           isCommissionExempt: data.isCommissionExempt || false,
           createdBy,
@@ -165,6 +168,13 @@ export class ClientService {
       include: {
         area: true,
         account: true,
+        assignedAgent: {
+          select: {
+            id: true,
+            fullName: true,
+            agentCode: true,
+          }
+        },
       },
     });
   }
@@ -175,6 +185,7 @@ export class ClientService {
   async getAllClients(filters?: {
     status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'CLOSED';
     areaId?: string;
+    agentId?: string;
     search?: string; // Search by name, client number, phone, email
   }) {
     const where: Prisma.ClientWhereInput = {};
@@ -185,6 +196,10 @@ export class ClientService {
 
     if (filters?.areaId) {
       where.areaId = filters.areaId;
+    }
+
+    if (filters?.agentId) {
+      where.agentId = filters.agentId;
     }
 
     if (filters?.search) {
@@ -215,6 +230,13 @@ export class ClientService {
             status: true,
           },
         },
+        assignedAgent: {
+          select: {
+            id: true,
+            fullName: true,
+            agentCode: true,
+          }
+        },
         _count: {
           select: {
             transactions: true,
@@ -235,6 +257,13 @@ export class ClientService {
       include: {
         area: true,
         account: true,
+        assignedAgent: {
+          select: {
+            id: true,
+            fullName: true,
+            agentCode: true,
+          }
+        },
         loans: {
           where: {
             status: {
@@ -262,6 +291,13 @@ export class ClientService {
       include: {
         area: true,
         account: true,
+        assignedAgent: {
+          select: {
+            id: true,
+            fullName: true,
+            agentCode: true,
+          }
+        },
       },
     });
   }
@@ -281,6 +317,13 @@ export class ClientService {
             balance: true,
             availableBalance: true,
           },
+        },
+        assignedAgent: {
+          select: {
+            id: true,
+            fullName: true,
+            agentCode: true,
+          }
         },
       },
       orderBy: { fullName: 'asc' },

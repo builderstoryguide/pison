@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useQuery } from '@tanstack/react-query';
+import { useTransactions } from '@/hooks/queries/use-transactions';
 import {
   ColumnDef,
   getCoreRowModel,
@@ -49,7 +49,11 @@ interface Transaction {
   };
 }
 
-const TransactionList = () => {
+interface TransactionListProps {
+  defaultType?: string;
+}
+
+const TransactionList = ({ defaultType }: TransactionListProps) => {
   const router = useRouter();
   const { t } = useTranslation();
   const [pagination, setPagination] = useState<PaginationState>({
@@ -61,20 +65,14 @@ const TransactionList = () => {
   ]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string | null>('all');
-  const [selectedType, setSelectedType] = useState<string | null>('all');
-
-  // Fetch transactions
-  const fetchTransactions = async (): Promise<Transaction[]> => {
-    // Note: This would need a proper transactions API endpoint
-    // For now, returning empty array as placeholder
-    return [];
-  };
+  const [selectedType, setSelectedType] = useState<string | null>(
+    defaultType || 'all'
+  );
 
   // Transactions query
-  const { data: transactions, isLoading } = useQuery({
-    queryKey: ['transactions', selectedStatus, selectedType, searchQuery],
-    queryFn: fetchTransactions,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+  const { data: transactions = [], isLoading } = useTransactions({
+    type: selectedType && selectedType !== 'all' ? selectedType : undefined,
+    status: selectedStatus && selectedStatus !== 'all' ? selectedStatus : undefined,
   });
 
   const handleStatusSelection = (status: string) => {
@@ -124,13 +122,14 @@ const TransactionList = () => {
                   {transaction.transactionNumber}
                 </div>
                 <div className="text-muted-foreground text-xs">
-                  {{
+                  {({
                     COLLECTION: t('pages.transactions.typeCollection'),
                     DEPOSIT: t('pages.transactions.typeDeposit'),
                     WITHDRAWAL: t('pages.transactions.typeWithdrawal'),
+                    TRANSFER: t('pages.transactions.typeTransfer'),
                     LOAN_REPAYMENT: t('pages.transactions.typeLoanRepayment'),
                     LOAN_DISBURSEMENT: t('pages.transactions.typeLoanDisbursement'),
-                  }[transaction.type] || transaction.type}
+                  })[transaction.type] || transaction.type}
                 </div>
               </div>
             </div>
@@ -343,6 +342,7 @@ const TransactionList = () => {
               <SelectItem value="COLLECTION">{t('pages.transactions.typeCollection')}</SelectItem>
               <SelectItem value="DEPOSIT">{t('pages.transactions.typeDeposit')}</SelectItem>
               <SelectItem value="WITHDRAWAL">{t('pages.transactions.typeWithdrawal')}</SelectItem>
+              <SelectItem value="TRANSFER">{t('pages.transactions.typeTransfer')}</SelectItem>
               <SelectItem value="LOAN_DISBURSEMENT">{t('pages.transactions.typeLoanDisbursement')}</SelectItem>
               <SelectItem value="LOAN_REPAYMENT">{t('pages.transactions.typeLoanRepayment')}</SelectItem>
             </SelectContent>

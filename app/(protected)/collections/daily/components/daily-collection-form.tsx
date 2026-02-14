@@ -52,16 +52,15 @@ export default function DailyCollectionForm() {
   const [selectedAreaId, setSelectedAreaId] = useState<string>('');
   const [entries, setEntries] = useState<CollectionEntry[]>([]);
 
-  // Fetch agent's assigned areas
+  // Fetch current user's agent record (for collection ventilation)
   const { data: agentData } = useQuery({
-    queryKey: ['agent-by-user', session?.user?.id],
+    queryKey: ['me-agent', session?.user?.id],
     queryFn: async () => {
       if (!session?.user?.id) return null;
-      const response = await apiFetch('/api/agents');
+      const response = await apiFetch('/api/me/agent');
       if (!response.ok) return null;
       const result = await response.json();
-      const agents = result.data || [];
-      return agents.find((a: any) => a.userId === session.user?.id) || null;
+      return result.data || null;
     },
     enabled: !!session?.user?.id,
   });
@@ -118,6 +117,7 @@ export default function DailyCollectionForm() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-transactions'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       toast.success('Collections submitted successfully. Awaiting approval.');
       setEntries([]);
@@ -292,6 +292,7 @@ export default function DailyCollectionForm() {
                       return (
                         <div
                           key={client.id}
+                          data-testid={`collection-row-${client.id}`}
                           className="flex items-center gap-4 p-4 rounded-lg border"
                         >
                           <div className="flex-1">

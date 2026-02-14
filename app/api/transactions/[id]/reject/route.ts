@@ -16,8 +16,9 @@ const rejectSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await getServerSession(authOptions);
     const forbidden = await requirePermission(session, 'transactions.approve');

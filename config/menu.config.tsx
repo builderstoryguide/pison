@@ -1,6 +1,7 @@
 import {
   AlertCircle,
   AlertTriangle,
+  ArrowRightLeft,
   Award,
   Badge,
   BarChart3,
@@ -80,9 +81,10 @@ export const MENU_SIDEBAR: MenuConfig = [
     icon: CreditCard,
     children: [
       { title: 'menu.allTransactions', path: '/transactions' },
-      { title: 'menu.pendingValidation', path: '/transactions/pending' },
+      { title: 'menu.pendingValidation', path: '/validation/pending' },
       { title: 'menu.deposits', path: '/transactions/deposits' },
       { title: 'menu.withdrawals', path: '/transactions/withdrawals' },
+      { title: 'menu.transfers', path: '/transactions/transfers' },
     ],
   },
   {
@@ -214,9 +216,10 @@ export const MENU_MEGA: MenuConfig = [
         children: [
           { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily' },
           { title: 'menu.allTransactions', icon: CreditCard, path: '/transactions' },
-          { title: 'menu.pendingValidation', icon: CheckCircle2, path: '/transactions/pending' },
+          { title: 'menu.pendingValidation', icon: CheckCircle2, path: '/validation/pending' },
           { title: 'menu.deposits', icon: TrendingUp, path: '/transactions/deposits' },
           { title: 'menu.withdrawals', icon: TrendingDown, path: '/transactions/withdrawals' },
+          { title: 'menu.transfers', icon: ArrowRightLeft, path: '/transactions/transfers' },
         ],
       },
       {

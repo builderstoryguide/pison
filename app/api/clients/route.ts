@@ -19,6 +19,7 @@ const createClientSchema = z.object({
   address: z.string().optional(),
   city: z.string().optional(),
   areaId: z.string().uuid(),
+  agentId: z.string().uuid().optional(),
   isCommissionExempt: z.boolean().optional().default(false),
 });
 
@@ -70,6 +71,7 @@ export async function GET(request: NextRequest) {
     const clients = await clientService.getAllClients({
       status: status || undefined,
       areaId: filteredAreaId,
+      agentId: searchParams.get('agentId') || undefined,
       search: search || undefined,
     });
 

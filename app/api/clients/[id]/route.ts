@@ -20,21 +20,23 @@ const updateClientSchema = z.object({
   address: z.string().optional(),
   city: z.string().optional(),
   areaId: z.string().uuid().optional(),
+  agentId: z.string().uuid().optional().nullable(),
   status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'CLOSED']).optional(),
   isCommissionExempt: z.boolean().optional(),
 });
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await getServerSession(authOptions);
     const forbidden = await requirePermission(session, 'clients.view');
     if (forbidden) return forbidden;
 
     // Check if agent has access to this client's area
-    const roleName = (session.user?.roleName || '').toLowerCase();
+    const roleName = (session?.user?.roleName || '').toLowerCase();
     if (roleName.includes('agent') || roleName.includes('collector')) {
       const client = await clientService.getClientById(params.id);
       if (!client) {
@@ -42,12 +44,13 @@ export async function GET(
       }
 
       const { agentService } = await import('@/lib/services');
-      const agent = await agentService.getAgentByUserId(session.user?.id || '');
-      if (agent) {
-        const hasAccess = await agentService.validateAgentAreaAccess(agent.id, client.areaId);
-        if (!hasAccess) {
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        }
+      const agent = await agentService.getAgentByUserId(session?.user?.id || '');
+      if (!agent) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      const hasAccess = await agentService.validateAgentAreaAccess(agent.id, client.areaId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }
 
@@ -78,8 +81,9 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await getServerSession(authOptions);
     const forbidden = await requirePermission(session, 'clients.edit');
@@ -88,15 +92,34 @@ export async function PUT(
     const body = await request.json();
     const validatedData = updateClientSchema.parse(body);
 
-    const client = await clientService.updateClient(
+    const client = await clientService.getClientById(params.id);
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+
+    // Check if agent has access to this client's area
+    const roleName = (session?.user?.roleName || '').toLowerCase();
+    if (roleName.includes('agent') || roleName.includes('collector')) {
+      const { agentService } = await import('@/lib/services');
+      const agent = await agentService.getAgentByUserId(session?.user?.id || '');
+      if (!agent) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      const hasAccess = await agentService.validateAgentAreaAccess(agent.id, client.areaId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
+    const updatedClient = await clientService.updateClient(
       params.id,
       validatedData,
-      session.user?.id || ''
+      session?.user?.id || ''
     );
 
     return NextResponse.json({
       success: true,
-      data: client,
+      data: updatedClient,
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
@@ -119,7 +142,7 @@ export async function PUT(
         success: false,
         error: {
           code: 'UPDATE_ERROR',
-          message: error.message || 'Failed to update client',
+          message: error?.message || 'Failed to update client',
         },
       },
       { status: 500 }
@@ -129,16 +152,36 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
     const session = await getServerSession(authOptions);
     const forbidden = await requirePermission(session, 'clients.delete');
     if (forbidden) return forbidden;
 
+    // Check if agent has access to this client's area
+    const roleName = (session?.user?.roleName || '').toLowerCase();
+    if (roleName.includes('agent') || roleName.includes('collector')) {
+      const clientToCheck = await clientService.getClientById(params.id);
+      if (!clientToCheck) {
+        return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+      }
+
+      const { agentService } = await import('@/lib/services');
+      const agent = await agentService.getAgentByUserId(session?.user?.id || '');
+      if (!agent) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      const hasAccess = await agentService.validateAgentAreaAccess(agent.id, clientToCheck.areaId);
+      if (!hasAccess) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const client = await clientService.deactivateClient(
       params.id,
-      session.user?.id || ''
+      session?.user?.id || ''
     );
 
     return NextResponse.json({
@@ -152,7 +195,7 @@ export async function DELETE(
         success: false,
         error: {
           code: 'DELETE_ERROR',
-          message: error.message || 'Failed to deactivate client',
+          message: error?.message || 'Failed to deactivate client',
         },
       },
       { status: 500 }

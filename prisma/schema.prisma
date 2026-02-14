@@ -255,6 +255,7 @@ model Client {
   address            String?
   city               String?
   areaId             String
+  agentId            String?
   accountId          String       @unique
   status             ClientStatus @default(ACTIVE)
   isCommissionExempt Boolean      @default(false)
@@ -265,6 +266,7 @@ model Client {
 
   area         CollectionArea   @relation(fields: [areaId], references: [id])
   account      FinancialAccount @relation(fields: [accountId], references: [id])
+  assignedAgent Agent?          @relation("ClientAgent", fields: [agentId], references: [id]) 
   transactions Transaction[]
   loans        Loan[]
   commissions  Commission[]
@@ -273,6 +275,7 @@ model Client {
 
   @@index([clientNumber])
   @@index([areaId])
+  @@index([agentId])
   @@index([status])
 }
 
@@ -304,6 +307,7 @@ model Agent {
   user            User                  @relation(fields: [userId], references: [id])
   account         FinancialAccount      @relation(fields: [accountId], references: [id])
   areaAssignments AgentAreaAssignment[]
+  assignedClients Client[]              @relation("ClientAgent")
   transactions    Transaction[]
   creator         User?                 @relation("AgentCreator", fields: [createdBy], references: [id])
   updater         User?                 @relation("AgentUpdater", fields: [updatedBy], references: [id])

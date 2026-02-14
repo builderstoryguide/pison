@@ -1,18 +1,24 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import { apiFetch } from '@/lib/api';
+import { hasPermission } from '@/lib/auth-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, Users, MapPin, Wallet, Phone, Mail, Home, Calendar, Shield } from 'lucide-react';
 import { formatDate } from '@/lib/helpers';
+import DepositDialog from './deposit-dialog';
+import WithdrawalDialog from './withdrawal-dialog';
+import TransferDialog from './transfer-dialog';
 
 interface ClientDetailsProps {
   clientId: string;
 }
 
 export default function ClientDetails({ clientId }: ClientDetailsProps) {
+  const { data: session } = useSession();
   const { data: client, isLoading } = useQuery({
     queryKey: ['client', clientId],
     queryFn: async () => {
@@ -46,6 +52,10 @@ export default function ClientDetails({ clientId }: ClientDetailsProps) {
   }
 
   const balance = client.account ? parseFloat(client.account.balance) : 0;
+  const availableBalance = client.account
+    ? parseFloat(String(client.account.availableBalance ?? client.account.balance))
+    : 0;
+  const canCreateTransactions = hasPermission(session, 'transactions.create');
   const statusColors: Record<string, 'success' | 'secondary' | 'destructive' | 'warning'> = {
     ACTIVE: 'success',
     INACTIVE: 'secondary',
@@ -175,7 +185,33 @@ export default function ClientDetails({ clientId }: ClientDetailsProps) {
       {client.account && (
         <Card>
           <CardHeader>
-            <CardTitle>Account Information</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Account Information</CardTitle>
+              {canCreateTransactions && (
+                <div className="flex gap-2">
+                  <DepositDialog
+                    accountId={client.account.id}
+                    accountNumber={client.account.accountNumber}
+                    clientName={client.fullName}
+                    clientId={clientId}
+                  />
+                  <WithdrawalDialog
+                    accountId={client.account.id}
+                    accountNumber={client.account.accountNumber}
+                    clientName={client.fullName}
+                    availableBalance={availableBalance}
+                    clientId={clientId}
+                  />
+                  <TransferDialog
+                    sourceAccountId={client.account.id}
+                    sourceAccountNumber={client.account.accountNumber}
+                    clientName={client.fullName}
+                    availableBalance={availableBalance}
+                    clientId={clientId}
+                  />
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid gap-6 md:grid-cols-2">
