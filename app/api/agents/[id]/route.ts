@@ -41,14 +41,14 @@ export async function GET(
       success: true,
       data: agent,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching agent:', error);
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'FETCH_ERROR',
-          message: error.message || 'Failed to fetch agent',
+          message: error instanceof Error ? error.message : 'Failed to fetch agent',
         },
       },
       { status: 500 }
@@ -80,7 +80,7 @@ export async function PUT(
       success: true,
       data: updatedAgent,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -101,7 +101,7 @@ export async function PUT(
         success: false,
         error: {
           code: 'UPDATE_ERROR',
-          message: error.message || 'Failed to update agent',
+          message: error instanceof Error ? error.message : 'Failed to update agent',
         },
       },
       { status: 500 }

@@ -62,7 +62,10 @@ export interface CreateLoanInput {
 }
 
 // Fetchers
-async function fetchLoans(filters: LoanFilters = {}): Promise<Loan[]> {
+async function fetchLoans(
+  filters: LoanFilters = {},
+  signal?: AbortSignal
+): Promise<Loan[]> {
   const params = new URLSearchParams();
   if (filters.status && filters.status !== 'all') {
     params.append('status', filters.status);
@@ -71,7 +74,7 @@ async function fetchLoans(filters: LoanFilters = {}): Promise<Loan[]> {
     params.append('clientId', filters.clientId);
   }
 
-  const response = await apiFetch(`/api/loans?${params.toString()}`);
+  const response = await apiFetch(`/api/loans?${params.toString()}`, { signal });
   if (!response.ok) {
     throw new Error('Failed to fetch loans');
   }
@@ -104,7 +107,7 @@ export function useLoans(filters: LoanFilters = {}) {
       status: filters.status,
       clientId: filters.clientId,
     }),
-    queryFn: () => fetchLoans(filters),
+    queryFn: ({ signal }) => fetchLoans(filters, signal),
   });
 }
 

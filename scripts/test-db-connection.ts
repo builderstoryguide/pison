@@ -1,70 +1,31 @@
-/**
- * Database Connection Test Script
- * Run with: npx tsx scripts/test-db-connection.ts
- */
 
-import { PrismaClient } from '@prisma/client';
+import { config } from 'dotenv';
+config(); // Load environment variables from .env
 
-const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
-});
+import { prisma } from '../lib/prisma';
 
-async function testConnection() {
+async function main() {
+  console.log('Testing database connection...');
+  const start = Date.now();
   try {
-    console.log('🔍 Testing database connection...\n');
-
-    // Test 1: Basic connection
-    console.log('1. Testing basic connection...');
-    await prisma.$connect();
-    console.log('   ✅ Connected successfully\n');
-
-    // Test 2: Query database version
-    console.log('2. Querying database version...');
-    const result = await prisma.$queryRaw`SELECT version()`;
-    console.log('   ✅ Database version:', (result as any)[0]?.version?.substring(0, 50) + '...\n');
-
-    // Test 3: Check if tables exist
-    console.log('3. Checking existing tables...');
-    const tables = await prisma.$queryRaw<Array<{ tablename: string }>>`
-      SELECT tablename 
-      FROM pg_tables 
-      WHERE schemaname = 'public'
-      ORDER BY tablename
-    `;
-    console.log(`   ✅ Found ${tables.length} tables:`);
-    tables.forEach((table) => {
-      console.log(`      - ${table.tablename}`);
-    });
-    console.log('');
-
-    // Test 4: Test a simple query (if UserRole table exists)
-    if (tables.some((t) => t.tablename === 'UserRole')) {
-      console.log('4. Testing UserRole query...');
-      const roleCount = await prisma.userRole.count();
-      console.log(`   ✅ Found ${roleCount} user roles\n`);
-    }
-
-    // Test 5: Test transaction capability
-    console.log('5. Testing transaction capability...');
-    await prisma.$transaction(async (tx) => {
-      const count = await tx.userRole.count();
-      console.log(`   ✅ Transaction test successful (count: ${count})\n`);
-    });
-
-    console.log('✅ All database connection tests passed!');
-    console.log('\n📊 Database Connection Status:');
-    console.log('   Status: CONNECTED');
-    console.log('   Database: dcm_db');
-    console.log('   Provider: PostgreSQL');
-    console.log('   Tables: ' + tables.length);
-
-  } catch (error) {
-    console.error('❌ Database connection test failed:');
-    console.error(error);
-    process.exit(1);
+    // Try a simple query
+    const count = await prisma.user.count();
+    const duration = Date.now() - start;
+    console.log(`Successfully connected! User count: ${count}`);
+    console.log(`Connection and query took ${duration}ms`);
+    process.exitCode = 0;
+  } catch (e) {
+    const duration = Date.now() - start;
+    console.error(`Connection failed after ${duration}ms`);
+    console.error(e);
+    process.exitCode = 1;
+    return;
   } finally {
     await prisma.$disconnect();
   }
 }
 
-testConnection();
+main().catch((err) => {
+  console.error(err);
+  process.exitCode = 1;
+});

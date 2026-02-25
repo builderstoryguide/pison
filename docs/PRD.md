@@ -17,11 +17,11 @@ The daily collection management software, as initially described, is intended to
 - Client statement
 - Statistics by collection area
 - Automatic monthly commission calculation by account
-- Transaction validation system by the administrator (four-eye principle)
+- Transaction validation system by the manager (four-eye principle)
 - Monitoring of surpluses and shortages
 
 #### 2. Users:
-- Administrator
+- Manager
 - Accountant
 - Agent
 
@@ -44,7 +44,7 @@ This involves entering into the system the amounts deposited by clients. For eac
 - **Accountant**: Can consult the transactions of the agents and perform deposit and withdrawal operations for clients visiting the office.
 
 ### Loan Management
-A client can take out a loan and repay it later. This loan constitutes a negative amount in their account, which is updated when the loan is repaid. This functionality is exclusively controlled by the administrator account.
+A client can take out a loan and repay it later. This loan constitutes a negative amount in their account, which is updated when the loan is repaid. This functionality is exclusively controlled by the manager account.
 
 ### Monthly Balance
 The system generates monthly balance statements by client, by area, and overall. The monthly balance is managed through a mechanism for creating units, which the application uses to represent physical money. Thus, accounts can be credited and debited, and the structure is able to track and control the difference between the cash present and the units in the system.
@@ -61,8 +61,8 @@ Producing statistics regarding deposits and withdrawals conducted.
 ### Automatic Monthly Commission Calculation by Account
 The money withdrawal operations performed by clients incur a commission amount deducted. This amount can be defined by the client and does not apply to certain clients.
 
-### Transaction Validation System by the Administrator (Four-Eye Principle)
-For all operations performed by the agents or the accountant's account, the administrator must validate them from their account. This ensures total control over transactions for the administrator and requires their constant presence. Generally, validations occur at the end of the day.
+### Transaction Validation System by the Manager (Four-Eye Principle)
+For all operations performed by the agents or the accountant's account, the manager must validate them from their account. This ensures total control over transactions for the manager and requires their constant presence. Generally, validations occur at the end of the day.
 
 ### Monitoring of Surpluses and Shortages
 
@@ -72,7 +72,7 @@ For all operations performed by the agents or the accountant's account, the admi
 
 ## Actors
 
-1. **Administrator**: Responsible for overall system management, including transaction validation and user control.
+1. **Manager**: Responsible for overall system management, including transaction validation and user control.
 2. **Accountant**: Manages financial transactions, including deposits and withdrawals. Has access to transaction history.
 3. **Collection Agent**: Responsible for collecting payments from clients, entering them into the system, and managing client relationships within designated areas.
 4. **Client**: End-users of the system who can perform activities related to their accounts, such as deposits, withdrawals, and loan requests.
@@ -82,7 +82,7 @@ For all operations performed by the agents or the accountant's account, the admi
 ## Use Cases
 
 ### System Actors:
-- Administrator
+- Manager
 - Accountant
 - Agents
 - Client
@@ -106,7 +106,7 @@ For all operations performed by the agents or the accountant's account, the admi
 - Create Agent account
 - Performs Deposit and Withdrawal to Agent's accounts.
 
-#### Administrator:
+#### Manager:
 - Validate transactions performed by agents or the accountant at the end of the day.
 - Validate Accounts created by Accountant
 - Create Client account
@@ -135,45 +135,45 @@ This operation is performed by the agent (Collector), after collecting money fro
 
 ### 2. Management of Client and Agents
 
-This operation is performed by the accountant or/and the manager (Administrator). It allows to access the management module, selects either to manage client or agent, then:
+This operation is performed by the accountant or/and the manager. It allows to access the management module, selects either to manage client or agent, then:
 
 **For Clients:**
-- The administrator can view a list of all clients.
-- The administrator can add a new client by entering required details (e.g., name, contact information).
-- The administrator can edit existing client information.
-- The administrator can deactivate or delete a client account.
+- The manager can view a list of all clients.
+- The manager can add a new client by entering required details (e.g., name, contact information).
+- The manager can edit existing client information.
+- The manager can deactivate or delete a client account.
 
 **For Agents:**
-- The administrator can view a list of all agents.
-- The administrator can add a new agent by entering their details.
-- The administrator can assign collection areas to agents.
-- The administrator can modify agent details or deactivate their accounts.
-- The administrator can refill the account of a collector.
+- The manager can view a list of all agents.
+- The manager can add a new agent by entering their details.
+- The manager can assign collection areas to agents.
+- The manager can modify agent details or deactivate their accounts.
+- The manager can refill the account of a collector.
 
 ### 3. Loan Management
 
-This operation is performed by the accountant (provided access is granted by the manager) or/and the manager (Administrator). It allows to authorize a client to have a negative account balance.
+This operation is performed by the accountant (provided access is granted by the manager) or/and the manager. It allows to authorize a client to have a negative account balance.
 
 1. A client requests a loan.
 2. The accountant inputs the loan request and details (e.g., amount, purpose).
 3. The system checks the client's eligibility based on criteria defined by the institution (e.g., credit score, existing loans).
-4. If eligible, the loan request is approved by the administrator.
+4. If eligible, the loan request is approved by the manager.
 5. The system records the loan amount as a negative entry in the client's account.
 6. When the client makes repayments, the system updates the loan balance accordingly.
 
 ### 4. Periodic Balance
 
-This operation is performed by the accountant (provided access is granted by the manager) or/and the manager (Administrator). It allows to view the statistics for a given period or a given set of customers.
+This operation is performed by the accountant (provided access is granted by the manager) or/and the manager. It allows to view the statistics for a given period or a given set of customers.
 
-1. The Administrator requests a monthly balance report.
+1. The Manager requests a monthly balance report.
 2. The system retrieves all transactions for the specified month.
 3. The system calculates the total deposits, withdrawals, loans, and commissions.
 4. The system summarizes the balance by client and collection area.
-5. The report is generated and can be viewed or downloaded by the administrator.
+5. The report is generated and can be viewed or downloaded by the manager.
 
 ### 5. Account Status
 
-This operation is performed by the accountant (provided access is granted by the manager) or/and the manager (Administrator). It allows to view the account status for a given period or a given set of customers.
+This operation is performed by the accountant (provided access is granted by the manager) or/and the manager. It allows to view the account status for a given period or a given set of customers.
 
 1. A client logs into their account.
 2. The system retrieves the account status, including all transactions, remaining loan balance, and current balance.
@@ -181,16 +181,16 @@ This operation is performed by the accountant (provided access is granted by the
 
 ### 6. Collection Journal
 
-This operation is performed by the accountant (provided access is granted by the manager) or/and the manager (Administrator). It allows to view the report of the operations of an agent.
+This operation is performed by the accountant (provided access is granted by the manager) or/and the manager. It allows to view the report of the operations of an agent.
 
-1. The Administrator requests the collection journal report.
+1. The Manager requests the collection journal report.
 2. The system retrieves all transaction entries for specified dates or collection areas.
 3. The report is displayed with details like agent name, client name, amount collected, and date.
 4. The data can be filtered by date, area, or agent.
 
 ### 7. Client Statement
 
-This operation is performed by the accountant (provided access is granted by the manager) or/and the manager (Administrator).
+This operation is performed by the accountant (provided access is granted by the manager) or/and the manager.
 
 1. A client requests their account statement.
 2. The client accesses their account via the system.
@@ -200,16 +200,16 @@ This operation is performed by the accountant (provided access is granted by the
 
 ### 8. Statistics by Area of Collection
 
-This operation is performed by the accountant (provided access is granted by the manager) or/and the manager (Administrator).
+This operation is performed by the accountant (provided access is granted by the manager) or/and the manager.
 
-1. The Administrator selects the "Statistics" module.
+1. The Manager selects the "Statistics" module.
 2. The system allows filtering by specific collection areas.
 3. The system retrieves and displays deposit and withdrawal statistics for each area.
 4. The report can be exported for further analysis.
 
 ### 9. Automatic Calculation of Period Deduction of Commissions
 
-This operation is performed by the accountant (provided access is granted by the manager) or/and the manager (Administrator).
+This operation is performed by the accountant (provided access is granted by the manager) or/and the manager.
 
 1. At the end of the month, the system automatically calculates commissions based on specified rules.
 2. The system retrieves all transactions (withdrawals) for each client.
@@ -217,24 +217,24 @@ This operation is performed by the accountant (provided access is granted by the
 4. The total commission is recorded in the respective accounts.
 5. A summary report of commissions by client is generated.
 
-### 10. Validation of Transactions by Administrator (Principle of Four Eyes)
+### 10. Validation of Transactions by Manager (Principle of Four Eyes)
 
-This operation is performed by the accountant (provided access is granted by the manager) or/and the manager (Administrator).
+This operation is performed by the accountant (provided access is granted by the manager) or/and the manager.
 
-1. When an agent or accountant performs a transaction, the system flags it for administrator review.
-2. The administrator receives a notification of the pending transaction.
-3. The administrator logs into the system and reviews the transaction details.
-4. The administrator can approve or reject the transaction.
+1. When an agent or accountant performs a transaction, the system flags it for manager review.
+2. The manager receives a notification of the pending transaction.
+3. The manager logs into the system and reviews the transaction details.
+4. The manager can approve or reject the transaction.
 5. Upon approval, the transaction is finalized in the system; if rejected, a reason is recorded.
 
 ### 11. Monitoring of Shortages and Surpluses
 
-This operation is performed by the accountant (provided access is granted by the manager) or/and the manager (Administrator).
+This operation is performed by the accountant (provided access is granted by the manager) or/and the manager.
 
 1. The system continuously tracks physical cash versus recorded units in the digital system.
-2. At the end of each day, the administrator runs a report to compare actual cash on hand with system records.
+2. At the end of each day, the manager runs a report to compare actual cash on hand with system records.
 3. Any discrepancies (surpluses or shortages) are logged.
-4. The system alerts the administrator to investigate any significant discrepancies.
+4. The system alerts the manager to investigate any significant discrepancies.
 
 ---
 
@@ -247,7 +247,7 @@ This operation is performed by the accountant (provided access is granted by the
 - Once the session of the day is closed, no user can access their account
 
 ### Security Requirements
-- Role-based access control (Administrator, Accountant, Agent, Client)
+- Role-based access control (Manager, Accountant, Agent, Client)
 - Four-eye principle for transaction validation
 - Audit trail for all transactions
 - Secure authentication and authorization
@@ -267,8 +267,8 @@ This operation is performed by the accountant (provided access is granted by the
 Technically, the client has no direct access to his or her account. All operations are made via the intermediary of the Agent (Collector) or Accountant. There is no interface via which the client can access and consult the account statement, he or she can only request for this service from a an Agent or an Accountant. 
 
 2. The Agent (Collector): This is another very important element or user of the system, who is the closest to the client. The Agent can therefore render services to the client on demand. 
-Since the institution can have many Branches and many Agents, it is important to precise that each Agent is assigned to a given Zone (Geographical area). The creation of Zones and definition of the name given to a zone should be a setting that the Administrator will define. Therefore, we should have:
--	An interface or option that allow the administrator to create and manage zones
+Since the institution can have many Branches and many Agents, it is important to precise that each Agent is assigned to a given Zone (Geographical area). The creation of Zones and definition of the name given to a zone should be a setting that the Manager will define. Therefore, we should have:
+-	An interface or option that allow the manager to create and manage zones
 -	An option to assign one or more zones to a given Agent
 -	Making sure that an agent can only access via his or her interface, the clients under his or her zone.
 
@@ -290,8 +290,41 @@ Since the institution can have many Branches and many Agents, it is important to
 - Clients can only request services from Agents or Accountants - they cannot access the system directly
 
 **2. Zone/Geographical Area Management (Special Notation #2):**
-- Administrators must have an interface to create and manage Zones (Geographical areas)
-- Each Zone must have a definable name set by the Administrator
-- Administrators must be able to assign one or more Zones to each Agent
+- Managers must have an interface to create and manage Zones (Geographical areas)
+- Each Zone must have a definable name set by the Manager
+- Managers must be able to assign one or more Zones to each Agent
 - Agents can ONLY access clients within their assigned Zones through their interface
 - Zone assignment is a critical security and access control feature that must be enforced at the application level
+
+**3. The Account (Account Nature):**
+- Different types of accounts are represented in the database using the account nature
+- When creating an account, personnel must specify the nature via a dropdown input field
+- Supported account natures include:
+  - Daily Collection Account
+  - Simple Saving Account
+  - Blocked Saving Account
+  - Student Account
+  - Cheque Account
+  - Current Account
+  - Business Current Account
+  - Association Account
+  - Salary Transfer Account
+  - Certificate of Deposit
+  - Term Deposit
+  - Micro-Credit (Green credit)
+- Personnel must master the criteria and requirements for the creation of each account type
+- The software MUST enforce the following per account nature:
+  - **Minimum balance**: Minimum amount to be maintained in the account (varies by nature)
+  - **Interest remuneration**: Percentage interest per year for applicable saving accounts
+  - **Account maintenance fees**: Annual fees for accounts where this applies
+  - **Transaction fees**: Amount deducted per transaction; no fee on deposits, fee applied on withdrawals
+
+**4. Account Creation:**
+- The account creation process allows entry of a common set of information applied to all accounts
+- Additional fields may be required based on the selected account nature (type-specific information)
+- A dropdown input field allows selection of the account nature before or during creation
+- The system MUST validate creation criteria and required information according to the selected account nature
+- A reference table (maintained by the institution) defines for each account type:
+  - Conditions for creation
+  - Required information to be entered during creation
+  - Type-specific fields and validation rules

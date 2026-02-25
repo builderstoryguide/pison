@@ -4,6 +4,13 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { redisGet, redisSet, redisDel } from '@/lib/cache/redis';
+import {
+  sessionStatusTodayKey,
+  dashboardSurplusShortageSummaryKey,
+} from '@/lib/cache/keys';
+
+const SESSION_STATUS_TTL = 30;
 
 export interface DailyClosureInput {
   physicalCash: number;
@@ -51,6 +58,43 @@ export class SessionService {
   }
 
   /**
+   * Get full session status in a single optimized call.
+   * Runs getCurrentSession and calculateSystemBalance in parallel,
+   * derives isOpen from the session result, and caches the response.
+   */
+  async getSessionStatus(): Promise<{
+    session: Awaited<ReturnType<SessionService['getCurrentSession']>>;
+    isOpen: boolean;
+    systemBalance: number;
+  }> {
+    const cacheKey = sessionStatusTodayKey();
+    const cached = await redisGet<{
+      session: Awaited<ReturnType<SessionService['getCurrentSession']>>;
+      isOpen: boolean;
+      systemBalance: number;
+    }>(cacheKey);
+    if (cached) return cached;
+
+    const [currentSession, systemBalance] = await Promise.all([
+      this.getCurrentSession(),
+      this.calculateSystemBalance(),
+    ]);
+
+    const isOpen = currentSession?.status === 'OPEN' || false;
+
+    const result = { session: currentSession, isOpen, systemBalance };
+    await redisSet(cacheKey, result, SESSION_STATUS_TTL);
+    return result;
+  }
+
+  /**
+   * Invalidate the session status cache (call after open/close).
+   */
+  async invalidateSessionStatusCache(): Promise<void> {
+    await redisDel(sessionStatusTodayKey());
+  }
+
+  /**
    * Open a new session for today
    */
   async openSession(userId: string) {
@@ -69,7 +113,7 @@ export class SessionService {
         throw new Error('Session is already open');
       }
       // If closed, reopen it
-      return await prisma.dailySession.update({
+      const updated = await prisma.dailySession.update({
         where: { id: existing.id },
         data: {
           status: 'OPEN',
@@ -79,9 +123,20 @@ export class SessionService {
           closedBy: null,
         },
       });
+      await prisma.auditLog.create({
+        data: {
+          userId,
+          action: 'OPEN_SESSION',
+          entityType: 'DAILY_SESSION',
+          entityId: existing.id,
+          description: 'Daily session reopened',
+        },
+      });
+      await this.invalidateSessionStatusCache();
+      return updated;
     }
 
-    return await prisma.dailySession.create({
+    const session = await prisma.dailySession.create({
       data: {
         sessionDate: today,
         status: 'OPEN',
@@ -97,6 +152,17 @@ export class SessionService {
         },
       },
     });
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        action: 'OPEN_SESSION',
+        entityType: 'DAILY_SESSION',
+        entityId: session.id,
+        description: 'Daily session opened',
+      },
+    });
+    await this.invalidateSessionStatusCache();
+    return session;
   }
 
   /**
@@ -256,6 +322,8 @@ export class SessionService {
         },
       });
 
+      await this.invalidateSessionStatusCache();
+      await redisDel(dashboardSurplusShortageSummaryKey());
       return closure;
     });
   }

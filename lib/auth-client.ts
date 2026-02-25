@@ -30,6 +30,7 @@ export const PERMISSIONS = {
   LOANS_APPROVE: 'loans.approve',
   REPORTS_VIEW: 'reports.view',
   REPORTS_EXPORT: 'reports.export',
+  REPORTS_SURPLUS_SHORTAGE: 'reports.surplus_shortage',
   SESSION_MANAGE: 'session.manage',
   DAY_CLOSURE_MANAGE: 'day_closure.manage',
   USERS_MANAGE: 'users.manage',

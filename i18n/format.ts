@@ -54,7 +54,8 @@ export const formatTime = (date: Date | string): string => {
 };
 
 /**
- * Format money to a localized currency string.
+ * Format money to a localized currency string with thousands separator and 2 decimals.
+ * Example: 5000 → "5,000.00"
  */
 export const formatMoney = (
   amount: number,
@@ -64,5 +65,7 @@ export const formatMoney = (
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(amount);
 };

@@ -88,6 +88,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const isDuplicateCode =
+      error?.message && String(error.message).toLowerCase().includes('already exists');
+    if (isDuplicateCode) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'CONFLICT',
+            message: error.message || 'A collection area with this code already exists.',
+          },
+        },
+        { status: 409 }
+      );
+    }
+
     console.error('Error creating collection area:', error);
     return NextResponse.json(
       {

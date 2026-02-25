@@ -20,7 +20,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -29,7 +28,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Loader2, PlusCircle } from 'lucide-react';
-import { formatCurrency } from '@/lib/helpers';
 
 const refillSchema = z.object({
   amount: z.coerce.number().positive('Amount must be positive'),

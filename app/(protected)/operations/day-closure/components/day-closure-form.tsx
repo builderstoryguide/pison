@@ -1,13 +1,12 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { apiFetch } from '@/lib/api';
-import { formatDate } from '@/lib/helpers';
+import { formatCurrency, formatDate } from '@/lib/helpers';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -27,7 +26,6 @@ import {
   Lock,
   DollarSign,
   AlertTriangle,
-  CheckCircle2,
   Calculator,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -156,8 +154,8 @@ export default function DayClosureForm() {
 
   const watchPhysicalCash = form.watch('physicalCash');
   const physicalCashValue = parseFloat(watchPhysicalCash) || 0;
-  // Note: System balance would come from API, using placeholder for now
-  const systemBalance = 0; // This should be fetched from API
+  
+  const systemBalance = sessionData?.systemBalance || 0;
   const surplusShortage = physicalCashValue - systemBalance;
 
   return (
@@ -176,11 +174,7 @@ export default function DayClosureForm() {
               <div>
                 <div className="text-sm text-muted-foreground">System Balance</div>
                 <div className="text-2xl font-bold">
-                  {new Intl.NumberFormat('fr-FR', {
-                    style: 'currency',
-                    currency: 'XOF',
-                    minimumFractionDigits: 0,
-                  }).format(systemBalance)}
+                  {formatCurrency(systemBalance)}
                 </div>
               </div>
             </div>
@@ -195,11 +189,7 @@ export default function DayClosureForm() {
                   }`}
                 >
                   {surplusShortage >= 0 ? '+' : ''}
-                  {new Intl.NumberFormat('fr-FR', {
-                    style: 'currency',
-                    currency: 'XOF',
-                    minimumFractionDigits: 0,
-                  }).format(surplusShortage)}
+                  {formatCurrency(surplusShortage)}
                 </div>
               </div>
             </div>
@@ -251,21 +241,13 @@ export default function DayClosureForm() {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium">System Balance</span>
                     <span className="font-mono">
-                      {new Intl.NumberFormat('fr-FR', {
-                        style: 'currency',
-                        currency: 'XOF',
-                        minimumFractionDigits: 0,
-                      }).format(systemBalance)}
+                      {formatCurrency(systemBalance)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium">Physical Cash</span>
                     <span className="font-mono">
-                      {new Intl.NumberFormat('fr-FR', {
-                        style: 'currency',
-                        currency: 'XOF',
-                        minimumFractionDigits: 0,
-                      }).format(physicalCashValue)}
+                      {formatCurrency(physicalCashValue)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t">
@@ -275,11 +257,7 @@ export default function DayClosureForm() {
                       className="font-mono"
                     >
                       {surplusShortage >= 0 ? '+' : ''}
-                      {new Intl.NumberFormat('fr-FR', {
-                        style: 'currency',
-                        currency: 'XOF',
-                        minimumFractionDigits: 0,
-                      }).format(surplusShortage)}
+                      {formatCurrency(surplusShortage)}
                     </Badge>
                   </div>
                 </div>

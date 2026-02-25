@@ -6,9 +6,8 @@ import { apiFetch } from '@/lib/api';
 import { hasPermission } from '@/lib/auth-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, Users, MapPin, Wallet, Phone, Mail, Home, Calendar, Shield } from 'lucide-react';
-import { formatDate } from '@/lib/helpers';
+import { formatCurrency, formatDate } from '@/lib/helpers';
 import DepositDialog from './deposit-dialog';
 import WithdrawalDialog from './withdrawal-dialog';
 import TransferDialog from './transfer-dialog';
@@ -228,11 +227,7 @@ export default function ClientDetails({ clientId }: ClientDetailsProps) {
                 <div>
                   <div className="text-sm text-muted-foreground">Balance</div>
                   <div className="font-medium text-lg">
-                    {new Intl.NumberFormat('fr-FR', {
-                      style: 'currency',
-                      currency: 'XOF',
-                      minimumFractionDigits: 0,
-                    }).format(balance)}
+                    {formatCurrency(balance)}
                   </div>
                 </div>
               </div>

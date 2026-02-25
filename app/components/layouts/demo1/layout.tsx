@@ -34,9 +34,9 @@ export function Demo1Layout({ children }: { children: ReactNode }) {
     bodyClass.add('sidebar-fixed');
     bodyClass.add('header-fixed');
 
-    const timer = setTimeout(() => {
+    requestAnimationFrame(() => {
       bodyClass.add('layout-initialized');
-    }, 1000); // 1000 milliseconds
+    });
 
     // Remove the class when the component is unmounted
     return () => {
@@ -45,7 +45,6 @@ export function Demo1Layout({ children }: { children: ReactNode }) {
       bodyClass.remove('sidebar-collapse');
       bodyClass.remove('header-fixed');
       bodyClass.remove('layout-initialized');
-      clearTimeout(timer);
     };
   }, []); // Runs only once on mount
 

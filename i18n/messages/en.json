@@ -2,7 +2,9 @@
   "common": {
     "buttons": {
       "save": "Save",
+      "view": "View",
       "cancel": "Cancel",
+      "back": "Back",
       "delete": "Delete",
       "edit": "Edit",
       "add": "Add",
@@ -64,6 +66,10 @@
       "setPassword": "Set initial password",
       "confirmPassword": "Confirm password"
     },
+    "validation": {
+      "amountPositive": "Amount must be positive",
+      "amountExceedsBalance": "Amount exceeds available balance"
+    },
     "breadcrumbs": {
       "home": "Home",
       "new": "New",
@@ -114,6 +120,13 @@
       "activeLoans": "Active Loans",
       "pendingApprovalCount": "{{count}} pending approval",
       "managedAccounts": "Managed accounts",
+      "surplusShortage": "Surplus/Shortage",
+      "surplusShortageLast30Days": "Last 30 days",
+      "shortageDays": "Shortage Days",
+      "totalShortage": "Total Shortage",
+      "surplusDays": "Surplus Days",
+      "totalSurplus": "Total Surplus",
+      "viewSurplusShortageReport": "View full report",
       "activeAgentsLabel": "Active Agents",
       "fieldCollectors": "Field collectors",
       "newClient": "New Client",
@@ -181,7 +194,8 @@
       "statusCompleted": "Completed",
       "statusPending": "Pending",
       "statusApproved": "Approved",
-      "statusRejected": "Rejected"
+      "statusRejected": "Rejected",
+      "noClientsWithActiveAccounts": "No clients with active accounts"
     },
     "agents": {
       "title": "Agents",
@@ -201,6 +215,11 @@
       "refillAccount": "Refill Account",
       "refillAgentAccount": "Refill Agent Account",
       "refillAgentAccountDesc": "Add funds to {{name}}'s operational account. This transaction will require manager approval.",
+      "withdrawAccount": "Withdraw from Account",
+      "withdrawAgentAccountDesc": "Record a withdrawal from {{name}}'s account ({{account}}). This transaction will require manager approval.",
+      "transferFromAccount": "Transfer from Account",
+      "transferFromAgentDesc": "Transfer from {{name}}'s account ({{account}}) to another account.",
+      "collectorLabel": "Collector",
       "amountXof": "Amount (XOF)",
       "createRequest": "Create Request"
     },
@@ -244,6 +263,12 @@
       "contact": "Contact",
       "area": "Area"
     },
+    "analytics": {
+      "financialDesc": "Financial overview: balances, deposits, withdrawals, and reconciliation",
+      "transactionsDesc": "Transaction volume and trends over time",
+      "agentsDesc": "Agent collection performance by area",
+      "useReports": "Use the reports below for detailed analytics."
+    },
     "reports": {
       "title": "Reports",
       "monthlyBalance": "Monthly Balance",
@@ -255,10 +280,19 @@
       "selectClient": "Select a client...",
       "allAreas": "All areas",
       "searchClient": "Search client...",
-      "search": "Search..."
+      "search": "Search...",
+      "surplusShortageAlertTitle": "Shortages detected - investigation required",
+      "surplusShortageAlertDescription": "{{count}} day(s) in the selected period have cash shortages. Review the report below and take appropriate action."
     },
     "collectionAreas": {
       "title": "Collection Areas",
+      "areaDetails": "Area Details",
+      "areaInformation": "Area Information",
+      "assignedClients": "Assigned Clients",
+      "assignedAgents": "Assigned Agents",
+      "noClients": "No clients in this area",
+      "noAgents": "No agents assigned to this area",
+      "totalTransactions": "Total Transactions",
       "newArea": "New Collection Area",
       "editArea": "Edit Collection Area",
       "areaAssignments": "Area Assignments",
@@ -300,7 +334,46 @@
     },
     "validation": {
       "pendingTransactions": "Pending Transactions",
-      "validation": "Validation"
+      "pendingAccounts": "Pending Accounts",
+      "validation": "Validation",
+      "noPendingAccounts": "No pending accounts",
+      "allAccountsReviewed": "All accounts have been reviewed and processed.",
+      "approveAccount": "Approve Account",
+      "rejectAccount": "Reject Account",
+      "approveConfirm": "Are you sure you want to approve this account?",
+      "rejectConfirm": "Please provide a reason for rejecting this account (optional).",
+      "createdBy": "Created by"
+    },
+    "auditLog": {
+      "title": "Audit Log",
+      "description": "View operations performed by collectors and accountants",
+      "columnDate": "Date",
+      "columnUser": "User",
+      "columnAction": "Action",
+      "columnEntityType": "Entity Type",
+      "columnDescription": "Description",
+      "columnTransaction": "Transaction",
+      "filterByDate": "Filter by date",
+      "filterByUser": "Filter by user",
+      "filterByEntityType": "Filter by entity type",
+      "filterByAction": "Filter by action",
+      "allActions": "All actions",
+      "allEntityTypes": "All entity types",
+      "allUsers": "All users",
+      "noLogs": "No audit logs found",
+      "actionCreate": "Create",
+      "actionApprove": "Approve",
+      "actionReject": "Reject",
+      "actionRefill": "Refill",
+      "actionOpenSession": "Open Session",
+      "actionCloseSession": "Close Session",
+      "entityTransaction": "Transaction",
+      "entityClient": "Client",
+      "entityAgent": "Agent",
+      "entityLoan": "Loan",
+      "entityDailySession": "Daily Session",
+      "entityUser": "User",
+      "actionUserCreated": "User Created"
     },
     "collections": {
       "dailyCollections": "Daily Collections",
@@ -316,7 +389,18 @@
       "totalAmount": "Total Amount",
       "submitting": "Submitting...",
       "submitCollections": "Submit Collections",
-      "agentNotFound": "Agent record not found. Please contact manager."
+      "agentNotFound": "Agent record not found. Please contact manager.",
+      "errorClientsNotAssigned": "Some clients were not found, do not belong to this area, or are not assigned to you.",
+      "receiptTitle": "Collection Receipt",
+      "receiptDesc": "Confirmation receipt for your daily collection submission. You can print or save this for your records.",
+      "receiptDate": "Date",
+      "receiptArea": "Area",
+      "receiptAgent": "Agent",
+      "receiptClient": "Client",
+      "receiptAmount": "Amount",
+      "receiptPending": "These transactions are pending manager approval.",
+      "printReceipt": "Print",
+      "downloadReceipt": "Download"
     },
     "accounts": {
       "accountStatus": "Account Status",
@@ -386,6 +470,7 @@
     "transactions": "Transactions",
     "allTransactions": "All Transactions",
     "pendingValidation": "Pending Validation",
+    "pendingAccounts": "Pending Accounts",
     "deposits": "Deposits",
     "withdrawals": "Withdrawals",
     "transfers": "Transfers",
@@ -427,6 +512,7 @@
     "sessionStatus": "Session Status",
     "dayClosure": "Day Closure",
     "cashReconciliation": "Cash Reconciliation",
+    "auditLog": "Audit Log",
     "settings": "Settings",
     "systemSettings": "System Settings",
     "commissionRates": "Commission Rates",

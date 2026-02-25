@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -65,9 +66,13 @@ async function main() {
       { slug: 'clients.create', name: 'Create Clients', description: 'Create new clients' },
       { slug: 'clients.edit', name: 'Edit Clients', description: 'Edit client details' },
       { slug: 'clients.delete', name: 'Deactivate Clients', description: 'Deactivate client accounts' },
+      { slug: 'clients.approve', name: 'Approve Clients', description: 'Approve pending client accounts' },
+      { slug: 'clients.reject', name: 'Reject Clients', description: 'Reject pending client accounts' },
       { slug: 'agents.view', name: 'View Agents', description: 'View agent list and details' },
       { slug: 'agents.create', name: 'Create Agents', description: 'Create new agents' },
       { slug: 'agents.edit', name: 'Edit Agents', description: 'Edit agent details' },
+      { slug: 'agents.approve', name: 'Approve Agents', description: 'Approve pending agent accounts' },
+      { slug: 'agents.reject', name: 'Reject Agents', description: 'Reject pending agent accounts' },
       { slug: 'collection_areas.view', name: 'View Collection Areas', description: 'View collection zones' },
       { slug: 'collection_areas.manage', name: 'Manage Collection Areas', description: 'Create, edit, and deactivate collection zones' },
       { slug: 'collections.create', name: 'Enter Collections', description: 'Enter daily collection amounts (ventilation)' },
@@ -80,11 +85,13 @@ async function main() {
       { slug: 'loans.approve', name: 'Approve Loans', description: 'Approve or reject loan requests' },
       { slug: 'reports.view', name: 'View Reports', description: 'View financial and operational reports' },
       { slug: 'reports.export', name: 'Export Reports', description: 'Export reports to file' },
+      { slug: 'reports.surplus_shortage', name: 'View Surplus/Shortage Report', description: 'View cash reconciliation and surplus/shortage reports' },
       { slug: 'session.manage', name: 'Manage Session', description: 'Open and close daily session' },
       { slug: 'day_closure.manage', name: 'Manage Day Closure', description: 'Close accounting day' },
       { slug: 'users.manage', name: 'Manage Users', description: 'Create, edit, and manage user accounts' },
       { slug: 'roles.manage', name: 'Manage Roles', description: 'Assign permissions to roles' },
       { slug: 'settings.manage', name: 'Manage Settings', description: 'Configure system settings' },
+      { slug: 'commissions.calculate', name: 'Calculate Commissions', description: 'Run period commission calculation for withdrawals' },
     ];
 
     const createdPermissions: Record<string, string> = {};
@@ -117,12 +124,12 @@ async function main() {
       });
     }
 
-    // Accountant: clients, agents, collections, transactions, loans (no approve), reports
+    // Accountant: clients, agents, collections, transactions, loans (no approve), reports, commissions
     const accountantPermSlugs = [
       'dashboard.view', 'clients.view', 'clients.create', 'clients.edit',
       'agents.view', 'agents.create', 'agents.edit', 'collection_areas.view',
       'collections.create', 'transactions.view', 'transactions.create', 'loans.view', 'loans.create', 'loans.repayment',
-      'reports.view', 'reports.export',
+      'reports.view', 'reports.export', 'reports.surplus_shortage', 'commissions.calculate',
     ];
     for (const slug of accountantPermSlugs) {
       const permId = createdPermissions[slug];
@@ -190,6 +197,24 @@ async function main() {
     });
     console.log('   ✅ Accountant user created\n');
 
+    // 5b. Create System User (for cron/automated operations; cannot log in)
+    console.log('5b. Creating system user (for commission cron, etc.)...');
+    const systemPassword = await bcrypt.hash(`system-${crypto.randomUUID()}`, 12);
+    const systemUser = await prisma.user.upsert({
+      where: { email: 'system@dcm.local' },
+      update: {},
+      create: {
+        email: 'system@dcm.local',
+        name: 'System (Automated)',
+        password: systemPassword,
+        roleId: managerRole.id,
+        status: 'ACTIVE',
+        emailVerifiedAt: new Date(),
+        isProtected: true,
+      },
+    });
+    console.log('   ✅ System user created\n');
+
     // 6. Create Collection Areas (Zones)
     console.log('6. Creating collection areas...');
     const area1 = await prisma.collectionArea.upsert({
@@ -237,6 +262,20 @@ async function main() {
       },
     });
     console.log('   ✅ Collection areas created\n');
+
+    // 6.5. Create Account Natures and Loan Products
+    let ordinarySavingsNatureId: string | null = null;
+    try {
+      const { execSync } = await import('child_process');
+      execSync('npx tsx prisma/seed-account-natures.ts', { stdio: 'inherit' });
+      const ordinarySavings = await prisma.accountNature.findUnique({
+        where: { code: 'ORDINARY_SAVINGS' },
+      });
+      ordinarySavingsNatureId = ordinarySavings?.id ?? null;
+      console.log('   ✅ Account natures and loan products seeded\n');
+    } catch (e) {
+      console.log('   ⚠️ Account natures seed skipped (run npm run seed:account-natures after migration)\n');
+    }
 
     // 7. Create Agent Users and Agents
     console.log('7. Creating agent users and agents...');
@@ -388,6 +427,7 @@ async function main() {
         create: {
           accountNumber,
           accountType: 'CLIENT',
+          accountNatureId: ordinarySavingsNatureId,
           balance: 0,
           availableBalance: 0,
           status: 'ACTIVE',

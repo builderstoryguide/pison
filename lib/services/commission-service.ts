@@ -5,7 +5,12 @@
 
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { capLimit } from '@/lib/utils/pagination';
 import { transactionService } from './transaction-service';
+import { getCachedOrFetch } from '@/lib/cache/query-cache';
+import { LIST_PREFIX_COMMISSIONS } from '@/lib/cache/keys';
+
+const COMMISSION_LIST_TTL = 300;
 
 export interface CommissionCalculationResult {
   transactionId: string;
@@ -112,8 +117,9 @@ export class CommissionService {
       return null;
     }
 
-    // Calculate commission
-    const commission = transaction.amount.toNumber() * rate;
+    // Calculate commission using Decimal for precision (never JS floats for money)
+    const commissionDecimal = transaction.amount.mul(rate).toDecimalPlaces(4);
+    const commission = commissionDecimal.toNumber();
 
     return {
       transactionId,
@@ -145,10 +151,12 @@ export class CommissionService {
           lte: endDate,
         },
       },
-      include: {
+      select: {
+        id: true,
+        accountId: true,
         account: {
-          include: {
-            client: true,
+          select: {
+            client: { select: { id: true } },
           },
         },
       },
@@ -183,7 +191,7 @@ export class CommissionService {
     const createdCommissions = [];
 
     for (const calc of calculations) {
-      // Use a transaction to ensure atomicity
+      // Use a transaction to ensure atomicity: commission + COMMISSION ledger entry in same tx
       const result = await prisma.$transaction(async (tx) => {
         const exists = await tx.commission.findUnique({
           where: { transactionId: calc.transactionId },
@@ -204,27 +212,41 @@ export class CommissionService {
           },
         });
 
-        const transaction = await tx.transaction.findUnique({
+        const withdrawalTxn = await tx.transaction.findUnique({
           where: { id: calc.transactionId },
         });
 
-        return { commission, transaction };
+        if (!withdrawalTxn) {
+          throw new Error(
+            `Commission created for transaction ${calc.transactionId} but withdrawal transaction not found. Cannot create ledger entry.`
+          );
+        }
+
+        // Create COMMISSION ledger entry inside same tx for consistency
+        const ledgerTxn = await transactionService.createTransaction(
+          {
+            accountId: withdrawalTxn.accountId,
+            type: 'COMMISSION',
+            amount: calc.commission,
+            description: `Commission for withdrawal transaction ${withdrawalTxn.transactionNumber}`,
+          },
+          userId,
+          tx,
+        );
+
+        // Auto-approve the commission transaction to deduct balance immediately
+        await transactionService.approveTransaction(
+          ledgerTxn.id,
+          userId,
+          'System generated commission',
+          tx
+        );
+
+        return { commission, ledgerTxn };
       });
 
       if (result) {
         createdCommissions.push(result.commission);
-
-        if (result.transaction) {
-          await transactionService.createTransaction(
-            {
-              accountId: result.transaction.accountId,
-              type: 'COMMISSION',
-              amount: calc.commission,
-              description: `Commission for withdrawal transaction ${result.transaction.transactionNumber}`,
-            },
-            userId,
-          );
-        }
       }
     }
 
@@ -234,7 +256,7 @@ export class CommissionService {
   /**
    * Get commissions for a period
    */
-  async getCommissions(period?: string, clientId?: string) {
+  async getCommissions(period?: string, clientId?: string, filters?: { limit?: number; offset?: number }) {
     const where: Prisma.CommissionWhereInput = {};
 
     if (period) {
@@ -245,24 +267,46 @@ export class CommissionService {
       where.clientId = clientId;
     }
 
-    return await prisma.commission.findMany({
-      where,
-      include: {
-        transaction: {
-          include: {
-            account: true,
+    const cacheParams = {
+      period,
+      clientId,
+      limit: capLimit(filters?.limit),
+      offset: filters?.offset ?? 0,
+    };
+
+    return getCachedOrFetch(LIST_PREFIX_COMMISSIONS, cacheParams, COMMISSION_LIST_TTL, () =>
+      prisma.commission.findMany({
+        where,
+        select: {
+          id: true,
+          transactionId: true,
+          clientId: true,
+          amount: true,
+          rate: true,
+          period: true,
+          calculatedAt: true,
+          transaction: {
+            select: {
+              transactionNumber: true,
+              amount: true,
+              account: {
+                select: { accountNumber: true },
+              },
+            },
+          },
+          client: {
+            select: {
+              id: true,
+              clientNumber: true,
+              fullName: true,
+            },
           },
         },
-        client: {
-          select: {
-            id: true,
-            clientNumber: true,
-            fullName: true,
-          },
-        },
-      },
-      orderBy: { calculatedAt: 'desc' },
-    });
+        orderBy: { calculatedAt: 'desc' },
+        take: capLimit(filters?.limit),
+        skip: filters?.offset ?? 0,
+      }),
+    );
   }
 }
 

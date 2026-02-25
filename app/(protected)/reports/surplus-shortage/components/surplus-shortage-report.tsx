@@ -12,7 +12,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { AlertTriangle, CheckCircle2, MinusCircle } from 'lucide-react';
-import { Badge, BadgeDot } from '@/components/ui/badge';
+import { Alert, AlertContent, AlertDescription, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { apiFetch } from '@/lib/api';
 import { buildUrl } from '@/lib/hooks/use-api';
 import { formatDate, formatCurrency } from '@/lib/helpers';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SurplusShortageRow {
   date: string;
@@ -46,6 +47,7 @@ function getDefaultDates() {
 }
 
 export default function SurplusShortageReport() {
+  const { t } = useTranslation();
   const defaults = getDefaultDates();
   const [startDate, setStartDate] = useState(defaults.startDate);
   const [endDate, setEndDate] = useState(defaults.endDate);
@@ -260,6 +262,21 @@ export default function SurplusShortageReport() {
 
   return (
     <div className="space-y-5">
+      {/* Shortage alert banner */}
+      {summary && summary.shortageDays > 0 && (
+        <Alert variant="destructive" appearance="light">
+          <AlertIcon>
+            <AlertTriangle />
+          </AlertIcon>
+          <AlertContent>
+            <AlertTitle>{t('pages.reports.surplusShortageAlertTitle')}</AlertTitle>
+            <AlertDescription>
+              {t('pages.reports.surplusShortageAlertDescription', { count: summary.shortageDays })}
+            </AlertDescription>
+          </AlertContent>
+        </Alert>
+      )}
+
       {/* Summary cards */}
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

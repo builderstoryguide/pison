@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
@@ -15,14 +14,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Loader2, MapPin, Users, DollarSign, Save, Plus, X } from 'lucide-react';
+import { Loader2, MapPin, Users, DollarSign, Save, Plus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSession } from 'next-auth/react';
 import { Badge } from '@/components/ui/badge';
+import { transactionKeys } from '@/hooks/queries/query-keys';
+import { formatCurrency } from '@/lib/helpers';
+import { VentilationReceiptDialog, type VentilationReceiptData } from './ventilation-receipt-dialog';
 
 interface CollectionArea {
   id: string;
@@ -46,11 +47,12 @@ interface CollectionEntry {
 
 export default function DailyCollectionForm() {
   const { t } = useTranslation();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const [selectedAreaId, setSelectedAreaId] = useState<string>('');
   const [entries, setEntries] = useState<CollectionEntry[]>([]);
+  const [receiptData, setReceiptData] = useState<VentilationReceiptData | null>(null);
+  const [receiptOpen, setReceiptOpen] = useState(false);
 
   // Fetch current user's agent record (for collection ventilation)
   const { data: agentData } = useQuery({
@@ -115,16 +117,43 @@ export default function DailyCollectionForm() {
 
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['pending-transactions'] });
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: transactionKeys.all });
+      queryClient.invalidateQueries({ queryKey: transactionKeys.pending() });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       toast.success('Collections submitted successfully. Awaiting approval.');
+
+      // Build receipt data before clearing
+      const area = areas.find((a) => a.id === variables.areaId);
+      const receipt: VentilationReceiptData = {
+        date: new Date().toISOString(),
+        areaName: area?.name ?? variables.areaId,
+        areaCode: area?.code ?? '-',
+        agentName: agentData?.fullName ?? '-',
+        agentCode: agentData?.agentCode ?? '-',
+        entries: variables.entries.map((e) => {
+          const client = clients.find((c) => c.id === e.clientId);
+          return {
+            clientNumber: client?.clientNumber ?? '-',
+            clientName: client?.fullName ?? '-',
+            amount: e.amount,
+          };
+        }),
+        totalAmount: variables.entries.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0),
+        transactionCount: variables.entries.length,
+      };
+      setReceiptData(receipt);
+      setReceiptOpen(true);
+
       setEntries([]);
       setSelectedAreaId('');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to submit collections');
+      const msg = error.message || '';
+      const isNotAssignedError = msg.includes('not assigned to you');
+      toast.error(
+        isNotAssignedError ? t('pages.collections.errorClientsNotAssigned') : msg || 'Failed to submit collections'
+      );
     },
   });
 
@@ -307,11 +336,7 @@ export default function DailyCollectionForm() {
                             </div>
                             <div className="mt-2 text-sm text-muted-foreground">
                               {t('pages.collections.currentBalance')}:{' '}
-                              {new Intl.NumberFormat('fr-FR', {
-                                style: 'currency',
-                                currency: 'XOF',
-                                minimumFractionDigits: 0,
-                              }).format(balance)}
+                              {formatCurrency(balance)}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -328,7 +353,7 @@ export default function DailyCollectionForm() {
                               />
                             </div>
                             <span className="text-sm text-muted-foreground">
-                              XOF
+                              CFA
                             </span>
                           </div>
                         </div>
@@ -345,11 +370,7 @@ export default function DailyCollectionForm() {
                         {t('pages.collections.totalAmount')}
                       </div>
                       <div className="text-2xl font-bold">
-                        {new Intl.NumberFormat('fr-FR', {
-                          style: 'currency',
-                          currency: 'XOF',
-                          minimumFractionDigits: 0,
-                        }).format(totalAmount)}
+                        {formatCurrency(totalAmount)}
                       </div>
                     </div>
                   </div>
@@ -380,6 +401,12 @@ export default function DailyCollectionForm() {
           </CardContent>
         </Card>
       )}
+
+      <VentilationReceiptDialog
+        open={receiptOpen}
+        onOpenChange={setReceiptOpen}
+        data={receiptData}
+      />
     </div>
   );
 }

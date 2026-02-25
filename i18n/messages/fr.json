@@ -2,7 +2,9 @@
   "common": {
     "buttons": {
       "save": "Enregistrer",
+      "view": "Voir",
       "cancel": "Annuler",
+      "back": "Retour",
       "delete": "Supprimer",
       "edit": "Modifier",
       "add": "Ajouter",
@@ -64,6 +66,10 @@
       "setPassword": "Définir le mot de passe initial",
       "confirmPassword": "Confirmer le mot de passe"
     },
+    "validation": {
+      "amountPositive": "Le montant doit être positif",
+      "amountExceedsBalance": "Le montant dépasse le solde disponible"
+    },
     "breadcrumbs": {
       "home": "Accueil",
       "new": "Nouveau",
@@ -114,6 +120,13 @@
       "activeLoans": "Prêts actifs",
       "pendingApprovalCount": "{{count}} en attente d'approbation",
       "managedAccounts": "Comptes gérés",
+      "surplusShortage": "Excédent/Pénurie",
+      "surplusShortageLast30Days": "30 derniers jours",
+      "shortageDays": "Jours de pénurie",
+      "totalShortage": "Pénurie totale",
+      "surplusDays": "Jours d'excédent",
+      "totalSurplus": "Excédent total",
+      "viewSurplusShortageReport": "Voir le rapport complet",
       "activeAgentsLabel": "Agents actifs",
       "fieldCollectors": "Collecteurs terrain",
       "newClient": "Nouveau client",
@@ -181,7 +194,8 @@
       "statusCompleted": "Terminé",
       "statusPending": "En attente",
       "statusApproved": "Approuvé",
-      "statusRejected": "Rejeté"
+      "statusRejected": "Rejeté",
+      "noClientsWithActiveAccounts": "Aucun client avec compte actif"
     },
     "agents": {
       "title": "Agents",
@@ -201,6 +215,11 @@
       "refillAccount": "Recharger le compte",
       "refillAgentAccount": "Recharger le compte agent",
       "refillAgentAccountDesc": "Ajouter des fonds au compte opérationnel de {{name}}. Cette transaction nécessitera l'approbation du manager.",
+      "withdrawAccount": "Retirer du compte",
+      "withdrawAgentAccountDesc": "Enregistrer un retrait du compte de {{name}} ({{account}}). Cette transaction nécessitera l'approbation du manager.",
+      "transferFromAccount": "Transférer depuis le compte",
+      "transferFromAgentDesc": "Transférer depuis le compte de {{name}} ({{account}}) vers un autre compte.",
+      "collectorLabel": "Collecteur",
       "amountXof": "Montant (XOF)",
       "createRequest": "Créer la demande"
     },
@@ -244,6 +263,12 @@
       "contact": "Contact",
       "area": "Zone"
     },
+    "analytics": {
+      "financialDesc": "Aperçu financier : soldes, dépôts, retraits et réconciliation",
+      "transactionsDesc": "Volume et tendances des transactions dans le temps",
+      "agentsDesc": "Performance de collecte des agents par zone",
+      "useReports": "Utilisez les rapports ci-dessous pour des analyses détaillées."
+    },
     "reports": {
       "title": "Rapports",
       "monthlyBalance": "Solde mensuel",
@@ -255,10 +280,19 @@
       "selectClient": "Sélectionner un client...",
       "allAreas": "Toutes les zones",
       "searchClient": "Rechercher un client...",
-      "search": "Rechercher..."
+      "search": "Rechercher...",
+      "surplusShortageAlertTitle": "Pénuries détectées - enquête requise",
+      "surplusShortageAlertDescription": "{{count}} jour(s) dans la période sélectionnée ont des pénuries de trésorerie. Examinez le rapport ci-dessous et prenez les mesures appropriées."
     },
     "collectionAreas": {
       "title": "Zones de collecte",
+      "areaDetails": "Détails de la zone",
+      "areaInformation": "Informations sur la zone",
+      "assignedClients": "Clients assignés",
+      "assignedAgents": "Agents assignés",
+      "noClients": "Aucun client dans cette zone",
+      "noAgents": "Aucun agent assigné à cette zone",
+      "totalTransactions": "Total des transactions",
       "newArea": "Nouvelle zone de collecte",
       "editArea": "Modifier la zone de collecte",
       "areaAssignments": "Affectations des zones",
@@ -300,7 +334,46 @@
     },
     "validation": {
       "pendingTransactions": "Transactions en attente",
-      "validation": "Validation"
+      "pendingAccounts": "Comptes en attente",
+      "validation": "Validation",
+      "noPendingAccounts": "Aucun compte en attente",
+      "allAccountsReviewed": "Tous les comptes ont été examinés et traités.",
+      "approveAccount": "Approuver le compte",
+      "rejectAccount": "Rejeter le compte",
+      "approveConfirm": "Êtes-vous sûr de vouloir approuver ce compte ?",
+      "rejectConfirm": "Veuillez fournir une raison pour le rejet (optionnel).",
+      "createdBy": "Créé par"
+    },
+    "auditLog": {
+      "title": "Journal d'audit",
+      "description": "Voir les opérations effectuées par les collecteurs et les comptables",
+      "columnDate": "Date",
+      "columnUser": "Utilisateur",
+      "columnAction": "Action",
+      "columnEntityType": "Type d'entité",
+      "columnDescription": "Description",
+      "columnTransaction": "Transaction",
+      "filterByDate": "Filtrer par date",
+      "filterByUser": "Filtrer par utilisateur",
+      "filterByEntityType": "Filtrer par type d'entité",
+      "filterByAction": "Filtrer par action",
+      "allActions": "Toutes les actions",
+      "allEntityTypes": "Tous les types",
+      "allUsers": "Tous les utilisateurs",
+      "noLogs": "Aucun journal d'audit trouvé",
+      "actionCreate": "Création",
+      "actionApprove": "Approbation",
+      "actionReject": "Rejet",
+      "actionRefill": "Recharge",
+      "actionOpenSession": "Ouverture de session",
+      "actionCloseSession": "Clôture de session",
+      "entityTransaction": "Transaction",
+      "entityClient": "Client",
+      "entityAgent": "Agent",
+      "entityLoan": "Prêt",
+      "entityDailySession": "Session quotidienne",
+      "entityUser": "Utilisateur",
+      "actionUserCreated": "Utilisateur créé"
     },
     "collections": {
       "dailyCollections": "Collectes quotidiennes",
@@ -316,7 +389,18 @@
       "totalAmount": "Montant total",
       "submitting": "Envoi en cours...",
       "submitCollections": "Soumettre les collectes",
-      "agentNotFound": "Enregistrement agent introuvable. Veuillez contacter le manager."
+      "agentNotFound": "Enregistrement agent introuvable. Veuillez contacter le manager.",
+      "errorClientsNotAssigned": "Certains clients sont introuvables, n'appartiennent pas à cette zone ou ne vous sont pas assignés.",
+      "receiptTitle": "Reçu de collecte",
+      "receiptDesc": "Reçu de confirmation pour votre soumission de collecte quotidienne. Vous pouvez l'imprimer ou le sauvegarder pour vos dossiers.",
+      "receiptDate": "Date",
+      "receiptArea": "Zone",
+      "receiptAgent": "Agent",
+      "receiptClient": "Client",
+      "receiptAmount": "Montant",
+      "receiptPending": "Ces transactions sont en attente d'approbation du gestionnaire.",
+      "printReceipt": "Imprimer",
+      "downloadReceipt": "Télécharger"
     },
     "accounts": {
       "accountStatus": "Statut du compte",
@@ -386,6 +470,7 @@
     "transactions": "Transactions",
     "allTransactions": "Toutes les transactions",
     "pendingValidation": "Validation en attente",
+    "pendingAccounts": "Comptes en attente",
     "deposits": "Dépôts",
     "withdrawals": "Retraits",
     "transfers": "Virements",
@@ -427,6 +512,7 @@
     "sessionStatus": "Statut de session",
     "dayClosure": "Clôture du jour",
     "cashReconciliation": "Réconciliation des espèces",
+    "auditLog": "Journal d'audit",
     "settings": "Paramètres",
     "systemSettings": "Paramètres système",
     "commissionRates": "Taux de commission",

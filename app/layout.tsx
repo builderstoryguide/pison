@@ -1,5 +1,4 @@
 import { ReactNode, Suspense } from 'react';
-import { Inter } from 'next/font/google';
 import { cn } from '@/lib/utils';
 import { SettingsProvider } from '@/providers/settings-provider';
 import { TooltipsProvider } from '@/providers/tooltips-provider';
@@ -11,7 +10,8 @@ import { ModulesProvider } from '@/providers/modules-provider';
 import { QueryProvider } from '@/providers/query-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
 
-const inter = Inter({ subsets: ['latin'] });
+// Use system font stack to avoid Docker build network fetch (fonts.googleapis.com)
+const fontClassName = 'font-sans';
 
 import '@/css/styles.css';
 import '@/components/keenicons/assets/styles.css';
@@ -33,7 +33,7 @@ export default async function RootLayout({
       <body
         className={cn(
           'antialiased flex h-full text-base text-foreground bg-background',
-          inter.className,
+          fontClassName,
         )}
         suppressHydrationWarning
       >

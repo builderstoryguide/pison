@@ -11,8 +11,7 @@ import {
   PaginationState,
   useReactTable,
 } from '@tanstack/react-table';
-import { FileText, Search, User } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { FileText, User } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
@@ -70,7 +69,7 @@ export default function ClientStatementReport() {
   const { t } = useTranslation();
   const defaults = getDefaultDates();
   const [clientId, setClientId] = useState<string>('');
-  const [clientSearch, setClientSearch] = useState('');
+  const [clientSearch] = useState('');
   const [startDate, setStartDate] = useState(defaults.startDate);
   const [endDate, setEndDate] = useState(defaults.endDate);
   const [pagination, setPagination] = useState<PaginationState>({
@@ -85,7 +84,7 @@ export default function ClientStatementReport() {
       const url = buildUrl('/api/clients', { search: clientSearch || undefined, status: 'ACTIVE' });
       const res = await apiFetch(url);
       const json = await res.json();
-      return (json.data ?? []).map((c: any) => ({
+      return (json.data ?? []).map((c: { id: string; clientNumber?: string; fullName?: string }) => ({
         id: c.id,
         clientNumber: c.clientNumber,
         fullName: c.fullName,

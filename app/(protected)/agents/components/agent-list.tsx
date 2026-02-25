@@ -15,7 +15,7 @@ import {
 } from '@tanstack/react-table';
 import { ChevronRight, Plus, Search, X, UserCheck, Wallet } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
-import { formatDate } from '@/lib/helpers';
+import { formatCurrency, formatDate } from '@/lib/helpers';
 import { Badge, BadgeDot } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
@@ -177,11 +177,7 @@ const AgentList = () => {
             <div className="flex items-center gap-2">
               <Wallet className="size-4 text-muted-foreground" />
               <span className="font-medium">
-                {new Intl.NumberFormat('fr-FR', {
-                  style: 'currency',
-                  currency: 'XOF',
-                  minimumFractionDigits: 0,
-                }).format(balance)}
+                {formatCurrency(balance)}
               </span>
             </div>
           );

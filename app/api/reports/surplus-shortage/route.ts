@@ -18,7 +18,7 @@ const querySchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const forbidden = await requirePermission(session, 'reports.view');
+    const forbidden = await requirePermission(session, 'reports.surplus_shortage');
     if (forbidden) return forbidden;
 
     const sp = request.nextUrl.searchParams;

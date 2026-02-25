@@ -62,7 +62,7 @@ export default function RejectButton({ loanId }: RejectButtonProps) {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button className="gap-2" variant="outline" appearance="destructive">
+        <Button className="gap-2" variant="destructive">
           <XCircle className="size-4" />
           {t('pages.loans.reject')}
         </Button>

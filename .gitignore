@@ -17,3 +17,9 @@ dist-ssr
 playwright-report/
 test-results/
 e2e/.auth/
+
+# Environment (never commit secrets)
+.env
+.env.local
+.env.*.local
+# Use .env.example as template; copy to .env.local for local config (npm run dev loads .env.local)

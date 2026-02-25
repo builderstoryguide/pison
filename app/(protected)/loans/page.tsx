@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -15,11 +16,17 @@ import {
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
+import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useSession } from 'next-auth/react';
+import { hasPermission } from '@/lib/auth-client';
+import { Plus } from 'lucide-react';
 import LoanList from './components/loan-list';
 
 export default function Page() {
   const { t } = useTranslation();
+  const { data: session } = useSession();
+  const canCreateLoan = hasPermission(session, 'loans.create');
 
   return (
     <>
@@ -39,7 +46,16 @@ export default function Page() {
               </BreadcrumbList>
             </Breadcrumb>
           </ToolbarHeading>
-          <ToolbarActions></ToolbarActions>
+          <ToolbarActions>
+            {canCreateLoan && (
+              <Button asChild>
+                <Link href="/loans/new" className="gap-2">
+                  <Plus className="size-4" />
+                  {t('pages.loans.newLoanRequest')}
+                </Link>
+              </Button>
+            )}
+          </ToolbarActions>
         </Toolbar>
       </Container>
 

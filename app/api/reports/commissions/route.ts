@@ -21,10 +21,13 @@ export async function GET(request: NextRequest) {
     const period = sp.get('period') || undefined;
     const clientId = sp.get('clientId') || undefined;
 
-    const data = await reportService.generateCommissionReport({ period, clientId });
+    const [data, summaryByClient] = await Promise.all([
+      reportService.generateCommissionReport({ period, clientId }),
+      reportService.generateCommissionSummaryByClient({ period, clientId }),
+    ]);
 
-    return NextResponse.json({ success: true, data });
-  } catch (error: any) {
+    return NextResponse.json({ success: true, data, summaryByClient });
+  } catch (error: unknown) {
     console.error('Commission report error:', error);
     return NextResponse.json(
       { success: false, error: { code: 'REPORT_ERROR', message: error.message || 'Report generation failed' } },
@@ -40,7 +43,7 @@ const calcSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const forbidden = await requirePermission(session, 'settings.manage');
+    const forbidden = await requirePermission(session, 'commissions.calculate');
     if (forbidden) return forbidden;
 
     const body = await request.json();
@@ -52,7 +55,7 @@ export async function POST(request: NextRequest) {
     );
 
     return NextResponse.json({ success: true, data: commissions }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input', details: error.errors } },
@@ -61,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
     console.error('Commission calculation error:', error);
     return NextResponse.json(
-      { success: false, error: { code: 'CALC_ERROR', message: error.message || 'Commission calculation failed' } },
+      { success: false, error: { code: 'CALC_ERROR', message: error instanceof Error ? error.message : 'Commission calculation failed' } },
       { status: 500 },
     );
   }

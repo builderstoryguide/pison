@@ -32,7 +32,7 @@ export async function POST(
       success: true,
       data: transaction,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -53,7 +53,7 @@ export async function POST(
         success: false,
         error: {
           code: 'REFILL_ERROR',
-          message: error.message || 'Failed to refill agent account',
+          message: error instanceof Error ? error.message : 'Failed to refill agent account',
         },
       },
       { status: 500 }

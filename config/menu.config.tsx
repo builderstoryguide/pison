@@ -73,28 +73,29 @@ import { type MenuConfig } from './types';
 // Microfinance Management System Menu Configuration
 // Titles and headings use translation keys (menu.xxx) - components translate them via t()
 export const MENU_SIDEBAR: MenuConfig = [
-  { title: 'menu.dashboard', icon: LayoutGrid, path: '/' },
+  { title: 'menu.dashboard', icon: LayoutGrid, path: '/', permission: 'dashboard.view' },
   { heading: 'menu.operations' },
-  { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily' },
+  { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily', permission: 'collections.create' },
   {
     title: 'menu.transactions',
     icon: CreditCard,
     children: [
-      { title: 'menu.allTransactions', path: '/transactions' },
-      { title: 'menu.pendingValidation', path: '/validation/pending' },
-      { title: 'menu.deposits', path: '/transactions/deposits' },
-      { title: 'menu.withdrawals', path: '/transactions/withdrawals' },
-      { title: 'menu.transfers', path: '/transactions/transfers' },
+      { title: 'menu.allTransactions', path: '/transactions', permission: 'transactions.view' },
+      { title: 'menu.pendingValidation', path: '/validation/pending', permission: 'transactions.approve' },
+      { title: 'menu.pendingAccounts', path: '/validation/pending-accounts', permission: 'transactions.approve' },
+      { title: 'menu.deposits', path: '/transactions/deposits', permission: 'transactions.view' },
+      { title: 'menu.withdrawals', path: '/transactions/withdrawals', permission: 'transactions.view' },
+      { title: 'menu.transfers', path: '/transactions/transfers', permission: 'transactions.view' },
     ],
   },
   {
     title: 'menu.loans',
     icon: DollarSign,
     children: [
-      { title: 'menu.allLoans', path: '/loans' },
-      { title: 'menu.loanRequests', path: '/loans/requests' },
-      { title: 'menu.activeLoans', path: '/loans/active' },
-      { title: 'menu.loanRepayments', path: '/loans/repayments' },
+      { title: 'menu.allLoans', path: '/loans', permission: 'loans.view' },
+      { title: 'menu.loanRequests', path: '/loans/requests', permission: 'loans.view' },
+      { title: 'menu.activeLoans', path: '/loans/active', permission: 'loans.view' },
+      { title: 'menu.loanRepayments', path: '/loans/repayments', permission: 'loans.view' },
     ],
   },
   { heading: 'menu.management' },
@@ -102,27 +103,27 @@ export const MENU_SIDEBAR: MenuConfig = [
     title: 'menu.clients',
     icon: Users,
     children: [
-      { title: 'menu.allClients', path: '/clients' },
-      { title: 'menu.addClient', path: '/clients/new' },
-      { title: 'menu.clientAccounts', path: '/clients/accounts' },
+      { title: 'menu.allClients', path: '/clients', permission: 'clients.view' },
+      { title: 'menu.addClient', path: '/clients/new', permission: 'clients.create' },
+      { title: 'menu.clientAccounts', path: '/clients/accounts', permission: 'clients.view' },
     ],
   },
   {
     title: 'menu.agents',
     icon: UserCheck,
     children: [
-      { title: 'menu.allAgents', path: '/agents' },
-      { title: 'menu.addAgent', path: '/agents/new' },
-      { title: 'menu.agentAccounts', path: '/agents/accounts' },
+      { title: 'menu.allAgents', path: '/agents', permission: 'agents.view' },
+      { title: 'menu.addAgent', path: '/agents/new', permission: 'agents.create' },
+      { title: 'menu.agentAccounts', path: '/agents/accounts', permission: 'agents.view' },
     ],
   },
   {
     title: 'menu.collectionAreas',
     icon: MapPin,
     children: [
-      { title: 'menu.allAreas', path: '/collection-areas' },
-      { title: 'menu.addArea', path: '/collection-areas/new' },
-      { title: 'menu.areaAssignments', path: '/collection-areas/assignments' },
+      { title: 'menu.allAreas', path: '/collection-areas', permission: 'collection_areas.view' },
+      { title: 'menu.addArea', path: '/collection-areas/new', permission: 'collection_areas.manage' },
+      { title: 'menu.areaAssignments', path: '/collection-areas/assignments', permission: 'collection_areas.manage' },
     ],
   },
   { heading: 'menu.reportsAnalytics' },
@@ -130,22 +131,22 @@ export const MENU_SIDEBAR: MenuConfig = [
     title: 'menu.reports',
     icon: ReportIcon,
     children: [
-      { title: 'menu.monthlyBalance', path: '/reports/monthly-balance' },
-      { title: 'menu.collectionJournal', path: '/reports/collection-journal' },
-      { title: 'menu.clientStatement', path: '/reports/client-statement' },
-      { title: 'menu.statisticsByArea', path: '/reports/area-statistics' },
-      { title: 'menu.commissionReport', path: '/reports/commissions' },
-      { title: 'menu.surplusShortage', path: '/reports/surplus-shortage' },
+      { title: 'menu.monthlyBalance', path: '/reports/monthly-balance', permission: 'reports.view' },
+      { title: 'menu.collectionJournal', path: '/reports/collection-journal', permission: 'reports.view' },
+      { title: 'menu.clientStatement', path: '/reports/client-statement', permission: 'reports.view' },
+      { title: 'menu.statisticsByArea', path: '/reports/area-statistics', permission: 'reports.view' },
+      { title: 'menu.commissionReport', path: '/reports/commissions', permission: 'reports.view' },
+      { title: 'menu.surplusShortage', path: '/reports/surplus-shortage', permission: 'reports.surplus_shortage' },
     ],
   },
   {
     title: 'menu.analytics',
     icon: BarChart3,
     children: [
-      { title: 'menu.overview', path: '/analytics' },
-      { title: 'menu.financialSummary', path: '/analytics/financial' },
-      { title: 'menu.transactionTrends', path: '/analytics/transactions' },
-      { title: 'menu.agentPerformance', path: '/analytics/agents' },
+      { title: 'menu.overview', path: '/analytics', permission: 'reports.view' },
+      { title: 'menu.financialSummary', path: '/analytics/financial', permission: 'reports.view' },
+      { title: 'menu.transactionTrends', path: '/analytics/transactions', permission: 'reports.view' },
+      { title: 'menu.agentPerformance', path: '/analytics/agents', permission: 'reports.view' },
     ],
   },
   { heading: 'menu.system' },
@@ -154,27 +155,28 @@ export const MENU_SIDEBAR: MenuConfig = [
     icon: CheckCircle2,
     path: '/validation/pending',
     badge: 'menu.pending',
+    permission: 'transactions.approve',
   },
   {
     title: 'menu.dailyOperations',
     icon: CalendarCheck,
     children: [
-      { title: 'menu.sessionStatus', path: '/operations/session' },
-      { title: 'menu.dayClosure', path: '/operations/day-closure' },
-      { title: 'menu.cashReconciliation', path: '/operations/reconciliation' },
+      { title: 'menu.sessionStatus', path: '/operations/session', permission: 'session.manage' },
+      { title: 'menu.dayClosure', path: '/operations/day-closure', permission: 'day_closure.manage' },
+      { title: 'menu.cashReconciliation', path: '/operations/reconciliation', permission: 'day_closure.manage' },
+      { title: 'menu.auditLog', path: '/operations/audit-log', permission: 'reports.view' },
     ],
   },
   {
     title: 'menu.settings',
     icon: Settings,
-    path: '/settings',
     children: [
-      { title: 'menu.systemSettings', path: '/user-management/settings' },
-      { title: 'menu.commissionRates', path: '/reports/commissions' },
-      { title: 'menu.collectionAreas', path: '/collection-areas' },
-      { title: 'menu.userManagement', path: '/user-management/users' },
-      { title: 'menu.roles', path: '/settings/roles' },
-      { title: 'menu.permissions', path: '/settings/permissions' },
+      { title: 'menu.systemSettings', path: '/user-management/settings', permission: 'settings.manage' },
+      { title: 'menu.commissionRates', path: '/reports/commissions', permission: 'reports.view' },
+      { title: 'menu.collectionAreas', path: '/collection-areas', permission: 'collection_areas.view' },
+      { title: 'menu.userManagement', path: '/user-management/users', permission: 'users.manage' },
+      { title: 'menu.roles', path: '/settings/roles', permission: 'roles.manage' },
+      { title: 'menu.permissions', path: '/settings/permissions', permission: 'roles.manage' },
     ],
   },
   {
@@ -206,28 +208,29 @@ export const MENU_SIDEBAR_CUSTOM: MenuConfig = [
   { title: 'menu.myClients', icon: Users, path: '/clients' },
 ];
 
-// Mega menu for header navigation
+// Mega menu for header navigation (permission-filtered for Accountant/Agent)
 export const MENU_MEGA: MenuConfig = [
-  { title: 'menu.dashboard', path: '/' },
+  { title: 'menu.dashboard', path: '/', permission: 'dashboard.view' },
   {
     title: 'menu.operations',
     children: [
       {
         children: [
-          { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily' },
-          { title: 'menu.allTransactions', icon: CreditCard, path: '/transactions' },
-          { title: 'menu.pendingValidation', icon: CheckCircle2, path: '/validation/pending' },
-          { title: 'menu.deposits', icon: TrendingUp, path: '/transactions/deposits' },
-          { title: 'menu.withdrawals', icon: TrendingDown, path: '/transactions/withdrawals' },
-          { title: 'menu.transfers', icon: ArrowRightLeft, path: '/transactions/transfers' },
+          { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily', permission: 'collections.create' },
+          { title: 'menu.allTransactions', icon: CreditCard, path: '/transactions', permission: 'transactions.view' },
+          { title: 'menu.pendingValidation', icon: CheckCircle2, path: '/validation/pending', permission: 'transactions.approve' },
+          { title: 'menu.pendingAccounts', icon: UserCircle, path: '/validation/pending-accounts', permission: 'transactions.approve' },
+          { title: 'menu.deposits', icon: TrendingUp, path: '/transactions/deposits', permission: 'transactions.view' },
+          { title: 'menu.withdrawals', icon: TrendingDown, path: '/transactions/withdrawals', permission: 'transactions.view' },
+          { title: 'menu.transfers', icon: ArrowRightLeft, path: '/transactions/transfers', permission: 'transactions.view' },
         ],
       },
       {
         children: [
-          { title: 'menu.allLoans', icon: DollarSign, path: '/loans' },
-          { title: 'menu.loanRequests', icon: FileText, path: '/loans/requests' },
-          { title: 'menu.activeLoans', icon: Wallet, path: '/loans/active' },
-          { title: 'menu.loanRepayments', icon: Calculator, path: '/loans/repayments' },
+          { title: 'menu.allLoans', icon: DollarSign, path: '/loans', permission: 'loans.view' },
+          { title: 'menu.loanRequests', icon: FileText, path: '/loans/requests', permission: 'loans.view' },
+          { title: 'menu.activeLoans', icon: Wallet, path: '/loans/active', permission: 'loans.view' },
+          { title: 'menu.loanRepayments', icon: Calculator, path: '/loans/repayments', permission: 'loans.view' },
         ],
       },
     ],
@@ -237,17 +240,17 @@ export const MENU_MEGA: MenuConfig = [
     children: [
       {
         children: [
-          { title: 'menu.allClients', icon: Users, path: '/clients' },
-          { title: 'menu.addClient', icon: UserCircle, path: '/clients/new' },
-          { title: 'menu.clientAccounts', icon: Wallet, path: '/clients/accounts' },
+          { title: 'menu.allClients', icon: Users, path: '/clients', permission: 'clients.view' },
+          { title: 'menu.addClient', icon: UserCircle, path: '/clients/new', permission: 'clients.create' },
+          { title: 'menu.clientAccounts', icon: Wallet, path: '/clients/accounts', permission: 'clients.view' },
         ],
       },
       {
         children: [
-          { title: 'menu.allAgents', icon: UserCheck, path: '/agents' },
-          { title: 'menu.addAgent', icon: UserCircle, path: '/agents/new' },
-          { title: 'menu.agentAccounts', icon: Wallet, path: '/agents/accounts' },
-          { title: 'menu.collectionAreas', icon: MapPin, path: '/collection-areas' },
+          { title: 'menu.allAgents', icon: UserCheck, path: '/agents', permission: 'agents.view' },
+          { title: 'menu.addAgent', icon: UserCircle, path: '/agents/new', permission: 'agents.create' },
+          { title: 'menu.agentAccounts', icon: Wallet, path: '/agents/accounts', permission: 'agents.view' },
+          { title: 'menu.collectionAreas', icon: MapPin, path: '/collection-areas', permission: 'collection_areas.view' },
         ],
       },
     ],
@@ -257,55 +260,57 @@ export const MENU_MEGA: MenuConfig = [
     children: [
       {
         children: [
-          { title: 'menu.monthlyBalance', icon: BarChart3, path: '/reports/monthly-balance' },
-          { title: 'menu.collectionJournal', icon: ReportIcon, path: '/reports/collection-journal' },
-          { title: 'menu.clientStatement', icon: FileText, path: '/reports/client-statement' },
-          { title: 'menu.areaStatistics', icon: PieChart, path: '/reports/area-statistics' },
+          { title: 'menu.monthlyBalance', icon: BarChart3, path: '/reports/monthly-balance', permission: 'reports.view' },
+          { title: 'menu.collectionJournal', icon: ReportIcon, path: '/reports/collection-journal', permission: 'reports.view' },
+          { title: 'menu.clientStatement', icon: FileText, path: '/reports/client-statement', permission: 'reports.view' },
+          { title: 'menu.areaStatistics', icon: PieChart, path: '/reports/area-statistics', permission: 'reports.view' },
         ],
       },
       {
         children: [
-          { title: 'menu.commissionReport', icon: Calculator, path: '/reports/commissions' },
-          { title: 'menu.surplusShortage', icon: AlertTriangle, path: '/reports/surplus-shortage' },
-          { title: 'menu.analytics', icon: BarChart3, path: '/analytics' },
+          { title: 'menu.commissionReport', icon: Calculator, path: '/reports/commissions', permission: 'reports.view' },
+          { title: 'menu.surplusShortage', icon: AlertTriangle, path: '/reports/surplus-shortage', permission: 'reports.surplus_shortage' },
+          { title: 'menu.analytics', icon: BarChart3, path: '/analytics', permission: 'reports.view' },
         ],
       },
     ],
   },
 ];
 
-// Mega menu mobile version
+// Mega menu mobile version (permission-filtered for Accountant/Agent)
 export const MENU_MEGA_MOBILE: MenuConfig = [
-  { title: 'menu.dashboard', path: '/' },
+  { title: 'menu.dashboard', path: '/', permission: 'dashboard.view' },
   {
     title: 'menu.operations',
     children: [
-      { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily' },
-      { title: 'menu.allTransactions', icon: CreditCard, path: '/transactions' },
-      { title: 'menu.pendingValidation', icon: CheckCircle2, path: '/transactions/pending' },
-      { title: 'menu.deposits', icon: TrendingUp, path: '/transactions/deposits' },
-      { title: 'menu.withdrawals', icon: TrendingDown, path: '/transactions/withdrawals' },
-      { title: 'menu.allLoans', icon: DollarSign, path: '/loans' },
-      { title: 'menu.loanRequests', icon: FileText, path: '/loans/requests' },
+      { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily', permission: 'collections.create' },
+      { title: 'menu.allTransactions', icon: CreditCard, path: '/transactions', permission: 'transactions.view' },
+      { title: 'menu.pendingValidation', icon: CheckCircle2, path: '/validation/pending', permission: 'transactions.approve' },
+      { title: 'menu.pendingAccounts', icon: UserCircle, path: '/validation/pending-accounts', permission: 'transactions.approve' },
+      { title: 'menu.deposits', icon: TrendingUp, path: '/transactions/deposits', permission: 'transactions.view' },
+      { title: 'menu.withdrawals', icon: TrendingDown, path: '/transactions/withdrawals', permission: 'transactions.view' },
+      { title: 'menu.allLoans', icon: DollarSign, path: '/loans', permission: 'loans.view' },
+      { title: 'menu.loanRequests', icon: FileText, path: '/loans/requests', permission: 'loans.view' },
     ],
   },
   {
     title: 'menu.management',
     children: [
-      { title: 'menu.allClients', icon: Users, path: '/clients' },
-      { title: 'menu.addClient', icon: UserCircle, path: '/clients/new' },
-      { title: 'menu.allAgents', icon: UserCheck, path: '/agents' },
-      { title: 'menu.addAgent', icon: UserCircle, path: '/agents/new' },
-      { title: 'menu.collectionAreas', icon: MapPin, path: '/collection-areas' },
+      { title: 'menu.allClients', icon: Users, path: '/clients', permission: 'clients.view' },
+      { title: 'menu.addClient', icon: UserCircle, path: '/clients/new', permission: 'clients.create' },
+      { title: 'menu.allAgents', icon: UserCheck, path: '/agents', permission: 'agents.view' },
+      { title: 'menu.addAgent', icon: UserCircle, path: '/agents/new', permission: 'agents.create' },
+      { title: 'menu.collectionAreas', icon: MapPin, path: '/collection-areas', permission: 'collection_areas.view' },
     ],
   },
   {
     title: 'menu.reports',
     children: [
-      { title: 'menu.monthlyBalance', icon: BarChart3, path: '/reports/monthly-balance' },
-      { title: 'menu.collectionJournal', icon: ReportIcon, path: '/reports/collection-journal' },
-      { title: 'menu.clientStatement', icon: FileText, path: '/reports/client-statement' },
-      { title: 'menu.commissionReport', icon: Calculator, path: '/reports/commissions' },
+      { title: 'menu.monthlyBalance', icon: BarChart3, path: '/reports/monthly-balance', permission: 'reports.view' },
+      { title: 'menu.collectionJournal', icon: ReportIcon, path: '/reports/collection-journal', permission: 'reports.view' },
+      { title: 'menu.clientStatement', icon: FileText, path: '/reports/client-statement', permission: 'reports.view' },
+      { title: 'menu.commissionReport', icon: Calculator, path: '/reports/commissions', permission: 'reports.view' },
+      { title: 'menu.surplusShortage', icon: AlertTriangle, path: '/reports/surplus-shortage', permission: 'reports.surplus_shortage' },
     ],
   },
 ];

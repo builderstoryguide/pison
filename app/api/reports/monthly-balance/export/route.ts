@@ -15,14 +15,14 @@ export async function GET(request: NextRequest) {
     const month = searchParams.get('month');
     const clientId = searchParams.get('clientId');
     const areaId = searchParams.get('areaId');
-    const format = searchParams.get('format') as 'csv' | 'excel';
+    const format = searchParams.get('format') as 'csv' | 'excel' | 'pdf';
 
     if (!month) {
       return NextResponse.json({ error: 'Month is required' }, { status: 400 });
     }
 
-    if (!['csv', 'excel'].includes(format)) {
-      return NextResponse.json({ error: 'Invalid format. Use csv or excel' }, { status: 400 });
+    if (!['csv', 'excel', 'pdf'].includes(format)) {
+      return NextResponse.json({ error: 'Invalid format. Use csv, excel or pdf' }, { status: 400 });
     }
 
     const data = await reportService.generateMonthlyBalance({
@@ -34,8 +34,15 @@ export async function GET(request: NextRequest) {
     const buffer = await reportService.exportReport(data, format, 'Monthly Balance');
 
     const headers = new Headers();
-    headers.set('Content-Type', format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    headers.set('Content-Disposition', `attachment; filename=monthly-balance-${month}.${format === 'csv' ? 'csv' : 'xlsx'}`);
+    const ext = format === 'csv' ? 'csv' : format === 'pdf' ? 'pdf' : 'xlsx';
+    const mime =
+      format === 'csv'
+        ? 'text/csv'
+        : format === 'pdf'
+          ? 'application/pdf'
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    headers.set('Content-Type', mime);
+    headers.set('Content-Disposition', `attachment; filename=monthly-balance-${month}.${ext}`);
 
     return new NextResponse(buffer, {
       status: 200,

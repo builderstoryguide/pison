@@ -1,11 +1,13 @@
 'use client';
 
-import { JSX, useCallback } from 'react';
+import { JSX, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { MENU_SIDEBAR } from '@/config/menu.config';
 import { MenuConfig, MenuItem } from '@/config/types';
 import { useTranslation } from '@/hooks/useTranslation';
+import { filterMenuByPermission } from '@/lib/menu-filter';
 import { cn } from '@/lib/utils';
 import {
   AccordionMenu,
@@ -22,6 +24,12 @@ import { Badge } from '@/components/ui/badge';
 export function SidebarMenu() {
   const pathname = usePathname();
   const { t } = useTranslation();
+  const { data: session } = useSession();
+
+  const filteredMenu = useMemo(
+    () => filterMenuByPermission(MENU_SIDEBAR, session ?? null),
+    [session]
+  );
 
   // Memoize matchPath to prevent unnecessary re-renders
   const matchPath = useCallback(
@@ -46,7 +54,7 @@ export function SidebarMenu() {
   };
 
   const buildMenu = (items: MenuConfig): JSX.Element[] => {
-    return items.map((item: MenuItem, index: number) => {
+    return items.filter(Boolean).map((item: MenuItem, index: number) => {
       if (item.heading) {
         return buildMenuHeading(item, index);
       } else if (item.disabled) {
@@ -234,7 +242,7 @@ export function SidebarMenu() {
         collapsible
         classNames={classNames}
       >
-        {buildMenu(MENU_SIDEBAR)}
+        {buildMenu(filteredMenu)}
       </AccordionMenu>
     </div>
   );

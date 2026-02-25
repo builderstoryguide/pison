@@ -78,8 +78,11 @@ export interface TransactionFilters {
   agentId?: string;
   accountId?: string;
   status?: string;
+  search?: string;
   startDate?: string;
   endDate?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export interface CreateTransactionInput {
@@ -119,36 +122,53 @@ async function fetchTransaction(id: string): Promise<Transaction> {
   return result.data;
 }
 
+export interface TransactionsResponse {
+  data: Transaction[];
+  pagination: { total: number; limit: number; offset: number };
+}
+
 async function fetchAllTransactions(
-  filters: TransactionFilters = {}
-): Promise<Transaction[]> {
+  filters: TransactionFilters = {},
+  signal?: AbortSignal
+): Promise<TransactionsResponse> {
   const params = new URLSearchParams();
   if (filters.type) params.append('type', filters.type);
   if (filters.status) params.append('status', filters.status);
   if (filters.accountId) params.append('accountId', filters.accountId);
   if (filters.areaId) params.append('areaId', filters.areaId);
   if (filters.agentId) params.append('agentId', filters.agentId);
+  if (filters.search) params.append('search', filters.search);
   if (filters.startDate) params.append('startDate', filters.startDate);
   if (filters.endDate) params.append('endDate', filters.endDate);
-  params.append('limit', '100');
+  params.append('limit', String(filters.limit ?? 20));
+  params.append('offset', String(filters.offset ?? 0));
 
-  const response = await apiFetch(`/api/transactions?${params.toString()}`);
+  const response = await apiFetch(`/api/transactions?${params.toString()}`, { signal });
   if (!response.ok) {
     throw new Error('Failed to fetch transactions');
   }
   const result = await response.json();
-  return result.data || [];
+  return {
+    data: result.data || [],
+    pagination: result.pagination || { total: 0, limit: 20, offset: 0 },
+  };
 }
 
 async function fetchTransactionsByAccount(
   accountId: string,
-  filters: TransactionFilters = {}
+  filters: TransactionFilters = {},
+  signal?: AbortSignal
 ): Promise<Transaction[]> {
-  return fetchAllTransactions({ ...filters, accountId });
+  const res = await fetchAllTransactions({ ...filters, accountId }, signal);
+  return res.data;
 }
 
 // Query Hooks
-export function usePendingTransactions(filters: TransactionFilters = {}) {
+export function usePendingTransactions(
+  filters: TransactionFilters = {},
+  enabled = true,
+  options?: { refetchInterval?: number }
+) {
   return useQuery({
     queryKey: transactionKeys.pendingFiltered({
       type: filters.type,
@@ -157,6 +177,8 @@ export function usePendingTransactions(filters: TransactionFilters = {}) {
       accountId: filters.accountId,
     }),
     queryFn: () => fetchPendingTransactions(filters),
+    enabled,
+    refetchInterval: options?.refetchInterval,
   });
 }
 
@@ -179,11 +201,15 @@ export function useTransactions(
       accountId: filters.accountId,
       areaId: filters.areaId,
       agentId: filters.agentId,
+      search: filters.search,
       startDate: filters.startDate,
       endDate: filters.endDate,
+      limit: filters.limit,
+      offset: filters.offset,
     }),
-    queryFn: () => fetchAllTransactions(filters),
+    queryFn: ({ signal }) => fetchAllTransactions(filters, signal),
     enabled,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
@@ -199,7 +225,7 @@ export function useTransactionsByAccount(
       startDate: filters.startDate,
       endDate: filters.endDate,
     }),
-    queryFn: () => fetchTransactionsByAccount(accountId, filters),
+    queryFn: ({ signal }) => fetchTransactionsByAccount(accountId, filters, signal),
     enabled: !!accountId && enabled,
   });
 }

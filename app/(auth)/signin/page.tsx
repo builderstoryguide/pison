@@ -28,15 +28,16 @@ export default function Page() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Dev credentials are only initialized in development to keep them out of prod bundles
-  const devCredentials =
-    process.env.NODE_ENV === 'development'
-      ? [
-          { label: 'Manager', email: 'admin@dcm.local', password: 'admin123' },
-          { label: 'Accountant', email: 'accountant@dcm.local', password: 'accountant123' },
-          { label: 'Agent', email: 'agent1@dcm.local', password: 'agent123' },
-        ]
-      : [];
+  const showDevCredentials =
+    process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_SHOW_DEV_CREDENTIALS === '1';
+
+  const devCredentials = showDevCredentials
+    ? [
+        { label: 'Manager', email: 'admin@dcm.local', password: 'admin123' },
+        { label: 'Accountant', email: 'accountant@dcm.local', password: 'accountant123' },
+        { label: 'Agent', email: 'agent1@dcm.local', password: 'agent123' },
+      ]
+    : [];
 
   const form = useForm<SigninSchemaType>({
     resolver: zodResolver(getSigninSchema()),
@@ -91,7 +92,7 @@ export default function Page() {
           </p>
         </div>
 
-        {process.env.NODE_ENV === 'development' && devCredentials.length > 0 && (
+        {showDevCredentials && devCredentials.length > 0 && (
           <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
             <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
               <RiErrorWarningFill className="size-3.5 text-primary" />

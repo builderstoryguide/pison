@@ -52,6 +52,20 @@ export async function POST(
       );
     }
 
+    if (error?.message?.includes('Daily session is closed')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'SESSION_CLOSED',
+            message:
+              'Daily session is closed. Open the session from Operations > Session Status before approving transactions.',
+          },
+        },
+        { status: 422 }
+      );
+    }
+
     console.error('Error approving transaction:', error);
     return NextResponse.json(
       {

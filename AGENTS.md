@@ -96,6 +96,7 @@ Routes use `getServerSession(authOptions)` for authentication and check `session
 - Client singleton in `lib/prisma.ts`
 - All monetary values use `Decimal(19, 4)`
 - Soft deletes preferred (no hard deletes on financial records)
+- For local development: see `config/postgresql-local.conf` and `docs/DATABASE_SETUP.md` for optimized PostgreSQL settings
 
 ## Domain Concepts
 

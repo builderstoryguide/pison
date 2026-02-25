@@ -10,7 +10,7 @@ interface ExportButtonProps {
   label?: string;
 }
 
-export default function ExportButton({ reportType, params, label = 'Export' }: ExportButtonProps) {
+export default function ExportButton({ reportType, params }: ExportButtonProps) {
   const handleExport = async (format: 'csv' | 'excel') => {
     const searchParams = new URLSearchParams(params);
     searchParams.append('format', format);

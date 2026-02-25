@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useDebouncedSearch } from '@/hooks/use-debounced-search';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -14,7 +15,7 @@ import {
 } from '@tanstack/react-table';
 import { ChevronRight, DollarSign, Search, X } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
-import { formatDate } from '@/lib/helpers';
+import { formatCurrency, formatDate } from '@/lib/helpers';
 import { Badge, BadgeDot } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
@@ -60,18 +61,23 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
     pageSize: 10,
   });
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setSearchValue, immediateSearch] = useDebouncedSearch('', 300);
   const [selectedStatus, setSelectedStatus] = useState<string | null>(defaultStatus);
 
   useEffect(() => {
     setSelectedStatus(defaultStatus);
   }, [defaultStatus]);
 
-  // Fetch loans
-  const fetchLoans = async (): Promise<Loan[]> => {
+  // Fetch loans with server-side pagination and search
+  const fetchLoans = async (): Promise<{ data: Loan[]; pagination: { total: number } }> => {
     const params = new URLSearchParams();
     if (selectedStatus && selectedStatus !== 'all') {
       params.append('status', selectedStatus);
+    }
+    params.append('limit', String(pagination.pageSize));
+    params.append('offset', String(pagination.pageIndex * pagination.pageSize));
+    if (debouncedSearch) {
+      params.append('search', debouncedSearch);
     }
 
     const response = await apiFetch(`/api/loans?${params.toString()}`);
@@ -81,29 +87,27 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
     }
 
     const result = await response.json();
-    return result.data || [];
+    return {
+      data: result.data || [],
+      pagination: result.pagination || { total: 0 },
+    };
   };
 
   // Loans query
-  const { data: loans, isLoading } = useQuery({
-    queryKey: ['loans', selectedStatus],
+  const { data: loansResponse, isLoading } = useQuery({
+    queryKey: [
+      'loans',
+      selectedStatus,
+      pagination.pageIndex,
+      pagination.pageSize,
+      debouncedSearch,
+    ],
     queryFn: fetchLoans,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Filter loans based on search query
-  const filteredLoans = useMemo(() => {
-    if (!loans) return [];
-    if (!searchQuery) return loans;
-
-    const query = searchQuery.toLowerCase();
-    return loans.filter(
-      (loan) =>
-        loan.loanNumber.toLowerCase().includes(query) ||
-        loan.client?.fullName.toLowerCase().includes(query) ||
-        loan.client?.clientNumber.toLowerCase().includes(query),
-    );
-  }, [loans, searchQuery]);
+  const loans = loansResponse?.data ?? [];
+  const totalCount = loansResponse?.pagination?.total ?? 0;
 
   const handleStatusSelection = (status: string) => {
     setSelectedStatus(status);
@@ -170,18 +174,11 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
             column={column}
           />
         ),
-        cell: ({ row }) => {
-          const amount = parseFloat(row.original.principalAmount);
-          return (
-            <span className="font-medium">
-              {new Intl.NumberFormat('fr-FR', {
-                style: 'currency',
-                currency: 'XOF',
-                minimumFractionDigits: 0,
-              }).format(amount)}
-            </span>
-          );
-        },
+        cell: ({ row }) => (
+          <span className="font-medium">
+            {formatCurrency(row.original.principalAmount)}
+          </span>
+        ),
         size: 150,
         meta: {
           headerTitle: 'Principal',
@@ -200,18 +197,11 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
             column={column}
           />
         ),
-        cell: ({ row }) => {
-          const amount = parseFloat(row.original.remainingBalance);
-          return (
-            <span className="font-medium">
-              {new Intl.NumberFormat('fr-FR', {
-                style: 'currency',
-                currency: 'XOF',
-                minimumFractionDigits: 0,
-              }).format(amount)}
-            </span>
-          );
-        },
+        cell: ({ row }) => (
+          <span className="font-medium">
+            {formatCurrency(row.original.remainingBalance)}
+          </span>
+        ),
         size: 150,
         meta: {
           headerTitle: 'Remaining',
@@ -300,8 +290,8 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
 
   const table = useReactTable({
     columns,
-    data: filteredLoans,
-    pageCount: Math.ceil(filteredLoans.length / pagination.pageSize),
+    data: loans,
+    pageCount: Math.ceil(totalCount / pagination.pageSize) || 1,
     getRowId: (row: Loan) => row.id,
     state: {
       pagination,
@@ -315,19 +305,12 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    manualPagination: false,
+    manualPagination: true,
     manualSorting: false,
     manualFiltering: false,
   });
 
   const DataGridToolbar = () => {
-    const [inputValue, setInputValue] = useState(searchQuery);
-
-    const handleSearch = () => {
-      setSearchQuery(inputValue);
-      setPagination({ ...pagination, pageIndex: 0 });
-    };
-
     return (
       <CardHeader className="flex-col flex-wrap sm:flex-row items-stretch sm:items-center py-5">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
@@ -335,20 +318,23 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
             <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
             <Input
               placeholder="Search loans..."
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              value={immediateSearch}
+              onChange={(e) => {
+                setSearchValue(e.target.value);
+                setPagination((p) => ({ ...p, pageIndex: 0 }));
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && setPagination((p) => ({ ...p, pageIndex: 0 }))}
               disabled={isLoading}
               className="ps-9 w-full sm:w-40 md:w-64"
             />
-            {searchQuery.length > 0 && (
+            {immediateSearch.length > 0 && (
               <Button
                 mode="icon"
                 variant="dim"
                 className="absolute end-1.5 top-1/2 -translate-y-1/2 h-6 w-6"
                 onClick={() => {
-                  setSearchQuery('');
-                  setInputValue('');
+                  setSearchValue('');
+                  setPagination((p) => ({ ...p, pageIndex: 0 }));
                 }}
               >
                 <X />
@@ -384,7 +370,7 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
   return (
     <DataGrid
       table={table}
-      recordCount={filteredLoans.length}
+      recordCount={totalCount}
       isLoading={isLoading}
       onRowClick={handleRowClick}
       tableLayout={{

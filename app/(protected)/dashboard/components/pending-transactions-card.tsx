@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { CalendarCheck, ChevronRight } from 'lucide-react';
+import { formatCurrency } from '@/lib/helpers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,14 +26,6 @@ export function PendingTransactionsCard({
   transactions,
   viewAllPath,
 }: PendingTransactionsCardProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'XOF',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">

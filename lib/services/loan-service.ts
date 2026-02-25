@@ -5,7 +5,32 @@
 
 import { prisma } from '@/lib/prisma';
 import { LoanStatus, Prisma } from '@prisma/client';
+import { sessionService } from './session-service';
+import { getCachedCount } from '@/lib/cache';
+import { getCachedOrFetch, getCachedOrFetchByKey } from '@/lib/cache/query-cache';
+import { LIST_PREFIX_LOANS, loanDetailKey } from '@/lib/cache/keys';
+import {
+  capLimit,
+  decodeCursor,
+  encodeCursor,
+  buildCountCacheKey,
+} from '@/lib/utils/pagination';
 import { transactionService } from './transaction-service';
+import {
+  invalidateBalanceForAccount,
+  invalidateRecentTransactionsForAccount,
+  invalidateAdminRecentTransactions,
+  invalidateLoansForClient,
+  invalidateLoanDetail,
+  invalidateLoanRepayments,
+  invalidateDashboardStats,
+  invalidateCountCacheForEntity,
+  invalidateLoanListCache,
+  invalidateAll,
+} from '@/lib/cache';
+
+const LOAN_LIST_TTL = 30;
+const LOAN_DETAIL_TTL = 60;
 
 export interface CreateLoanInput {
   accountId: string;
@@ -14,6 +39,7 @@ export interface CreateLoanInput {
   interestRate: number;
   purpose?: string;
   maturityDate?: Date;
+  loanProductId?: string;
 }
 
 export interface LoanEligibilityResult {
@@ -90,6 +116,13 @@ export class LoanService {
       };
     }
 
+    if (client.approvalStatus !== 'APPROVED') {
+      return {
+        eligible: false,
+        reason: 'Client account must be approved by manager before loan',
+      };
+    }
+
     return {
       eligible: true,
     };
@@ -107,6 +140,12 @@ export class LoanService {
    * Create a loan request
    */
   async createLoanRequest(data: CreateLoanInput, createdBy: string) {
+    // Check session is open (PRD: no operations when session closed)
+    const sessionOpen = await sessionService.isSessionOpen();
+    if (!sessionOpen) {
+      throw new Error('Daily session is closed. No operations allowed.');
+    }
+
     // Check eligibility
     const eligibility = await this.checkEligibility(data.clientId);
     if (!eligibility.eligible) {
@@ -116,6 +155,7 @@ export class LoanService {
     // Validate account
     const account = await prisma.financialAccount.findUnique({
       where: { id: data.accountId },
+      include: { accountNature: true },
     });
 
     if (!account) {
@@ -135,31 +175,71 @@ export class LoanService {
       throw new Error('Interest rate must be between 0 and 1 (0% to 100%)');
     }
 
-    // Calculate total amount (principal + interest)
-    // For now, assume 12 months term if maturity date not provided
-    const maturityDate = data.maturityDate || new Date();
-    maturityDate.setMonth(maturityDate.getMonth() + 12);
+    const maturityDate = data.maturityDate ? new Date(data.maturityDate) : new Date();
+    let termMonths = 12;
+    let interestRate = data.interestRate;
 
-    const termMonths = 12; // Default to 12 months
+    // Green Credit (or other loan product) validation
+    if (data.loanProductId) {
+      const product = await prisma.loanProduct.findUnique({
+        where: { id: data.loanProductId, isActive: true },
+      });
+      if (!product) {
+        throw new Error('Loan product not found or not active');
+      }
+      if (data.principalAmount > product.maxAmount.toNumber()) {
+        throw new Error(
+          `Principal exceeds maximum allowed (${product.maxAmount.toNumber()} CFA) for this product`
+        );
+      }
+      interestRate = product.interestRate.toNumber();
+      termMonths = Math.ceil(product.maxDurationDays / 30);
+      maturityDate.setDate(maturityDate.getDate() + product.maxDurationDays);
+
+      // Green Credit: require client has Daily Collection account with 1+ month history
+      if (product.code === 'GREEN_CREDIT' && product.minDailyCollectionMonths) {
+        const client = await prisma.client.findUnique({
+          where: { id: data.clientId },
+          include: { account: { include: { accountNature: true } } },
+        });
+        if (!client?.account?.accountNature) {
+          throw new Error('Green Credit requires client to have a Daily Collection account');
+        }
+        if (client.account.accountNature.code !== 'DAILY_COLLECTION') {
+          throw new Error('Green Credit requires client to have a Daily Collection account');
+        }
+        const accountAge = client.account.openedAt;
+        const monthsSince = (Date.now() - accountAge.getTime()) / (1000 * 60 * 60 * 24 * 30);
+        if (monthsSince < product.minDailyCollectionMonths) {
+          throw new Error(
+            `Client must have Daily Collection account for at least ${product.minDailyCollectionMonths} month(s)`
+          );
+        }
+      }
+    } else {
+      maturityDate.setMonth(maturityDate.getMonth() + 12);
+    }
+
     const interestAmount = this.calculateInterest(
       data.principalAmount,
-      data.interestRate,
+      interestRate,
       termMonths
     );
     const totalAmount = data.principalAmount + interestAmount;
 
     const loanNumber = await this.generateLoanNumber();
 
-    return await prisma.loan.create({
+    const loan = await prisma.loan.create({
       data: {
         loanNumber,
         accountId: data.accountId,
         clientId: data.clientId,
         principalAmount: data.principalAmount,
-        interestRate: data.interestRate,
+        interestRate,
         totalAmount,
         remainingBalance: totalAmount,
         status: 'PENDING',
+        loanProductId: data.loanProductId ?? null,
         purpose: data.purpose,
         maturityDate,
         createdBy,
@@ -180,6 +260,24 @@ export class LoanService {
         },
       },
     });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: createdBy,
+        action: 'CREATE',
+        entityType: 'LOAN',
+        entityId: loan.id,
+        description: `Loan request created: ${loanNumber} - ${data.principalAmount} for client`,
+      },
+    });
+
+    await invalidateAll(
+      invalidateLoansForClient(data.clientId),
+      invalidateCountCacheForEntity('loans'),
+      invalidateLoanListCache(),
+      invalidateDashboardStats(),
+    );
+    return loan;
   }
 
   /**
@@ -205,51 +303,53 @@ export class LoanService {
 
     const disbursementRef = `loan-disbursement-${loanId}`;
 
-    // Idempotency: check for existing pending disbursement (e.g. from a previous failed attempt)
-    const existingTxn = await prisma.transaction.findFirst({
-      where: {
-        reference: disbursementRef,
-        status: 'PENDING_APPROVAL',
-      },
-    });
+    const updatedLoan = await prisma.$transaction(async (tx) => {
+      // Idempotency: check for existing disbursement (inside tx to avoid race)
+      const existingTxn = await tx.transaction.findFirst({
+        where: { reference: disbursementRef },
+      });
 
-    let disbursementTxn;
-    if (existingTxn) {
-      await transactionService.approveTransaction(existingTxn.id, approverId);
-    } else {
-      disbursementTxn = await transactionService.createTransaction(
-        {
-          accountId: loan.accountId,
-          type: 'LOAN_DISBURSEMENT',
-          amount: loan.principalAmount.toNumber(),
-          description: `Loan disbursement: ${loan.loanNumber}`,
-          reference: disbursementRef,
+      if (existingTxn) {
+        if (existingTxn.status === 'PENDING_APPROVAL') {
+          await transactionService.approveTransaction(existingTxn.id, approverId, undefined, tx);
+        }
+        // If already approved/completed by another process, skip re-approval and proceed to loan update
+      } else {
+        const disbursementTxn = await transactionService.createTransaction(
+          {
+            accountId: loan.accountId,
+            type: 'LOAN_DISBURSEMENT',
+            amount: loan.principalAmount.toNumber(),
+            description: `Loan disbursement: ${loan.loanNumber}`,
+            reference: disbursementRef,
+          },
+          approverId,
+          tx
+        );
+        await transactionService.approveTransaction(disbursementTxn.id, approverId, undefined, tx);
+      }
+
+      // Update loan status to APPROVED and DISBURSED
+      return await tx.loan.update({
+        where: { id: loanId },
+        data: {
+          status: 'DISBURSED',
+          approvedBy: approverId,
+          approvedAt: new Date(),
+          disbursedAt: new Date(),
         },
-        approverId
-      );
-      await transactionService.approveTransaction(disbursementTxn.id, approverId);
-    }
-
-    // Update loan status to APPROVED and DISBURSED
-    const updatedLoan = await prisma.loan.update({
-      where: { id: loanId },
-      data: {
-        status: 'DISBURSED',
-        approvedBy: approverId,
-        approvedAt: new Date(),
-        disbursedAt: new Date(),
-      },
-      include: {
-        account: true,
-        client: true,
-        approver: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+        include: {
+          account: true,
+          client: true,
+          approver: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-      },
+      });
     });
 
     await prisma.auditLog.create({
@@ -261,6 +361,17 @@ export class LoanService {
         description: `Loan approved and disbursed: ${loan.loanNumber}`,
       },
     });
+
+    await invalidateAll(
+      invalidateBalanceForAccount(loan.accountId),
+      invalidateRecentTransactionsForAccount(loan.accountId),
+      invalidateAdminRecentTransactions(),
+      invalidateLoansForClient(loan.clientId),
+      invalidateLoanDetail(loanId),
+      invalidateCountCacheForEntity('loans'),
+      invalidateLoanListCache(),
+      invalidateDashboardStats(),
+    );
 
     return updatedLoan;
   }
@@ -313,6 +424,14 @@ export class LoanService {
       },
     });
 
+    await invalidateAll(
+      invalidateLoansForClient(loan.clientId),
+      invalidateLoanDetail(loanId),
+      invalidateCountCacheForEntity('loans'),
+      invalidateLoanListCache(),
+      invalidateDashboardStats(),
+    );
+
     return updatedLoan;
   }
 
@@ -329,6 +448,7 @@ export class LoanService {
       where: { id: loanId },
       include: {
         account: true,
+        repayments: true,
       },
     });
 
@@ -359,12 +479,13 @@ export class LoanService {
     // Auto-approve: recording repayment implies approval (user has loans.repayment)
     await transactionService.approveTransaction(transaction.id, userId);
 
-    return await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Calculate principal vs interest: pay interest first, then principal
-      const interestPortion = Math.min(
-        amount,
-        loan.totalAmount.toNumber() - loan.principalAmount.toNumber()
-      );
+      // Use remaining unpaid interest, not total interest (avoid reallocating already-paid interest)
+      const totalInterest = loan.totalAmount.toNumber() - loan.principalAmount.toNumber();
+      const paidInterest = loan.repayments.reduce((sum, r) => sum + Number(r.interest), 0);
+      const remainingInterest = Math.max(0, totalInterest - paidInterest);
+      const interestPortion = Math.min(amount, remainingInterest);
       const principalPortion = amount - interestPortion;
 
       // Create repayment record
@@ -393,6 +514,17 @@ export class LoanService {
         repayment,
       };
     });
+
+    await invalidateAll(
+      invalidateLoanDetail(loanId),
+      invalidateLoanRepayments(loanId),
+      invalidateLoansForClient(loan.clientId),
+      invalidateCountCacheForEntity('loans'),
+      invalidateLoanListCache(),
+      invalidateDashboardStats(),
+    );
+
+    return result;
   }
 
   /**
@@ -474,11 +606,17 @@ export class LoanService {
       });
     }
 
+    await invalidateAll(
+      invalidateCountCacheForEntity('loans'),
+      invalidateLoanListCache(),
+      invalidateLoanDetail(id),
+    );
     return updated;
   }
 
   /**
-   * Get all loans with filters
+   * Get all loans with filters and pagination
+   * Supports offset-based (default) and cursor-based pagination.
    */
   async getAllLoans(filters?: {
     status?: string;
@@ -486,6 +624,13 @@ export class LoanService {
     clientId?: string;
     accountId?: string;
     areaIds?: string[];
+    search?: string;
+    sort?: string;
+    dir?: 'asc' | 'desc';
+    limit?: number;
+    offset?: number;
+    cursor?: string;
+    select?: Prisma.LoanSelect;
   }) {
     const where: Prisma.LoanWhereInput = {};
 
@@ -507,75 +652,174 @@ export class LoanService {
         },
       };
     }
+    if (filters?.search) {
+      where.OR = [
+        { loanNumber: { contains: filters.search, mode: 'insensitive' } },
+        {
+          client: {
+            OR: [
+              { fullName: { contains: filters.search, mode: 'insensitive' } },
+              { clientNumber: { contains: filters.search, mode: 'insensitive' } },
+            ],
+          },
+        },
+      ];
+    }
 
-    return await prisma.loan.findMany({
-      where,
-      include: {
-        account: true,
-        client: {
-          include: {
-            area: true,
+    const useCursor = !!filters?.cursor;
+    const decodedCursor = useCursor ? decodeCursor(filters.cursor!) : null;
+
+    let finalWhere: Prisma.LoanWhereInput = where;
+    if (useCursor && decodedCursor) {
+      finalWhere = {
+        AND: [
+          where,
+          {
+            OR: [
+              { createdAt: { lt: decodedCursor.createdAt } },
+              {
+                createdAt: decodedCursor.createdAt,
+                id: { lt: decodedCursor.id },
+              },
+            ],
           },
+        ],
+      };
+    }
+
+    const limit = capLimit(filters?.limit);
+    const countCacheKey = buildCountCacheKey('loans', {
+      status: filters?.status,
+      statusIn: filters?.statusIn?.slice().sort(),
+      clientId: filters?.clientId,
+      accountId: filters?.accountId,
+      areaIds: filters?.areaIds?.slice().sort(),
+      search: filters?.search,
+    });
+
+    const defaultSelect: Prisma.LoanSelect = {
+      id: true,
+      loanNumber: true,
+      principalAmount: true,
+      totalAmount: true,
+      remainingBalance: true,
+      status: true,
+      maturityDate: true,
+      disbursedAt: true,
+      createdAt: true,
+      account: {
+        select: {
+          id: true,
+          accountNumber: true,
+          balance: true,
+          status: true,
         },
-        creator: {
-          select: {
-            name: true,
-          },
-        },
-        approver: {
-          select: {
-            name: true,
-          },
-        },
-        repayments: {
-          orderBy: { repaidAt: 'desc' },
-        },
-        _count: {
-          select: {
-            repayments: true,
+      },
+      client: {
+        select: {
+          id: true,
+          clientNumber: true,
+          fullName: true,
+          area: {
+            select: { id: true, code: true, name: true },
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      creator: { select: { name: true } },
+      approver: { select: { name: true } },
+    };
+
+    const LOAN_SORT_FIELDS = ['loanNumber', 'createdAt', 'principalAmount', 'status', 'disbursedAt'];
+    const sortField = filters?.sort && LOAN_SORT_FIELDS.includes(filters.sort) ? filters.sort : 'createdAt';
+    const sortDir = filters?.dir === 'asc' ? 'asc' : 'desc';
+    const orderBy = useCursor ? { createdAt: 'desc' as const } : { [sortField]: sortDir };
+
+    const cacheParams = {
+      status: filters?.status,
+      statusIn: filters?.statusIn?.slice().sort(),
+      clientId: filters?.clientId,
+      accountId: filters?.accountId,
+      areaIds: filters?.areaIds?.slice().sort(),
+      search: filters?.search,
+      sort: sortField,
+      dir: sortDir,
+      limit,
+      offset: useCursor ? 0 : (filters?.offset ?? 0),
+      cursor: filters?.cursor,
+      hasSelect: !!filters?.select,
+    };
+
+    const result = await getCachedOrFetch(LIST_PREFIX_LOANS, cacheParams, LOAN_LIST_TTL, async () => {
+      const [rows, count] = await Promise.all([
+        prisma.loan.findMany({
+          where: finalWhere,
+          select: filters?.select
+            ? { ...filters.select, id: true, createdAt: true }
+            : defaultSelect,
+          orderBy,
+          take: limit,
+          skip: useCursor ? 0 : (filters?.offset ?? 0),
+        }),
+        getCachedCount(countCacheKey, () => prisma.loan.count({ where })),
+      ]);
+      return { rows, count };
     });
+
+    const loans = result.rows;
+    const total = result.count;
+
+    const last = loans[loans.length - 1];
+    const nextCursor =
+      useCursor && last && loans.length === limit
+        ? encodeCursor(last.createdAt, last.id)
+        : null;
+
+    return {
+      loans,
+      total,
+      nextCursor,
+      hasMore: !!nextCursor,
+    };
   }
 
   /**
    * Get loan by ID
    */
   async getLoanById(id: string) {
-    return await prisma.loan.findUnique({
-      where: { id },
-      include: {
-        account: true,
-        client: {
-          include: {
-            area: true,
-            account: true,
+    return getCachedOrFetchByKey(loanDetailKey(id), LOAN_DETAIL_TTL, () =>
+      prisma.loan.findUnique({
+        where: { id },
+        include: {
+          account: true,
+          client: {
+            include: {
+              area: true,
+              account: true,
+            },
+          },
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          approver: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          repayments: {
+            include: {
+              transaction: true,
+            },
+            orderBy: { repaidAt: 'desc' },
           },
         },
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        approver: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        repayments: {
-          include: {
-            transaction: true,
-          },
-          orderBy: { repaidAt: 'desc' },
-        },
-      },
-    });
+      }),
+    );
   }
 }
 

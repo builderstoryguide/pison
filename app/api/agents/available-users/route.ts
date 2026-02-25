@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
 import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     const forbidden = await requirePermission(session, 'agents.create');
@@ -33,14 +33,14 @@ export async function GET(request: NextRequest) {
       success: true,
       data: users,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching available users:', error);
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'FETCH_ERROR',
-          message: error.message || 'Failed to fetch available users',
+          message: error instanceof Error ? error.message : 'Failed to fetch available users',
         },
       },
       { status: 500 }

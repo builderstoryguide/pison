@@ -6,7 +6,14 @@
 
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { exportToCsv, exportToExcel } from '@/lib/utils/export';
+import { exportToCsv, exportToExcel, exportToPdf } from '@/lib/utils/export';
+import {
+  queryCacheKey,
+  getCachedQuery,
+  setCachedQuery,
+} from '@/lib/cache/query-cache';
+
+const REPORT_CACHE_TTL = 3600;
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -21,6 +28,8 @@ export interface MonthlyBalanceRow {
   totalWithdrawals: number;
   totalCollections: number;
   totalCommissions: number;
+  totalLoanDisbursements: number;
+  totalLoanRepayments: number;
   closingBalance: number;
 }
 
@@ -72,6 +81,15 @@ export interface CommissionReportRow {
   calculatedAt: string;
 }
 
+export interface CommissionSummaryByClientRow {
+  clientId: string;
+  clientNumber: string;
+  clientName: string;
+  withdrawalCount: number;
+  totalWithdrawalAmount: number;
+  totalCommission: number;
+}
+
 export interface SurplusShortageRow {
   date: string;
   totalCollections: number;
@@ -94,6 +112,10 @@ export class ReportService {
     clientId?: string;
     areaId?: string;
   }): Promise<MonthlyBalanceRow[]> {
+    const cacheKey = queryCacheKey('report:monthly-balance', params);
+    const cached = await getCachedQuery<MonthlyBalanceRow[]>(cacheKey);
+    if (cached) return cached;
+
     const [year, monthNum] = params.month.split('-').map(Number);
     const startDate = new Date(year, monthNum - 1, 1);
     const endDate = new Date(year, monthNum, 0, 23, 59, 59, 999);
@@ -105,29 +127,50 @@ export class ReportService {
 
     const clients = await prisma.client.findMany({
       where: clientWhere,
-      include: {
-        account: true,
-        area: true,
+      select: {
+        id: true,
+        clientNumber: true,
+        fullName: true,
+        accountId: true,
+        account: { select: { balance: true } },
+        area: { select: { code: true, name: true } },
       },
       orderBy: { fullName: 'asc' },
     });
 
+    const accountIds = clients.map((c) => c.accountId);
+
+    // Single query: fetch all transactions for all client accounts in the period
+    const allTxns =
+      accountIds.length > 0
+        ? await prisma.transaction.findMany({
+            where: {
+              accountId: { in: accountIds },
+              status: 'COMPLETED',
+              createdAt: { gte: startDate, lte: endDate },
+            },
+            select: { accountId: true, type: true, amount: true },
+          })
+        : [];
+
+    const txnsByAccount = new Map<string, typeof allTxns>();
+    for (const t of allTxns) {
+      const list = txnsByAccount.get(t.accountId) ?? [];
+      list.push(t);
+      txnsByAccount.set(t.accountId, list);
+    }
+
     const rows: MonthlyBalanceRow[] = [];
 
     for (const client of clients) {
-      // Transactions for this client's account within the period
-      const txns = await prisma.transaction.findMany({
-        where: {
-          accountId: client.accountId,
-          status: 'COMPLETED',
-          createdAt: { gte: startDate, lte: endDate },
-        },
-      });
+      const txns = txnsByAccount.get(client.accountId) ?? [];
 
       let totalDeposits = 0;
       let totalWithdrawals = 0;
       let totalCollections = 0;
       let totalCommissions = 0;
+      let totalLoanDisbursements = 0;
+      let totalLoanRepayments = 0;
 
       for (const t of txns) {
         const amt = t.amount.toNumber();
@@ -145,13 +188,26 @@ export class ReportService {
           case 'COMMISSION':
             totalCommissions += amt;
             break;
+          case 'LOAN_DISBURSEMENT':
+            totalLoanDisbursements += amt;
+            break;
+          case 'LOAN_REPAYMENT':
+            totalLoanRepayments += amt;
+            break;
         }
       }
 
       // Opening balance = closing balance - net activity during period
       const closingBalance = client.account.balance.toNumber();
+      // Net Activity = (Indices that increase balance) - (Indices that decrease balance)
+      // Increases: DEPOSIT, COLLECTION, LOAN_DISBURSEMENT
+      // Decreases: WITHDRAWAL, TRANSFER, LOAN_REPAYMENT, COMMISSION
       const netActivity =
-        totalDeposits + totalCollections - totalWithdrawals - totalCommissions;
+        totalDeposits +
+        totalCollections +
+        totalLoanDisbursements -
+        (totalWithdrawals + totalCommissions + totalLoanRepayments);
+        
       const openingBalance = closingBalance - netActivity;
 
       rows.push({
@@ -165,10 +221,13 @@ export class ReportService {
         totalWithdrawals,
         totalCollections,
         totalCommissions,
+        totalLoanDisbursements,
+        totalLoanRepayments,
         closingBalance,
       });
     }
 
+    await setCachedQuery(cacheKey, rows, REPORT_CACHE_TTL);
     return rows;
   }
 
@@ -181,6 +240,10 @@ export class ReportService {
     areaId?: string;
     agentId?: string;
   }): Promise<CollectionJournalRow[]> {
+    const cacheKey = queryCacheKey('report:collection-journal', params);
+    const cached = await getCachedQuery<CollectionJournalRow[]>(cacheKey);
+    if (cached) return cached;
+
     const start = new Date(params.startDate);
     start.setHours(0, 0, 0, 0);
     const end = new Date(params.endDate);
@@ -195,26 +258,38 @@ export class ReportService {
 
     const txns = await prisma.transaction.findMany({
       where,
-      include: {
-        account: { include: { client: true } },
-        agent: true,
-        area: true,
+      select: {
+        transactionNumber: true,
+        createdAt: true,
+        amount: true,
+        status: true,
+        account: {
+          select: {
+            client: {
+              select: { clientNumber: true, fullName: true },
+            },
+          },
+        },
+        agent: { select: { agentCode: true, fullName: true } },
+        area: { select: { code: true, name: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return txns.map((t) => ({
+    const rows = txns.map((t) => ({
       transactionNumber: t.transactionNumber,
       date: t.createdAt.toISOString(),
-      clientNumber: t.account.client?.clientNumber || '-',
-      clientName: t.account.client?.fullName || '-',
-      agentCode: t.agent?.agentCode || '-',
-      agentName: t.agent?.fullName || '-',
-      areaCode: t.area?.code || '-',
-      areaName: t.area?.name || '-',
+      clientNumber: t.account.client?.clientNumber ?? '-',
+      clientName: t.account.client?.fullName ?? '-',
+      agentCode: t.agent?.agentCode ?? '-',
+      agentName: t.agent?.fullName ?? '-',
+      areaCode: t.area?.code ?? '-',
+      areaName: t.area?.name ?? '-',
       amount: t.amount.toNumber(),
       status: t.status,
     }));
+    await setCachedQuery(cacheKey, rows, REPORT_CACHE_TTL);
+    return rows;
   }
 
   /**
@@ -225,6 +300,10 @@ export class ReportService {
     startDate: string;
     endDate: string;
   }): Promise<{ client: any; rows: ClientStatementRow[] }> {
+    const cacheKey = queryCacheKey('report:client-statement', params);
+    const cached = await getCachedQuery<{ client: any; rows: ClientStatementRow[] }>(cacheKey);
+    if (cached) return cached;
+
     const client = await prisma.client.findUnique({
       where: { id: params.clientId },
       include: { account: true, area: true },
@@ -256,7 +335,7 @@ export class ReportService {
 
     const rows: ClientStatementRow[] = txns.map((t) => {
       const amt = t.amount.toNumber();
-      const isCredit = ['DEPOSIT', 'COLLECTION', 'LOAN_REPAYMENT'].includes(t.type);
+      const isCredit = ['DEPOSIT', 'COLLECTION', 'LOAN_DISBURSEMENT'].includes(t.type);
       const credit = isCredit ? amt : 0;
       const debit = isCredit ? 0 : amt;
 
@@ -273,7 +352,7 @@ export class ReportService {
       };
     });
 
-    return {
+    const result = {
       client: {
         id: client.id,
         clientNumber: client.clientNumber,
@@ -284,6 +363,8 @@ export class ReportService {
       },
       rows,
     };
+    await setCachedQuery(cacheKey, result, REPORT_CACHE_TTL);
+    return result;
   }
 
   /**
@@ -294,6 +375,10 @@ export class ReportService {
     endDate: string;
     areaId?: string;
   }): Promise<AreaStatisticsRow[]> {
+    const cacheKey = queryCacheKey('report:area-stats', params);
+    const cached = await getCachedQuery<AreaStatisticsRow[]>(cacheKey);
+    if (cached) return cached;
+
     const start = new Date(params.startDate);
     start.setHours(0, 0, 0, 0);
     const end = new Date(params.endDate);
@@ -310,16 +395,33 @@ export class ReportService {
       orderBy: { name: 'asc' },
     });
 
+    const areaIds = areas.map((a) => a.id);
+
+    // Batch-fetch all transactions for all areas in one query (avoids N+1)
+    const allTxns = areaIds.length > 0
+      ? await prisma.transaction.findMany({
+          where: {
+            areaId: { in: areaIds },
+            status: 'COMPLETED',
+            createdAt: { gte: start, lte: end },
+          },
+          select: { areaId: true, type: true, amount: true },
+        })
+      : [];
+
+    // Group transactions by areaId in memory
+    const txnsByArea = new Map<string, typeof allTxns>();
+    for (const t of allTxns) {
+      if (!t.areaId) continue;
+      const arr = txnsByArea.get(t.areaId);
+      if (arr) arr.push(t);
+      else txnsByArea.set(t.areaId, [t]);
+    }
+
     const rows: AreaStatisticsRow[] = [];
 
     for (const area of areas) {
-      const txns = await prisma.transaction.findMany({
-        where: {
-          areaId: area.id,
-          status: 'COMPLETED',
-          createdAt: { gte: start, lte: end },
-        },
-      });
+      const txns = txnsByArea.get(area.id) ?? [];
 
       let totalDeposits = 0;
       let totalWithdrawals = 0;
@@ -355,6 +457,7 @@ export class ReportService {
       });
     }
 
+    await setCachedQuery(cacheKey, rows, REPORT_CACHE_TTL);
     return rows;
   }
 
@@ -392,12 +495,70 @@ export class ReportService {
   }
 
   /**
+   * Commission Summary by Client (aggregated)
+   */
+  async generateCommissionSummaryByClient(params: {
+    period?: string;
+    clientId?: string;
+  }): Promise<CommissionSummaryByClientRow[]> {
+    const where: Prisma.CommissionWhereInput = {};
+    if (params.period) where.period = params.period;
+    if (params.clientId) where.clientId = params.clientId;
+
+    const commissions = await prisma.commission.findMany({
+      where,
+      include: {
+        client: { select: { id: true, clientNumber: true, fullName: true } },
+        transaction: { select: { amount: true } },
+      },
+      orderBy: { calculatedAt: 'desc' },
+    });
+
+    const byClient = new Map<
+      string,
+      { clientNumber: string; clientName: string; withdrawalCount: number; totalWithdrawal: number; totalCommission: number }
+    >();
+    for (const c of commissions) {
+      const key = c.client.id;
+      const withdrawalAmt = c.transaction.amount.toNumber();
+      const commissionAmt = c.amount.toNumber();
+      const existing = byClient.get(key);
+      if (existing) {
+        existing.withdrawalCount += 1;
+        existing.totalWithdrawal += withdrawalAmt;
+        existing.totalCommission += commissionAmt;
+      } else {
+        byClient.set(key, {
+          clientNumber: c.client.clientNumber,
+          clientName: c.client.fullName,
+          withdrawalCount: 1,
+          totalWithdrawal: withdrawalAmt,
+          totalCommission: commissionAmt,
+        });
+      }
+    }
+
+    return Array.from(byClient.entries()).map(([clientId, agg]) => ({
+      clientId,
+      clientNumber: agg.clientNumber,
+      clientName: agg.clientName,
+      withdrawalCount: agg.withdrawalCount,
+      totalWithdrawalAmount: agg.totalWithdrawal,
+      totalCommission: agg.totalCommission,
+    }));
+  }
+
+  /**
    * Surplus / Shortage Report
    */
   async generateSurplusShortageReport(params: {
     startDate: string;
     endDate: string;
   }): Promise<SurplusShortageRow[]> {
+    const cacheKey = queryCacheKey('report:surplus-shortage', params);
+    const cached = await getCachedQuery<SurplusShortageRow[]>(cacheKey);
+    if (cached) return cached;
+
     const start = new Date(params.startDate);
     start.setHours(0, 0, 0, 0);
     const end = new Date(params.endDate);
@@ -413,7 +574,7 @@ export class ReportService {
       orderBy: { closureDate: 'desc' },
     });
 
-    return closures.map((c) => ({
+    const rows = closures.map((c) => ({
       date: c.closureDate.toISOString(),
       totalCollections: c.totalCollections.toNumber(),
       totalDeposits: c.totalDeposits.toNumber(),
@@ -423,20 +584,24 @@ export class ReportService {
       surplusShortage: c.surplusShortage.toNumber(),
       closedBy: c.closer?.name ?? null,
     }));
+    await setCachedQuery(cacheKey, rows, REPORT_CACHE_TTL);
+    return rows;
   }
   /**
    * Export report data to buffer
    */
   async exportReport(
     data: any[],
-    format: 'csv' | 'excel',
+    format: 'csv' | 'excel' | 'pdf',
     filename: string = 'report'
   ): Promise<Buffer> {
     if (format === 'csv') {
       return await exportToCsv(data);
-    } else {
-      return await exportToExcel(data, filename);
     }
+    if (format === 'pdf') {
+      return await exportToPdf(data, filename);
+    }
+    return await exportToExcel(data, filename);
   }
 }
 

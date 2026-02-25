@@ -104,8 +104,11 @@ export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) 
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to create collection area');
+        const body = await response.json().catch(() => ({}));
+        const err = body?.error;
+        const msg = err?.message || 'Failed to create collection area';
+        const code = err?.code;
+        throw new Error(code ? `[${code}] ${msg}` : msg);
       }
 
       return response.json();
@@ -132,8 +135,11 @@ export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) 
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to update collection area');
+        const body = await response.json().catch(() => ({}));
+        const err = body?.error;
+        const msg = err?.message || 'Failed to update collection area';
+        const code = err?.code;
+        throw new Error(code ? `[${code}] ${msg}` : msg);
       }
 
       return response.json();

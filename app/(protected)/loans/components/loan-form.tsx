@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,7 +28,6 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
-import { formatCurrency } from '@/lib/helpers';
 import { useTranslation } from '@/hooks/useTranslation';
 
 const loanSchema = z.object({
@@ -104,7 +103,7 @@ export default function LoanForm({ loanId }: LoanFormProps) {
   const createMutation = useMutation({
     mutationFn: async (data: LoanFormData) => {
       // Find client to get accountId (Prisma returns accountId; fallback to account.id)
-      const client = clientsData?.find((c: any) => c.id === data.clientId);
+      const client = clientsData?.find((c: { id: string; accountId?: string; account?: { id: string } }) => c.id === data.clientId);
       if (!client) throw new Error('Client not found');
 
       const accountId = client.accountId ?? client.account?.id;
@@ -233,7 +232,7 @@ export default function LoanForm({ loanId }: LoanFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {clients.map((client: any) => (
+                      {clients.map((client: { id: string; fullName?: string; clientNumber?: string }) => (
                         <SelectItem key={client.id} value={client.id}>
                           {client.fullName} ({client.clientNumber})
                         </SelectItem>

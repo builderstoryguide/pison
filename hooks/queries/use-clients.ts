@@ -45,6 +45,13 @@ export interface ClientFilters {
   status?: string;
   areaId?: string;
   search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ClientsResponse {
+  data: Client[];
+  pagination: { total: number; limit: number; offset: number };
 }
 
 export interface CreateClientInput {
@@ -63,7 +70,10 @@ export interface UpdateClientInput extends Partial<CreateClientInput> {
 }
 
 // Fetchers
-async function fetchClients(filters: ClientFilters = {}): Promise<Client[]> {
+async function fetchClients(
+  filters: ClientFilters = {},
+  signal?: AbortSignal
+): Promise<ClientsResponse> {
   const params = new URLSearchParams();
   if (filters.status && filters.status !== 'all') {
     params.append('status', filters.status);
@@ -74,13 +84,18 @@ async function fetchClients(filters: ClientFilters = {}): Promise<Client[]> {
   if (filters.search) {
     params.append('search', filters.search);
   }
+  params.append('limit', String(filters.limit ?? 20));
+  params.append('offset', String(filters.offset ?? 0));
 
-  const response = await apiFetch(`/api/clients?${params.toString()}`);
+  const response = await apiFetch(`/api/clients?${params.toString()}`, { signal });
   if (!response.ok) {
     throw new Error('Failed to fetch clients');
   }
   const result = await response.json();
-  return result.data || [];
+  return {
+    data: result.data || [],
+    pagination: result.pagination || { total: 0, limit: 20, offset: 0 },
+  };
 }
 
 async function fetchClient(id: string): Promise<Client> {
@@ -93,14 +108,21 @@ async function fetchClient(id: string): Promise<Client> {
 }
 
 // Query Hooks
-export function useClients(filters: ClientFilters = {}) {
+export function useClients(
+  filters: ClientFilters = {},
+  options?: { initialData?: ClientsResponse }
+) {
   return useQuery({
     queryKey: clientKeys.list({
       status: filters.status,
       areaId: filters.areaId,
       search: filters.search,
+      limit: filters.limit,
+      offset: filters.offset,
     }),
-    queryFn: () => fetchClients(filters),
+    queryFn: ({ signal }) => fetchClients(filters, signal),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    initialData: options?.initialData,
   });
 }
 
@@ -173,12 +195,17 @@ export function useUpdateClient() {
       }
 
       // Optimistically update any lists containing this client
-      queryClient.setQueriesData<Client[]>(
+      queryClient.setQueriesData<ClientsResponse>(
         { queryKey: clientKeys.lists() },
         (old) =>
-          old?.map((client) =>
-            client.id === id ? { ...client, ...data } : client
-          )
+          old
+            ? {
+                ...old,
+                data: old.data.map((client) =>
+                  client.id === id ? { ...client, ...data } : client
+                ),
+              }
+            : old
       );
 
       return { previousClient };
@@ -221,19 +248,29 @@ export function useDeleteClient() {
       // Snapshot all list queries
       const previousLists: Array<{
         queryKey: readonly unknown[];
-        data: Client[] | undefined;
+        data: ClientsResponse | undefined;
       }> = [];
 
-      queryClient.getQueriesData<Client[]>({ queryKey: clientKeys.lists() }).forEach(
-        ([queryKey, data]) => {
+      queryClient
+        .getQueriesData<ClientsResponse>({ queryKey: clientKeys.lists() })
+        .forEach(([queryKey, data]) => {
           previousLists.push({ queryKey, data });
-        }
-      );
+        });
 
       // Optimistically remove client from all lists
-      queryClient.setQueriesData<Client[]>(
+      queryClient.setQueriesData<ClientsResponse>(
         { queryKey: clientKeys.lists() },
-        (old) => old?.filter((client) => client.id !== id)
+        (old) =>
+          old
+            ? {
+                ...old,
+                data: old.data.filter((client) => client.id !== id),
+                pagination: {
+                  ...old.pagination,
+                  total: Math.max(0, old.pagination.total - 1),
+                },
+              }
+            : old
       );
 
       return { previousLists };

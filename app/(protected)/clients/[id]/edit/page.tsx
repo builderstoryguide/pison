@@ -1,6 +1,7 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -20,8 +21,19 @@ import ClientForm from '../../components/client-form';
 
 export default function Page() {
   const params = useParams();
+  const router = useRouter();
   const { t } = useTranslation();
+  const { data: session, status } = useSession();
   const id = params.id as string;
+
+  // Protect page from Agents and Collectors
+  const roleName = (session?.user?.roleName || '').toLowerCase();
+  const isAgentOrCollector = roleName.includes('agent') || roleName.includes('collector');
+
+  if (status === 'authenticated' && isAgentOrCollector) {
+    router.replace(`/clients/${id}`);
+    return null;
+  }
 
   return (
     <>

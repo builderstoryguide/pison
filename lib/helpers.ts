@@ -116,20 +116,32 @@ export function formatDateTime(input: Date | string | number): string {
   });
 }
 
-// ─── Currency formatting helper ─────────────────────────────────
+// ─── Number & currency formatting helpers ────────────────────────
 
-const XOF = new Intl.NumberFormat('fr-FR', {
-  style: 'currency',
-  currency: 'XOF',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
+/** Locale for readable digits: comma thousands, period decimals (e.g. 5,000.00) */
+const NUMBER_LOCALE = 'en-US';
+
+const NUMBER_FORMATTER = new Intl.NumberFormat(NUMBER_LOCALE, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 });
 
 /**
- * Format a number as CFA Franc (XOF).
+ * Format a number as CFA with thousands separator and 2 decimals.
+ * Example: 5000 → "5,000.00 CFA"
  */
 export function formatCurrency(value: number | string): string {
   const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(num)) return '0 XOF';
-  return XOF.format(num);
+  if (isNaN(num)) return '0.00 CFA';
+  return `${NUMBER_FORMATTER.format(num)} CFA`;
+}
+
+/**
+ * Format a plain number with thousands separator and 2 decimal places.
+ * Example: 5000 → "5,000.00"
+ */
+export function formatNumber(value: number | string): string {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) return '0.00';
+  return NUMBER_FORMATTER.format(num);
 }

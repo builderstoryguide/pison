@@ -28,14 +28,8 @@ export async function POST(request: NextRequest) {
     const forbidden = await requirePermission(session, 'transactions.create');
     if (forbidden) return forbidden;
 
-    const userId = session?.user?.id;
-    if (!session || !session.user || !userId) {
-      return NextResponse.json(
-        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
-        { status: 401 }
-      );
-    }
-
+    // requirePermission returns 401 for null session, so session is guaranteed here
+    const userId = session!.user!.id;
     const body = await request.json();
     const validatedData = transferSchema.parse(body);
 

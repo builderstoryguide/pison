@@ -19,6 +19,20 @@ export async function POST(
     const forbidden = await requirePermission(session, 'loans.approve');
     if (forbidden) return forbidden;
 
+    const userId = session?.user?.id;
+    if (!userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required. User identity is missing.',
+          },
+        },
+        { status: 401 }
+      );
+    }
+
     let reason: string | undefined;
     try {
       const body = await request.json();
@@ -28,11 +42,7 @@ export async function POST(
       // No body or invalid - reason stays undefined
     }
 
-    const loan = await loanService.rejectLoan(
-      params.id,
-      session.user?.id || '',
-      reason
-    );
+    const loan = await loanService.rejectLoan(params.id, userId, reason);
 
     return NextResponse.json({
       success: true,

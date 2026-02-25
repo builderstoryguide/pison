@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { getInitials } from '@/lib/helpers';
+import { formatCurrency, getInitials } from '@/lib/helpers';
 
 interface ActivityItem {
   id: string;
@@ -30,14 +30,6 @@ export function RecentActivityCard({
   activities,
   title = 'Recent Activity',
 }: RecentActivityCardProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'XOF',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
   const getActivityIcon = (type: ActivityItem['type']): LucideIcon => {
     switch (type) {
       case 'transaction':

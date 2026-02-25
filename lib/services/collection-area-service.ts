@@ -4,7 +4,13 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { capLimit } from '@/lib/utils/pagination';
 import { Prisma } from '@prisma/client';
+import { getCachedOrFetch, getCachedOrFetchByKey } from '@/lib/cache/query-cache';
+import { LIST_PREFIX_AREAS, areaDetailKey } from '@/lib/cache/keys';
+
+const AREA_LIST_TTL = 120;
+const AREA_DETAIL_TTL = 120;
 
 export interface CreateAreaInput {
   code: string;
@@ -71,6 +77,8 @@ export class CollectionAreaService {
     status?: 'ACTIVE' | 'INACTIVE';
     city?: string;
     region?: string;
+    limit?: number;
+    offset?: number;
   }) {
     const where: Prisma.CollectionAreaWhereInput = {};
 
@@ -84,57 +92,79 @@ export class CollectionAreaService {
       where.region = filters.region;
     }
 
-    return await prisma.collectionArea.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        _count: {
-          select: {
-            clients: true,
-            agentAssignments: true,
-            transactions: true,
+    const cacheParams = {
+      status: filters?.status,
+      city: filters?.city,
+      region: filters?.region,
+      limit: capLimit(filters?.limit),
+      offset: filters?.offset ?? 0,
+    };
+
+    return getCachedOrFetch(LIST_PREFIX_AREAS, cacheParams, AREA_LIST_TTL, () =>
+      prisma.collectionArea.findMany({
+        where,
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          description: true,
+          city: true,
+          region: true,
+          status: true,
+          createdAt: true,
+          _count: {
+            select: {
+              clients: true,
+              agentAssignments: true,
+              transactions: true,
+            },
           },
         },
-      },
-    });
+        orderBy: { createdAt: 'desc' },
+        take: capLimit(filters?.limit),
+        skip: filters?.offset ?? 0,
+      }),
+    );
   }
 
   /**
    * Get a single collection area by ID
    */
   async getAreaById(id: string) {
-    return await prisma.collectionArea.findUnique({
-      where: { id },
-      include: {
-        clients: {
-          select: {
-            id: true,
-            clientNumber: true,
-            fullName: true,
-            status: true,
+    return getCachedOrFetchByKey(areaDetailKey(id), AREA_DETAIL_TTL, () =>
+      prisma.collectionArea.findUnique({
+        where: { id },
+        include: {
+          clients: {
+            select: {
+              id: true,
+              clientNumber: true,
+              fullName: true,
+              status: true,
+            },
           },
-        },
-        agentAssignments: {
-          include: {
-            agent: {
-              select: {
-                id: true,
-                agentCode: true,
-                fullName: true,
-                status: true,
+          agentAssignments: {
+            include: {
+              agent: {
+                select: {
+                  id: true,
+                  agentCode: true,
+                  fullName: true,
+                  status: true,
+                },
               },
             },
           },
-        },
-        _count: {
-          select: {
-            clients: true,
-            agentAssignments: true,
-            transactions: true,
+          _count: {
+            select: {
+              clients: true,
+              agentAssignments: true,
+              transactions: true,
+            },
           },
         },
-      },
-    });
+      }),
+    );
   }
 
   /**

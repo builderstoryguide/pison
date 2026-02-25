@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useForm } from 'react-hook-form';
@@ -28,8 +28,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import { formatNumber } from '@/lib/helpers';
 
 const clientSchema = z.object({
   fullName: z.string().min(1, 'Full name is required').max(255),
@@ -41,6 +43,10 @@ const clientSchema = z.object({
   areaId: z.string().uuid('Please select a collection area'),
   agentId: z.union([z.string().uuid(), z.literal(''), z.literal('none')]).optional(),
   isCommissionExempt: z.boolean().default(false),
+  accountNatureId: z.string().uuid('Please select an account type').optional(),
+  documentChecklist: z.record(z.string(), z.boolean()).optional().default({}),
+  openingAmount: z.number().min(0).optional(),
+  customInterestRate: z.number().min(0).max(1).optional(),
 });
 
 type ClientFormData = z.infer<typeof clientSchema>;
@@ -77,18 +83,16 @@ export default function ClientForm({ clientId }: ClientFormProps) {
     },
   });
 
-  // Fetch client data if editing
-  const { data: clientData, isLoading: isLoadingClient } = useQuery({
-    queryKey: ['client', clientId],
+  // Fetch account natures (for create only)
+  const { data: accountNaturesData } = useQuery({
+    queryKey: ['account-natures'],
     queryFn: async () => {
-      const response = await apiFetch(`/api/clients/${clientId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch client');
-      }
+      const response = await apiFetch('/api/account-natures');
+      if (!response.ok) return [];
       const result = await response.json();
-      return result.data;
+      return result.data || [];
     },
-    enabled: isEditMode,
+    enabled: !isEditMode,
   });
 
   const form = useForm<ClientFormData>({
@@ -103,7 +107,53 @@ export default function ClientForm({ clientId }: ClientFormProps) {
       areaId: '',
       agentId: '',
       isCommissionExempt: false,
+      accountNatureId: '',
+      documentChecklist: {} as Record<string, boolean>,
+      openingAmount: undefined,
+      customInterestRate: undefined,
     },
+  });
+
+  const selectedNatureId = form.watch('accountNatureId');
+
+  // Fetch selected account nature details (for required documents)
+  const { data: accountNatureDetails } = useQuery({
+    queryKey: ['account-nature', selectedNatureId],
+    queryFn: async () => {
+      if (!selectedNatureId) return null;
+      const response = await apiFetch(`/api/account-natures/${selectedNatureId}`);
+      if (!response.ok) return null;
+      const result = await response.json();
+      return result.data;
+    },
+    enabled: !!selectedNatureId && !isEditMode,
+  });
+
+  const requiredDocs = useMemo(
+    () => accountNatureDetails?.requiredDocuments?.map((rd: { documentType: unknown }) => rd.documentType) ?? [],
+    [accountNatureDetails]
+  );
+
+  const minOpening = useMemo(() => {
+    if (!accountNatureDetails) return 0;
+    const min = accountNatureDetails.minOpeningContribution ?? accountNatureDetails.minBalance;
+    return min ? Number(min) : 0;
+  }, [accountNatureDetails]);
+
+  const needsCustomInterest = accountNatureDetails?.interestRateNegotiable ?? false;
+
+  // Fetch client data if editing
+  const { data: clientData, isLoading: isLoadingClient } = useQuery({
+    queryKey: ['client', clientId],
+    queryFn: async () => {
+      const response = await apiFetch(`/api/clients/${clientId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch client');
+      }
+      const result = await response.json();
+      return result.data;
+    },
+    enabled: isEditMode,
   });
 
   // Populate form when client data is loaded
@@ -181,13 +231,27 @@ export default function ClientForm({ clientId }: ClientFormProps) {
   });
 
   const onSubmit = (data: ClientFormData) => {
-    const payload = { ...data };
-    if (!payload.agentId || payload.agentId === 'none') {
-      delete payload.agentId;
-    }
     if (isEditMode) {
+      const payload = { ...data };
+      if (!payload.agentId || payload.agentId === 'none') delete payload.agentId;
+      delete payload.accountNatureId;
+      delete payload.documentChecklist;
+      delete payload.openingAmount;
+      delete payload.customInterestRate;
       updateMutation.mutate(payload);
     } else {
+      if (!data.accountNatureId) {
+        toast.error('Please select an account type');
+        return;
+      }
+      const payload = {
+        ...data,
+        accountNatureId: data.accountNatureId,
+        documentChecklist: data.documentChecklist ?? {},
+        openingAmount: data.openingAmount,
+        customInterestRate: data.customInterestRate,
+      };
+      if (!payload.agentId || payload.agentId === 'none') delete payload.agentId;
       createMutation.mutate(payload);
     }
   };
@@ -348,7 +412,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {areas.map((area: any) => (
+                      {areas.map((area: { id: string; name?: string; code?: string }) => (
                         <SelectItem key={area.id} value={area.id}>
                           {area.name} ({area.code})
                         </SelectItem>
@@ -362,6 +426,141 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                 </FormItem>
               )}
             />
+
+            {!isEditMode && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="accountNatureId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Account Type *</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        disabled={isLoading}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select account type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {(accountNaturesData || []).map((n: { id: string; name: string }) => (
+                            <SelectItem key={n.id} value={n.id}>
+                              {n.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        The type of account determines fees, interest, and requirements.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {requiredDocs.length > 0 && (
+                  <FormField
+                    control={form.control}
+                    name="documentChecklist"
+                    render={() => (
+                      <FormItem>
+                        <FormLabel>Required Documents</FormLabel>
+                        <FormDescription>
+                          Confirm that the following documents have been provided.
+                        </FormDescription>
+                        <div className="space-y-2 rounded-lg border p-4">
+                          {requiredDocs.map((doc: { code: string; name: string }) => (
+                            <FormField
+                              key={doc.code}
+                              control={form.control}
+                              name={`documentChecklist.${doc.code}`}
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={!!field.value}
+                                      onCheckedChange={(checked) => field.onChange(!!checked)}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal">{doc.name}</FormLabel>
+                                </FormItem>
+                              )}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {minOpening > 0 && (
+                  <FormField
+                    control={form.control}
+                    name="openingAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Opening Amount (CFA) *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min={minOpening}
+                            step="1"
+                            placeholder={`Minimum ${minOpening} CFA`}
+                            {...field}
+                            value={field.value ?? ''}
+                            onChange={(e) => {
+                              const v = e.target.value ? Number(e.target.value) : undefined;
+                              field.onChange(v);
+                            }}
+                            disabled={isLoading}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Minimum opening amount: {formatNumber(minOpening)} CFA
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {needsCustomInterest && (
+                  <FormField
+                    control={form.control}
+                    name="customInterestRate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Interest Rate (negotiated) *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={1}
+                            step="0.01"
+                            placeholder="e.g. 0.06 for 6%"
+                            {...field}
+                            value={field.value ?? ''}
+                            onChange={(e) => {
+                              const v = e.target.value ? Number(e.target.value) : undefined;
+                              field.onChange(v);
+                            }}
+                            disabled={isLoading}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Enter the negotiated annual interest rate (e.g. 0.06 for 6%).
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </>
+            )}
 
             <FormField
               control={form.control}

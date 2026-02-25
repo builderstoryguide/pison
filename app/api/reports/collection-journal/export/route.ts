@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
 import { reportService } from '@/lib/services';
+import { sanitizeFilenameSegment } from '@/lib/utils/filename';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,14 +17,14 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
     const areaId = searchParams.get('areaId');
     const agentId = searchParams.get('agentId');
-    const format = searchParams.get('format') as 'csv' | 'excel';
+    const format = searchParams.get('format') as 'csv' | 'excel' | 'pdf';
 
     if (!startDate || !endDate) {
       return NextResponse.json({ error: 'Date range is required' }, { status: 400 });
     }
 
-    if (!['csv', 'excel'].includes(format)) {
-      return NextResponse.json({ error: 'Invalid format. Use csv or excel' }, { status: 400 });
+    if (!['csv', 'excel', 'pdf'].includes(format)) {
+      return NextResponse.json({ error: 'Invalid format. Use csv, excel or pdf' }, { status: 400 });
     }
 
     const data = await reportService.generateCollectionJournal({
@@ -36,8 +37,17 @@ export async function GET(request: NextRequest) {
     const buffer = await reportService.exportReport(data, format, 'Collection Journal');
 
     const headers = new Headers();
-    headers.set('Content-Type', format === 'csv' ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    headers.set('Content-Disposition', `attachment; filename=collection-journal-${startDate}-to-${endDate}.${format === 'csv' ? 'csv' : 'xlsx'}`);
+    const ext = format === 'csv' ? 'csv' : format === 'pdf' ? 'pdf' : 'xlsx';
+    const mime =
+      format === 'csv'
+        ? 'text/csv'
+        : format === 'pdf'
+          ? 'application/pdf'
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    headers.set('Content-Type', mime);
+    const sanitizedStart = sanitizeFilenameSegment(startDate);
+    const sanitizedEnd = sanitizeFilenameSegment(endDate);
+    headers.set('Content-Disposition', `attachment; filename=collection-journal-${sanitizedStart}-to-${sanitizedEnd}.${ext}`);
 
     return new NextResponse(buffer, {
       status: 200,

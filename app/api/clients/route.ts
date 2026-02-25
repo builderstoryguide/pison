@@ -9,18 +9,49 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
 import { requirePermission } from '@/lib/auth';
 import { clientService } from '@/lib/services';
+import { parseFieldsParam } from '@/lib/utils/field-select';
+import { cachedJson } from '@/lib/api';
 import { z } from 'zod';
+
+const CLIENT_FIELDS_ALLOWLIST = [
+  'id',
+  'clientNumber',
+  'fullName',
+  'nationalId',
+  'phone',
+  'email',
+  'address',
+  'city',
+  'areaId',
+  'area',
+  'account',
+  'status',
+  'isCommissionExempt',
+  'createdAt',
+  'updatedAt',
+  'assignedAgent',
+];
+
+const CLIENT_RELATION_SELECTS: Record<string, Record<string, unknown>> = {
+  area: { select: { id: true, code: true, name: true } },
+  account: { select: { id: true, accountNumber: true, balance: true, availableBalance: true, status: true } },
+  assignedAgent: { select: { id: true, fullName: true, agentCode: true } },
+};
 
 const createClientSchema = z.object({
   fullName: z.string().min(1).max(255),
   nationalId: z.string().optional(),
   phone: z.string().optional(),
-  email: z.string().email().optional(),
+  email: z.string().email().optional().or(z.literal('')),
   address: z.string().optional(),
   city: z.string().optional(),
   areaId: z.string().uuid(),
   agentId: z.string().uuid().optional(),
   isCommissionExempt: z.boolean().optional().default(false),
+  accountNatureId: z.string().uuid(),
+  documentChecklist: z.record(z.string(), z.boolean()).optional().default({}),
+  openingAmount: z.number().min(0).optional(),
+  customInterestRate: z.number().min(0).max(1).optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -38,67 +69,136 @@ export async function GET(request: NextRequest) {
       | null;
     const areaId = searchParams.get('areaId');
     const search = searchParams.get('search');
+    const fieldsParam = searchParams.get('fields');
+    const select = parseFieldsParam(
+      fieldsParam,
+      CLIENT_FIELDS_ALLOWLIST,
+      CLIENT_RELATION_SELECTS
+    );
 
-    // Check role and filter by agent's areas if agent
-    const roleName = (session.user?.roleName || '').toLowerCase();
-    let filteredAreaId = areaId;
+    const limitRaw = searchParams.get('limit');
+    const limit = limitRaw ? parseInt(limitRaw, 10) : 50;
+    if (!Number.isFinite(limit) || !Number.isInteger(limit) || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid limit (must be 1-100)' },
+        },
+        { status: 400 }
+      );
+    }
+
+    const cursor = searchParams.get('cursor') || undefined;
+    const useCursor = !!cursor;
+    const pageParam = searchParams.get('page');
+
+    let offset = 0;
+    if (!useCursor) {
+      if (pageParam) {
+        const page = parseInt(pageParam, 10);
+        if (!Number.isFinite(page) || page < 1) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: { code: 'VALIDATION_ERROR', message: 'Invalid page (must be >= 1)' },
+            },
+            { status: 400 }
+          );
+        }
+        offset = (page - 1) * limit;
+      } else {
+        const offsetRaw = searchParams.get('offset');
+        offset = offsetRaw ? parseInt(offsetRaw, 10) : 0;
+        if (!Number.isFinite(offset) || !Number.isInteger(offset) || offset < 0) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: { code: 'VALIDATION_ERROR', message: 'Invalid offset' },
+            },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
+    const sort = searchParams.get('sort') || undefined;
+    const dir = (searchParams.get('dir') || 'desc') as 'asc' | 'desc';
+
+    // Check role and filter by agent's own assigned clients if agent/collector
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const roleName = (session.user.roleName || '').toLowerCase();
+    let agentIdFilter: string | undefined = searchParams.get('agentId') || undefined;
 
     if (roleName.includes('agent') || roleName.includes('collector')) {
-      // Agents can only see clients in their assigned areas
-      const { agentService } = await import('@/lib/services');
-      const agent = await agentService.getAgentByUserId(session.user?.id || '');
+      const { agentService } = await import('@/lib/services/agent-service');
+      const agent = await agentService.getAgentByUserId(session.user.id || '');
       if (!agent) {
         return NextResponse.json({ error: 'Agent record not found' }, { status: 404 });
       }
 
-      const agentAreas = await agentService.getAgentAreas(agent.id);
-      const agentAreaIds = agentAreas.map((a) => a.id);
-
-      if (agentAreaIds.length === 0) {
-        return NextResponse.json({ success: true, data: [] });
-      }
-
-      // If areaId specified, validate agent has access
-      if (areaId && !agentAreaIds.includes(areaId)) {
+      // If agentId was specified in query, ensure it matches the current user's agent ID
+      if (agentIdFilter && agentIdFilter !== agent.id) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
 
-      // Filter by agent's areas
-      filteredAreaId = areaId || undefined;
-      // Note: We'll filter in the service if no areaId specified
+      // Force filter to only show clients assigned to this agent
+      agentIdFilter = agent.id;
     }
 
-    const clients = await clientService.getAllClients({
+    const result = await clientService.getAllClients({
       status: status || undefined,
-      areaId: filteredAreaId,
-      agentId: searchParams.get('agentId') || undefined,
+      areaId: areaId || undefined,
+      agentId: agentIdFilter,
       search: search || undefined,
+      sort,
+      dir,
+      limit,
+      offset: useCursor ? undefined : offset,
+      cursor,
+      select: select ?? undefined,
     });
 
-    // If agent and no areaId specified, filter by agent's areas
-    if ((roleName.includes('agent') || roleName.includes('collector')) && !areaId) {
-      const { agentService } = await import('@/lib/services');
-      const agent = await agentService.getAgentByUserId(session.user?.id || '');
-      if (agent) {
-        const agentAreas = await agentService.getAgentAreas(agent.id);
-        const agentAreaIds = agentAreas.map((a) => a.id);
-        const filtered = clients.filter((c) => agentAreaIds.includes(c.areaId));
-        return NextResponse.json({ success: true, data: filtered });
-      }
+    const page = useCursor ? 1 : Math.floor(offset / limit) + 1;
+    const totalPages = Math.ceil(result.total / limit) || 1;
+    const hasMore = useCursor
+      ? (result.hasMore ?? false)
+      : page < totalPages;
+
+    const pagination: Record<string, unknown> = {
+      total: result.total,
+      limit,
+      page,
+      total_pages: totalPages,
+      has_more: hasMore,
+    };
+    if (useCursor) {
+      pagination.nextCursor = result.nextCursor ?? undefined;
+    } else {
+      pagination.offset = offset;
     }
 
-    return NextResponse.json({
+    return cachedJson({
       success: true,
-      data: clients,
-    });
-  } catch (error: any) {
+      data: result.clients,
+      pagination,
+      meta: {
+        total: result.total,
+        page,
+        limit,
+        total_pages: totalPages,
+        has_more: hasMore,
+      },
+    }, 30);
+  } catch (error: unknown) {
     console.error('Error fetching clients:', error);
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'FETCH_ERROR',
-          message: error.message || 'Failed to fetch clients',
+          message: error instanceof Error ? error.message : 'Failed to fetch clients',
         },
       },
       { status: 500 }
@@ -115,7 +215,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = createClientSchema.parse(body);
 
-    const client = await clientService.createClient(validatedData, session.user?.id || '');
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Missing authenticated user ID',
+          },
+        },
+        { status: 401 }
+      );
+    }
+
+    const client = await clientService.createClient(
+      validatedData,
+      session.user.id,
+      session.user?.roleName ?? undefined
+    );
 
     return NextResponse.json(
       {
@@ -124,7 +241,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -145,7 +262,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: {
           code: 'CREATE_ERROR',
-          message: error.message || 'Failed to create client',
+          message: error instanceof Error ? error.message : 'Failed to create client',
         },
       },
       { status: 500 }

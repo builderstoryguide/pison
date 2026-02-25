@@ -74,3 +74,13 @@ export const userKeys = {
   details: () => [...userKeys.all, 'detail'] as const,
   detail: (id: string) => [...userKeys.details(), id] as const,
 };
+
+export const auditLogKeys = {
+  all: ['audit-logs'] as const,
+  list: (filters: Record<string, string | number | undefined>) =>
+    [...auditLogKeys.all, 'list', filters] as const,
+};
+
+export const pendingAccountKeys = {
+  all: ['accounts', 'pending'] as const,
+};

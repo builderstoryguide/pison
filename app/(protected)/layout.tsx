@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Demo1Layout } from '../components/layouts/demo1/layout';
 import { ScreenLoader } from '@/components/common/screen-loader';
+import { SessionEnforcer } from './components/session-enforcer';
 
 export default function ProtectedLayout({
   children,
@@ -31,5 +32,9 @@ export default function ProtectedLayout({
     return null;
   }
 
-  return <Demo1Layout>{children}</Demo1Layout>;
+  return (
+    <Demo1Layout>
+      <SessionEnforcer>{children}</SessionEnforcer>
+    </Demo1Layout>
+  );
 }

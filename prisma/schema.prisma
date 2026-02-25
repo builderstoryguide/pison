@@ -40,14 +40,18 @@ model User {
   approvedTransactions Transaction[]  @relation("TransactionApprover")
   createdLoans         Loan[]         @relation("LoanCreator")
   approvedLoans        Loan[]         @relation("LoanApprover")
+  approvedClients     Client[]       @relation("ClientApprover")
+  approvedAgents      Agent[]        @relation("AgentApprover")
   openedSessions       DailySession[] @relation("SessionOpener")
   closedSessions       DailySession[] @relation("SessionCloser")
   closures             DailyClosure[]
   auditLogs            AuditLog[]
+  pushSubscriptions    PushSubscription[]
 
   @@index([invitedByUserId])
   @@index([roleId])
   @@index([status])
+  @@index([roleId, status])
 }
 
 model UserRole {
@@ -134,6 +138,21 @@ model SystemLog {
   @@index([userId])
 }
 
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+  @@index([userId])
+}
+
 model SystemSetting {
   id                             String   @id @default(uuid())
   name                           String   @default("My Company")
@@ -197,6 +216,7 @@ model CollectionArea {
 
   clients          Client[]
   agentAssignments AgentAreaAssignment[]
+  agents           Agent[]              @relation("AgentCollectionArea")
   transactions     Transaction[]
 
   @@index([code])
@@ -210,25 +230,32 @@ enum AreaStatus {
 
 // Financial Accounts (separate from NextAuth Account)
 model FinancialAccount {
-  id               String        @id @default(uuid())
-  accountNumber    String        @unique
-  accountType      AccountType
-  balance          Decimal       @default(0) @db.Decimal(19, 4)
-  availableBalance Decimal       @default(0) @db.Decimal(19, 4)
-  status           AccountStatus @default(ACTIVE)
-  openedAt         DateTime      @default(now())
-  closedAt         DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  id                String        @id @default(uuid())
+  accountNumber     String        @unique
+  accountType       AccountType
+  accountNatureId   String?
+  balance           Decimal       @default(0) @db.Decimal(19, 4)
+  availableBalance  Decimal       @default(0) @db.Decimal(19, 4)
+  status            AccountStatus @default(ACTIVE)
+  openedAt          DateTime      @default(now())
+  closedAt          DateTime?
+  blockedUntil      DateTime?
+  maturityDate      DateTime?
+  customInterestRate Decimal?     @db.Decimal(5, 4)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
-  client       Client?
-  agent        Agent?
-  transactions Transaction[]
-  loans        Loan[]
+  accountNature AccountNature?   @relation(fields: [accountNatureId], references: [id])
+  client        Client?
+  agent         Agent?
+  transactions  Transaction[]
+  loans         Loan[]
 
   @@index([accountNumber])
   @@index([accountType])
+  @@index([accountNatureId])
   @@index([status])
+  @@index([accountType, status])
 }
 
 enum AccountType {
@@ -241,6 +268,90 @@ enum AccountStatus {
   ACTIVE
   FROZEN
   CLOSED
+}
+
+enum MaintenanceFeeType {
+  MONTHLY
+  INITIAL
+}
+
+// Account Nature (reference config - 12 account types)
+model AccountNature {
+  id                     String             @id @default(uuid())
+  code                   String             @unique
+  name                   String
+  description            String?
+  minBalance             Decimal?           @db.Decimal(19, 4)
+  minOpeningContribution Decimal?           @db.Decimal(19, 4)
+  interestRateDefault    Decimal?           @db.Decimal(5, 4)
+  interestRateMin        Decimal?           @db.Decimal(5, 4)
+  interestRateMax        Decimal?           @db.Decimal(5, 4)
+  interestRateNegotiable Boolean            @default(false)
+  maintenanceFee         Decimal?           @db.Decimal(19, 4)
+  maintenanceFeeType     MaintenanceFeeType?
+  transactionFee         Decimal?           @db.Decimal(19, 4)
+  transactionFeeVariable Boolean            @default(false)
+  openingFee             Decimal?           @db.Decimal(19, 4)
+  isBlocked              Boolean            @default(false)
+  blockedDurationMonths  Int?
+  minTermMonths          Int?
+  isActive               Boolean            @default(true)
+  sortOrder              Int                @default(0)
+  allowDeposit           Boolean            @default(true)
+  allowWithdrawal        Boolean            @default(true)
+  allowTransfer          Boolean            @default(true)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  accounts               FinancialAccount[]
+  requiredDocuments      AccountNatureDocument[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+// Document types for account creation requirements
+model DocumentType {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+
+  accountNatures AccountNatureDocument[]
+}
+
+// Which documents are required per account nature
+model AccountNatureDocument {
+  id              String        @id @default(uuid())
+  accountNatureId String
+  documentTypeId  String
+  isRequired      Boolean       @default(true)
+
+  accountNature AccountNature @relation(fields: [accountNatureId], references: [id], onDelete: Cascade)
+  documentType  DocumentType   @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([accountNatureId, documentTypeId])
+  @@index([accountNatureId])
+  @@index([documentTypeId])
+}
+
+// Loan products (Green Credit, etc.)
+model LoanProduct {
+  id                       String   @id @default(uuid())
+  code                     String   @unique
+  name                     String
+  maxAmount                Decimal  @db.Decimal(19, 4)
+  maxDurationDays          Int
+  interestRate             Decimal  @db.Decimal(5, 4)
+  minDailyCollectionMonths Int?
+  isActive                 Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  loans Loan[]
+
+  @@index([code])
+  @@index([isActive])
 }
 
 // Clients
@@ -259,10 +370,14 @@ model Client {
   accountId          String       @unique
   status             ClientStatus @default(ACTIVE)
   isCommissionExempt Boolean      @default(false)
+  documentChecklist  Json?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
   createdBy          String?
   updatedBy          String?
+  approvalStatus     ApprovalStatus @default(APPROVED)
+  approvedBy         String?
+  approvedAt         DateTime?
 
   area         CollectionArea   @relation(fields: [areaId], references: [id])
   account      FinancialAccount @relation(fields: [accountId], references: [id])
@@ -272,11 +387,14 @@ model Client {
   commissions  Commission[]
   creator      User?            @relation("ClientCreator", fields: [createdBy], references: [id])
   updater      User?            @relation("ClientUpdater", fields: [updatedBy], references: [id])
+  approver     User?            @relation("ClientApprover", fields: [approvedBy], references: [id])
 
   @@index([clientNumber])
   @@index([areaId])
   @@index([agentId])
   @@index([status])
+  @@index([status, areaId])
+  @@index([areaId, status])
 }
 
 enum ClientStatus {
@@ -284,6 +402,12 @@ enum ClientStatus {
   INACTIVE
   SUSPENDED
   CLOSED
+}
+
+enum ApprovalStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
 }
 
 // Agents
@@ -303,17 +427,25 @@ model Agent {
   updatedAt  DateTime    @updatedAt
   createdBy  String?
   updatedBy  String?
+  city       String?
+  approvalStatus     ApprovalStatus @default(APPROVED)
+  approvedBy         String?
+  approvedAt         DateTime?
+  collectionAreaId   String?
 
   user            User                  @relation(fields: [userId], references: [id])
+  collectionArea  CollectionArea?       @relation("AgentCollectionArea", fields: [collectionAreaId], references: [id])
   account         FinancialAccount      @relation(fields: [accountId], references: [id])
   areaAssignments AgentAreaAssignment[]
   assignedClients Client[]              @relation("ClientAgent")
   transactions    Transaction[]
   creator         User?                 @relation("AgentCreator", fields: [createdBy], references: [id])
   updater         User?                 @relation("AgentUpdater", fields: [updatedBy], references: [id])
+  approver        User?                 @relation("AgentApprover", fields: [approvedBy], references: [id])
 
   @@index([agentCode])
   @@index([status])
+  @@index([collectionAreaId])
 }
 
 enum AgentStatus {
@@ -377,6 +509,11 @@ model Transaction {
   @@index([areaId])
   @@index([agentId])
   @@index([transactionNumber])
+  @@index([status, createdAt])
+  @@index([accountId, createdAt])
+  @@index([accountId, createdAt(sort: Desc)], map: "Transaction_accountId_createdAt_desc_idx")
+  @@index([agentId, createdAt(sort: Desc)])
+  @@index([type, status, createdAt])
 }
 
 enum TransactionType {
@@ -409,6 +546,7 @@ model Loan {
   totalAmount      Decimal    @db.Decimal(19, 4)
   remainingBalance Decimal    @db.Decimal(19, 4)
   status           LoanStatus @default(PENDING)
+  loanProductId    String?
   purpose          String?
   disbursedAt      DateTime?
   maturityDate     DateTime?
@@ -418,16 +556,23 @@ model Loan {
   approvedBy       String?
   approvedAt       DateTime?
 
-  account    FinancialAccount @relation(fields: [accountId], references: [id])
-  client     Client           @relation(fields: [clientId], references: [id])
-  creator    User             @relation("LoanCreator", fields: [createdBy], references: [id])
-  approver   User?            @relation("LoanApprover", fields: [approvedBy], references: [id])
-  repayments LoanRepayment[]
+  account      FinancialAccount @relation(fields: [accountId], references: [id])
+  client       Client           @relation(fields: [clientId], references: [id])
+  loanProduct  LoanProduct?     @relation(fields: [loanProductId], references: [id])
+  creator      User             @relation("LoanCreator", fields: [createdBy], references: [id])
+  approver     User?            @relation("LoanApprover", fields: [approvedBy], references: [id])
+  repayments   LoanRepayment[]
+
+  @@index([loanProductId])
 
   @@index([loanNumber])
   @@index([accountId])
   @@index([clientId])
   @@index([status])
+  @@index([status, clientId])
+  @@index([status, createdAt])
+  @@index([clientId, status, maturityDate])
+  @@index([createdBy, status])
 }
 
 enum LoanStatus {
@@ -453,6 +598,8 @@ model LoanRepayment {
   transaction Transaction @relation(fields: [transactionId], references: [id])
 
   @@index([loanId])
+  @@index([loanId, repaidAt(sort: Desc)])
+  @@index([repaidAt])
 }
 
 // Commissions

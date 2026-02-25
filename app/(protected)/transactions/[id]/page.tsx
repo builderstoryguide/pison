@@ -1,6 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,21 +13,30 @@ import {
 import { Container } from '@/components/common/container';
 import {
   Toolbar,
+  ToolbarActions,
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useTransaction } from '@/hooks/queries/use-transactions';
+import { hasPermission } from '@/lib/auth-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatDateTime } from '@/lib/helpers';
 import { Loader2 } from 'lucide-react';
+import { TransactionApprovalActions } from './components/transaction-approval-actions';
 
 export default function Page() {
   const params = useParams();
   const { t } = useTranslation();
+  const { data: session } = useSession();
   const id = params.id as string;
   const { data: transaction, isLoading } = useTransaction(id);
+
+  const canApprove =
+    session && hasPermission(session, 'transactions.approve');
+  const showApprovalActions =
+    transaction?.status === 'PENDING_APPROVAL' && canApprove;
 
   if (isLoading) {
     return (
@@ -84,6 +94,7 @@ export default function Page() {
                 <BreadcrumbItem>
                   <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
                 </BreadcrumbItem>
+                <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   <BreadcrumbLink href="/transactions">{t('menu.transactions')}</BreadcrumbLink>
                 </BreadcrumbItem>
@@ -94,6 +105,11 @@ export default function Page() {
               </BreadcrumbList>
             </Breadcrumb>
           </ToolbarHeading>
+          {showApprovalActions && (
+            <ToolbarActions>
+              <TransactionApprovalActions transactionId={transaction.id} />
+            </ToolbarActions>
+          )}
         </Toolbar>
       </Container>
 

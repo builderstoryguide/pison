@@ -5,6 +5,19 @@
 
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { getCachedCount } from '@/lib/cache';
+import { getCachedOrFetch, getCachedOrFetchByKey } from '@/lib/cache/query-cache';
+import { LIST_PREFIX_CLIENTS, clientDetailKey } from '@/lib/cache/keys';
+import { accountNatureService } from './account-nature-service';
+import {
+  capLimit,
+  decodeCursor,
+  encodeCursor,
+  buildCountCacheKey,
+} from '@/lib/utils/pagination';
+
+const CLIENT_LIST_TTL = 30;
+const CLIENT_DETAIL_TTL = 60;
 
 export interface CreateClientInput {
   fullName: string;
@@ -16,6 +29,10 @@ export interface CreateClientInput {
   areaId: string;
   agentId?: string;
   isCommissionExempt?: boolean;
+  accountNatureId: string;
+  documentChecklist?: Record<string, boolean>;
+  openingAmount?: number;
+  customInterestRate?: number;
 }
 
 export interface UpdateClientInput {
@@ -73,9 +90,18 @@ export class ClientService {
   }
 
   /**
-   * Create a new client
+   * Determine if creator requires manager approval (Accountant creates → PENDING; Manager creates → APPROVED)
    */
-  async createClient(data: CreateClientInput, createdBy: string) {
+  private requiresApproval(creatorRoleName: string | undefined): boolean {
+    const r = (creatorRoleName || '').toLowerCase();
+    return r.includes('accountant') && !r.includes('manager') && !r.includes('administrator');
+  }
+
+  /**
+   * Create a new client
+   * @param creatorRoleName - If 'accountant', client is created with PENDING_APPROVAL; Manager creates as APPROVED
+   */
+  async createClient(data: CreateClientInput, createdBy: string, creatorRoleName?: string) {
     // Validate area exists
     const area = await prisma.collectionArea.findUnique({
       where: { id: data.areaId },
@@ -89,21 +115,78 @@ export class ClientService {
       throw new Error('Collection area is not active');
     }
 
-    return await prisma.$transaction(async (tx) => {
+    // Validate agent exists, is active, and approved when assigned
+    if (data.agentId) {
+      const agent = await prisma.agent.findUnique({
+        where: { id: data.agentId },
+      });
+      if (!agent) {
+        throw new Error('Agent not found');
+      }
+      if (agent.status !== 'ACTIVE') {
+        throw new Error('Agent is not active');
+      }
+      if (agent.approvalStatus !== 'APPROVED') {
+        throw new Error('Agent account must be approved before assignment');
+      }
+    }
+
+    // Validate account nature and documents
+    const validationErrors = await accountNatureService.validateAccountCreation(
+      data.accountNatureId,
+      data.documentChecklist ?? {},
+      data.openingAmount
+    );
+    if (validationErrors.length > 0) {
+      const first = validationErrors[0];
+      throw new Error(first.message);
+    }
+
+    const accountNature = await prisma.accountNature.findUnique({
+      where: { id: data.accountNatureId },
+    });
+    if (!accountNature || !accountNature.isActive) {
+      throw new Error('Account nature not found or not active');
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
       // Generate client number and account number
       const clientNumber = await this.generateClientNumber();
       const accountNumber = await this.generateAccountNumber();
+
+      // Compute account-specific fields
+      const now = new Date();
+      let blockedUntil: Date | null = null;
+      let maturityDate: Date | null = null;
+      if (accountNature.isBlocked && accountNature.blockedDurationMonths) {
+        const d = new Date(now);
+        d.setMonth(d.getMonth() + accountNature.blockedDurationMonths);
+        blockedUntil = d;
+      }
+      if (accountNature.minTermMonths && accountNature.interestRateNegotiable) {
+        const d = new Date(now);
+        d.setMonth(d.getMonth() + accountNature.minTermMonths);
+        maturityDate = d;
+      }
+
+      const initialBalance = data.openingAmount ?? 0;
 
       // Create financial account
       const account = await tx.financialAccount.create({
         data: {
           accountNumber,
           accountType: 'CLIENT',
-          balance: 0,
-          availableBalance: 0,
+          accountNatureId: data.accountNatureId,
+          balance: initialBalance,
+          availableBalance: initialBalance,
           status: 'ACTIVE',
+          blockedUntil,
+          maturityDate,
+          customInterestRate: data.customInterestRate ?? null,
         },
       });
+
+      const approvalStatus = this.requiresApproval(creatorRoleName) ? 'PENDING_APPROVAL' : 'APPROVED';
 
       // Create client
       const client = await tx.client.create({
@@ -119,8 +202,20 @@ export class ClientService {
           agentId: data.agentId,
           accountId: account.id,
           isCommissionExempt: data.isCommissionExempt || false,
+          documentChecklist: data.documentChecklist ? (data.documentChecklist as object) : null,
           createdBy,
           updatedBy: createdBy,
+          approvalStatus,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: createdBy,
+          action: 'CREATE',
+          entityType: 'CLIENT',
+          entityId: client.id,
+          description: `Client created: ${client.clientNumber} - ${data.fullName}`,
         },
       });
 
@@ -132,6 +227,13 @@ export class ClientService {
         },
       });
     });
+
+    const { invalidateCountCacheForEntity, invalidateClientListCache } = await import('@/lib/cache');
+    await Promise.allSettled([
+      invalidateCountCacheForEntity('clients'),
+      invalidateClientListCache(),
+    ]);
+    return result;
   }
 
   /**
@@ -159,7 +261,22 @@ export class ClientService {
       }
     }
 
-    return await prisma.client.update({
+    // If changing agent, validate new agent exists and is active
+    if (data.agentId !== undefined && data.agentId !== client.agentId) {
+      if (data.agentId) {
+        const agent = await prisma.agent.findUnique({
+          where: { id: data.agentId },
+        });
+        if (!agent) {
+          throw new Error('Agent not found');
+        }
+        if (agent.status !== 'ACTIVE') {
+          throw new Error('Agent is not active');
+        }
+      }
+    }
+
+    const updated = await prisma.client.update({
       where: { id },
       data: {
         ...data,
@@ -177,16 +294,37 @@ export class ClientService {
         },
       },
     });
+
+    const { invalidateDashboardStats, invalidateCountCacheForEntity, invalidateClientListCache, invalidateClientDetail } = await import('@/lib/cache');
+    const ops: Promise<unknown>[] = [
+      invalidateCountCacheForEntity('clients'),
+      invalidateClientListCache(),
+      invalidateClientDetail(id),
+    ];
+    if (data.status !== undefined) {
+      ops.push(invalidateDashboardStats());
+    }
+    await Promise.allSettled(ops);
+    return updated;
   }
 
   /**
-   * Get all clients with optional filters
+   * Get all clients with optional filters and pagination
+   * Supports offset-based (default) and cursor-based pagination.
    */
   async getAllClients(filters?: {
     status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'CLOSED';
     areaId?: string;
+    areaIds?: string[]; // For agent: filter by multiple areas
     agentId?: string;
     search?: string; // Search by name, client number, phone, email
+    sort?: string;
+    dir?: 'asc' | 'desc';
+    limit?: number;
+    offset?: number;
+    cursor?: string;
+    select?: Prisma.ClientSelect;
+    includePendingApproval?: boolean; // If true, include PENDING_APPROVAL; default excludes them
   }) {
     const where: Prisma.ClientWhereInput = {};
 
@@ -194,8 +332,15 @@ export class ClientService {
       where.status = filters.status;
     }
 
+    // Exclude PENDING_APPROVAL by default (only show approved clients in lists)
+    if (filters?.includePendingApproval !== true) {
+      where.approvalStatus = 'APPROVED';
+    }
+
     if (filters?.areaId) {
       where.areaId = filters.areaId;
+    } else if (filters?.areaIds && filters.areaIds.length > 0) {
+      where.areaId = { in: filters.areaIds };
     }
 
     if (filters?.agentId) {
@@ -211,75 +356,130 @@ export class ClientService {
       ];
     }
 
-    return await prisma.client.findMany({
-      where,
-      include: {
-        area: {
-          select: {
-            id: true,
-            code: true,
-            name: true,
+    const useCursor = !!filters?.cursor;
+    const decodedCursor = useCursor ? decodeCursor(filters.cursor!) : null;
+
+    let finalWhere: Prisma.ClientWhereInput = where;
+    if (useCursor && decodedCursor) {
+      finalWhere = {
+        AND: [
+          where,
+          {
+            OR: [
+              { createdAt: { lt: decodedCursor.createdAt } },
+              {
+                createdAt: decodedCursor.createdAt,
+                id: { lt: decodedCursor.id },
+              },
+            ],
           },
-        },
-        account: {
-          select: {
-            id: true,
-            accountNumber: true,
-            balance: true,
-            availableBalance: true,
-            status: true,
-          },
-        },
-        assignedAgent: {
-          select: {
-            id: true,
-            fullName: true,
-            agentCode: true,
-          }
-        },
-        _count: {
-          select: {
-            transactions: true,
-            loans: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
+        ],
+      };
+    }
+
+    const limit = capLimit(filters?.limit);
+    const countCacheKey = buildCountCacheKey('clients', {
+      status: filters?.status,
+      areaId: filters?.areaId,
+      areaIds: filters?.areaIds?.slice().sort(),
+      agentId: filters?.agentId,
+      search: filters?.search,
+      includePendingApproval: filters?.includePendingApproval,
     });
+
+    const defaultInclude = {
+      area: { select: { id: true, code: true, name: true } },
+      account: { select: { id: true, accountNumber: true, balance: true, availableBalance: true, status: true } },
+      assignedAgent: { select: { id: true, fullName: true, agentCode: true } },
+    };
+
+    const CLIENT_SORT_FIELDS = ['fullName', 'clientNumber', 'createdAt', 'status'];
+    const sortField = filters?.sort && CLIENT_SORT_FIELDS.includes(filters.sort) ? filters.sort : 'createdAt';
+    const sortDir = filters?.dir === 'asc' ? 'asc' : 'desc';
+    const orderBy = useCursor ? { createdAt: 'desc' as const } : { [sortField]: sortDir };
+
+    const cacheParams = {
+      status: filters?.status,
+      areaId: filters?.areaId,
+      areaIds: filters?.areaIds?.slice().sort(),
+      agentId: filters?.agentId,
+      search: filters?.search,
+      sort: sortField,
+      dir: sortDir,
+      limit,
+      offset: useCursor ? 0 : (filters?.offset ?? 0),
+      cursor: filters?.cursor,
+      includePendingApproval: filters?.includePendingApproval,
+      hasSelect: !!filters?.select,
+    };
+
+    const result = await getCachedOrFetch(LIST_PREFIX_CLIENTS, cacheParams, CLIENT_LIST_TTL, async () => {
+      const [rows, count] = await Promise.all([
+        prisma.client.findMany({
+          where: finalWhere,
+          ...(filters?.select
+            ? { select: { ...filters.select, id: true, createdAt: true } }
+            : { include: defaultInclude }),
+          orderBy,
+          take: limit,
+          skip: useCursor ? 0 : (filters?.offset ?? 0),
+        }),
+        getCachedCount(countCacheKey, () => prisma.client.count({ where })),
+      ]);
+      return { rows, count };
+    });
+
+    const clients = result.rows;
+    const total = result.count;
+
+    const last = clients[clients.length - 1];
+    const nextCursor =
+      useCursor && last && clients.length === limit
+        ? encodeCursor(last.createdAt, last.id)
+        : null;
+
+    return {
+      clients,
+      total,
+      nextCursor,
+      hasMore: !!nextCursor,
+    };
   }
 
   /**
    * Get client by ID
    */
   async getClientById(id: string) {
-    return await prisma.client.findUnique({
-      where: { id },
-      include: {
-        area: true,
-        account: true,
-        assignedAgent: {
-          select: {
-            id: true,
-            fullName: true,
-            agentCode: true,
-          }
-        },
-        loans: {
-          where: {
-            status: {
-              in: ['APPROVED', 'DISBURSED', 'ACTIVE'],
+    return getCachedOrFetchByKey(clientDetailKey(id), CLIENT_DETAIL_TTL, () =>
+      prisma.client.findUnique({
+        where: { id },
+        include: {
+          area: true,
+          account: true,
+          assignedAgent: {
+            select: {
+              id: true,
+              fullName: true,
+              agentCode: true,
+            }
+          },
+          loans: {
+            where: {
+              status: {
+                in: ['APPROVED', 'DISBURSED', 'ACTIVE'],
+              },
+            },
+          },
+          _count: {
+            select: {
+              transactions: true,
+              loans: true,
+              commissions: true,
             },
           },
         },
-        _count: {
-          select: {
-            transactions: true,
-            loans: true,
-            commissions: true,
-          },
-        },
-      },
-    });
+      }),
+    );
   }
 
   /**
@@ -305,13 +505,20 @@ export class ClientService {
   /**
    * Get clients by area (for agents)
    */
-  async getClientsByArea(areaId: string) {
+  async getClientsByArea(areaId: string, filters?: { limit?: number; offset?: number }) {
     return await prisma.client.findMany({
       where: {
         areaId,
         status: 'ACTIVE',
+        approvalStatus: 'APPROVED',
       },
-      include: {
+      select: {
+        id: true,
+        clientNumber: true,
+        fullName: true,
+        phone: true,
+        email: true,
+        status: true,
         account: {
           select: {
             balance: true,
@@ -323,10 +530,126 @@ export class ClientService {
             id: true,
             fullName: true,
             agentCode: true,
-          }
+          },
         },
       },
       orderBy: { fullName: 'asc' },
+      take: capLimit(filters?.limit),
+      skip: filters?.offset ?? 0,
+    });
+  }
+
+  /**
+   * Get clients pending manager approval (Accountant-created)
+   */
+  async getPendingClients() {
+    return await prisma.client.findMany({
+      where: { approvalStatus: 'PENDING_APPROVAL' },
+      include: {
+        area: { select: { id: true, code: true, name: true } },
+        account: { select: { id: true, accountNumber: true, balance: true, availableBalance: true } },
+        creator: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Approve a pending client (Manager only)
+   */
+  async approveClient(id: string, approvedBy: string) {
+    const client = await prisma.client.findUnique({
+      where: { id },
+      include: { account: true },
+    });
+
+    if (!client) {
+      throw new Error('Client not found');
+    }
+
+    if (client.approvalStatus !== 'PENDING_APPROVAL') {
+      throw new Error(`Client is not pending approval (status: ${client.approvalStatus})`);
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      const updated = await tx.client.update({
+        where: { id },
+        data: {
+          approvalStatus: 'APPROVED',
+          approvedBy,
+          approvedAt: new Date(),
+          updatedBy: approvedBy,
+        },
+        include: {
+          area: true,
+          account: true,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: approvedBy,
+          action: 'APPROVE',
+          entityType: 'CLIENT',
+          entityId: client.id,
+          description: `Client approved: ${client.clientNumber} - ${client.fullName}`,
+        },
+      });
+
+      return updated;
+    });
+  }
+
+  /**
+   * Reject a pending client (Manager only)
+   */
+  async rejectClient(id: string, rejectedBy: string, reason?: string) {
+    const client = await prisma.client.findUnique({
+      where: { id },
+      include: { account: true },
+    });
+
+    if (!client) {
+      throw new Error('Client not found');
+    }
+
+    if (client.approvalStatus !== 'PENDING_APPROVAL') {
+      throw new Error(`Client is not pending approval (status: ${client.approvalStatus})`);
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      // Close the financial account since we're rejecting the client
+      await tx.financialAccount.update({
+        where: { id: client.accountId },
+        data: { status: 'CLOSED', closedAt: new Date() },
+      });
+
+      const updated = await tx.client.update({
+        where: { id },
+        data: {
+          approvalStatus: 'REJECTED',
+          approvedBy: rejectedBy,
+          approvedAt: new Date(),
+          updatedBy: rejectedBy,
+          status: 'CLOSED',
+        },
+        include: {
+          area: true,
+          account: true,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: rejectedBy,
+          action: 'REJECT',
+          entityType: 'CLIENT',
+          entityId: client.id,
+          description: `Client rejected: ${client.clientNumber} - ${client.fullName}${reason ? ` - ${reason}` : ''}`,
+        },
+      });
+
+      return updated;
     });
   }
 

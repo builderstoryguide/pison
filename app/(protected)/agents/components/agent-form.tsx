@@ -120,14 +120,14 @@ export default function AgentForm({ agentId }: AgentFormProps) {
         address: agentData.address || '',
         hireDate: agentData.hireDate ? new Date(agentData.hireDate).toISOString() : new Date().toISOString(),
         status: agentData.status,
-        areaIds: agentData.areaAssignments?.map((a: any) => a.area.id) || [],
+        areaIds: agentData.areaAssignments?.map((a: { area: { id: string } }) => a.area.id) || [],
       });
     }
   }, [agentData, form]);
 
   // Handle user selection to prefill data
   const handleUserChange = (userId: string) => {
-    const user = usersData?.find((u: any) => u.id === userId);
+    const user = usersData?.find((u: { id: string }) => u.id === userId);
     if (user) {
       form.setValue('userId', userId);
       form.setValue('fullName', user.name || '');
@@ -198,6 +198,7 @@ export default function AgentForm({ agentId }: AgentFormProps) {
   const onSubmit = (data: AgentFormData) => {
     if (isEditMode) {
       // Remove userId from update payload as it cannot be changed
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- intentionally excluded from update payload
       const { userId, ...updateData } = data;
       updateMutation.mutate(updateData as AgentFormData);
     } else {
@@ -247,7 +248,7 @@ export default function AgentForm({ agentId }: AgentFormProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {users.map((user: any) => (
+                        {users.map((user: { id: string; name?: string; email?: string }) => (
                           <SelectItem key={user.id} value={user.id}>
                             {user.name} ({user.email})
                           </SelectItem>
@@ -400,7 +401,7 @@ export default function AgentForm({ agentId }: AgentFormProps) {
                   </div>
                   <ScrollArea className="h-48 rounded-md border p-4">
                     <div className="space-y-4">
-                      {areas.map((area: any) => (
+                      {areas.map((area: { id: string }) => (
                         <FormField
                           key={area.id}
                           control={form.control}

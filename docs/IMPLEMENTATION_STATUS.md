@@ -1,5 +1,7 @@
 # Microfinance System Implementation Status
 
+> **PRD Alignment**: For a detailed mapping of PRD requirements to implementation status, see [PRD_FEATURE_TRACKER.md](./PRD_FEATURE_TRACKER.md). This document provides a high-level overview of completed work.
+
 ## ✅ Completed Tasks
 
 ### 1. Database Schema ✅
@@ -135,17 +137,22 @@ After running seed script:
 ### 6. Frontend Pages ✅
 - **Collection Areas**: List, create, edit, agent-area assignments
 - **Clients**: List, create, edit, detail view
+- **Client Accounts**: List of client accounts with balances (`/clients/accounts`)
 - **Agents**: List view
-- **Daily Collections**: Agent ventilation form
+- **Agent Accounts**: List of agent accounts with balances (`/agents/accounts`)
+- **Daily Collections**: Agent ventilation form with confirmation receipt (print/download)
 - **Transaction Validation**: Admin approval/rejection interface
 - **Session Management**: Open/close session, day-closure form
+- **Cash Reconciliation**: Surplus/shortage report (`/operations/reconciliation`)
 - **Loans**: List view
 - **Transactions**: List view
+- **Analytics**: Overview and links to financial, transaction, and agent reports (`/analytics`)
 
 ### 7. Reports ✅
 - **Location**: `app/(protected)/reports/`
 - **API Endpoints**: `app/api/reports/`
 - **Service**: `lib/services/report-service.ts`
+- **Export formats**: CSV, Excel, PDF (add `?format=pdf` to export URLs)
 - **Reports Created**:
   - Monthly Balance (`/reports/monthly-balance`) - Client balances with deposits, withdrawals, collections, commissions
   - Collection Journal (`/reports/collection-journal`) - Daily collection log by agent/area
@@ -167,14 +174,21 @@ After running seed script:
 
 ## 🔄 Next Steps
 
-### Additional Features Needed
-1. Commission calculation scheduling (cron job)
-2. Report export (PDF/Excel/CSV)
-3. Notification system for pending transactions
-4. Dashboard statistics integration (replace mock data with API calls)
-5. Real-time updates for transaction status
-6. Agent detail/edit pages
-7. Loan detail/create/approve pages
+For a complete list of unimplemented and partially implemented features, see [PRD_FEATURE_TRACKER.md](./PRD_FEATURE_TRACKER.md).
+
+### Summary of Remaining Work
+- Report export: CSV, Excel, and **PDF** implemented (`format=pdf` on export API)
+- Commission calculation: Manual trigger + **automatic cron** (server.js, 1st of month; see DEPLOYMENT.md)
+- Pending transaction notifications: Implemented (bell icon, 30s polling)
+- Agent detail/edit pages: Implemented
+- Loan detail/create/approve pages: Implemented
+- Client/Agent accounts list pages: Implemented at `/clients/accounts`, `/agents/accounts`
+- Cash reconciliation page: Implemented at `/operations/reconciliation` (embeds surplus-shortage report)
+- **Confirmation receipt for ventilation**: Implemented (print/download after submit)
+- **Analytics module**: Placeholder pages at `/analytics`, `/analytics/financial`, `/analytics/transactions`, `/analytics/agents`
+- **Orphaned client dashboard**: Removed (PRD forbids client access)
+- Account nature (Special Notation #3–4): Not started
+- Manager validation of accounts created by Accountant: Not implemented
 
 ## 📝 Notes
 

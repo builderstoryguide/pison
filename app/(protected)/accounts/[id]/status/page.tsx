@@ -4,12 +4,10 @@ import { prisma } from '@/lib/prisma';
 import AccountStatusContent from './components/account-status-content';
 
 interface PageProps {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata(): Promise<Metadata> {
   return {
     title: 'Account Status',
     description: 'View account status and details',
@@ -42,11 +40,28 @@ async function getAccountData(id: string) {
 
 export default async function Page({ params }: PageProps) {
   const { id } = await params;
-  const account = await getAccountData(id);
+  const rawAccount = await getAccountData(id);
 
-  if (!account) {
+  if (!rawAccount) {
     notFound();
   }
+
+  // Serialize Prisma Decimal fields to plain numbers so Next.js can pass
+  // this data from the Server Component to the Client Component.
+  const account = {
+    ...rawAccount,
+    balance: Number(rawAccount.balance),
+    availableBalance: Number(rawAccount.availableBalance),
+    transactions: rawAccount.transactions.map((txn) => ({
+      ...txn,
+      amount: Number(txn.amount),
+    })),
+    loans: rawAccount.loans.map((loan) => ({
+      ...loan,
+      principalAmount: Number(loan.principalAmount),
+      remainingBalance: Number(loan.remainingBalance),
+    })),
+  };
 
   const ownerName = account.client?.fullName || account.agent?.fullName || '';
   const ownerTypeKey = account.client ? 'client' : account.agent ? 'agent' : 'systemAccount';

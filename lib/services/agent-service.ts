@@ -5,6 +5,12 @@
 
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { capLimit } from '@/lib/utils/pagination';
+import { getCachedOrFetch, getCachedOrFetchByKey } from '@/lib/cache/query-cache';
+import { LIST_PREFIX_AGENTS, agentDetailKey, agentByUserKey } from '@/lib/cache/keys';
+
+const AGENT_LIST_TTL = 60;
+const AGENT_DETAIL_TTL = 60;
 
 export interface CreateAgentInput {
   userId: string;
@@ -49,7 +55,7 @@ export class AgentService {
   /**
    * Create agent account
    */
-  private async createAgentAccount(agentId: string): Promise<string> {
+  private async createAgentAccount(_agentId: string): Promise<string> {
     const accountNumber = await this.generateAccountNumber('AGENT');
     const account = await prisma.financialAccount.create({
       data: {
@@ -85,9 +91,18 @@ export class AgentService {
   }
 
   /**
-   * Create a new agent
+   * Determine if creator requires manager approval (Accountant creates → PENDING; Manager creates → APPROVED)
    */
-  async createAgent(data: CreateAgentInput, createdBy: string) {
+  private requiresApproval(creatorRoleName: string | undefined): boolean {
+    const r = (creatorRoleName || '').toLowerCase();
+    return r.includes('accountant') && !r.includes('manager') && !r.includes('administrator');
+  }
+
+  /**
+   * Create a new agent
+   * @param creatorRoleName - If 'accountant', agent is created with PENDING_APPROVAL; Manager creates as APPROVED
+   */
+  async createAgent(data: CreateAgentInput, createdBy: string, creatorRoleName?: string) {
     // Check if user already has an agent record
     const existingAgent = await prisma.agent.findUnique({
       where: { userId: data.userId },
@@ -104,6 +119,8 @@ export class AgentService {
       // Create agent account
       const accountId = await this.createAgentAccount('');
 
+      const approvalStatus = this.requiresApproval(creatorRoleName) ? 'PENDING_APPROVAL' : 'APPROVED';
+
       // Create agent
       const agent = await tx.agent.create({
         data: {
@@ -118,6 +135,7 @@ export class AgentService {
           hireDate: data.hireDate,
           createdBy,
           updatedBy: createdBy,
+          approvalStatus,
         },
       });
 
@@ -132,6 +150,16 @@ export class AgentService {
           })),
         });
       }
+
+      await tx.auditLog.create({
+        data: {
+          userId: createdBy,
+          action: 'CREATE',
+          entityType: 'AGENT',
+          entityId: agent.id,
+          description: `Agent created: ${agentCode} - ${data.fullName}`,
+        },
+      });
 
       return await tx.agent.findUnique({
         where: { id: agent.id },
@@ -170,9 +198,9 @@ export class AgentService {
 
     // If areaIds are provided, use a transaction to update both agent and areas
     if (areaIds !== undefined) {
-      return await prisma.$transaction(async (tx) => {
+      const updated = await prisma.$transaction(async (tx) => {
         // Update agent data
-        const updatedAgent = await tx.agent.update({
+        await tx.agent.update({
           where: { id },
           data: {
             ...agentData,
@@ -217,10 +245,15 @@ export class AgentService {
           },
         });
       });
+      if (agentData.status !== undefined && updated) {
+        const { invalidateDashboardStats } = await import('@/lib/cache');
+        await invalidateDashboardStats(updated.user?.id);
+      }
+      return updated;
     }
 
     // If no areaIds, just update agent data (no transaction needed)
-    return await prisma.agent.update({
+    const updated = await prisma.agent.update({
       where: { id },
       data: {
         ...agentData,
@@ -242,6 +275,12 @@ export class AgentService {
         },
       },
     });
+
+    if (agentData.status !== undefined) {
+      const { invalidateDashboardStats } = await import('@/lib/cache');
+      await invalidateDashboardStats(updated.user?.id);
+    }
+    return updated;
   }
 
   /**
@@ -250,11 +289,22 @@ export class AgentService {
   async getAllAgents(filters?: {
     status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
     areaId?: string;
+    sort?: string;
+    dir?: 'asc' | 'desc';
+    limit?: number;
+    offset?: number;
+    select?: Prisma.AgentSelect;
+    includePendingApproval?: boolean;
   }) {
     const where: Prisma.AgentWhereInput = {};
 
     if (filters?.status) {
       where.status = filters.status;
+    }
+
+    // Exclude PENDING_APPROVAL by default
+    if (filters?.includePendingApproval !== true) {
+      where.approvalStatus = 'APPROVED';
     }
 
     if (filters?.areaId) {
@@ -265,74 +315,111 @@ export class AgentService {
       };
     }
 
-    return await prisma.agent.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-          },
+    const defaultSelect: Prisma.AgentSelect = {
+      id: true,
+      agentCode: true,
+      fullName: true,
+      status: true,
+      user: {
+        select: { id: true, email: true, name: true },
+      },
+      account: {
+        select: {
+          id: true,
+          accountNumber: true,
+          balance: true,
+          availableBalance: true,
+          status: true,
         },
-        account: true,
-        areaAssignments: {
-          include: {
-            area: true,
+      },
+      areaAssignments: {
+        select: {
+          area: {
+            select: { id: true, code: true, name: true },
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
-    });
+    };
+
+    const AGENT_SORT_FIELDS = ['fullName', 'agentCode', 'createdAt', 'status'];
+    const sortField = filters?.sort && AGENT_SORT_FIELDS.includes(filters.sort) ? filters.sort : 'createdAt';
+    const sortDir = filters?.dir === 'asc' ? 'asc' : 'desc';
+
+    const cacheParams = {
+      status: filters?.status,
+      areaId: filters?.areaId,
+      sort: sortField,
+      dir: sortDir,
+      limit: capLimit(filters?.limit),
+      offset: filters?.offset ?? 0,
+      includePendingApproval: filters?.includePendingApproval,
+      hasSelect: !!filters?.select,
+    };
+
+    return getCachedOrFetch(LIST_PREFIX_AGENTS, cacheParams, AGENT_LIST_TTL, () =>
+      prisma.agent.findMany({
+        where,
+        select: filters?.select
+          ? { ...filters.select, id: true }
+          : defaultSelect,
+        orderBy: { [sortField]: sortDir },
+        take: capLimit(filters?.limit),
+        skip: filters?.offset ?? 0,
+      }),
+    );
   }
 
   /**
    * Get agent by ID
    */
   async getAgentById(id: string) {
-    return await prisma.agent.findUnique({
-      where: { id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
+    return getCachedOrFetchByKey(agentDetailKey(id), AGENT_DETAIL_TTL, () =>
+      prisma.agent.findUnique({
+        where: { id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              role: true,
+            },
+          },
+          account: true,
+          areaAssignments: {
+            include: {
+              area: true,
+            },
+          },
+          _count: {
+            select: {
+              transactions: true,
+              areaAssignments: true,
+            },
           },
         },
-        account: true,
-        areaAssignments: {
-          include: {
-            area: true,
-          },
-        },
-        _count: {
-          select: {
-            transactions: true,
-            areaAssignments: true,
-          },
-        },
-      },
-    });
+      }),
+    );
   }
 
   /**
    * Get agent by user ID
    */
   async getAgentByUserId(userId: string) {
-    return await prisma.agent.findUnique({
-      where: { userId },
-      include: {
-        user: true,
-        account: true,
-        areaAssignments: {
-          include: {
-            area: true,
+    return getCachedOrFetchByKey(agentByUserKey(userId), AGENT_DETAIL_TTL, () =>
+      prisma.agent.findUnique({
+        where: { userId },
+        include: {
+          user: true,
+          account: true,
+          areaAssignments: {
+            include: {
+              area: true,
+            },
           },
         },
-      },
-    });
+      }),
+    );
   }
 
   /**
@@ -427,9 +514,13 @@ export class AgentService {
       throw new Error('Agent account is not active');
     }
 
+    if (agent.approvalStatus !== 'APPROVED') {
+      throw new Error('Agent account must be approved before refill');
+    }
+
     // This will create a transaction that needs approval
     // The actual balance update happens when transaction is approved
-    return await prisma.transaction.create({
+    const transaction = await prisma.transaction.create({
       data: {
         transactionNumber: await this.generateTransactionNumber(),
         accountId: agent.accountId,
@@ -441,6 +532,136 @@ export class AgentService {
         description: `Account refill for agent ${agent.agentCode}`,
         createdBy: userId,
       },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        action: 'REFILL',
+        entityType: 'AGENT',
+        entityId: agentId,
+        transactionId: transaction.id,
+        description: `Agent account refill: ${amount} for agent ${agent.agentCode}`,
+      },
+    });
+
+    return transaction;
+  }
+
+  /**
+   * Get agents pending manager approval (Accountant-created)
+   */
+  async getPendingAgents() {
+    return await prisma.agent.findMany({
+      where: { approvalStatus: 'PENDING_APPROVAL' },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        account: { select: { id: true, accountNumber: true, balance: true, availableBalance: true } },
+        areaAssignments: { include: { area: true } },
+        creator: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Approve a pending agent (Manager only)
+   */
+  async approveAgent(id: string, approvedBy: string) {
+    const agent = await prisma.agent.findUnique({
+      where: { id },
+      include: { account: true },
+    });
+
+    if (!agent) {
+      throw new Error('Agent not found');
+    }
+
+    if (agent.approvalStatus !== 'PENDING_APPROVAL') {
+      throw new Error(`Agent is not pending approval (status: ${agent.approvalStatus})`);
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      const updated = await tx.agent.update({
+        where: { id },
+        data: {
+          approvalStatus: 'APPROVED',
+          approvedBy,
+          approvedAt: new Date(),
+          updatedBy: approvedBy,
+        },
+        include: {
+          user: { select: { id: true, email: true, name: true } },
+          account: true,
+          areaAssignments: { include: { area: true } },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: approvedBy,
+          action: 'APPROVE',
+          entityType: 'AGENT',
+          entityId: agent.id,
+          description: `Agent approved: ${agent.agentCode} - ${agent.fullName}`,
+        },
+      });
+
+      return updated;
+    });
+  }
+
+  /**
+   * Reject a pending agent (Manager only)
+   */
+  async rejectAgent(id: string, rejectedBy: string, reason?: string) {
+    const agent = await prisma.agent.findUnique({
+      where: { id },
+      include: { account: true },
+    });
+
+    if (!agent) {
+      throw new Error('Agent not found');
+    }
+
+    if (agent.approvalStatus !== 'PENDING_APPROVAL') {
+      throw new Error(`Agent is not pending approval (status: ${agent.approvalStatus})`);
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      // Close the financial account
+      await tx.financialAccount.update({
+        where: { id: agent.accountId },
+        data: { status: 'CLOSED', closedAt: new Date() },
+      });
+
+      const updated = await tx.agent.update({
+        where: { id },
+        data: {
+          approvalStatus: 'REJECTED',
+          approvedBy: rejectedBy,
+          approvedAt: new Date(),
+          updatedBy: rejectedBy,
+          status: 'INACTIVE',
+        },
+        include: {
+          user: { select: { id: true, email: true, name: true } },
+          account: true,
+          areaAssignments: { include: { area: true } },
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: rejectedBy,
+          action: 'REJECT',
+          entityType: 'AGENT',
+          entityId: agent.id,
+          description: `Agent rejected: ${agent.agentCode} - ${agent.fullName}${reason ? ` - ${reason}` : ''}`,
+        },
+      });
+
+      return updated;
     });
   }
 

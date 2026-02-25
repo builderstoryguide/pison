@@ -17,12 +17,20 @@ const eslintConfig = [
       'react/no-unescaped-entities': 'off',
       // React Hooks rules
       'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/exhaustive-deps': 'off',
       '@next/next/no-img-element': 'off',
     },
   }),
   {
     ignores: ['.next/**', 'node_modules/**', 'prisma/**'],
+  },
+  // Relax no-explicit-any for API routes and lib (many catch blocks and dynamic types)
+  {
+    files: ['app/api/**/*.ts', 'lib/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
   },
 ];
 

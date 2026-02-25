@@ -83,6 +83,11 @@ async function main() {
       };
 
       const client = await clientService.createClient(clientInput, user.id);
+      if (!client) {
+        throw new Error(
+          `createClient returned null (user=${user.id}, agentId=${agent.id}). Client may not have been created.`
+        );
+      }
       console.log('Client created:', client.id, client.fullName);
 
       if (client.agentId !== agent.id) {
@@ -146,8 +151,10 @@ async function cleanup() {
   try {
       const client = await prisma.client.findFirst({ where: { fullName: 'Test Client Assignment' } });
       if (client) {
+          if (client.accountId) {
+              await prisma.financialAccount.delete({ where: { id: client.accountId } });
+          }
           await prisma.client.delete({ where: { id: client.id } });
-          await prisma.financialAccount.delete({ where: { id: client.accountId } });
       }
       
       const agent = await prisma.agent.findUnique({ where: { agentCode: 'AGT-TEST-ASSIGN' } });

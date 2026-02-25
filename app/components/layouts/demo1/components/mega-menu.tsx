@@ -1,9 +1,12 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { MENU_MEGA } from '@/config/menu.config';
 import { cn } from '@/lib/utils';
+import { filterMenuByPermission } from '@/lib/menu-filter';
 import { useMenu } from '@/hooks/use-menu';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
@@ -19,7 +22,13 @@ import { MenuConfig, MenuItem } from '@/config/types';
 export function MegaMenu() {
   const pathname = usePathname();
   const { t } = useTranslation();
+  const { data: session } = useSession();
   const { isActive, hasActiveChild } = useMenu(pathname);
+
+  const filteredMenu = useMemo(
+    () => filterMenuByPermission(MENU_MEGA, session ?? null),
+    [session]
+  );
 
   const linkClass = `
     text-sm text-secondary-foreground font-medium 
@@ -135,7 +144,7 @@ export function MegaMenu() {
   return (
     <NavigationMenu>
       <NavigationMenuList className="gap-0">
-        {renderMenuItems(MENU_MEGA)}
+        {renderMenuItems(filteredMenu)}
       </NavigationMenuList>
     </NavigationMenu>
   );

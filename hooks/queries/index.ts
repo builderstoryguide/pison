@@ -16,6 +16,7 @@ export {
   usePrefetchClient,
   type Client,
   type ClientFilters,
+  type ClientsResponse,
   type CreateClientInput,
   type UpdateClientInput,
 } from './use-clients';
@@ -75,6 +76,17 @@ export {
   type LoanFilters,
   type CreateLoanInput,
 } from './use-loans';
+
+// Pending Accounts Hooks
+export { usePendingAccounts } from './use-pending-accounts';
+
+// Audit Log Hooks
+export {
+  useAuditLogs,
+  type AuditLog,
+  type AuditLogFilters,
+  type AuditLogsResponse,
+} from './use-audit-logs';
 
 // Prefetch Utility
 export { usePrefetchOnHover } from './use-prefetch';

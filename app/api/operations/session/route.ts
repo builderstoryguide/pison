@@ -4,38 +4,32 @@
  * POST /api/operations/session/open - Open new session (Admin only)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
 import { requirePermission } from '@/lib/auth';
 import { sessionService } from '@/lib/services';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     const forbidden = await requirePermission(session, 'dashboard.view');
     if (forbidden) return forbidden;
 
-    const currentSession = await sessionService.getCurrentSession();
-    const isOpen = await sessionService.isSessionOpen();
-    const systemBalance = await sessionService.calculateSystemBalance();
+    const data = await sessionService.getSessionStatus();
 
     return NextResponse.json({
       success: true,
-      data: {
-        session: currentSession,
-        isOpen,
-        systemBalance,
-      },
+      data,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching session status:', error);
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'FETCH_ERROR',
-          message: error.message || 'Failed to fetch session status',
+          message: error instanceof Error ? error.message : 'Failed to fetch session status',
         },
       },
       { status: 500 }
@@ -43,7 +37,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const session = await getServerSession(authOptions);
     const forbidden = await requirePermission(session, 'session.manage');
@@ -58,14 +52,14 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error opening session:', error);
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'OPEN_ERROR',
-          message: error.message || 'Failed to open session',
+          message: error instanceof Error ? error.message : 'Failed to open session',
         },
       },
       { status: 500 }

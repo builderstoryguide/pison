@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSession } from 'next-auth/react';
+import { hasPermission } from '@/lib/auth-client';
 import Link from 'next/link';
 
 interface DailySession {
@@ -46,7 +47,7 @@ export default function SessionStatus() {
         throw new Error('Failed to fetch session status');
       }
       const result = await response.json();
-      return result.data;
+      return result.data.session;
     },
     refetchInterval: 30000, // Refetch every 30 seconds
   });
@@ -54,7 +55,7 @@ export default function SessionStatus() {
   // Open session mutation
   const openSessionMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiFetch('/api/operations/session/open', {
+      const response = await apiFetch('/api/operations/session', {
         method: 'POST',
       });
 
@@ -74,8 +75,8 @@ export default function SessionStatus() {
     },
   });
 
-  const roleName = (session?.user?.roleName || '').toLowerCase();
-  const isManager = roleName.includes('manager');
+
+  const canManageSession = hasPermission(session, 'session.manage');
 
   if (isLoading) {
     return (
@@ -90,30 +91,63 @@ export default function SessionStatus() {
 
   const sessionData: DailySession | null = currentSession || null;
   const isOpen = sessionData?.status === 'OPEN';
-  const isClosed = sessionData?.status === 'CLOSED' || sessionData?.status === 'LOCKED';
+
 
   return (
     <div className="grid gap-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Current Session</CardTitle>
+          <div className="flex items-center justify-between w-full">
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <CardTitle>Current Session</CardTitle>
+                {isOpen ? (
+                    <Badge variant="success" className="gap-1 px-2">
+                    <Unlock className="size-3" />
+                    Open
+                    </Badge>
+                ) : (
+                    <Badge variant="secondary" className="gap-1 px-2">
+                    <Lock className="size-3" />
+                    {sessionData?.status || 'No Session'}
+                    </Badge>
+                )}
+              </div>
               <CardDescription>
                 Daily session status and information
               </CardDescription>
             </div>
-            {isOpen ? (
-              <Badge variant="success" className="flex items-center gap-2">
-                <Unlock className="size-4" />
-                Open
-              </Badge>
-            ) : (
-              <Badge variant="secondary" className="flex items-center gap-2">
-                <Lock className="size-4" />
-                {sessionData?.status || 'No Session'}
-              </Badge>
-            )}
+            
+            <div className="flex items-center gap-2">
+                {canManageSession && (
+                isOpen ? (
+                    <Link href="/operations/day-closure">
+                    <Button size="sm" variant="destructive">
+                        <Lock className="mr-2 size-4" />
+                        Close Session
+                    </Button>
+                    </Link>
+                ) : (
+                    <Button
+                    size="sm"
+                    onClick={() => openSessionMutation.mutate()}
+                    disabled={openSessionMutation.isPending}
+                    >
+                    {openSessionMutation.isPending ? (
+                        <>
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                        Opening...
+                        </>
+                    ) : (
+                        <>
+                        <Unlock className="mr-2 size-4" />
+                        Open Today's Session
+                        </>
+                    )}
+                    </Button>
+                )
+                )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -161,38 +195,9 @@ export default function SessionStatus() {
                 )}
               </div>
 
-              {isManager && isOpen && (
-                <div className="pt-4 border-t">
-                  <Link href="/operations/day-closure">
-                    <Button className="w-full">
-                      <Lock className="mr-2 size-4" />
-                      Close Session
-                    </Button>
-                  </Link>
-                </div>
-              )}
 
-              {isManager && !sessionData && (
-                <div className="pt-4 border-t">
-                  <Button
-                    onClick={() => openSessionMutation.mutate()}
-                    disabled={openSessionMutation.isPending}
-                    className="w-full"
-                  >
-                    {openSessionMutation.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 size-4 animate-spin" />
-                        Opening...
-                      </>
-                    ) : (
-                      <>
-                        <Unlock className="mr-2 size-4" />
-                        Open Today's Session
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
+
+
             </div>
           ) : (
             <div className="text-center py-8">
@@ -201,24 +206,7 @@ export default function SessionStatus() {
               <p className="text-muted-foreground mb-4">
                 A daily session needs to be opened before transactions can be created.
               </p>
-              {isManager && (
-                <Button
-                  onClick={() => openSessionMutation.mutate()}
-                  disabled={openSessionMutation.isPending}
-                >
-                  {openSessionMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                      Opening...
-                    </>
-                  ) : (
-                    <>
-                      <Unlock className="mr-2 size-4" />
-                      Open Today's Session
-                    </>
-                  )}
-                </Button>
-              )}
+
             </div>
           )}
         </CardContent>
@@ -241,7 +229,7 @@ export default function SessionStatus() {
                   Session opened at {formatDateTime(new Date(sessionData.openedAt))}
                 </span>
               </div>
-              {isManager && (
+              {canManageSession && (
                 <div className="pt-4 border-t mt-4">
                   <p className="text-muted-foreground text-xs">
                     As a manager, you can close this session at the end of the day

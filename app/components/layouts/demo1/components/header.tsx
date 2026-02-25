@@ -2,22 +2,37 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
-import { SearchDialog } from '@/partials/dialogs/search/search-dialog';
-import { LanguageSwitcher } from '@/partials/topbar/language-switcher';
-import { AppsDropdownMenu } from '@/partials/topbar/apps-dropdown-menu';
-import { ChatSheet } from '@/partials/topbar/chat-sheet';
-import { NotificationsSheet } from '@/partials/topbar/notifications-sheet';
-import { UserDropdownMenu } from '@/partials/topbar/user-dropdown-menu';
 import {
   Bell,
-  Globe,
   LayoutGrid,
   Menu,
   MessageCircleMore,
   Search,
   SquareChevronRight,
 } from 'lucide-react';
+
+const SearchDialog = dynamic(
+  () => import('@/partials/dialogs/search/search-dialog').then((m) => ({ default: m.SearchDialog })),
+  { ssr: false },
+);
+const AppsDropdownMenu = dynamic(
+  () => import('@/partials/topbar/apps-dropdown-menu').then((m) => ({ default: m.AppsDropdownMenu })),
+  { ssr: false },
+);
+const ChatSheet = dynamic(
+  () => import('@/partials/topbar/chat-sheet').then((m) => ({ default: m.ChatSheet })),
+  { ssr: false },
+);
+const NotificationsSheet = dynamic(
+  () => import('@/partials/topbar/notifications-sheet').then((m) => ({ default: m.NotificationsSheet })),
+  { ssr: false },
+);
+const UserDropdownMenu = dynamic(
+  () => import('@/partials/topbar/user-dropdown-menu').then((m) => ({ default: m.UserDropdownMenu })),
+  { ssr: false },
+);
 import { toAbsoluteUrl } from '@/lib/helpers';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -32,7 +47,11 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { Container } from '@/components/common/container';
-import { StoreClientTopbar } from '@/app/(protected)/store-client/components/common/topbar';
+
+const StoreClientTopbar = dynamic(
+  () => import('@/app/(protected)/store-client/components/common/topbar').then((m) => ({ default: m.StoreClientTopbar })),
+  { ssr: false },
+);
 import { Breadcrumb } from './breadcrumb';
 import { MegaMenu } from './mega-menu';
 import { MegaMenuMobile } from './mega-menu-mobile';

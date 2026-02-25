@@ -6,6 +6,38 @@
 
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import {
+  invalidateBalanceForAccount,
+  invalidateRecentTransactionsForAccount,
+  invalidateRecentTransactionsForAgent,
+  invalidateAdminRecentTransactions,
+  invalidateDashboardStats,
+  invalidateCountCacheForEntity,
+  invalidateTransactionListCache,
+  invalidateTransactionDetail,
+  invalidateAll,
+} from '@/lib/cache';
+import { getCachedCount } from '@/lib/cache';
+import { getCachedOrFetch, getCachedOrFetchByKey } from '@/lib/cache/query-cache';
+import { LIST_PREFIX_TRANSACTIONS, transactionDetailKey } from '@/lib/cache/keys';
+import {
+  capLimit,
+  decodeCursor,
+  encodeCursor,
+  buildCountCacheKey,
+} from '@/lib/utils/pagination';
+
+const TXN_LIST_TTL = 30;
+const TXN_DETAIL_TTL = 60;
+
+async function notifyManagersOfPendingTransactions(count: number) {
+  try {
+    const { pushNotificationService } = await import('./push-notification-service');
+    await pushNotificationService.sendPendingTransactionNotification(count);
+  } catch (e) {
+    console.error('Push notification failed:', e);
+  }
+}
 
 export interface CreateTransactionInput {
   accountId: string;
@@ -75,17 +107,24 @@ export class TransactionService {
 
   /**
    * Create a single transaction (pending approval)
+   * @param tx - Optional Prisma transaction client for use within $transaction (e.g. loan disbursement)
    */
-  async createTransaction(data: CreateTransactionInput, createdBy: string) {
+  async createTransaction(data: CreateTransactionInput, createdBy: string, tx?: Prisma.TransactionClient) {
     // Check session is open
     const sessionOpen = await this.isSessionOpen();
     if (!sessionOpen) {
       throw new Error('Daily session is closed. No transactions allowed.');
     }
 
+    const client = tx ?? prisma;
     // Validate account exists and is active
-    const account = await prisma.financialAccount.findUnique({
+    const account = await client.financialAccount.findUnique({
       where: { id: data.accountId },
+      include: {
+        client: { select: { id: true, approvalStatus: true } },
+        agent: { select: { id: true, approvalStatus: true } },
+        accountNature: true,
+      },
     });
 
     if (!account) {
@@ -94,6 +133,45 @@ export class TransactionService {
 
     if (account.status !== 'ACTIVE') {
       throw new Error('Account is not active');
+    }
+
+    // Client/Agent accounts must be approved before transactions
+    if (account.client && account.client.approvalStatus !== 'APPROVED') {
+      throw new Error('Client account must be approved by manager before transactions');
+    }
+    if (account.agent && account.agent.approvalStatus !== 'APPROVED') {
+      throw new Error('Agent account must be approved by manager before transactions');
+    }
+
+    // Account nature operations matrix and restrictions
+    if (account.accountNature) {
+      const nature = account.accountNature;
+      const opType = data.type;
+      if (opType === 'DEPOSIT' || opType === 'COLLECTION' || opType === 'LOAN_DISBURSEMENT') {
+        if (!nature.allowDeposit) {
+          throw new Error(`Deposits are not allowed for ${nature.name} accounts`);
+        }
+      } else if (opType === 'WITHDRAWAL') {
+        if (!nature.allowWithdrawal) {
+          throw new Error(`Withdrawals are not allowed for ${nature.name} accounts`);
+        }
+        if (account.blockedUntil && new Date() < account.blockedUntil) {
+          throw new Error('Account is blocked until maturity. Withdrawals not allowed.');
+        }
+        if (account.maturityDate && new Date() < account.maturityDate) {
+          throw new Error('Account has not reached maturity. Withdrawals not allowed.');
+        }
+      } else if (opType === 'TRANSFER') {
+        if (!nature.allowTransfer) {
+          throw new Error(`Transfers are not allowed for ${nature.name} accounts`);
+        }
+        if (account.blockedUntil && new Date() < account.blockedUntil) {
+          throw new Error('Account is blocked until maturity. Transfers not allowed.');
+        }
+        if (account.maturityDate && new Date() < account.maturityDate) {
+          throw new Error('Account has not reached maturity. Transfers not allowed.');
+        }
+      }
     }
 
     // Validate amount
@@ -106,20 +184,29 @@ export class TransactionService {
       if (account.availableBalance.toNumber() < data.amount) {
         throw new Error('Insufficient available balance');
       }
+      // Min balance check (after withdrawal, balance must not go below min)
+      if (account.accountNature?.minBalance) {
+        const minBal = account.accountNature.minBalance.toNumber();
+        const balanceAfter = account.balance.toNumber() - data.amount;
+        if (balanceAfter < minBal) {
+          throw new Error(
+            `Withdrawal would bring balance below minimum required (${minBal} CFA)`
+          );
+        }
+      }
     }
 
     // Calculate balance after
     let balanceAfter = account.balance;
-    if (data.type === 'DEPOSIT' || data.type === 'COLLECTION' || data.type === 'LOAN_REPAYMENT') {
-      balanceAfter = account.balance + data.amount;
-    } else if (data.type === 'WITHDRAWAL' || data.type === 'LOAN_DISBURSEMENT' || data.type === 'TRANSFER') {
-      balanceAfter = account.balance - data.amount;
+    if (data.type === 'DEPOSIT' || data.type === 'COLLECTION' || data.type === 'LOAN_DISBURSEMENT') {
+      balanceAfter = (account.balance instanceof Prisma.Decimal ? account.balance.toNumber() : Number(account.balance)) + data.amount;
+    } else if (data.type === 'WITHDRAWAL' || data.type === 'LOAN_REPAYMENT' || data.type === 'TRANSFER' || data.type === 'COMMISSION') {
+      balanceAfter = (account.balance instanceof Prisma.Decimal ? account.balance.toNumber() : Number(account.balance)) - data.amount;
     }
-    // COMMISSION and ADJUSTMENT handled separately
 
-    const transactionNumber = await this.generateTransactionNumber();
+    const transactionNumber = await this.generateTransactionNumber(tx);
 
-    return await prisma.transaction.create({
+    const created = await client.transaction.create({
       data: {
         transactionNumber,
         accountId: data.accountId,
@@ -147,6 +234,33 @@ export class TransactionService {
         },
       },
     });
+
+    await client.auditLog.create({
+      data: {
+        userId: createdBy,
+        action: 'CREATE',
+        entityType: 'TRANSACTION',
+        entityId: created.id,
+        transactionId: created.id,
+        description: `${data.type} ${data.amount} - ${created.transactionNumber} (account ${account.accountNumber})`,
+      },
+    });
+
+    if (!tx) {
+      const ops: Promise<unknown>[] = [
+        invalidateRecentTransactionsForAccount(data.accountId),
+        invalidateAdminRecentTransactions(),
+        invalidateCountCacheForEntity('transactions'),
+        invalidateTransactionListCache(),
+        invalidateDashboardStats(),
+      ];
+      if (data.agentId) {
+        ops.push(invalidateRecentTransactionsForAgent(data.agentId));
+      }
+      await invalidateAll(...ops);
+      void notifyManagersOfPendingTransactions(1);
+    }
+    return created;
   }
 
   /**
@@ -167,14 +281,25 @@ export class TransactionService {
       throw new Error('Daily session is closed. No transactions allowed.');
     }
 
-    // Validate all clients belong to the area
+    // Validate agent is approved
+    const agent = await prisma.agent.findUnique({
+      where: { id: data.agentId },
+      select: { approvalStatus: true },
+    });
+    if (!agent || agent.approvalStatus !== 'APPROVED') {
+      throw new Error('Agent account must be approved before performing collections');
+    }
+
+    // Validate all clients belong to the area, are approved, and are assigned to this agent
     const clients = await prisma.client.findMany({
       where: {
         id: {
           in: data.entries.map((e) => e.clientId),
         },
         areaId: data.areaId,
+        agentId: data.agentId,
         status: 'ACTIVE',
+        approvalStatus: 'APPROVED',
       },
       include: {
         account: true,
@@ -182,7 +307,9 @@ export class TransactionService {
     });
 
     if (clients.length !== data.entries.length) {
-      throw new Error('Some clients not found or do not belong to this area');
+      throw new Error(
+        'Some clients were not found, do not belong to this area, or are not assigned to you.'
+      );
     }
 
     // Create transactions for each entry
@@ -194,7 +321,8 @@ export class TransactionService {
         }
 
         const transactionNumber = await this.generateTransactionNumber();
-        const balanceAfter = client.account.balance + entry.amount;
+        const currentBalance = client.account.balance instanceof Prisma.Decimal ? client.account.balance.toNumber() : Number(client.account.balance);
+        const balanceAfter = currentBalance + entry.amount;
 
         return await prisma.transaction.create({
           data: {
@@ -214,6 +342,39 @@ export class TransactionService {
       })
     );
 
+    const totalAmount = transactions.reduce((sum, t) => sum + t.amount.toNumber(), 0);
+    const area = await prisma.collectionArea.findUnique({
+      where: { id: data.areaId },
+      select: { code: true, name: true },
+    });
+    const agentForAudit = await prisma.agent.findUnique({
+      where: { id: data.agentId },
+      select: { agentCode: true, userId: true },
+    });
+    await prisma.auditLog.create({
+      data: {
+        userId: createdBy,
+        action: 'CREATE',
+        entityType: 'TRANSACTION',
+        entityId: transactions[0]?.id ?? null,
+        transactionId: transactions[0]?.id ?? null,
+        description: `Collection batch: ${transactions.length} entries, total ${totalAmount} - area ${area?.code ?? data.areaId}, agent ${agentForAudit?.agentCode ?? data.agentId}`,
+        changes: { entryCount: transactions.length, totalAmount, areaId: data.areaId, agentId: data.agentId },
+      },
+    });
+
+    const accountIds = [...new Set(transactions.map((t) => t.accountId))];
+    const collOps: Promise<unknown>[] = [
+      ...accountIds.map((id) => invalidateRecentTransactionsForAccount(id)),
+      invalidateRecentTransactionsForAgent(data.agentId),
+      invalidateAdminRecentTransactions(),
+      invalidateCountCacheForEntity('transactions'),
+      invalidateTransactionListCache(),
+      invalidateDashboardStats(agentForAudit?.userId),
+    ];
+    await invalidateAll(...collOps);
+
+    void notifyManagersOfPendingTransactions(transactions.length);
     return transactions;
   }
 
@@ -251,12 +412,15 @@ export class TransactionService {
 
     const transferRef = `transfer-${crypto.randomUUID()}`;
 
-    return await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const sourceTxnNumber = await this.generateTransactionNumber(tx);
       const destTxnNumber = await this.generateTransactionNumber(tx);
 
-      const sourceBalanceAfter = sourceAccount.balance.toNumber() - data.amount;
-      const destBalanceAfter = destAccount.balance.toNumber() + data.amount;
+      const sourceBalanceNum = sourceAccount.balance instanceof Prisma.Decimal ? sourceAccount.balance.toNumber() : Number(sourceAccount.balance);
+      const destBalanceNum = destAccount.balance instanceof Prisma.Decimal ? destAccount.balance.toNumber() : Number(destAccount.balance);
+
+      const sourceBalanceAfter = sourceBalanceNum - data.amount;
+      const destBalanceAfter = destBalanceNum + data.amount;
 
       const [sourceTxn, destTxn] = await Promise.all([
         tx.transaction.create({
@@ -297,16 +461,44 @@ export class TransactionService {
         }),
       ]);
 
+      await tx.auditLog.create({
+        data: {
+          userId: createdBy,
+          action: 'CREATE',
+          entityType: 'TRANSACTION',
+          entityId: sourceTxn.id,
+          transactionId: sourceTxn.id,
+          description: `Transfer ${data.amount} from ${sourceAccount.accountNumber} to ${destAccount.accountNumber}`,
+          changes: {
+            sourceTransactionId: sourceTxn.id,
+            destinationTransactionId: destTxn.id,
+            amount: data.amount,
+          },
+        },
+      });
+
       return { sourceTransaction: sourceTxn, destinationTransaction: destTxn };
     });
+    await invalidateAll(
+      invalidateRecentTransactionsForAccount(data.sourceAccountId),
+      invalidateRecentTransactionsForAccount(data.destinationAccountId),
+      invalidateAdminRecentTransactions(),
+      invalidateCountCacheForEntity('transactions'),
+      invalidateTransactionListCache(),
+      invalidateDashboardStats(),
+    );
+    void notifyManagersOfPendingTransactions(2);
+    return result;
   }
 
   /**
    * Approve a transaction (four-eye principle)
    * For transfers, approves both linked transactions together
+   * @param tx - Optional Prisma transaction client for use within $transaction (e.g. loan disbursement)
    */
-  async approveTransaction(transactionId: string, approverId: string, notes?: string) {
-    const transaction = await prisma.transaction.findUnique({
+  async approveTransaction(transactionId: string, approverId: string, notes?: string, tx?: Prisma.TransactionClient) {
+    const db = tx ?? prisma;
+    const transaction = await db.transaction.findUnique({
       where: { id: transactionId },
       include: { account: true },
     });
@@ -319,16 +511,18 @@ export class TransactionService {
       throw new Error(`Transaction is not pending approval. Current status: ${transaction.status}`);
     }
 
-    // Check session is still open
-    const sessionOpen = await this.isSessionOpen();
-    if (!sessionOpen) {
-      throw new Error('Daily session is closed. Cannot approve transactions.');
+    // Check session is still open (skip when inside existing tx, e.g. loan disbursement)
+    if (!tx) {
+      const sessionOpen = await this.isSessionOpen();
+      if (!sessionOpen) {
+        throw new Error('Daily session is closed. Cannot approve transactions.');
+      }
     }
 
     // For transfers, find the paired transaction
     const isTransfer = transaction.reference?.startsWith('transfer-');
     const pairedTransaction = isTransfer
-      ? await prisma.transaction.findFirst({
+      ? await db.transaction.findFirst({
           where: {
             reference: transaction.reference,
             id: { not: transactionId },
@@ -338,13 +532,13 @@ export class TransactionService {
         })
       : null;
 
-    return await prisma.$transaction(async (tx) => {
+    const runInTx = async (innerTx: Prisma.TransactionClient) => {
       const transactionsToApprove = pairedTransaction
         ? [transaction, pairedTransaction]
         : [transaction];
 
       for (const txn of transactionsToApprove) {
-        await tx.transaction.update({
+        await innerTx.transaction.update({
           where: { id: txn.id },
           data: {
             status: 'APPROVED',
@@ -353,24 +547,67 @@ export class TransactionService {
           },
         });
 
+        // Re-query account for fresh availableBalance to avoid stale reads when processing multiple txns
+        const freshAccount = await innerTx.financialAccount.findUnique({
+          where: { id: txn.accountId },
+          include: { accountNature: true },
+        });
+        const currentAvailable = freshAccount?.availableBalance instanceof Prisma.Decimal ? freshAccount.availableBalance.toNumber() : Number(freshAccount?.availableBalance ?? 0);
         const isCredit =
-          txn.type === 'DEPOSIT' || txn.type === 'COLLECTION' || txn.type === 'LOAN_REPAYMENT';
-        await tx.financialAccount.update({
+          txn.type === 'DEPOSIT' || txn.type === 'COLLECTION' || txn.type === 'LOAN_DISBURSEMENT';
+        let newAvailableBalance = isCredit
+          ? currentAvailable + txn.amount.toNumber()
+          : currentAvailable - txn.amount.toNumber();
+        let finalBalance = txn.balanceAfter;
+
+        // Transaction fee on withdrawal (per account nature)
+        if (txn.type === 'WITHDRAWAL' && freshAccount?.accountNature) {
+          const { accountNatureService } = await import('./account-nature-service');
+          const feeAmount = await accountNatureService.getTransactionFee(
+            freshAccount.accountNature.id
+          );
+          if (feeAmount > 0) {
+            const feeTxnNumber = await this.generateTransactionNumber(innerTx);
+            const balBefore =
+              typeof txn.balanceAfter === 'object' && 'toNumber' in txn.balanceAfter
+                ? (txn.balanceAfter as { toNumber: () => number }).toNumber()
+                : Number(txn.balanceAfter);
+            const balAfterFee = balBefore - feeAmount;
+            await innerTx.transaction.create({
+              data: {
+                transactionNumber: feeTxnNumber,
+                accountId: txn.accountId,
+                type: 'ADJUSTMENT',
+                amount: feeAmount,
+                balanceBefore: txn.balanceAfter,
+                balanceAfter: balAfterFee,
+                status: 'COMPLETED',
+                description: `Transaction fee (${freshAccount.accountNature.name})`,
+                reference: `fee-for-${txn.transactionNumber}`,
+                createdBy: approverId,
+                approvedBy: approverId,
+                approvedAt: new Date(),
+              },
+            });
+            finalBalance = balAfterFee;
+            newAvailableBalance -= feeAmount;
+          }
+        }
+
+        await innerTx.financialAccount.update({
           where: { id: txn.accountId },
           data: {
-            balance: txn.balanceAfter,
-            availableBalance: isCredit
-              ? txn.account.availableBalance.toNumber() + txn.amount.toNumber()
-              : txn.account.availableBalance.toNumber() - txn.amount.toNumber(),
+            balance: finalBalance,
+            availableBalance: newAvailableBalance,
           },
         });
 
-        await tx.transaction.update({
+        await innerTx.transaction.update({
           where: { id: txn.id },
           data: { status: 'COMPLETED' },
         });
 
-        await tx.auditLog.create({
+        await innerTx.auditLog.create({
           data: {
             userId: approverId,
             action: 'APPROVE',
@@ -382,7 +619,7 @@ export class TransactionService {
         });
       }
 
-      return await tx.transaction.findUnique({
+      return await innerTx.transaction.findUnique({
         where: { id: transactionId },
         include: {
           account: true,
@@ -395,7 +632,33 @@ export class TransactionService {
           },
         },
       });
-    });
+    };
+
+    if (tx) {
+      return runInTx(tx);
+    }
+    const result = await prisma.$transaction(runInTx);
+    const transactionsToInvalidate = pairedTransaction
+      ? [transaction, pairedTransaction]
+      : [transaction];
+    const ops: Promise<unknown>[] = [
+      invalidateAdminRecentTransactions(),
+      invalidateCountCacheForEntity('transactions'),
+      invalidateTransactionListCache(),
+      invalidateDashboardStats(),
+    ];
+    for (const txn of transactionsToInvalidate) {
+      ops.push(
+        invalidateBalanceForAccount(txn.accountId),
+        invalidateRecentTransactionsForAccount(txn.accountId),
+        invalidateTransactionDetail(txn.id),
+      );
+      if (txn.agentId) {
+        ops.push(invalidateRecentTransactionsForAgent(txn.agentId));
+      }
+    }
+    await invalidateAll(...ops);
+    return result;
   }
 
   /**
@@ -425,7 +688,7 @@ export class TransactionService {
         })
       : null;
 
-    return await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const transactionsToReject = pairedTransaction
         ? [transaction, pairedTransaction]
         : [transaction];
@@ -458,10 +721,32 @@ export class TransactionService {
         include: { account: true },
       });
     });
+
+    const txnsToInvalidate = pairedTransaction
+      ? [transaction, pairedTransaction]
+      : [transaction];
+    const rejectOps: Promise<unknown>[] = [
+      invalidateAdminRecentTransactions(),
+      invalidateCountCacheForEntity('transactions'),
+      invalidateTransactionListCache(),
+      invalidateDashboardStats(),
+    ];
+    for (const txn of txnsToInvalidate) {
+      rejectOps.push(
+        invalidateRecentTransactionsForAccount(txn.accountId),
+        invalidateTransactionDetail(txn.id),
+      );
+      if (txn.agentId) {
+        rejectOps.push(invalidateRecentTransactionsForAgent(txn.agentId));
+      }
+    }
+    await invalidateAll(...rejectOps);
+    return result;
   }
 
   /**
    * Get transactions with optional filters (for list view)
+   * Supports offset-based (default) and cursor-based pagination.
    */
   async getTransactions(filters?: {
     type?: string;
@@ -469,10 +754,15 @@ export class TransactionService {
     accountId?: string;
     areaId?: string;
     agentId?: string;
+    search?: string;
+    sort?: string;
+    dir?: 'asc' | 'desc';
     startDate?: Date;
     endDate?: Date;
     limit?: number;
     offset?: number;
+    cursor?: string;
+    select?: Prisma.TransactionSelect;
   }) {
     const where: Prisma.TransactionWhereInput = {};
 
@@ -491,6 +781,29 @@ export class TransactionService {
     if (filters?.agentId) {
       where.agentId = filters.agentId;
     }
+    if (filters?.search?.trim()) {
+      const term = filters.search.trim();
+      where.OR = [
+        { transactionNumber: { contains: term, mode: 'insensitive' } },
+        { reference: { contains: term, mode: 'insensitive' } },
+        { description: { contains: term, mode: 'insensitive' } },
+        {
+          account: {
+            OR: [
+              { accountNumber: { contains: term, mode: 'insensitive' } },
+              {
+                client: {
+                  OR: [
+                    { fullName: { contains: term, mode: 'insensitive' } },
+                    { clientNumber: { contains: term, mode: 'insensitive' } },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      ];
+    }
     if (filters?.startDate || filters?.endDate) {
       where.createdAt = {};
       if (filters.startDate) {
@@ -501,46 +814,119 @@ export class TransactionService {
       }
     }
 
-    const [transactions, total] = await Promise.all([
-      prisma.transaction.findMany({
-        where,
-        include: {
-          account: {
-            include: {
-              client: {
-                select: {
-                  id: true,
-                  clientNumber: true,
-                  fullName: true,
-                },
+    const useCursor = !!filters?.cursor;
+    const decodedCursor = useCursor ? decodeCursor(filters.cursor!) : null;
+
+    let finalWhere: Prisma.TransactionWhereInput = where;
+    if (useCursor && decodedCursor) {
+      finalWhere = {
+        AND: [
+          where,
+          {
+            OR: [
+              { createdAt: { lt: decodedCursor.createdAt } },
+              {
+                createdAt: decodedCursor.createdAt,
+                id: { lt: decodedCursor.id },
               },
-              agent: {
-                select: {
-                  id: true,
-                  agentCode: true,
-                  fullName: true,
-                },
-              },
-            },
+            ],
           },
-          area: true,
-          agent: true,
-          creator: {
+        ],
+      };
+    }
+
+    const limit = capLimit(filters?.limit);
+    const countCacheKey = buildCountCacheKey('transactions', {
+      type: filters?.type,
+      status: filters?.status,
+      accountId: filters?.accountId,
+      areaId: filters?.areaId,
+      agentId: filters?.agentId,
+      search: filters?.search?.trim() || undefined,
+      startDate: filters?.startDate?.toISOString(),
+      endDate: filters?.endDate?.toISOString(),
+    });
+
+    const defaultSelect: Prisma.TransactionSelect = {
+      id: true,
+      transactionNumber: true,
+      type: true,
+      amount: true,
+      balanceBefore: true,
+      balanceAfter: true,
+      status: true,
+      description: true,
+      reference: true,
+      createdAt: true,
+      approvedAt: true,
+      account: {
+        select: {
+          id: true,
+          accountNumber: true,
+          client: {
             select: {
               id: true,
-              name: true,
-              email: true,
+              clientNumber: true,
+              fullName: true,
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
-        take: filters?.limit ?? 50,
-        skip: filters?.offset ?? 0,
-      }),
-      prisma.transaction.count({ where }),
-    ]);
+      },
+    };
 
-    return { transactions, total };
+    const TXN_SORT_FIELDS = ['createdAt', 'amount', 'type', 'status', 'transactionNumber'];
+    const sortField = filters?.sort && TXN_SORT_FIELDS.includes(filters.sort) ? filters.sort : 'createdAt';
+    const sortDir = filters?.dir === 'asc' ? 'asc' : 'desc';
+    const orderBy = useCursor ? { createdAt: 'desc' as const } : { [sortField]: sortDir };
+
+    const cacheParams = {
+      type: filters?.type,
+      status: filters?.status,
+      accountId: filters?.accountId,
+      areaId: filters?.areaId,
+      agentId: filters?.agentId,
+      search: filters?.search?.trim() || undefined,
+      sort: sortField,
+      dir: sortDir,
+      limit,
+      offset: useCursor ? 0 : (filters?.offset ?? 0),
+      cursor: filters?.cursor,
+      startDate: filters?.startDate?.toISOString(),
+      endDate: filters?.endDate?.toISOString(),
+      hasSelect: !!filters?.select,
+    };
+
+    const result = await getCachedOrFetch(LIST_PREFIX_TRANSACTIONS, cacheParams, TXN_LIST_TTL, async () => {
+      const [rows, count] = await Promise.all([
+        prisma.transaction.findMany({
+          where: finalWhere,
+          select: filters?.select
+            ? { ...filters.select, id: true, createdAt: true }
+            : defaultSelect,
+          orderBy,
+          take: limit,
+          skip: useCursor ? 0 : (filters?.offset ?? 0),
+        }),
+        getCachedCount(countCacheKey, () => prisma.transaction.count({ where })),
+      ]);
+      return { rows, count };
+    });
+
+    const transactions = result.rows;
+    const total = result.count;
+
+    const last = transactions[transactions.length - 1];
+    const nextCursor =
+      useCursor && last && transactions.length === limit
+        ? encodeCursor(last.createdAt, last.id)
+        : null;
+
+    return {
+      transactions,
+      total,
+      nextCursor,
+      hasMore: !!nextCursor,
+    };
   }
 
   /**
@@ -551,6 +937,8 @@ export class TransactionService {
     areaId?: string;
     agentId?: string;
     accountId?: string;
+    limit?: number;
+    offset?: number;
   }) {
     const where: Prisma.TransactionWhereInput = {
       status: 'PENDING_APPROVAL',
@@ -571,36 +959,36 @@ export class TransactionService {
 
     return await prisma.transaction.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        transactionNumber: true,
+        type: true,
+        amount: true,
+        status: true,
+        description: true,
+        reference: true,
+        createdAt: true,
         account: {
-          include: {
+          select: {
+            id: true,
+            accountNumber: true,
             client: {
-              select: {
-                id: true,
-                clientNumber: true,
-                fullName: true,
-              },
+              select: { id: true, clientNumber: true, fullName: true },
             },
             agent: {
-              select: {
-                id: true,
-                agentCode: true,
-                fullName: true,
-              },
+              select: { id: true, agentCode: true, fullName: true },
             },
           },
         },
-        area: true,
-        agent: true,
+        area: { select: { id: true, code: true, name: true } },
+        agent: { select: { id: true, agentCode: true, fullName: true } },
         creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+          select: { id: true, name: true, email: true },
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: capLimit(filters?.limit),
+      skip: filters?.offset ?? 0,
     });
   }
 
@@ -608,34 +996,36 @@ export class TransactionService {
    * Get transaction by ID
    */
   async getTransactionById(id: string) {
-    return await prisma.transaction.findUnique({
-      where: { id },
-      include: {
-        account: {
-          include: {
-            client: true,
-            agent: true,
+    return getCachedOrFetchByKey(transactionDetailKey(id), TXN_DETAIL_TTL, () =>
+      prisma.transaction.findUnique({
+        where: { id },
+        include: {
+          account: {
+            include: {
+              client: true,
+              agent: true,
+            },
           },
-        },
-        area: true,
-        agent: true,
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+          area: true,
+          agent: true,
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
-        },
-        approver: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+          approver: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
+          commission: true,
         },
-        commission: true,
-      },
-    });
+      }),
+    );
   }
 
   /**
@@ -646,6 +1036,8 @@ export class TransactionService {
     status?: string;
     startDate?: Date;
     endDate?: Date;
+    limit?: number;
+    offset?: number;
   }) {
     const where: Prisma.TransactionWhereInput = {
       accountId,
@@ -669,16 +1061,22 @@ export class TransactionService {
 
     return await prisma.transaction.findMany({
       where,
-      include: {
-        area: true,
-        agent: true,
-        creator: {
-          select: {
-            name: true,
-          },
-        },
+      select: {
+        id: true,
+        transactionNumber: true,
+        type: true,
+        amount: true,
+        status: true,
+        description: true,
+        reference: true,
+        createdAt: true,
+        area: { select: { id: true, code: true, name: true } },
+        agent: { select: { id: true, agentCode: true, fullName: true } },
+        creator: { select: { name: true } },
       },
       orderBy: { createdAt: 'desc' },
+      take: capLimit(filters?.limit),
+      skip: filters?.offset ?? 0,
     });
   }
 }

@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import { useTranslation } from '@/hooks/useTranslation';
+import type { AdminDashboardStats } from '@/lib/services/dashboard-service';
 import { Container } from '@/components/common/container';
 import {
   Toolbar,
@@ -13,7 +15,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Activity,
+  AlertTriangle,
+  CheckCircle2,
   FileText,
+  Loader2,
   UserCheck,
   Users,
   Wallet,
@@ -32,8 +37,13 @@ interface Transaction {
   amount: number;
 }
 
-export default function AdminDashboard() {
+interface AdminDashboardProps {
+  initialStats?: AdminDashboardStats | null;
+}
+
+export default function AdminDashboard({ initialStats }: AdminDashboardProps) {
   const { t } = useTranslation();
+  const [isExporting, setIsExporting] = useState(false);
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
@@ -42,7 +52,43 @@ export default function AdminDashboard() {
       const result = await response.json();
       return result.data;
     },
+    initialData: initialStats,
   });
+
+  const handleExport = async () => {
+    if (!stats || isExporting) return;
+    setIsExporting(true);
+    try {
+      const rows: string[][] = [
+        [t('pages.dashboard.activeClients'), String(stats.activeClients ?? 0)],
+        [t('pages.dashboard.activeAgents'), String(stats.activeAgents ?? 0)],
+        [t('pages.dashboard.todayCollections'), formatCurrency(stats.dailyCollections ?? 0)],
+        [t('pages.dashboard.loanRequests'), String(stats.pendingLoans ?? 0)],
+        [],
+        [t('pages.dashboard.recentTransactions')],
+        ['Type', 'Reference', 'Date', 'Status', 'Amount'],
+        ...(stats.recentTransactions ?? []).map((txn: Transaction) => [
+          txn.type,
+          txn.reference,
+          formatDate(txn.date),
+          txn.status,
+          String(txn.amount),
+        ]),
+      ];
+      const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dashboard-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <>
@@ -53,8 +99,13 @@ export default function AdminDashboard() {
             description={t('pages.dashboard.overviewDescription', 'Overview of system performance and activities')}
           />
           <ToolbarActions>
-            <Button size="sm">
-               {t('common.actions.export', 'Export Report')}
+            <Button
+              size="sm"
+              onClick={handleExport}
+              disabled={isLoading || !stats || isExporting}
+            >
+              {isExporting && <Loader2 className="size-3.5 animate-spin" />}
+              {t('common.actions.export', 'Export Report')}
             </Button>
           </ToolbarActions>
         </Toolbar>
@@ -151,6 +202,52 @@ export default function AdminDashboard() {
                 </CardContent>
             </Card>
             </div>
+
+            {stats?.surplusShortageSummary && (
+            <Card className={stats.surplusShortageSummary.shortageDays > 0 ? 'border-destructive/50' : ''}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                    {t('pages.dashboard.surplusShortage')}
+                </CardTitle>
+                {stats.surplusShortageSummary.shortageDays > 0 ? (
+                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                ) : (
+                    <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                )}
+                </CardHeader>
+                <CardContent>
+                <p className="text-xs text-muted-foreground mb-3">
+                    {t('pages.dashboard.surplusShortageLast30Days')}
+                </p>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                    <span className="text-muted-foreground">{t('pages.dashboard.shortageDays')}: </span>
+                    <span className={stats.surplusShortageSummary.shortageDays > 0 ? 'font-semibold text-destructive' : 'font-medium'}>
+                        {stats.surplusShortageSummary.shortageDays}
+                    </span>
+                    </div>
+                    <div>
+                    <span className="text-muted-foreground">{t('pages.dashboard.totalShortage')}: </span>
+                    <span className="font-medium">{formatCurrency(stats.surplusShortageSummary.totalShortage)}</span>
+                    </div>
+                    <div>
+                    <span className="text-muted-foreground">{t('pages.dashboard.surplusDays')}: </span>
+                    <span className="font-medium text-green-600">{stats.surplusShortageSummary.surplusDays}</span>
+                    </div>
+                    <div>
+                    <span className="text-muted-foreground">{t('pages.dashboard.totalSurplus')}: </span>
+                    <span className="font-medium text-green-600">{formatCurrency(stats.surplusShortageSummary.totalSurplus)}</span>
+                    </div>
+                </div>
+                <Link
+                    href="/reports/surplus-shortage"
+                    className="inline-flex items-center text-sm font-medium text-primary hover:underline mt-3"
+                >
+                    {t('pages.dashboard.viewSurplusShortageReport')} →
+                </Link>
+                </CardContent>
+            </Card>
+            )}
 
             <div className="grid gap-5 lg:gap-7.5 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-4">

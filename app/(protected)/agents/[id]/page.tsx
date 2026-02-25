@@ -16,7 +16,7 @@ import {
   ToolbarTitle,
 } from '@/components/common/toolbar';
 import AgentForm from '../components/agent-form';
-import RefillDialog from '../components/refill-dialog';
+import AgentAccountActions from '../components/agent-account-actions';
 import { agentService } from '@/lib/services';
 import { formatCurrency } from '@/lib/helpers';
 
@@ -70,10 +70,17 @@ export default async function Page({ params }: PageProps) {
             </Breadcrumb>
           </ToolbarHeading>
           <ToolbarActions>
-            <RefillDialog
-              agentId={agent.id}
-              agentName={agent.fullName}
-            />
+            {agent.account && (
+              <AgentAccountActions
+                agentId={agent.id}
+                agentName={agent.fullName}
+                accountId={agent.account.id}
+                accountNumber={agent.account.accountNumber}
+                availableBalance={Number(
+                  agent.account.availableBalance ?? agent.account.balance ?? 0
+                )}
+              />
+            )}
           </ToolbarActions>
         </Toolbar>
       </Container>

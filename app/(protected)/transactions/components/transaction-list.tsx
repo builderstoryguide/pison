@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useDebouncedSearch } from '@/hooks/use-debounced-search';
 import { useTransactions } from '@/hooks/queries/use-transactions';
 import {
   ColumnDef,
@@ -13,10 +14,11 @@ import {
   SortingState,
   useReactTable,
 } from '@tanstack/react-table';
-import { ChevronRight, CreditCard, Search, X, ArrowDown, ArrowUp } from 'lucide-react';
+import { ChevronRight, Search, X, ArrowDown, ArrowUp, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { apiFetch } from '@/lib/api';
-import { formatDate, formatDateTime } from '@/lib/helpers';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useSessionStatus } from '@/hooks/use-session-status';
+import { formatCurrency, formatDateTime } from '@/lib/helpers';
 import { Badge, BadgeDot } from '@/components/ui/badge';
 import { Card, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -51,9 +53,10 @@ interface Transaction {
 
 interface TransactionListProps {
   defaultType?: string;
+  accountId?: string;
 }
 
-const TransactionList = ({ defaultType }: TransactionListProps) => {
+const TransactionList = ({ defaultType, accountId }: TransactionListProps) => {
   const router = useRouter();
   const { t } = useTranslation();
   const [pagination, setPagination] = useState<PaginationState>({
@@ -63,17 +66,24 @@ const TransactionList = ({ defaultType }: TransactionListProps) => {
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'createdAt', desc: true },
   ]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setSearchValue, immediateSearch] = useDebouncedSearch('', 300);
   const [selectedStatus, setSelectedStatus] = useState<string | null>('all');
   const [selectedType, setSelectedType] = useState<string | null>(
     defaultType || 'all'
   );
 
-  // Transactions query
-  const { data: transactions = [], isLoading } = useTransactions({
+  // Transactions query with server-side pagination
+  const { data: transactionsResponse, isLoading } = useTransactions({
     type: selectedType && selectedType !== 'all' ? selectedType : undefined,
     status: selectedStatus && selectedStatus !== 'all' ? selectedStatus : undefined,
+    accountId,
+    search: debouncedSearch || undefined,
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
   });
+
+  const transactions = transactionsResponse?.data ?? [];
+  const totalCount = transactionsResponse?.pagination?.total ?? 0;
 
   const handleStatusSelection = (status: string) => {
     setSelectedStatus(status);
@@ -173,11 +183,7 @@ const TransactionList = ({ defaultType }: TransactionListProps) => {
               }`}
             >
               {isCredit ? '+' : '-'}
-              {new Intl.NumberFormat('fr-FR', {
-                style: 'currency',
-                currency: 'XOF',
-                minimumFractionDigits: 0,
-              }).format(Math.abs(amount))}
+              {formatCurrency(Math.abs(amount))}
             </span>
           );
         },
@@ -273,8 +279,8 @@ const TransactionList = ({ defaultType }: TransactionListProps) => {
 
   const table = useReactTable({
     columns,
-    data: transactions || [],
-    pageCount: Math.ceil((transactions?.length || 0) / pagination.pageSize),
+    data: transactions,
+    pageCount: Math.ceil(totalCount / pagination.pageSize) || 1,
     getRowId: (row: Transaction) => row.id,
     state: {
       pagination,
@@ -288,45 +294,39 @@ const TransactionList = ({ defaultType }: TransactionListProps) => {
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    manualPagination: false,
+    manualPagination: true,
     manualSorting: false,
     manualFiltering: false,
   });
 
-  const DataGridToolbar = () => {
-    const [inputValue, setInputValue] = useState(searchQuery);
-
-    const handleSearch = () => {
-      setSearchQuery(inputValue);
-      setPagination({ ...pagination, pageIndex: 0 });
-    };
-
-    return (
-      <CardHeader className="flex-col flex-wrap sm:flex-row items-stretch sm:items-center py-5">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-          <div className="relative">
-            <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
-            <Input
-              placeholder={t('pages.transactions.searchPlaceholder')}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              disabled={isLoading}
-              className="ps-9 w-full sm:w-40 md:w-64"
-            />
-            {searchQuery.length > 0 && (
-              <Button
-                mode="icon"
-                variant="dim"
-                className="absolute end-1.5 top-1/2 -translate-y-1/2 h-6 w-6"
-                onClick={() => {
-                  setSearchQuery('');
-                  setInputValue('');
-                }}
-              >
-                <X />
-              </Button>
-            )}
+  const DataGridToolbar = () => (
+    <CardHeader className="flex-col flex-wrap sm:flex-row items-stretch sm:items-center py-5">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+        <div className="relative">
+          <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
+          <Input
+            placeholder={t('pages.transactions.searchPlaceholder')}
+            value={immediateSearch}
+            onChange={(e) => {
+              setSearchValue(e.target.value);
+              setPagination((p) => ({ ...p, pageIndex: 0 }));
+            }}
+            disabled={isLoading}
+            className="ps-9 w-full sm:w-40 md:w-64"
+          />
+          {immediateSearch.length > 0 && (
+            <Button
+              mode="icon"
+              variant="dim"
+              className="absolute end-1.5 top-1/2 -translate-y-1/2 h-6 w-6"
+              onClick={() => {
+                setSearchValue('');
+                setPagination((p) => ({ ...p, pageIndex: 0 }));
+              }}
+            >
+              <X />
+            </Button>
+          )}
           </div>
           <Select
             onValueChange={handleTypeSelection}
@@ -366,13 +366,26 @@ const TransactionList = ({ defaultType }: TransactionListProps) => {
           </Select>
         </div>
       </CardHeader>
-    );
-  };
+  );
+
+  const { data: sessionStatus, isLoading: isSessionLoading } = useSessionStatus();
+  const isSessionClosed = !isSessionLoading && sessionStatus && !sessionStatus.isOpen;
 
   return (
-    <DataGrid
+    <div className="space-y-4">
+      {isSessionClosed && (
+        <Alert variant="destructive">
+          <Lock className="h-4 w-4" />
+          <AlertTitle>{t('pages.transactions.sessionClosed')}</AlertTitle>
+          <AlertDescription>
+            {t('pages.transactions.sessionClosedDesc')}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <DataGrid
       table={table}
-      recordCount={transactions?.length || 0}
+      recordCount={totalCount}
       isLoading={isLoading}
       onRowClick={handleRowClick}
       tableLayout={{
@@ -398,6 +411,7 @@ const TransactionList = ({ defaultType }: TransactionListProps) => {
         </CardFooter>
       </Card>
     </DataGrid>
+    </div>
   );
 };
 

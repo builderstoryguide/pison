@@ -3,20 +3,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
-import { formatDate, formatDateTime } from '@/lib/helpers';
+import { transactionKeys } from '@/hooks/queries/query-keys';
+import { formatCurrency, formatDateTime } from '@/lib/helpers';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -83,7 +74,7 @@ export default function PendingTransactionsList() {
 
   // Fetch pending transactions
   const { data: transactions, isLoading } = useQuery({
-    queryKey: ['pending-transactions'],
+    queryKey: transactionKeys.pending(),
     queryFn: async () => {
       const response = await apiFetch('/api/transactions/pending');
       if (!response.ok) {
@@ -114,8 +105,8 @@ export default function PendingTransactionsList() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pending-transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: transactionKeys.pending() });
+      queryClient.invalidateQueries({ queryKey: transactionKeys.all });
       toast.success('Transaction approved successfully');
       setApproveDialogOpen(false);
       setSelectedTransaction(null);
@@ -145,8 +136,8 @@ export default function PendingTransactionsList() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pending-transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: transactionKeys.pending() });
+      queryClient.invalidateQueries({ queryKey: transactionKeys.all });
       toast.success('Transaction rejected');
       setRejectDialogOpen(false);
       setSelectedTransaction(null);
@@ -331,11 +322,7 @@ export default function PendingTransactionsList() {
                         }`}
                       >
                         {isCredit ? '+' : '-'}
-                        {new Intl.NumberFormat('fr-FR', {
-                          style: 'currency',
-                          currency: 'XOF',
-                          minimumFractionDigits: 0,
-                        }).format(Math.abs(amount))}
+                        {formatCurrency(Math.abs(amount))}
                       </div>
                     </div>
 
@@ -343,21 +330,13 @@ export default function PendingTransactionsList() {
                       <div>
                         <div className="text-muted-foreground">Balance Before</div>
                         <div className="font-medium">
-                          {new Intl.NumberFormat('fr-FR', {
-                            style: 'currency',
-                            currency: 'XOF',
-                            minimumFractionDigits: 0,
-                          }).format(parseFloat(transaction.balanceBefore))}
+                          {formatCurrency(transaction.balanceBefore)}
                         </div>
                       </div>
                       <div>
                         <div className="text-muted-foreground">Balance After</div>
                         <div className="font-medium">
-                          {new Intl.NumberFormat('fr-FR', {
-                            style: 'currency',
-                            currency: 'XOF',
-                            minimumFractionDigits: 0,
-                          }).format(parseFloat(transaction.balanceAfter))}
+                          {formatCurrency(transaction.balanceAfter)}
                         </div>
                       </div>
                     </div>

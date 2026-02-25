@@ -61,7 +61,8 @@ export default function AccountStatusContent({
   account,
   ownerName,
   ownerType,
-}: AccountStatusContentProps) {
+  breadcrumbs,
+}: AccountStatusContentProps & { breadcrumbs?: React.ReactNode }) {
   const { t } = useTranslation();
   const ownerTypeLabel = t(`pages.accounts.${ownerType}`);
 
@@ -77,7 +78,10 @@ export default function AccountStatusContent({
               <span>•</span>
               <span>{ownerName ? `${ownerName} (${ownerTypeLabel})` : ownerTypeLabel}</span>
             </div>
-            <Breadcrumb>
+            {breadcrumbs ? (
+              breadcrumbs
+            ) : (
+              <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
                   <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
@@ -92,6 +96,7 @@ export default function AccountStatusContent({
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
+            )}
           </ToolbarHeading>
         </Toolbar>
       </Container>

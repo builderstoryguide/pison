@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useDebouncedSearch } from '@/hooks/use-debounced-search';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
@@ -13,7 +14,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { ChevronRight, Plus, Search, X, Users, Edit, Trash2, Wallet } from 'lucide-react';
-import { formatDate } from '@/lib/helpers';
+import { formatCurrency, formatDate } from '@/lib/helpers';
 import { Badge, BadgeDot } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
@@ -51,9 +52,14 @@ import {
   useDeleteClient,
   useCollectionAreas,
   type Client,
+  type ClientsResponse,
 } from '@/hooks/queries';
 
-const ClientList = () => {
+interface ClientListProps {
+  initialData?: ClientsResponse | null;
+}
+
+const ClientList = ({ initialData }: ClientListProps) => {
   const router = useRouter();
   const { t } = useTranslation();
   const { data: session } = useSession();
@@ -62,7 +68,7 @@ const ClientList = () => {
     pageSize: 10,
   });
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setSearchValue, immediateSearch] = useDebouncedSearch('', 300);
   const [selectedStatus, setSelectedStatus] = useState<string | null>('all');
   const [selectedArea, setSelectedArea] = useState<string | null>('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -71,12 +77,32 @@ const ClientList = () => {
   // Fetch collection areas for filter using centralized hook
   const { data: areasData } = useCollectionAreas({ status: 'ACTIVE' });
 
-  // Fetch clients using centralized hook with optimistic updates built-in
-  const { data: clients, isLoading } = useClients({
-    status: selectedStatus || undefined,
-    areaId: selectedArea || undefined,
-    search: searchQuery || undefined,
-  });
+  // Fetch clients using centralized hook with server-side pagination
+  const statusParam = selectedStatus === 'all' || !selectedStatus ? undefined : selectedStatus;
+  const areaParam = selectedArea === 'all' || !selectedArea ? undefined : selectedArea;
+
+  const { data: clientsResponse, isLoading } = useClients(
+    {
+      status: statusParam,
+      areaId: areaParam,
+      search: debouncedSearch || undefined,
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+    },
+    {
+      initialData:
+        initialData &&
+        pagination.pageIndex === 0 &&
+        statusParam === undefined &&
+        areaParam === undefined &&
+        !debouncedSearch
+          ? initialData
+          : undefined,
+    }
+  );
+
+  const clients = clientsResponse?.data ?? [];
+  const totalCount = clientsResponse?.pagination?.total ?? 0;
 
   // Delete mutation with optimistic updates
   const deleteMutation = useDeleteClient();
@@ -113,9 +139,10 @@ const ClientList = () => {
     }
   };
 
-  // Check if user can create clients
+  // Check if user can manage clients (create, edit, delete)
   const roleName = (session?.user?.roleName || '').toLowerCase();
-  const canCreate = roleName.includes('manager') || roleName.includes('accountant');
+  const canManage = roleName.includes('manager') || roleName.includes('accountant') || roleName.includes('administrator');
+  const canCreate = canManage; // Alias for toolbar "Add" button (matches agent-list pattern)
 
   const columns = useMemo<ColumnDef<Client>[]>(
     () => [
@@ -203,16 +230,11 @@ const ClientList = () => {
         cell: ({ row }) => {
           const account = row.original.account;
           if (!account) return '-';
-          const balance = parseFloat(account.balance);
           return (
             <div className="flex items-center gap-2">
               <Wallet className="size-4 text-muted-foreground" />
               <span className="font-medium">
-                {new Intl.NumberFormat('fr-FR', {
-                  style: 'currency',
-                  currency: 'XOF',
-                  minimumFractionDigits: 0,
-                }).format(balance)}
+                {formatCurrency(account.balance)}
               </span>
             </div>
           );
@@ -308,7 +330,7 @@ const ClientList = () => {
         header: '',
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
-            {canCreate && (
+            {canManage && (
               <>
                 <Button
                   mode="icon"
@@ -337,13 +359,13 @@ const ClientList = () => {
         meta: {
           skeleton: <Skeleton className="size-4" />,
         },
-        size: canCreate ? 120 : 40,
+        size: canManage ? 120 : 40,
         enableSorting: false,
         enableHiding: false,
         enableResizing: false,
       },
     ],
-    [router, canCreate, t],
+    [router, canManage, t],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -352,8 +374,8 @@ const ClientList = () => {
 
   const table = useReactTable({
     columns,
-    data: clients || [],
-    pageCount: Math.ceil((clients?.length || 0) / pagination.pageSize),
+    data: clients,
+    pageCount: Math.ceil(totalCount / pagination.pageSize) || 1,
     getRowId: (row: Client) => row.id,
     state: {
       pagination,
@@ -367,19 +389,12 @@ const ClientList = () => {
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    manualPagination: false,
+    manualPagination: true,
     manualSorting: false,
     manualFiltering: false,
   });
 
   const DataGridToolbar = () => {
-    const [inputValue, setInputValue] = useState(searchQuery);
-
-    const handleSearch = () => {
-      setSearchQuery(inputValue);
-      setPagination({ ...pagination, pageIndex: 0 });
-    };
-
     return (
       <CardHeader className="flex-col flex-wrap sm:flex-row items-stretch sm:items-center py-5">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
@@ -387,20 +402,23 @@ const ClientList = () => {
             <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
             <Input
               placeholder={t('pages.clients.searchPlaceholder')}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              value={immediateSearch}
+              onChange={(e) => {
+                setSearchValue(e.target.value);
+                setPagination((p) => ({ ...p, pageIndex: 0 }));
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && setPagination((p) => ({ ...p, pageIndex: 0 }))}
               disabled={isLoading}
               className="ps-9 w-full sm:w-40 md:w-64"
             />
-            {searchQuery.length > 0 && (
+            {immediateSearch.length > 0 && (
               <Button
                 mode="icon"
                 variant="dim"
                 className="absolute end-1.5 top-1/2 -translate-y-1/2 h-6 w-6"
                 onClick={() => {
-                  setSearchQuery('');
-                  setInputValue('');
+                  setSearchValue('');
+                  setPagination((p) => ({ ...p, pageIndex: 0 }));
                 }}
               >
                 <X />
@@ -463,7 +481,7 @@ const ClientList = () => {
     <>
       <DataGrid
         table={table}
-        recordCount={clients?.length || 0}
+        recordCount={totalCount}
         isLoading={isLoading}
         onRowClick={handleRowClick}
         tableLayout={{

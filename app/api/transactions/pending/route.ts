@@ -20,17 +20,43 @@ export async function GET(request: NextRequest) {
     const areaId = searchParams.get('areaId');
     const agentId = searchParams.get('agentId');
     const accountId = searchParams.get('accountId');
+    const limitRaw = searchParams.get('limit');
+    const limit = limitRaw ? parseInt(limitRaw, 10) : 50;
+    const offsetRaw = searchParams.get('offset');
+    const offset = offsetRaw ? parseInt(offsetRaw, 10) : 0;
+
+    if (!Number.isFinite(limit) || !Number.isInteger(limit) || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid limit (must be 1-100)' },
+        },
+        { status: 400 }
+      );
+    }
+    if (!Number.isFinite(offset) || !Number.isInteger(offset) || offset < 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Invalid offset' },
+        },
+        { status: 400 }
+      );
+    }
 
     const transactions = await transactionService.getPendingTransactions({
       type: type || undefined,
       areaId: areaId || undefined,
       agentId: agentId || undefined,
       accountId: accountId || undefined,
+      limit,
+      offset,
     });
 
     return NextResponse.json({
       success: true,
       data: transactions,
+      pagination: { limit, offset },
     });
   } catch (error: any) {
     console.error('Error fetching pending transactions:', error);

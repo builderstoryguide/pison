@@ -12,7 +12,7 @@ const calculateSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const forbidden = await requirePermission(session, 'settings.manage');
+    const forbidden = await requirePermission(session, 'commissions.calculate');
     if (forbidden) return forbidden;
 
     const body = await request.json();
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: `Commission calculation started for ${validatedData.period}`,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         success: false,
         error: {
           code: 'CALCULATION_ERROR',
-          message: error.message || 'Failed to trigger commission calculation',
+          message: error instanceof Error ? error.message : 'Failed to trigger commission calculation',
         },
       },
       { status: 500 }

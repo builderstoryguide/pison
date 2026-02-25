@@ -1,11 +1,13 @@
 'use client';
 
-import { JSX, useCallback } from 'react';
+import { JSX, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { LucideIcon } from 'lucide-react';
 import { MENU_MEGA_MOBILE } from '@/config/menu.config';
 import { cn } from '@/lib/utils';
+import { filterMenuByPermission } from '@/lib/menu-filter';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   AccordionMenu,
@@ -40,6 +42,12 @@ export type MenuConfig = MenuItem[];
 export function MegaMenuMobile() {
   const pathname = usePathname();
   const { t } = useTranslation();
+  const { data: session } = useSession();
+
+  const filteredMenu = useMemo(
+    () => filterMenuByPermission(MENU_MEGA_MOBILE, session ?? null),
+    [session]
+  );
 
   // Memoize matchPath to prevent unnecessary re-renders
   const matchPath = useCallback(
@@ -220,7 +228,7 @@ export function MegaMenuMobile() {
         collapsible
         classNames={classNames}
       >
-        {buildMenu(MENU_MEGA_MOBILE)}
+        {buildMenu(filteredMenu)}
       </AccordionMenu>
     </div>
   );

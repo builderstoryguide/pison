@@ -35,29 +35,26 @@ export async function GET(
     const forbidden = await requirePermission(session, 'clients.view');
     if (forbidden) return forbidden;
 
-    // Check if agent has access to this client's area
-    const roleName = (session?.user?.roleName || '').toLowerCase();
-    if (roleName.includes('agent') || roleName.includes('collector')) {
-      const client = await clientService.getClientById(params.id);
-      if (!client) {
-        return NextResponse.json({ error: 'Client not found' }, { status: 404 });
-      }
-
-      const { agentService } = await import('@/lib/services');
-      const agent = await agentService.getAgentByUserId(session?.user?.id || '');
-      if (!agent) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-      const hasAccess = await agentService.validateAgentAreaAccess(agent.id, client.areaId);
-      if (!hasAccess) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-    }
-
+    // Fetch the client once; reuse for both the access check and the response
     const client = await clientService.getClientById(params.id);
 
     if (!client) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+
+    // For agents/collectors: verify direct client assignment
+    const roleName = (session?.user?.roleName || '').toLowerCase();
+    if (roleName.includes('agent') || roleName.includes('collector')) {
+      const { agentService } = await import('@/lib/services');
+      const agent = await agentService.getAgentByUserId(session?.user?.id || '');
+      if (!agent) {
+        return NextResponse.json({ error: 'Agent record not found' }, { status: 403 });
+      }
+      // Grant access ONLY if the client is directly assigned to this agent
+      const isDirectlyAssigned = client.agentId === agent.id;
+      if (!isDirectlyAssigned) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     return NextResponse.json({
@@ -97,18 +94,13 @@ export async function PUT(
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
-    // Check if agent has access to this client's area
+    // Prevent Agents and Collectors from updating client details
     const roleName = (session?.user?.roleName || '').toLowerCase();
     if (roleName.includes('agent') || roleName.includes('collector')) {
-      const { agentService } = await import('@/lib/services');
-      const agent = await agentService.getAgentByUserId(session?.user?.id || '');
-      if (!agent) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-      const hasAccess = await agentService.validateAgentAreaAccess(agent.id, client.areaId);
-      if (!hasAccess) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+      return NextResponse.json(
+        { error: 'Agents and Collectors are not allowed to edit client details' },
+        { status: 403 }
+      );
     }
 
     const updatedClient = await clientService.updateClient(
@@ -160,23 +152,13 @@ export async function DELETE(
     const forbidden = await requirePermission(session, 'clients.delete');
     if (forbidden) return forbidden;
 
-    // Check if agent has access to this client's area
+    // Prevent Agents and Collectors from deactivating clients
     const roleName = (session?.user?.roleName || '').toLowerCase();
     if (roleName.includes('agent') || roleName.includes('collector')) {
-      const clientToCheck = await clientService.getClientById(params.id);
-      if (!clientToCheck) {
-        return NextResponse.json({ error: 'Client not found' }, { status: 404 });
-      }
-
-      const { agentService } = await import('@/lib/services');
-      const agent = await agentService.getAgentByUserId(session?.user?.id || '');
-      if (!agent) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-      const hasAccess = await agentService.validateAgentAreaAccess(agent.id, clientToCheck.areaId);
-      if (!hasAccess) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
+      return NextResponse.json(
+        { error: 'Agents and Collectors are not allowed to deactivate clients' },
+        { status: 403 }
+      );
     }
 
     const client = await clientService.deactivateClient(

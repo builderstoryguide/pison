@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Next.js
+.next/
+out/
+build/
+
+# Environment
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor
+
+# Testing
+.playwright/
+e2e/
+
+# Prisma
+prisma/data/
+*.db
+*.db-journal
+
+# Documentation
+documentation.html
+docs/
+
+# Git
+.git
+.gitignore
+
+# CI/CD
+.github/
+
+# Dev files (keep tsconfig.json and postcss.config.mjs for build)
+.prettierignore
+.prettierrc
+eslint.config.mjs
+tsconfig.tsbuildinfo
+playwright.config.ts
+*.md
+AGENTS.md

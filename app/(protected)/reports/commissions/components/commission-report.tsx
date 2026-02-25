@@ -12,7 +12,7 @@ import {
   SortingState,
   useReactTable,
 } from '@tanstack/react-table';
-import { Calculator, Play, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Play, Search, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTable } from '@/components/ui/card';
@@ -50,6 +50,15 @@ interface CommissionReportRow {
   calculatedAt: string;
 }
 
+interface CommissionSummaryByClientRow {
+  clientId: string;
+  clientNumber: string;
+  clientName: string;
+  withdrawalCount: number;
+  totalWithdrawalAmount: number;
+  totalCommission: number;
+}
+
 function getCurrentMonth(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -68,17 +77,60 @@ export default function CommissionReport() {
     { id: 'calculatedAt', desc: true },
   ]);
 
-  // Fetch commissions
-  const { data: rows, isLoading } = useQuery<CommissionReportRow[]>({
+  // Fetch commissions and summary by client
+  const { data, isLoading } = useQuery<{
+    data: CommissionReportRow[];
+    summaryByClient: CommissionSummaryByClientRow[];
+  }>({
     queryKey: ['report-commissions', period],
     queryFn: async () => {
       const url = buildUrl('/api/reports/commissions', { period: period || undefined });
       const res = await apiFetch(url);
       const json = await res.json();
-      return json.data ?? [];
+      return {
+        data: json.data ?? [],
+        summaryByClient: json.summaryByClient ?? [],
+      };
     },
     staleTime: 1000 * 60 * 5,
   });
+
+  const rows = data?.data ?? [];
+  const rawSummaryByClient = data?.summaryByClient ?? [];
+
+  // When search filters rows, derive summary from filtered rows so summary matches
+  const summaryByClient = useMemo(() => {
+    if (!searchQuery) return rawSummaryByClient;
+    const byClient = new Map<
+      string,
+      { clientNumber: string; clientName: string; withdrawalCount: number; totalWithdrawal: number; totalCommission: number }
+    >();
+    for (const r of filteredRows) {
+      const key = `${r.clientNumber}-${r.clientName}`;
+      const existing = byClient.get(key);
+      if (existing) {
+        existing.withdrawalCount += 1;
+        existing.totalWithdrawal += r.withdrawalAmount;
+        existing.totalCommission += r.commissionAmount;
+      } else {
+        byClient.set(key, {
+          clientNumber: r.clientNumber,
+          clientName: r.clientName,
+          withdrawalCount: 1,
+          totalWithdrawal: r.withdrawalAmount,
+          totalCommission: r.commissionAmount,
+        });
+      }
+    }
+    return Array.from(byClient.entries()).map(([, agg]) => ({
+      clientId: agg.clientNumber,
+      clientNumber: agg.clientNumber,
+      clientName: agg.clientName,
+      withdrawalCount: agg.withdrawalCount,
+      totalWithdrawalAmount: agg.totalWithdrawal,
+      totalCommission: agg.totalCommission,
+    }));
+  }, [searchQuery, filteredRows, rawSummaryByClient]);
 
   // Calculate commissions mutation
   const calculateMutation = useMutation({
@@ -344,6 +396,8 @@ export default function CommissionReport() {
     );
   };
 
+  const [summaryExpanded, setSummaryExpanded] = useState(true);
+
   return (
     <div className="space-y-5">
       {/* Summary */}
@@ -370,6 +424,61 @@ export default function CommissionReport() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Summary by Client */}
+      {summaryByClient.length > 0 && (
+        <Card>
+          <CardHeader
+            className="cursor-pointer select-none py-4"
+            onClick={() => setSummaryExpanded(!summaryExpanded)}
+          >
+            <div className="flex items-center gap-2">
+              {summaryExpanded ? (
+                <ChevronDown className="size-4 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="size-4 text-muted-foreground" />
+              )}
+              <Users className="size-4 text-muted-foreground" />
+              <span className="font-medium">Summary by Client</span>
+              <span className="text-sm text-muted-foreground">
+                ({summaryByClient.length} client{summaryByClient.length !== 1 ? 's' : ''})
+              </span>
+            </div>
+          </CardHeader>
+          {summaryExpanded && (
+            <CardContent className="pt-0">
+              <div className="rounded-md border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/50">
+                      <th className="text-left font-medium px-4 py-2">Client #</th>
+                      <th className="text-left font-medium px-4 py-2">Client</th>
+                      <th className="text-right font-medium px-4 py-2">Withdrawals</th>
+                      <th className="text-right font-medium px-4 py-2">Total Withdrawal</th>
+                      <th className="text-right font-medium px-4 py-2">Total Commission</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summaryByClient.map((row) => (
+                      <tr key={row.clientId} className="border-t">
+                        <td className="px-4 py-2 font-mono">{row.clientNumber}</td>
+                        <td className="px-4 py-2 font-medium">{row.clientName}</td>
+                        <td className="px-4 py-2 text-right font-mono">{row.withdrawalCount}</td>
+                        <td className="px-4 py-2 text-right font-mono">
+                          {formatCurrency(row.totalWithdrawalAmount)}
+                        </td>
+                        <td className="px-4 py-2 text-right font-mono text-orange-600 font-medium">
+                          {formatCurrency(row.totalCommission)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          )}
+        </Card>
       )}
 
       <DataGrid
