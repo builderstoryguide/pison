@@ -18,6 +18,8 @@ import prisma from '@/lib/prisma';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+const DEFAULT_SESSION_MAX_AGE = 24 * 60 * 60; // 24 hours
+const REMEMBER_ME_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
 
 const authOptions: NextAuthOptions = {
   providers: [
@@ -177,9 +179,16 @@ const authOptions: NextAuthOptions = {
           },
         });
 
-        await logAuthEvent(user.id, 'LOGIN_SUCCESS', 'User logged in successfully.');
+        // Parse rememberMe from credentials (comes as string "true"/"false")
+        const rememberMe = credentials.rememberMe === 'true';
 
-        // 9. Return user object for JWT
+        await logAuthEvent(
+          user.id,
+          'LOGIN_SUCCESS',
+          `User logged in successfully.${rememberMe ? ' (Remember me enabled)' : ''}`,
+        );
+
+        // 9. Return user object for JWT (include rememberMe flag)
         return {
           id: user.id,
           email: user.email,
@@ -187,6 +196,7 @@ const authOptions: NextAuthOptions = {
           avatar: user.avatar,
           roleId: user.roleId,
           status: user.status,
+          rememberMe,
         };
       },
     }),
@@ -194,7 +204,10 @@ const authOptions: NextAuthOptions = {
 
   session: {
     strategy: 'jwt',
-    maxAge: 24 * 60 * 60, // Default: 24 hours
+    // Cookie maxAge set to 30 days; actual session validity controlled by JWT exp claim
+    // Without "Remember me": JWT expires in 24 hours
+    // With "Remember me": JWT expires in 30 days
+    maxAge: REMEMBER_ME_MAX_AGE,
   },
 
   callbacks: {
@@ -223,6 +236,12 @@ const authOptions: NextAuthOptions = {
         token.avatar = user.avatar;
         token.status = user.status;
         token.roleId = user.roleId;
+        token.rememberMe = user.rememberMe;
+
+        // Set token expiry based on "Remember me" preference
+        // NextAuth uses `exp` claim for JWT expiry
+        const maxAge = user.rememberMe ? REMEMBER_ME_MAX_AGE : DEFAULT_SESSION_MAX_AGE;
+        token.exp = Math.floor(Date.now() / 1000) + maxAge;
 
         // Fetch role name and permissions from DB (for client-side permission checks)
         if (user.roleId) {
