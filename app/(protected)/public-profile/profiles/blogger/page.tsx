@@ -33,7 +33,7 @@ export default function ProfileBloggerPage() {
         name="Jenny Klabber"
         image={image}
         info={[
-          { label: 'KeenThemes', icon: Dribbble },
+          { label: 'INNOVATE CREDIT', icon: Dribbble },
           { label: 'SF, Bay Area', icon: MapPin },
           { email: 'jenny@kteam.com', icon: Mail },
         ]}

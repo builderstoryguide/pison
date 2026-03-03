@@ -102,18 +102,18 @@ export function SheetNotifications({ trigger }: { trigger: ReactNode }) {
                       <DropdownMenuPortal>
                         <DropdownMenuSubContent className="w-44">
                           <DropdownMenuItem asChild>
-                            <Link href="/account/members/import-members">
+                            <Link href="/account/members/find">
                               <Shield />
                               {t('pages.topbar.chat.findMembers')}
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link href="/account/members/import-members">
+                            <Link href="/account/members/meetings">
                               <Calendar /> {t('pages.topbar.chat.meetings')}
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link href="/account/members/import-members">
+                            <Link href="/account/members/settings">
                               <Shield /> {t('pages.topbar.chat.groupSettings')}
                             </Link>
                           </DropdownMenuItem>
@@ -122,7 +122,7 @@ export function SheetNotifications({ trigger }: { trigger: ReactNode }) {
                     </DropdownMenuSub>
                     <DropdownMenuItem asChild>
                       <Link href="/account/security/privacy-settings">
-                        <Shield /> {t('pages.topbar.chat.groupSettings')}
+                        <Shield /> {t('pages.topbar.chat.privacySettings')}
                       </Link>
                     </DropdownMenuItem>
                   </DropdownMenuContent>

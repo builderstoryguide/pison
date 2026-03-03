@@ -90,11 +90,11 @@ export function ProfileDialog({
                         className="text-muted-foreground text-base"
                       />
                       <Link
-                        href="https://keenthemes.com"
+                        href="https://INNOVATE CREDIT.com"
                         className="text-secondary-foreground hover:text-primary"
                         rel="noopener noreferrer"
                       >
-                        Keenthemes
+                        INNOVATE CREDIT
                       </Link>
                     </div>
                     <div className="flex gap-1 items-center">

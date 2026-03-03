@@ -33,7 +33,7 @@ export default function CampaignsCardPage() {
         name="Jenny Klabber"
         image={image}
         info={[
-          { label: 'KeenThemes', icon: Zap },
+          { label: 'INNOVATE CREDIT', icon: Zap },
           { label: 'SF, Bay Area', icon: MapPin },
           { email: 'jenny@kteam.com', icon: Mail },
         ]}

@@ -1,9 +1,9 @@
-# Metronic 9 | All-in-One Tailwind based HTML/React/Next.js Template for Modern Web Applications
+# INNOVATE CREDIT 9 | All-in-One Tailwind based HTML/React/Next.js Template for Modern Web Applications
 
 ## Getting Started
 
-The official [Metronic Next.js Documentation](https://docs.keenthemes.com/metronic-nextjs) will be released soon,
-alongside the stable Metronic release, expected within the next week.
+The official [INNOVATE CREDIT Next.js Documentation](https://docs.INNOVATE CREDIT.com/INNOVATE CREDIT-nextjs) will be released soon,
+alongside the stable INNOVATE CREDIT release, expected within the next week.
 
 ### Prerequisites
 
@@ -16,9 +16,9 @@ alongside the stable Metronic release, expected within the next week.
 
 ## ReUI Components
 
-Metronic now leverages [ReUI](https://reui.io), our open-source React component library.
+INNOVATE CREDIT now leverages [ReUI](https://reui.io), our open-source React component library.
 
-Star the [ReUI on GitHub](https://github.com/keenthemes/reui) to help us grow the project and stay updated on new features!
+Star the [ReUI on GitHub](https://github.com/INNOVATE CREDIT/reui) to help us grow the project and stay updated on new features!
 
 ### Installation
 
@@ -62,5 +62,5 @@ Open `app/(protected)/layout.tsx` and change `Demo1Layout` to any demo, for exam
 
 ### Reporting Issues
 
-If you encounter any issues or have suggestions for improvement, please contact us at [support@keenthemes.com](mailto:support@keenthemes.com).
+If you encounter any issues or have suggestions for improvement, please contact us at [support@INNOVATE CREDIT.com](mailto:support@INNOVATE CREDIT.com).
 Include a detailed description of the issue or suggestion, and we will work to address it in the next stable release.

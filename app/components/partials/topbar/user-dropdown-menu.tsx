@@ -183,7 +183,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
 
         <DropdownMenuItem asChild>
           <Link
-            href="https://devs.keenthemes.com"
+            href="https://devs.INNOVATE CREDIT.com"
             className="flex items-center gap-2"
           >
             <FileText />

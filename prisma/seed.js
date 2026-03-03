@@ -234,7 +234,7 @@ async function main() {
       // Seed Settings
       await tx.systemSetting.create({
         data: {
-          name: 'Metronic',
+          name: 'INNOVATE CREDIT',
         },
       });
       console.log('Settings seeded.');

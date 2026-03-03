@@ -62,7 +62,7 @@ export function AccountInviteAFriendContent() {
             }
             more={{
               title: 'Contact Support',
-              url: 'https://keenthemes.com/contact',
+              url: 'https://INNOVATE CREDIT.com/contact',
             }}
           />
         </div>

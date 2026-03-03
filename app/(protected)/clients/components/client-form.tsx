@@ -503,13 +503,13 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                     name="openingAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t('pages.clients.openingAmountXaf')} *</FormLabel>
+                        <FormLabel>{t('pages.clients.openingAmountXof')} *</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
                             min={minOpening}
                             step="1"
-                            placeholder={t('pages.clients.minimumXaf', { amount: minOpening })}
+                            placeholder={t('pages.clients.minimumXof', { amount: minOpening })}
                             {...field}
                             value={field.value ?? ''}
                             onChange={(e) => {

@@ -70,9 +70,9 @@ const Highlights = ({ limit }: IHighlightsProps) => {
   ];
 
   const items: IHighlightsItems = [
-    { badgeColor: 'bg-green-500', label: 'Metronic' },
+    { badgeColor: 'bg-green-500', label: 'INNOVATE CREDIT' },
     { badgeColor: 'bg-destructive', label: 'Bundle' },
-    { badgeColor: 'bg-violet-500', label: 'MetronicNest' },
+    { badgeColor: 'bg-violet-500', label: 'INNOVATE CREDITNest' },
   ];
 
   const renderRow = (row: IHighlightsRow, index: number) => {

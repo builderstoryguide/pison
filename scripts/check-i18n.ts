@@ -27,6 +27,9 @@ const flattenKeys = (obj: Record<string, JsonValue>, prefix = ''): string[] => {
 };
 
 const walkFiles = (dirPath: string): string[] => {
+  if (!fs.existsSync(dirPath)) {
+    return [];
+  }
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
   const files: string[] = [];
   for (const entry of entries) {

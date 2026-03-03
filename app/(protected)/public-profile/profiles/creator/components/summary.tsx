@@ -28,13 +28,13 @@ interface ISummaryProps {
 
 const Summary = ({ title }: ISummaryProps) => {
   const items: ISummaryItems = [
-    { icon: Luggage, info: 'KeenThemes' },
+    { icon: Luggage, info: 'INNOVATE CREDIT' },
     { icon: Crown, info: 'Author' },
     { icon: BriefcaseBusiness, info: 'UI/UX Desiger' },
     { icon: Mail, info: 'enny@kteam.com' },
-    { icon: Volleyball, info: 'https://keenthemes.com' },
-    { icon: RiFacebookCircleLine, info: 'keenthemes' },
-    { icon: RiYoutubeLine, info: 'keenthemes' },
+    { icon: Volleyball, info: 'https://INNOVATE CREDIT.com' },
+    { icon: RiFacebookCircleLine, info: 'INNOVATE CREDIT' },
+    { icon: RiYoutubeLine, info: 'INNOVATE CREDIT' },
   ];
 
   const renderItem = (item: ISummaryItem, index: number) => {

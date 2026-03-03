@@ -23,7 +23,7 @@ const CalendarAccounts = () => {
     {
       logo: 'monday.svg',
       title: 'Monday',
-      email: 'jasontatum@keenthemes.com',
+      email: 'jasontatum@INNOVATE CREDIT.com',
     },
   ];
 

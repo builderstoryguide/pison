@@ -29,7 +29,7 @@ import { Switch } from '@/components/ui/switch';
 const BasicSettings = () => {
   const [date, setDate] = useState<Date | undefined>(new Date(1984, 0, 20));
   const [nameInput, setNameInput] = useState('Jason Tatum');
-  const [companyInput, setCompanyInput] = useState('KeenThemes');
+  const [companyInput, setCompanyInput] = useState('INNOVATE CREDIT');
   const [phoneInput, setPhoneInput] = useState('');
 
   // Docs: https://www.reui.io/docs/date-picker#date--time

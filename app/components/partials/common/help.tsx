@@ -44,7 +44,7 @@ export function Help() {
         }
         more={{
           title: 'Contact Support',
-          url: 'https://devs.keenthemes.com/unresolved',
+          url: 'https://devs.INNOVATE CREDIT.com/unresolved',
         }}
       />
     </div>

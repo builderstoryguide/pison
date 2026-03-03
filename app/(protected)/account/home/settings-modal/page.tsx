@@ -37,7 +37,7 @@ export default function AccountSettingsModalPage() {
         name="Jenny Klabber"
         image={image}
         info={[
-          { label: 'KeenThemes', icon: Luggage },
+          { label: 'INNOVATE CREDIT', icon: Luggage },
           { label: '', icon: null },
           { email: 'jenny@kteam.com', icon: Mail },
         ]}

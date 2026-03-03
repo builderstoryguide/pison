@@ -33,7 +33,7 @@ export default function ProfileDefaultPage() {
         name="Jenny Klabber"
         image={image}
         info={[
-          { label: 'KeenThemes', icon: Luggage },
+          { label: 'INNOVATE CREDIT', icon: Luggage },
           { label: 'SF, Bay Area', icon: MapPin },
           { email: 'jenny@kteam.com', icon: Mail },
         ]}

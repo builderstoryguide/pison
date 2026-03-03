@@ -10,12 +10,12 @@ const MegaMenuFooter = () => {
           Read to Get Started ?
         </div>
         <div className="text-sm fomt-medium text-secondary-foreground">
-          Take your docs to the next level of Metronic
+          Take your docs to the next level of INNOVATE CREDIT
         </div>
       </div>
       <Button variant="mono" asChild>
         <a
-          href="https://keenthemes.com/metronic"
+          href="https://INNOVATE CREDIT.com/INNOVATE CREDIT"
           target="_blank"
           rel="noopener noreferrer"
         >

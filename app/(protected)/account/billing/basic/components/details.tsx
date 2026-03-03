@@ -13,7 +13,7 @@ type IDetailsItems = Array<IDetailsItem>;
 
 const Details = () => {
   const tables: IDetailsItems = [
-    { status: 'Company Name', info: 'KeenThemes' },
+    { status: 'Company Name', info: 'INNOVATE CREDIT' },
     {
       status: 'Address',
       info: 'Keizersgracht 136, 1015 CW Amsterdam, Netherlands',

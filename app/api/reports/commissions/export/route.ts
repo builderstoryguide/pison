@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
         success: false,
         error: {
           code: 'EXPORT_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to export commission report',
+          message: 'An unexpected error occurred while exporting commissions',
         },
       },
       { status: 500 },

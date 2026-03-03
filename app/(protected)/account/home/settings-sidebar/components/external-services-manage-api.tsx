@@ -92,7 +92,7 @@ const ExternalServicesManageApi = ({
                 <div className="form-info text-foreground font-normal">
                   This API key can only access{' '}
                   <Button mode="link" asChild>
-                    <Link href="https://keenthemes.com/">@keenthemes</Link>
+                    <Link href="https://INNOVATE CREDIT.com/">@INNOVATE CREDIT</Link>
                   </Button>
                   <br />
                   Secure access with a unique API key for enhanced

@@ -61,7 +61,7 @@ export default function Page() {
   return (
     <Suspense>
       <div className="w-full space-y-6">
-        <h1 className="text-2x font-semibold">{t('pages.auth.verifyEmail.title')}</h1>
+        <h1 className="text-2xl font-semibold">{t('pages.auth.verifyEmail.title')}</h1>
         {error && (
           <>
             <Alert variant="destructive">

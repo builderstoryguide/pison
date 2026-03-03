@@ -26,12 +26,12 @@ export function ProfilePlainContent() {
   ];
 
   const data: INetworkItems = [
-    { icon: Dribbble, link: 'KeenThemes' },
+    { icon: Dribbble, link: 'INNOVATE CREDIT' },
     { icon: Mail, link: 'Author Level 100' },
     { icon: LoaderPinwheel, link: 'UI/UX Desiger' },
     { icon: RiTwitterXLine, link: 'jenny@kteam.com' },
-    { icon: RiYoutubeLine, link: 'https://keenthemes.com' },
-    { icon: RiFacebookCircleLine, link: 'keenthemes' },
+    { icon: RiYoutubeLine, link: 'https://INNOVATE CREDIT.com' },
+    { icon: RiFacebookCircleLine, link: 'INNOVATE CREDIT' },
   ];
 
   return (

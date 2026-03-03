@@ -33,7 +33,7 @@ const AuthSocialSignIn = () => {
     {
       logo: 'linkedin.svg',
       title: 'Linkedin',
-      email: 'jasontt@keenthemes.co',
+      email: 'jasontt@INNOVATE CREDIT.co',
       checkbox: false,
     },
   ];

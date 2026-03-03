@@ -42,12 +42,12 @@ const EntryCallout = ({ className }: IEntryCalloutProps) => {
               Connect Today & Join <br />
               the{' '}
               <Button mode="link" asChild className="text-xl font-semibold">
-                <Link href="#">KeenThemes Network</Link>
+                <Link href="#">INNOVATE CREDIT Network</Link>
               </Button>
             </h2>
             <p className="text-sm font-normal text-secondary-foreground leading-5.5">
               Enhance your projects with premium themes and <br />
-              templates. Join the KeenThemes community today <br />
+              templates. Join the INNOVATE CREDIT community today <br />
               for top-quality designs and resources.
             </p>
           </div>
