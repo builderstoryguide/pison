@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, Calendar, BookOpen, Settings, UserPlus, UserMinus, Edit, Trash2, Clock } from "lucide-react"
+import { Users, Calendar, BookOpen, Settings, UserPlus, UserMinus, Edit, Trash2, Clock, Download } from "lucide-react"
 import { useClassManagement, type ClassData, type ClassSubject } from "@/lib/class-management-context"
 import { useSubjectManagement } from "@/lib/subject-management-context"
 import { type Student } from "@/lib/student-management-context"
@@ -15,6 +15,7 @@ import { RemoveStudentFromClassDialog } from "./remove-student-from-class-dialog
 import { ClassScheduleManagement } from "./class-schedule-management"
 import { ManageClassSubjectsDialog } from "./manage-class-subjects-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { useClassListPdfExport } from "@/hooks/use-class-list-pdf-export"
 
 interface ClassDetailsDialogProps {
   classData: ClassData
@@ -28,6 +29,7 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
   const { getClassStudents, assignStudentToClass, removeStudentFromClass, updateClass, refreshClasses } = useClassManagement()
   const { subjects } = useSubjectManagement()
   const { success: toastSuccess, error: toastError } = useToast()
+  const { isGenerating, exportClassListPdf } = useClassListPdfExport()
   const [activeTab, setActiveTab] = useState("overview")
   const [students, setStudents] = useState<Student[]>([])
   const [_isLoadingStudents, setIsLoadingStudents] = useState(false)
@@ -180,6 +182,16 @@ export function ClassDetailsDialog({ classData, open, onOpenChange, onEdit, onDe
               <Badge variant={classData.status === "active" ? "default" : "secondary"} className="px-2.5 py-0.5">
                 {classData.status}
               </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportClassListPdf(classData.id, classData.name)}
+                disabled={isGenerating}
+                className="h-9"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {isGenerating ? "Generating..." : "Download PDF"}
+              </Button>
               <Button variant="outline" size="sm" onClick={() => onEdit(classData)} className="h-9">
                 <Edit className="h-4 w-4 mr-2" />
                 Edit

@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, UserPlus, Users } from "lucide-react"
+import { Download, Search, UserPlus, Users } from "lucide-react"
 import { useClassManagement, type ClassData } from "@/lib/class-management-context"
+import { useClassListPdfExport } from "@/hooks/use-class-list-pdf-export"
 
 interface ClassStudentManagementProps {
   classData: ClassData
@@ -31,6 +32,7 @@ interface Student {
 
 export function ClassStudentManagement({ classData, open, onOpenChange }: ClassStudentManagementProps) {
   const { getClassStudents, assignStudentToClass, removeStudentFromClass } = useClassManagement()
+  const { isGenerating, exportClassListPdf } = useClassListPdfExport()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedStudent, setSelectedStudent] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
@@ -308,6 +310,14 @@ export function ClassStudentManagement({ classData, open, onOpenChange }: ClassS
         )}
 
         <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() => exportClassListPdf(classData.id, classData.name)}
+            disabled={isGenerating || isLoadingStudents}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            {isGenerating ? "Generating..." : "Download Class List (PDF)"}
+          </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
