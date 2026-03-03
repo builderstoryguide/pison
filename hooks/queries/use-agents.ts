@@ -49,7 +49,6 @@ export interface AgentFilters {
 }
 
 export interface CreateAgentInput {
-  userId: string;
   fullName: string;
   nationalId?: string;
   phone?: string;

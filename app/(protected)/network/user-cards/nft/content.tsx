@@ -128,7 +128,7 @@ export function NetworkNFTContent() {
       bgImage: 'bg-10.png',
       avatar: {
         className:
-          'flex items-center justify-center relative text-2xl text-primary size-20 ring-1 ring-blue-200 bg-blue-50 dark:border-blue-950 dark:bg-blue-950/30 rounded-full',
+          'flex items-center justify-center relative text-2xl text-primary size-20 ring-1 ring-primary/30 bg-primary/10 dark:border-primary/30 dark:bg-primary/30 rounded-full',
         fallback: 'B',
         badgeClass:
           'flex size-2.5 bg-green-500 rounded-full ring-2 ring-white absolute bottom-0.5 start-16 transform -translate-y-1/2',

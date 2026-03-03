@@ -199,7 +199,7 @@ const Projects = () => {
           { filename: '300-19.png' },
           {
             fallback: 'P',
-            variant: 'text-white ring-background bg-violet-500',
+            variant: 'text-white ring-background bg-primary/10',
           },
         ],
       },

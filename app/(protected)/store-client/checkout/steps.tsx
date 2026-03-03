@@ -81,7 +81,7 @@ export function Steps({ currentStep }: StepsProps) {
               </div>
 
               {index < steps.length - 1 && (
-                <div className="hidden lg:block w-12 h-px border-t border-dashed border-zinc-300 dark:border-zinc-600" />
+                <div className="hidden lg:block w-12 h-px border-t border-dashed border-border dark:border-border" />
               )}
             </Fragment>
           );

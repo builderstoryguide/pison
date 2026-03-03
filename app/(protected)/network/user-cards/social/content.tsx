@@ -97,7 +97,7 @@ export function NetworkSocialContent() {
     {
       avatar: {
         className:
-          'flex items-center justify-center relative text-2xl text-info size-20 ring-1 ring-violet-200 bg-violet-50 dark:border-violet-950 dark:bg-violet-950/30 rounded-full',
+          'flex items-center justify-center relative text-2xl text-info size-20 ring-1 ring-primary/30 bg-primary/10 dark:border-primary/30 dark:bg-primary/30 rounded-full',
         fallback: 'S',
         badgeClass:
           'flex size-2.5 bg-green-500 rounded-full ring-2 ring-white absolute bottom-0.5 start-16 transform -translate-y-1/2',

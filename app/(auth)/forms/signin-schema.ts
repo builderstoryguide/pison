@@ -2,10 +2,9 @@ import { z } from 'zod';
 
 export const getSigninSchema = () => {
   return z.object({
-    email: z
+    identifier: z
       .string()
-      .email({ message: 'Please enter a valid email address.' })
-      .min(1, { message: 'Email is required.' }),
+      .min(1, { message: 'Username or email is required.' }),
     password: z
       .string()
       .min(6, { message: 'Password must be at least 6 characters long.' })

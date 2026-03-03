@@ -29,9 +29,9 @@ const Tabs = ({
     >
       <Button
         variant={activeTab === 'comments' ? 'primary' : 'ghost'}
-        className={`text-mono hover:text-primary-active text-sm border-blue-300 ${
+        className={`text-mono hover:text-primary-active text-sm border-primary/30 ${
           activeTab === 'comments'
-            ? 'bg-blue-50 border text-blue-600 hover:text-white hover:bg-blue-500 dark:border-blue-950 dark:bg-blue-950/30'
+            ? 'bg-primary/10 border text-primary hover:text-white hover:bg-primary/10 dark:border-primary/30 dark:bg-primary/30'
             : ''
         }`}
         onClick={() => setActiveTab('comments')}
@@ -41,9 +41,9 @@ const Tabs = ({
       </Button>
       <Button
         variant={activeTab === 'likes' ? 'primary' : 'ghost'}
-        className={`text-mono hover:text-primary-active text-sm border-blue-300 ${
+        className={`text-mono hover:text-primary-active text-sm border-primary/30 ${
           activeTab === 'likes'
-            ? 'bg-blue-50 border text-blue-600 hover:text-white hover:bg-blue-500 dark:border-blue-950 dark:bg-blue-950/30'
+            ? 'bg-primary/10 border text-primary hover:text-white hover:bg-primary/10 dark:border-primary/30 dark:bg-primary/30'
             : ''
         }`}
         onClick={() => setActiveTab('likes')}
@@ -53,9 +53,9 @@ const Tabs = ({
       </Button>
       <Button
         variant={activeTab === 'saves' ? 'primary' : 'ghost'}
-        className={`text-mono hover:text-primary-active text-sm border-blue-300 ${
+        className={`text-mono hover:text-primary-active text-sm border-primary/30 ${
           activeTab === 'saves'
-            ? 'bg-blue-50 border text-blue-600 hover:text-white hover:bg-blue-500 dark:border-blue-950 dark:bg-blue-950/30'
+            ? 'bg-primary/10 border text-primary hover:text-white hover:bg-primary/10 dark:border-primary/30 dark:bg-primary/30'
             : ''
         }`}
         onClick={() => setActiveTab('saves')}

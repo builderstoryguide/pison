@@ -38,9 +38,9 @@ function getTransactionIcon(type: string) {
     case 'TRANSFER':
       return <ArrowUp className="size-5 text-red-600 shrink-0" />;
     case 'LOAN_DISBURSEMENT':
-      return <DollarSign className="size-5 text-blue-600 shrink-0" />;
+      return <DollarSign className="size-5 text-primary shrink-0" />;
     case 'LOAN_REPAYMENT':
-      return <Receipt className="size-5 text-purple-600 shrink-0" />;
+      return <Receipt className="size-5 text-primary shrink-0" />;
     default:
       return <Receipt className="size-5 text-muted-foreground shrink-0" />;
   }

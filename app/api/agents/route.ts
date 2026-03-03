@@ -24,7 +24,7 @@ const AGENT_FIELDS_ALLOWLIST = [
 ];
 
 const AGENT_RELATION_SELECTS: Record<string, Record<string, unknown>> = {
-  user: { select: { id: true, email: true, name: true } },
+  user: { select: { id: true, email: true, username: true, name: true } },
   account: {
     select: {
       id: true,
@@ -42,11 +42,13 @@ const AGENT_RELATION_SELECTS: Record<string, Record<string, unknown>> = {
 };
 
 const createAgentSchema = z.object({
-  userId: z.string().uuid(),
   fullName: z.string().min(1).max(255),
   nationalId: z.string().optional(),
   phone: z.string().optional(),
-  email: z.string().email().optional(),
+  email: z
+    .union([z.string().email(), z.literal('')])
+    .optional()
+    .transform((value) => (value ? value : undefined)),
   address: z.string().optional(),
   hireDate: z.string().datetime().optional(),
   areaIds: z.array(z.string().uuid()).optional(),
@@ -63,12 +65,17 @@ export async function GET(request: NextRequest) {
     const areaId = searchParams.get('areaId');
     const sort = searchParams.get('sort') || undefined;
     const dir = (searchParams.get('dir') || 'desc') as 'asc' | 'desc';
+    const includePendingParam = searchParams.get('includePendingApproval');
     const fieldsParam = searchParams.get('fields');
     const select = parseFieldsParam(
       fieldsParam,
       AGENT_FIELDS_ALLOWLIST,
       AGENT_RELATION_SELECTS
     );
+    const roleName = (session?.user?.roleName || '').toLowerCase();
+    const hasFullAccess = roleName.includes('manager') || roleName.includes('administrator');
+    const includePendingApproval =
+      includePendingParam === 'true' ? true : hasFullAccess;
 
     const agents = await agentService.getAllAgents({
       status: status || undefined,
@@ -76,6 +83,7 @@ export async function GET(request: NextRequest) {
       sort,
       dir,
       select: select ?? undefined,
+      includePendingApproval,
     });
 
     return cachedJson({
@@ -124,7 +132,7 @@ export async function POST(request: NextRequest) {
       hireDate: validatedData.hireDate ? new Date(validatedData.hireDate) : undefined,
     };
 
-    const agent = await agentService.createAgent(
+    const result = await agentService.createAgentWithAutoCredentials(
       agentData,
       session.user.id,
       session.user?.roleName
@@ -133,7 +141,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        data: agent,
+        data: {
+          agent: result.agent,
+          credentials: result.credentials,
+        },
       },
       { status: 201 }
     );

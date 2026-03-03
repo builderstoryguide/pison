@@ -52,7 +52,7 @@ const Account = ({ title }: IAccountProps) => {
               </TableCell>
               <TableCell className="text-center">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -67,7 +67,7 @@ const Account = ({ title }: IAccountProps) => {
               </TableCell>
               <TableCell className="text-center">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -85,7 +85,7 @@ const Account = ({ title }: IAccountProps) => {
               </TableCell>
               <TableCell className="max-w-16 text-center">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -98,7 +98,7 @@ const Account = ({ title }: IAccountProps) => {
               </TableCell>
               <TableCell className="text-center">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -147,7 +147,7 @@ const Account = ({ title }: IAccountProps) => {
               </TableCell>
               <TableCell className="text-center">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -221,7 +221,7 @@ const Account = ({ title }: IAccountProps) => {
               </TableCell>
               <TableCell className="text-center">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>

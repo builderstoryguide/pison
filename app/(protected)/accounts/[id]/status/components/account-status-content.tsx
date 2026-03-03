@@ -133,8 +133,8 @@ export default function AccountStatusContent({
                 <p className="text-sm font-medium text-muted-foreground">{t('pages.accounts.totalTransactions')}</p>
                 <p className="text-2xl font-bold">{account._count.transactions}</p>
               </div>
-              <div className="p-2 bg-blue-500/10 rounded-full">
-                <ArrowRightLeft className="size-5 text-blue-500" />
+              <div className="p-2 bg-primary/10 rounded-full">
+                <ArrowRightLeft className="size-5 text-primary" />
               </div>
             </CardContent>
           </Card>

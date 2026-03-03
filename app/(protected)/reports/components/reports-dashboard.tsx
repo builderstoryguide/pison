@@ -17,8 +17,8 @@ const reports = [
     description: 'Client account balances with deposits, withdrawals, collections, and commissions for a given month.',
     href: '/reports/monthly-balance',
     icon: BarChart3,
-    color: 'text-blue-600',
-    bg: 'bg-blue-50 dark:bg-blue-950/30',
+    color: 'text-primary',
+    bg: 'bg-primary/10 dark:bg-primary/30',
   },
   {
     title: 'Collection Journal',
@@ -33,8 +33,8 @@ const reports = [
     description: 'Full account statement for a specific client showing all debits, credits, and running balance.',
     href: '/reports/client-statement',
     icon: FileText,
-    color: 'text-violet-600',
-    bg: 'bg-violet-50 dark:bg-violet-950/30',
+    color: 'text-primary',
+    bg: 'bg-primary/10 dark:bg-primary/30',
   },
   {
     title: 'Area Statistics',
@@ -57,8 +57,8 @@ const reports = [
     description: 'Daily reconciliation of physical cash versus system balance. Identifies discrepancies.',
     href: '/reports/surplus-shortage',
     icon: TrendingUp,
-    color: 'text-cyan-600',
-    bg: 'bg-cyan-50 dark:bg-cyan-950/30',
+    color: 'text-primary',
+    bg: 'bg-primary/10 dark:bg-primary/30',
   },
 ];
 

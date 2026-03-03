@@ -23,7 +23,7 @@ const ActivitiesProductWebinar = () => {
         <div className="flex flex-wrap gap-2.5">
           <SquareDashedBottomCode
             size={20}
-            className="text-lg text-violet-500"
+            className="text-lg text-primary"
           />
           <div className="flex flex-col gap-5 grow">
             <div className="flex flex-wrap items-center justify-between">

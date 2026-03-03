@@ -17,7 +17,7 @@
 
   /* kt-rating on state */
   .kt-rating-on {
-    @apply text-yellow-400;
+    @apply text-primary;
   }
 
   /* kt-rating off state */

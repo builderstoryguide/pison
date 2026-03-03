@@ -205,8 +205,8 @@ export default function CollectionAreaDetails({ areaId }: CollectionAreaDetailsP
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="flex items-center justify-center size-12 rounded-lg bg-blue-500/10">
-                <Activity className="size-6 text-blue-500" />
+              <div className="flex items-center justify-center size-12 rounded-lg bg-primary/10">
+                <Activity className="size-6 text-primary" />
               </div>
               <div>
                 <div className="text-2xl font-bold">{area._count.transactions}</div>

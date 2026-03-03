@@ -33,7 +33,6 @@ import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
 const agentSchema = z.object({
-  userId: z.string().uuid().optional(), // Required only for creation
   fullName: z.string().min(1, 'Full name is required').max(255),
   nationalId: z.string().optional(),
   phone: z.string().optional(),
@@ -45,6 +44,18 @@ const agentSchema = z.object({
 });
 
 type AgentFormData = z.infer<typeof agentSchema>;
+type CreateAgentResponse = {
+  data?: {
+    agent?: {
+      fullName?: string;
+      agentCode?: string;
+    };
+    credentials?: {
+      username: string;
+      password: string;
+    };
+  };
+};
 
 interface AgentFormProps {
   agentId?: string;
@@ -67,18 +78,6 @@ export default function AgentForm({ agentId }: AgentFormProps) {
     },
   });
 
-  // Fetch available users (only for creation)
-  const { data: usersData } = useQuery({
-    queryKey: ['available-users'],
-    queryFn: async () => {
-      const response = await apiFetch('/api/agents/available-users');
-      if (!response.ok) return [];
-      const result = await response.json();
-      return result.data || [];
-    },
-    enabled: !isEditMode,
-  });
-
   // Fetch agent data if editing
   const { data: agentData, isLoading: isLoadingAgent } = useQuery({
     queryKey: ['agent', agentId],
@@ -96,7 +95,6 @@ export default function AgentForm({ agentId }: AgentFormProps) {
   const form = useForm<AgentFormData>({
     resolver: zodResolver(agentSchema),
     defaultValues: {
-      userId: '',
       fullName: '',
       nationalId: '',
       phone: '',
@@ -112,7 +110,6 @@ export default function AgentForm({ agentId }: AgentFormProps) {
   useEffect(() => {
     if (agentData) {
       form.reset({
-        userId: agentData.userId,
         fullName: agentData.fullName,
         nationalId: agentData.nationalId || '',
         phone: agentData.phone || '',
@@ -125,22 +122,9 @@ export default function AgentForm({ agentId }: AgentFormProps) {
     }
   }, [agentData, form]);
 
-  // Handle user selection to prefill data
-  const handleUserChange = (userId: string) => {
-    const user = usersData?.find((u: { id: string }) => u.id === userId);
-    if (user) {
-      form.setValue('userId', userId);
-      form.setValue('fullName', user.name || '');
-      form.setValue('email', user.email || '');
-    }
-  };
-
   // Create mutation
   const createMutation = useMutation({
     mutationFn: async (data: AgentFormData) => {
-      if (!data.userId) {
-        throw new Error('Please select a user');
-      }
       const response = await apiFetch('/api/agents', {
         method: 'POST',
         headers: {
@@ -154,15 +138,41 @@ export default function AgentForm({ agentId }: AgentFormProps) {
         throw new Error(error.error?.message || 'Failed to create agent');
       }
 
-      return response.json();
+      return response.json() as Promise<CreateAgentResponse>;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      const credentials = result?.data?.credentials;
+      const agent = result?.data?.agent;
+      if (credentials) {
+        const content = [
+          'DCMS Agent Account Credentials',
+          '-----------------------------',
+          `Agent Name: ${agent?.fullName || form.getValues('fullName')}`,
+          `Agent Code: ${agent?.agentCode || '-'}`,
+          `Username: ${credentials.username}`,
+          `Password: ${credentials.password}`,
+          '',
+          'Important: Change this password after first login.',
+        ].join('\n');
+
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `agent-credentials-${credentials.username}.txt`;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['agents'] });
-      toast.success('Agent created successfully');
+      toast.success(t('pages.agents.agentCreatedSuccess'));
+      if (credentials) {
+        toast.success(t('pages.agents.credentialsDownloadedSuccess'));
+      }
       router.push('/agents');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to create agent');
+      toast.error(error.message || t('pages.agents.createFailed'));
     },
   });
 
@@ -187,20 +197,17 @@ export default function AgentForm({ agentId }: AgentFormProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents'] });
       queryClient.invalidateQueries({ queryKey: ['agent', agentId] });
-      toast.success('Agent updated successfully');
+      toast.success(t('pages.agents.agentUpdatedSuccess'));
       router.push('/agents');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update agent');
+      toast.error(error.message || t('pages.agents.updateFailed'));
     },
   });
 
   const onSubmit = (data: AgentFormData) => {
     if (isEditMode) {
-      // Remove userId from update payload as it cannot be changed
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- intentionally excluded from update payload
-      const { userId, ...updateData } = data;
-      updateMutation.mutate(updateData as AgentFormData);
+      updateMutation.mutate(data);
     } else {
       createMutation.mutate(data);
     }
@@ -218,7 +225,6 @@ export default function AgentForm({ agentId }: AgentFormProps) {
 
   const isLoading = createMutation.isPending || updateMutation.isPending;
   const areas = areasData || [];
-  const users = usersData || [];
 
   return (
     <Card>
@@ -230,40 +236,6 @@ export default function AgentForm({ agentId }: AgentFormProps) {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {!isEditMode && (
-              <FormField
-                control={form.control}
-                name="userId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('pages.agents.selectUser')}</FormLabel>
-                    <Select
-                      onValueChange={handleUserChange}
-                      defaultValue={field.value}
-                      disabled={isLoading}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('common.placeholders.selectUser')} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {users.map((user: { id: string; name?: string; email?: string }) => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.name} ({user.email})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      {t('pages.agents.selectUserDesc')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
             <div className="grid gap-6 md:grid-cols-2">
               <FormField
                 control={form.control}

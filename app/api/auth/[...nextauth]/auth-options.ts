@@ -26,30 +26,39 @@ const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
+        identifier: { label: 'Username or Email', type: 'text' },
         email: { label: 'Email', type: 'text' },
         password: { label: 'Password', type: 'password' },
         rememberMe: { label: 'Remember me', type: 'text' },
       },
 
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        const identifier = credentials?.identifier ?? credentials?.email;
+        if (!identifier || !credentials?.password) {
           throw new Error(
             JSON.stringify({
-              message: 'Email and password are required.',
+              message: 'Username/email and password are required.',
             }),
           );
         }
 
-        // 1. Look up user by email (include role)
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase().trim() },
+        const normalizedIdentifier = identifier.toLowerCase().trim();
+
+        // 1. Look up user by username or email (include role)
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: normalizedIdentifier },
+              { username: normalizedIdentifier },
+            ],
+          },
           include: { role: true },
         });
 
         if (!user) {
           throw new Error(
             JSON.stringify({
-              message: 'Invalid email or password.',
+              message: 'Invalid username/email or password.',
             }),
           );
         }
@@ -101,7 +110,7 @@ const authOptions: NextAuthOptions = {
         if (user.isTrashed) {
           throw new Error(
             JSON.stringify({
-              message: 'Invalid email or password.',
+              message: 'Invalid username/email or password.',
             }),
           );
         }
@@ -164,7 +173,7 @@ const authOptions: NextAuthOptions = {
 
           throw new Error(
             JSON.stringify({
-              message: 'Invalid email or password.',
+              message: 'Invalid username/email or password.',
             }),
           );
         }
@@ -192,6 +201,7 @@ const authOptions: NextAuthOptions = {
         return {
           id: user.id,
           email: user.email,
+          username: user.username ?? undefined,
           name: user.name ?? '',
           avatar: user.avatar,
           roleId: user.roleId,
@@ -232,6 +242,7 @@ const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.email = user.email;
+        token.username = user.username;
         token.name = user.name;
         token.avatar = user.avatar;
         token.status = user.status;
@@ -291,6 +302,7 @@ const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id;
         session.user.email = token.email;
+        session.user.username = token.username;
         session.user.name = token.name;
         session.user.avatar = token.avatar;
         session.user.status = token.status;

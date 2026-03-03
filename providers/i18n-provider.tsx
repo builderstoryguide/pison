@@ -12,48 +12,51 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import enTranslations from '@/i18n/messages/en.json';
 import frTranslations from '@/i18n/messages/fr.json';
 
+const resources = {
+  en: { translation: enTranslations },
+  fr: { translation: frTranslations },
+};
+
+// Initialize i18n synchronously to prevent hydration mismatches
+// This ensures that the server renders with strings instead of keys
+if (!i18n.isInitialized) {
+  const i18nInstance = i18n.use(initReactI18next);
+
+  // Note: We use LanguageDetector only on the client.
+  // To avoid hydration mismatch where server uses 'en' and client detects 'fr' immediately,
+  // we initialize both with 'en' and then detect language in a useEffect.
+  i18nInstance.init({
+    resources,
+    fallbackLng: 'en',
+    lng: 'en', // Force English on initial render to match SSR
+    debug: process.env.NODE_ENV === 'development',
+    interpolation: {
+      escapeValue: false, // React already does escaping
+    },
+    react: {
+      useSuspense: false, // Important for Next.js SSR
+    },
+  });
+}
+
 interface I18nProviderProps {
   children: ReactNode;
 }
 
 function I18nProvider({ children }: I18nProviderProps) {
-  const [isI18nInitialized, setIsI18nInitialized] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
-    // Initialize i18n only on client side
-    if (!i18n.isInitialized) {
-      const resources = {
-        en: { translation: enTranslations },
-        fr: { translation: frTranslations },
-      };
+    // After hydration, apply the detected language locally using our logic or LanguageDetector logic
+    setIsHydrated(true);
 
-      i18n
-        .use(LanguageDetector)
-        .use(initReactI18next)
-        .init({
-          resources,
-          fallbackLng: 'en',
-          debug: process.env.NODE_ENV === 'development',
+    // Initialize browser language detector manually or just check localStorage/navigator
+    const storedLang = localStorage.getItem('language');
+    const browserLang = navigator.language.split('-')[0];
+    const detectedLang = storedLang || (['en', 'fr'].includes(browserLang) ? browserLang : 'en');
 
-          interpolation: {
-            escapeValue: false, // React already does escaping
-          },
-
-          detection: {
-            order: ['localStorage', 'navigator', 'htmlTag'],
-            caches: ['localStorage'],
-            lookupLocalStorage: 'language',
-          },
-
-          react: {
-            useSuspense: false, // Important for Next.js SSR
-          },
-        })
-        .then(() => {
-          setIsI18nInitialized(true);
-        });
-    } else {
-      setIsI18nInitialized(true);
+    if (i18n.language !== detectedLang) {
+      i18n.changeLanguage(detectedLang);
     }
 
     // Update document direction when language changes
@@ -78,17 +81,12 @@ function I18nProvider({ children }: I18nProviderProps) {
   }, []);
 
   // Get current language for direction
-  const currentLanguage = I18N_LANGUAGES.find((lang) => lang.code === (i18n.language || 'en')) || I18N_LANGUAGES[0];
+  const currentLanguage =
+    I18N_LANGUAGES.find((lang) => lang.code === (i18n.language || 'en')) ||
+    I18N_LANGUAGES[0];
 
-  // Don't render until i18n is initialized
-  if (!isI18nInitialized) {
-    return (
-      <RadixDirectionProvider dir="ltr">
-        {children}
-      </RadixDirectionProvider>
-    );
-  }
-
+  // During SSR and initial hydration, render children seamlessly to avoid mismatch
+  // By this time, `i18n` is initialized as 'en'.
   return (
     <I18nextProvider i18n={i18n}>
       <RadixDirectionProvider dir={currentLanguage.direction}>
@@ -103,6 +101,7 @@ const useLanguage = () => {
 
   const changeLanguage = (code: string) => {
     i18n.changeLanguage(code);
+    localStorage.setItem('language', code);
   };
 
   return {

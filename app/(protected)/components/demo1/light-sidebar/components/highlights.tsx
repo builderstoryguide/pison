@@ -72,7 +72,7 @@ const Highlights = ({ limit }: IHighlightsProps) => {
   const items: IHighlightsItems = [
     { badgeColor: 'bg-green-500', label: 'INNOVATE CREDIT' },
     { badgeColor: 'bg-destructive', label: 'Bundle' },
-    { badgeColor: 'bg-violet-500', label: 'INNOVATE CREDITNest' },
+    { badgeColor: 'bg-primary/10', label: 'INNOVATE CREDITNest' },
   ];
 
   const renderRow = (row: IHighlightsRow, index: number) => {
@@ -138,7 +138,7 @@ const Highlights = ({ limit }: IHighlightsProps) => {
         <div className="flex items-center gap-1 mb-1.5">
           <div className="bg-green-500 h-2 w-full max-w-[60%] rounded-xs"></div>
           <div className="bg-destructive h-2 w-full max-w-[25%] rounded-xs"></div>
-          <div className="bg-violet-500 h-2 w-full max-w-[15%] rounded-xs"></div>
+          <div className="bg-primary/10 h-2 w-full max-w-[15%] rounded-xs"></div>
         </div>
         <div className="flex items-center flex-wrap gap-4 mb-1">
           {items.map((item, index) => {

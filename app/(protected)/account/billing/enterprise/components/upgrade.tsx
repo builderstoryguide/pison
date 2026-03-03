@@ -30,7 +30,7 @@ const Upgrade = () => {
               stroke="stroke-blue-200 dark:stroke-blue-950"
               fill="fill-blue-50 dark:fill-blue-950/30"
               size="size-[50px]"
-              badge={<ScrollText className="text-xl text-blue-400" />}
+              badge={<ScrollText className="text-xl text-primary" />}
             />
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2.5">

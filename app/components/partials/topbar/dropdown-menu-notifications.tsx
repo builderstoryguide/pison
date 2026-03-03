@@ -56,7 +56,7 @@ export function SheetNotifications({ trigger }: { trigger: ReactNode }) {
       <SheetTrigger asChild>{trigger}</SheetTrigger>
       <SheetContent className="p-0 sm:max-w-[500px]">
         <SheetHeader className="mb-0">
-          <h3 className="text-base font-semibold p-3 text-gray-900">
+          <h3 className="text-base font-semibold p-3 text-foreground">
             {t('pages.topbar.notifications.title')}
           </h3>
         </SheetHeader>
@@ -268,7 +268,7 @@ export function SheetNotifications({ trigger }: { trigger: ReactNode }) {
             </TabsContent>
           </Tabs>
         </SheetBody>
-        <SheetFooter className="border-t border-gray-100 p-5 grid grid-cols-2 gap-2.5">
+        <SheetFooter className="border-t border-border p-5 grid grid-cols-2 gap-2.5">
           <Button variant="outline" size="sm">
             <Archive className="w-4 h-4" /> {t('pages.topbar.notifications.archiveAll')}
           </Button>

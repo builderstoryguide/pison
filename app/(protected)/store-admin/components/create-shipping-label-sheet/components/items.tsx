@@ -53,7 +53,7 @@ export const Items = () => {
                   </Link>
                   <div className="flex items-center">
                     <div className="flex items-center gap-0.5 text-xs me-0.5">
-                      <span className="font-normal text-gray-700 uppercase">
+                      <span className="font-normal text-foreground uppercase">
                         sku:
                       </span>
                       <span className="font-medium text-mono">{item.sku}</span>

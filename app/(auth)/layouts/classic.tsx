@@ -15,7 +15,7 @@ export function ClassicLayout({ children }: { children: ReactNode }) {
           />
         </Link>
       </div>
-      <Card className="w-full max-w-[400px]">
+      <Card className="w-full max-w-[400px] border-primary/20 bg-card/95 backdrop-blur-sm shadow-lg shadow-primary/10">
         <CardContent className="p-6">{children}</CardContent>
       </Card>
     </div>

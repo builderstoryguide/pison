@@ -126,7 +126,7 @@ export function ChatSheet({ trigger }: { trigger: ReactNode }) {
                 <div>
                   <Link
                     href="#"
-                    className="text-sm font-semibold text-mono hover:text-blue-600"
+                    className="text-sm font-semibold text-mono hover:text-primary"
                   >
                     {t('pages.topbar.chat.teamName')}
                   </Link>

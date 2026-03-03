@@ -25,7 +25,7 @@ const Authentification = () => {
               </TableCell>
               <TableCell className="text-end">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -85,7 +85,7 @@ const Authentification = () => {
               </TableCell>
               <TableCell className="text-end">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>

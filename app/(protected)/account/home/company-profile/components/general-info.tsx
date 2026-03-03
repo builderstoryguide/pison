@@ -36,7 +36,7 @@ const GeneralInfo = () => {
               </TableCell>
               <TableCell className="min-w-16 text-center">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -49,7 +49,7 @@ const GeneralInfo = () => {
               </TableCell>
               <TableCell className="text-center">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -77,7 +77,7 @@ const GeneralInfo = () => {
               </TableCell>
               <TableCell className="text-center">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -95,7 +95,7 @@ const GeneralInfo = () => {
               </TableCell>
               <TableCell className="text-center">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>

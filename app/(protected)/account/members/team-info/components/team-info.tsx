@@ -66,7 +66,7 @@ const TeamInfo = () => {
               </TableCell>
               <TableCell className="py-2 text-center">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -80,7 +80,7 @@ const TeamInfo = () => {
               </TableCell>
               <TableCell className="py-2 text-center">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -95,7 +95,7 @@ const TeamInfo = () => {
               </TableCell>
               <TableCell className="py-3 text-center">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -112,7 +112,7 @@ const TeamInfo = () => {
               </TableCell>
               <TableCell className="py-3 text-center">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>

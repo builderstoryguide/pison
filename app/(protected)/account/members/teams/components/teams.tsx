@@ -116,7 +116,7 @@ const data: IData[] = [
       ],
       more: {
         number: 'A',
-        variant: 'text-white ring-background bg-violet-500',
+        variant: 'text-white ring-background bg-primary/10',
       },
     },
   },
@@ -180,7 +180,7 @@ const data: IData[] = [
       group: [{ filename: '300-8.png' }, { filename: '300-9.png' }],
       more: {
         number: 8,
-        variant: 'text-white ring-background bg-violet-500',
+        variant: 'text-white ring-background bg-primary/10',
       },
     },
   },
@@ -231,7 +231,7 @@ const data: IData[] = [
       group: [{ filename: '300-14.png' }, { filename: '300-15.png' }],
       more: {
         number: 3,
-        variant: 'text-white ring-background bg-violet-500',
+        variant: 'text-white ring-background bg-primary/10',
       },
     },
   },
@@ -299,7 +299,7 @@ const data: IData[] = [
       group: [{ filename: '300-22.png' }, { filename: '300-23.png' }],
       more: {
         number: 4,
-        variant: 'text-white ring-background bg-violet-500',
+        variant: 'text-white ring-background bg-primary/10',
       },
     },
   },
@@ -384,7 +384,7 @@ const data: IData[] = [
       group: [{ filename: '300-32.png' }, { filename: '300-33.png' }],
       more: {
         number: 7,
-        variant: 'text-white ring-background bg-violet-500',
+        variant: 'text-white ring-background bg-primary/10',
       },
     },
   },
@@ -452,7 +452,7 @@ const data: IData[] = [
       group: [{ filename: '300-6.png' }, { filename: '300-7.png' }],
       more: {
         number: 6,
-        variant: 'text-white ring-background bg-violet-500',
+        variant: 'text-white ring-background bg-primary/10',
       },
     },
   },
@@ -520,7 +520,7 @@ const data: IData[] = [
       group: [{ filename: '300-14.png' }, { filename: '300-15.png' }],
       more: {
         number: 8,
-        variant: 'text-white ring-background bg-violet-500',
+        variant: 'text-white ring-background bg-primary/10',
       },
     },
   },
@@ -571,7 +571,7 @@ const data: IData[] = [
       group: [{ filename: '300-20.png' }, { filename: '300-21.png' }],
       more: {
         number: 3,
-        variant: 'text-white ring-background bg-violet-500',
+        variant: 'text-white ring-background bg-primary/10',
       },
     },
   },

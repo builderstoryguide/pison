@@ -242,7 +242,12 @@
       "transferFromAgentDesc": "Transfer from {{name}}'s account ({{account}}) to another account.",
       "collectorLabel": "Collector",
       "amountXof": "Amount (XOF)",
-      "createRequest": "Create Request"
+      "createRequest": "Create Request",
+      "agentCreatedSuccess": "Agent created successfully",
+      "agentUpdatedSuccess": "Agent updated successfully",
+      "createFailed": "Failed to create agent",
+      "updateFailed": "Failed to update agent",
+      "credentialsDownloadedSuccess": "Agent credentials were downloaded successfully"
     },
     "loans": {
       "title": "Loans",
@@ -376,6 +381,8 @@
         "title": "Sign in to DCMS",
         "subtitle": "Daily Collection Management System",
         "devCredentials": "Dev credentials (click to fill):",
+        "identifier": "Username or Email",
+        "identifierPlaceholder": "Your username or email",
         "email": "Email",
         "emailPlaceholder": "Your email",
         "password": "Password",

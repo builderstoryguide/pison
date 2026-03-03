@@ -8,6 +8,8 @@ import { Prisma } from '@prisma/client';
 import { capLimit } from '@/lib/utils/pagination';
 import { getCachedOrFetch, getCachedOrFetchByKey } from '@/lib/cache/query-cache';
 import { LIST_PREFIX_AGENTS, agentDetailKey, agentByUserKey } from '@/lib/cache/keys';
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 
 const AGENT_LIST_TTL = 60;
 const AGENT_DETAIL_TTL = 60;
@@ -23,6 +25,26 @@ export interface CreateAgentInput {
   areaIds?: string[]; // Collection areas to assign
 }
 
+export interface CreateAgentWithCredentialsInput {
+  fullName: string;
+  nationalId?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  hireDate?: Date;
+  areaIds?: string[];
+}
+
+interface AgentCredentials {
+  username: string;
+  password: string;
+}
+
+interface CreateAgentWithCredentialsResult {
+  agent: Awaited<ReturnType<AgentService['getAgentById']>>;
+  credentials: AgentCredentials;
+}
+
 export interface UpdateAgentInput {
   fullName?: string;
   nationalId?: string;
@@ -34,19 +56,68 @@ export interface UpdateAgentInput {
 }
 
 export class AgentService {
+  private normalizeUsernameSeed(name: string): string {
+    const base = name
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    return base.slice(0, 16) || 'agent';
+  }
+
+  private async generateUniqueUsername(
+    tx: Prisma.TransactionClient,
+    fullName: string,
+  ): Promise<string> {
+    const seed = this.normalizeUsernameSeed(fullName);
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const suffix = crypto.randomBytes(3).toString('hex');
+      const candidate = `${seed}${suffix}`;
+      const exists = await tx.user.findUnique({
+        where: { username: candidate },
+        select: { id: true },
+      });
+      if (!exists) return candidate;
+    }
+    throw new Error('Unable to generate a unique username for agent account');
+  }
+
+  private generateTemporaryPassword(): string {
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghijkmnopqrstuvwxyz';
+    const digits = '23456789';
+    const symbols = '!@#$%&*';
+    const all = upper + lower + digits + symbols;
+
+    const chars = [
+      upper[crypto.randomInt(upper.length)],
+      lower[crypto.randomInt(lower.length)],
+      digits[crypto.randomInt(digits.length)],
+      symbols[crypto.randomInt(symbols.length)],
+    ];
+
+    while (chars.length < 12) {
+      chars.push(all[crypto.randomInt(all.length)]);
+    }
+
+    return chars
+      .sort(() => crypto.randomInt(3) - 1)
+      .join('');
+  }
+
   /**
    * Generate unique agent code
    */
-  private async generateAgentCode(): Promise<string> {
+  private async generateAgentCode(tx: Prisma.TransactionClient = prisma): Promise<string> {
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     const code = `AGT-${dateStr}-${random}`;
 
     // Check if code exists
-    const exists = await prisma.agent.findUnique({ where: { agentCode: code } });
+    const exists = await tx.agent.findUnique({ where: { agentCode: code } });
     if (exists) {
-      return this.generateAgentCode(); // Recursive call if exists
+      return this.generateAgentCode(tx); // Recursive call if exists
     }
 
     return code;
@@ -55,9 +126,9 @@ export class AgentService {
   /**
    * Create agent account
    */
-  private async createAgentAccount(_agentId: string): Promise<string> {
-    const accountNumber = await this.generateAccountNumber('AGENT');
-    const account = await prisma.financialAccount.create({
+  private async createAgentAccount(tx: Prisma.TransactionClient): Promise<string> {
+    const accountNumber = await this.generateAccountNumber('AGENT', tx);
+    const account = await tx.financialAccount.create({
       data: {
         accountNumber,
         accountType: 'AGENT',
@@ -72,19 +143,22 @@ export class AgentService {
   /**
    * Generate unique account number
    */
-  private async generateAccountNumber(type: 'CLIENT' | 'AGENT' | 'SYSTEM'): Promise<string> {
+  private async generateAccountNumber(
+    type: 'CLIENT' | 'AGENT' | 'SYSTEM',
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<string> {
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     const prefix = type === 'CLIENT' ? 'CLT' : type === 'AGENT' ? 'AGT' : 'SYS';
     const accountNumber = `ACC-${prefix}-${dateStr}-${random}`;
 
-    const exists = await prisma.financialAccount.findUnique({
+    const exists = await tx.financialAccount.findUnique({
       where: { accountNumber },
     });
 
     if (exists) {
-      return this.generateAccountNumber(type);
+      return this.generateAccountNumber(type, tx);
     }
 
     return accountNumber;
@@ -114,10 +188,10 @@ export class AgentService {
 
     return await prisma.$transaction(async (tx) => {
       // Generate agent code
-      const agentCode = await this.generateAgentCode();
+      const agentCode = await this.generateAgentCode(tx);
 
       // Create agent account
-      const accountId = await this.createAgentAccount('');
+      const accountId = await this.createAgentAccount(tx);
 
       const approvalStatus = this.requiresApproval(creatorRoleName) ? 'PENDING_APPROVAL' : 'APPROVED';
 
@@ -168,6 +242,7 @@ export class AgentService {
             select: {
               id: true,
               email: true,
+              username: true,
               name: true,
             },
           },
@@ -180,6 +255,142 @@ export class AgentService {
         },
       });
     });
+  }
+
+  async createAgentWithAutoCredentials(
+    data: CreateAgentWithCredentialsInput,
+    createdBy: string,
+    creatorRoleName?: string,
+  ): Promise<CreateAgentWithCredentialsResult> {
+    const emailInput = data.email?.trim().toLowerCase() || undefined;
+    const MAX_RETRIES = 5;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const temporaryPassword = this.generateTemporaryPassword();
+        const hashedPassword = await bcrypt.hash(temporaryPassword, 12);
+        const approvalStatus = this.requiresApproval(creatorRoleName)
+          ? 'PENDING_APPROVAL'
+          : 'APPROVED';
+
+        const result = await prisma.$transaction(async (tx) => {
+          const role = await tx.userRole.findFirst({
+            where: { slug: { equals: 'agent', mode: 'insensitive' } },
+            select: { id: true },
+          });
+
+          if (!role?.id) {
+            throw new Error('Agent role is not configured');
+          }
+
+          const username = await this.generateUniqueUsername(tx, data.fullName);
+          const email = emailInput ?? `${username}@agents.local`;
+          const agentCode = await this.generateAgentCode(tx);
+          const accountId = await this.createAgentAccount(tx);
+
+          const user = await tx.user.create({
+            data: {
+              name: data.fullName,
+              email,
+              username,
+              password: hashedPassword,
+              status: 'ACTIVE',
+              roleId: role.id,
+            },
+          });
+
+          const agent = await tx.agent.create({
+            data: {
+              agentCode,
+              userId: user.id,
+              fullName: data.fullName,
+              nationalId: data.nationalId,
+              phone: data.phone,
+              email: data.email,
+              address: data.address,
+              accountId,
+              hireDate: data.hireDate,
+              createdBy,
+              updatedBy: createdBy,
+              approvalStatus,
+            },
+          });
+
+          if (data.areaIds && data.areaIds.length > 0) {
+            await tx.agentAreaAssignment.createMany({
+              data: data.areaIds.map((areaId, index) => ({
+                agentId: agent.id,
+                areaId,
+                isPrimary: index === 0,
+                assignedBy: createdBy,
+              })),
+            });
+          }
+
+          await tx.auditLog.create({
+            data: {
+              userId: createdBy,
+              action: 'CREATE',
+              entityType: 'AGENT',
+              entityId: agent.id,
+              description: `Agent created: ${agentCode} - ${data.fullName}`,
+            },
+          });
+
+          const createdAgent = await tx.agent.findUnique({
+            where: { id: agent.id },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  username: true,
+                  name: true,
+                },
+              },
+              account: true,
+              areaAssignments: {
+                include: {
+                  area: true,
+                },
+              },
+            },
+          });
+
+          return { createdAgent, username };
+        });
+
+        return {
+          agent: result.createdAgent,
+          credentials: {
+            username: result.username,
+            password: temporaryPassword,
+          },
+        };
+      } catch (error: unknown) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002' &&
+          Array.isArray(error.meta?.target) &&
+          error.meta.target.includes('username')
+        ) {
+          continue;
+        }
+
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002' &&
+          Array.isArray(error.meta?.target) &&
+          error.meta.target.includes('email')
+        ) {
+          throw new Error('Email is already in use');
+        }
+
+        throw error;
+      }
+    }
+
+    throw new Error('Unable to create agent credentials. Please retry.');
   }
 
   /**
@@ -233,6 +444,7 @@ export class AgentService {
               select: {
                 id: true,
                 email: true,
+              username: true,
                 name: true,
               },
             },
@@ -264,6 +476,7 @@ export class AgentService {
           select: {
             id: true,
             email: true,
+            username: true,
             name: true,
           },
         },
@@ -321,7 +534,7 @@ export class AgentService {
       fullName: true,
       status: true,
       user: {
-        select: { id: true, email: true, name: true },
+        select: { id: true, email: true, username: true, name: true },
       },
       account: {
         select: {
@@ -381,6 +594,7 @@ export class AgentService {
             select: {
               id: true,
               email: true,
+              username: true,
               name: true,
               role: true,
             },
@@ -410,7 +624,16 @@ export class AgentService {
       prisma.agent.findUnique({
         where: { userId },
         include: {
-          user: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            name: true,
+            roleId: true,
+            status: true,
+          },
+        },
           account: true,
           areaAssignments: {
             include: {
@@ -555,7 +778,7 @@ export class AgentService {
     return await prisma.agent.findMany({
       where: { approvalStatus: 'PENDING_APPROVAL' },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, username: true } },
         account: { select: { id: true, accountNumber: true, balance: true, availableBalance: true } },
         areaAssignments: { include: { area: true } },
         creator: { select: { id: true, name: true, email: true } },
@@ -591,7 +814,7 @@ export class AgentService {
           updatedBy: approvedBy,
         },
         include: {
-          user: { select: { id: true, email: true, name: true } },
+          user: { select: { id: true, email: true, username: true, name: true } },
           account: true,
           areaAssignments: { include: { area: true } },
         },
@@ -645,7 +868,7 @@ export class AgentService {
           status: 'INACTIVE',
         },
         include: {
-          user: { select: { id: true, email: true, name: true } },
+          user: { select: { id: true, email: true, username: true, name: true } },
           account: true,
           areaAssignments: { include: { area: true } },
         },

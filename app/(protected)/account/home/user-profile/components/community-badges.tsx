@@ -50,7 +50,7 @@ const CommunityBadges = () => {
       stroke: 'stroke-violet-200 dark:stroke-violet-950',
       fill: 'fill-violet-50 dark:fill-violet-950/30',
       icon: Truck,
-      iconColor: 'text-violet-500',
+      iconColor: 'text-primary',
     },
   ];
 

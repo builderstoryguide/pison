@@ -34,7 +34,7 @@ const Roles = () => {
     {
       badge: {
         size: 'size-[44px]',
-        badge: <Settings className="text-xl text-blue-400" />,
+        badge: <Settings className="text-xl text-primary" />,
         stroke: 'stroke-blue-200 dark:stroke-blue-950',
         fill: 'fill-blue-50 dark:fill-blue-950/30',
       },
@@ -89,7 +89,7 @@ const Roles = () => {
     {
       badge: {
         size: 'size-[44px]',
-        badge: <LineChart className="text-xl text-violet-400" />,
+        badge: <LineChart className="text-xl text-primary" />,
         stroke: 'stroke-violet-200 dark:stroke-violet-950',
         fill: 'fill-violet-50  dark:fill-violet-950/30',
       },

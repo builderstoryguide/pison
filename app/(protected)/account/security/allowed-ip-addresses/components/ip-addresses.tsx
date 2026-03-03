@@ -166,7 +166,7 @@ const data: IData[] = [
   },
   {
     id: '13',
-    status: 'bg-violet-500',
+    status: 'bg-primary/10',
     ipAddress: '172.16.0.1',
     lastSession: '30 Sep, 2024',
     label: 'Jane Doe',
@@ -198,7 +198,7 @@ const data: IData[] = [
   },
   {
     id: '17',
-    status: 'bg-violet-500',
+    status: 'bg-primary/10',
     ipAddress: '192.168.3.1',
     lastSession: '27 Oct, 2024',
     label: 'Alice Johnson',
@@ -230,7 +230,7 @@ const data: IData[] = [
   },
   {
     id: '21',
-    status: 'bg-violet-500',
+    status: 'bg-primary/10',
     ipAddress: '10.3.3.1',
     lastSession: '25 Nov, 2024',
     label: 'Security Dept',
@@ -262,7 +262,7 @@ const data: IData[] = [
   },
   {
     id: '25',
-    status: 'bg-violet-500',
+    status: 'bg-primary/10',
     ipAddress: '172.20.0.1',
     lastSession: '23 Dec, 2024',
     label: 'Mary Smith',
@@ -294,7 +294,7 @@ const data: IData[] = [
   },
   {
     id: '29',
-    status: 'bg-violet-500',
+    status: 'bg-primary/10',
     ipAddress: '192.168.7.1',
     lastSession: '20 Jan, 2025',
     label: 'Emily Smith',

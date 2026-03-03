@@ -33,8 +33,8 @@ function GridBackground({
   ...props
 }: GridBackgroundProps) {
   const {
-    background = 'bg-slate-900',
-    borderColor = 'border-slate-700/50',
+    background = 'bg-background',
+    borderColor = 'border-border/50',
     borderSize = '1px',
     borderStyle = 'solid',
   } = colors;
@@ -42,17 +42,17 @@ function GridBackground({
   const {
     count = 12,
     colors: beamColors = [
-      'bg-cyan-400',
-      'bg-purple-400',
+      'bg-primary/10',
+      'bg-primary/10',
       'bg-fuchsia-400',
-      'bg-violet-400',
-      'bg-blue-400',
-      'bg-indigo-400',
+      'bg-primary/10',
+      'bg-primary/10',
+      'bg-primary/10',
       'bg-green-400',
       'bg-yellow-400',
       'bg-orange-400',
       'bg-red-400',
-      'bg-pink-400',
+      'bg-primary/10',
       'bg-rose-400',
     ],
     shadow = 'shadow-lg shadow-cyan-400/50 rounded-full',

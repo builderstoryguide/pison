@@ -54,25 +54,22 @@ const alertVariants = cva('flex items-stretch w-full gap-2 group-[.toaster]:w-(-
     {
       variant: 'success',
       appearance: 'solid',
-      className:
-        'bg-[var(--color-success,var(--color-green-500))] text-[var(--color-success-foreground,var(--color-white))]',
+      className: 'bg-[var(--color-success)] text-[var(--color-success-foreground)]',
     },
     {
       variant: 'info',
       appearance: 'solid',
-      className:
-        'bg-[var(--color-info,var(--color-violet-600))] text-[var(--color-info-foreground,var(--color-white))]',
+      className: 'bg-[var(--color-info)] text-[var(--color-info-foreground)]',
     },
     {
       variant: 'warning',
       appearance: 'solid',
-      className:
-        'bg-[var(--color-warning,var(--color-yellow-500))] text-[var(--color-warning-foreground,var(--color-white))]',
+      className: 'bg-[var(--color-warning)] text-[var(--color-warning-foreground)]',
     },
     {
       variant: 'mono',
       appearance: 'solid',
-      className: 'bg-zinc-950 text-white dark:bg-zinc-300 dark:text-black *:data-slot-[alert=close]:text-white',
+      className: 'bg-mono text-mono-foreground *:data-slot-[alert=close]:text-mono-foreground',
     },
 
     /* Outline */
@@ -94,20 +91,17 @@ const alertVariants = cva('flex items-stretch w-full gap-2 group-[.toaster]:w-(-
     {
       variant: 'success',
       appearance: 'outline',
-      className:
-        'border border-border bg-background text-[var(--color-success,var(--color-green-500))] [&_[data-slot=alert-close]]:text-foreground',
+      className: 'border border-border bg-background text-[var(--color-success)] [&_[data-slot=alert-close]]:text-foreground',
     },
     {
       variant: 'info',
       appearance: 'outline',
-      className:
-        'border border-border bg-background text-[var(--color-info,var(--color-violet-600))] [&_[data-slot=alert-close]]:text-foreground',
+      className: 'border border-border bg-background text-[var(--color-info)] [&_[data-slot=alert-close]]:text-foreground',
     },
     {
       variant: 'warning',
       appearance: 'outline',
-      className:
-        'border border-border bg-background text-[var(--color-warning,var(--color-yellow-500))] [&_[data-slot=alert-close]]:text-foreground',
+      className: 'border border-border bg-background text-[var(--color-warning)] [&_[data-slot=alert-close]]:text-foreground',
     },
     {
       variant: 'mono',
@@ -125,31 +119,31 @@ const alertVariants = cva('flex items-stretch w-full gap-2 group-[.toaster]:w-(-
       variant: 'primary',
       appearance: 'light',
       className:
-        'text-foreground bg-[var(--color-primary-soft,var(--color-blue-50))] border border-[var(--color-primary-alpha,var(--color-blue-100))] [&_[data-slot=alert-icon]]:text-primary dark:bg-[var(--color-primary-soft,var(--color-blue-950))] dark:border-[var(--color-primary-alpha,var(--color-blue-900))]',
+        'text-foreground bg-[var(--color-primary-soft)] border border-[var(--color-primary-alpha)] [&_[data-slot=alert-icon]]:text-primary dark:bg-[var(--color-primary-soft)] dark:border-[var(--color-primary-alpha)]',
     },
     {
       variant: 'destructive',
       appearance: 'light',
       className:
-        'bg-[var(--color-destructive-soft,var(--color-red-50))] border border-[var(--color-destructive-alpha,var(--color-red-100))] text-foreground [&_[data-slot=alert-icon]]:text-destructive dark:bg-[var(--color-destructive-soft,var(--color-red-950))] dark:border-[var(--color-destructive-alpha,var(--color-red-900))] ',
+        'bg-[var(--color-destructive-soft)] border border-[var(--color-destructive-alpha)] text-foreground [&_[data-slot=alert-icon]]:text-destructive dark:bg-[var(--color-destructive-soft)] dark:border-[var(--color-destructive-alpha)] ',
     },
     {
       variant: 'success',
       appearance: 'light',
       className:
-        'bg-[var(--color-success-soft,var(--color-green-50))] border border-[var(--color-success-alpha,var(--color-green-200))] text-foreground [&_[data-slot=alert-icon]]:text-[var(--color-success-foreground,var(--color-green-600))] dark:bg-[var(--color-success-soft,var(--color-green-950))] dark:border-[var(--color-success-alpha,var(--color-green-900))]',
+        'bg-[var(--color-success-soft)] border border-[var(--color-success-alpha)] text-foreground [&_[data-slot=alert-icon]]:text-[var(--color-success-accent)] dark:bg-[var(--color-success-soft)] dark:border-[var(--color-success-alpha)]',
     },
     {
       variant: 'info',
       appearance: 'light',
       className:
-        'bg-[var(--color-info-soft,var(--color-violet-50))] border border-[var(--color-info-alpha,var(--color-violet-100))] text-foreground [&_[data-slot=alert-icon]]:text-[var(--color-info-foreground,var(--color-violet-600))] dark:bg-[var(--color-info-soft,var(--color-violet-950))] dark:border-[var(--color-info-alpha,var(--color-violet-900))]',
+        'bg-[var(--color-info-soft)] border border-[var(--color-info-alpha)] text-foreground [&_[data-slot=alert-icon]]:text-[var(--color-info-accent)] dark:bg-[var(--color-info-soft)] dark:border-[var(--color-info-alpha)]',
     },
     {
       variant: 'warning',
       appearance: 'light',
       className:
-        'bg-[var(--color-warning-soft,var(--color-yellow-50))] border border-[var(--color-warning-alpha,var(--color-yellow-200))] text-foreground [&_[data-slot=alert-icon]]:text-[var(--color-warning-foreground,var(--color-yellow-600))] dark:bg-[var(--color-warning-soft,var(--color-yellow-950))] dark:border-[var(--color-warning-alpha,var(--color-yellow-900))]',
+        'bg-[var(--color-warning-soft)] border border-[var(--color-warning-alpha)] text-foreground [&_[data-slot=alert-icon]]:text-[var(--color-warning-accent)] dark:bg-[var(--color-warning-soft)] dark:border-[var(--color-warning-alpha)]',
     },
 
     /* Mono */
@@ -161,12 +155,12 @@ const alertVariants = cva('flex items-stretch w-full gap-2 group-[.toaster]:w-(-
     {
       variant: 'mono',
       icon: 'warning',
-      className: '[&_[data-slot=alert-icon]]:text-[var(--color-warning-foreground,var(--color-yellow-600))]',
+      className: '[&_[data-slot=alert-icon]]:text-[var(--color-warning-accent)]',
     },
     {
       variant: 'mono',
       icon: 'success',
-      className: '[&_[data-slot=alert-icon]]:text-[var(--color-success-foreground,var(--color-green-600))]',
+      className: '[&_[data-slot=alert-icon]]:text-[var(--color-success-accent)]',
     },
     {
       variant: 'mono',
@@ -176,7 +170,7 @@ const alertVariants = cva('flex items-stretch w-full gap-2 group-[.toaster]:w-(-
     {
       variant: 'mono',
       icon: 'info',
-      className: '[&_[data-slot=alert-icon]]:text-[var(--color-info-foreground,var(--color-violet-600))]',
+      className: '[&_[data-slot=alert-icon]]:text-[var(--color-info-accent)]',
     },
   ],
   defaultVariants: {

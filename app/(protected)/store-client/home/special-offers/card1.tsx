@@ -11,7 +11,7 @@ export function Card1() {
   const { showCartSheet } = useStoreClient();
 
   return (
-    <Card className="bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-950 h-full">
+    <Card className="bg-primary/10 border-primary/30 dark:bg-primary/30 dark:border-primary/30 h-full">
       <CardContent className="flex items-center flex-wrap sm:flex-nowrap justify-between gap-5 lg:gap-9 px-7.5 pb-0">
         <div className="flex flex-col">
           <div className="mb-3">

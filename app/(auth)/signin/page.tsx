@@ -44,7 +44,7 @@ export default function Page() {
   const form = useForm<SigninSchemaType>({
     resolver: zodResolver(getSigninSchema()),
     defaultValues: {
-      email: '',
+      identifier: '',
       password: '',
       rememberMe: false,
     },
@@ -57,7 +57,7 @@ export default function Page() {
     try {
       const response = await signIn('credentials', {
         redirect: false,
-        email: values.email,
+        identifier: values.identifier,
         password: values.password,
         rememberMe: values.rememberMe,
       });
@@ -107,7 +107,7 @@ export default function Page() {
                   type="button"
                   className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground hover:bg-accent transition-colors"
                   onClick={() => {
-                    form.setValue('email', cred.email, { shouldDirty: true });
+                    form.setValue('identifier', cred.email, { shouldDirty: true });
                     form.setValue('password', cred.password, { shouldDirty: true });
                   }}
                 >
@@ -132,12 +132,12 @@ export default function Page() {
 
         <FormField
           control={form.control}
-          name="email"
+          name="identifier"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('pages.auth.signin.email')}</FormLabel>
+              <FormLabel>{t('pages.auth.signin.identifier')}</FormLabel>
               <FormControl>
-                <Input placeholder={t('pages.auth.signin.emailPlaceholder')} {...field} />
+                <Input placeholder={t('pages.auth.signin.identifierPlaceholder')} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

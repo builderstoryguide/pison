@@ -25,7 +25,7 @@ const Options = ({ items, dropdown }: IOptionsProps) => {
       <Card key={index} className="p-5 lg:p-7.5 lg:pt-7">
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-2">
-            <item.icon className="text-xl text-blue-500" />
+            <item.icon className="text-xl text-primary" />
             {dropdown && (
               <DropdownMenu3
                 trigger={

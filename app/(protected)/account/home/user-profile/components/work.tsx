@@ -35,7 +35,7 @@ const Work = () => {
               </TableCell>
               <TableCell className="py-2 text-end min-w-24">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -48,7 +48,7 @@ const Work = () => {
               </TableCell>
               <TableCell className="py-2 text-end">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -61,7 +61,7 @@ const Work = () => {
               </TableCell>
               <TableCell className="py-2 text-end">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -83,7 +83,7 @@ const Work = () => {
               </TableCell>
               <TableCell className="py-3 text-end">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>
@@ -98,7 +98,7 @@ const Work = () => {
               </TableCell>
               <TableCell className="py-4 text-end">
                 <Button variant="ghost" mode="icon">
-                  <SquarePen size={16} className="text-blue-500" />
+                  <SquarePen size={16} className="text-primary" />
                 </Button>
               </TableCell>
             </TableRow>

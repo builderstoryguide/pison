@@ -32,15 +32,39 @@
 
 /** Auth Layout Backgrounds **/
 .branded-bg {
-  background-image: url('/media/images/2600x1600/1.png');
+  background-image:
+    linear-gradient(
+      140deg,
+      color-mix(in oklab, var(--brand-green) 88%, transparent),
+      color-mix(in oklab, var(--brand-orange) 38%, transparent)
+    ),
+    url('/media/images/2600x1600/1.png');
 }
 .dark .branded-bg {
-  background-image: url('/media/images/2600x1600/1-dark.png');
+  background-image:
+    linear-gradient(
+      140deg,
+      color-mix(in oklab, var(--brand-green-strong) 92%, transparent),
+      color-mix(in oklab, var(--brand-orange-strong) 42%, transparent)
+    ),
+    url('/media/images/2600x1600/1-dark.png');
 }
 
 .page-bg {
-  background-image: url('/media/images/2600x1200/bg-10.png');
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--brand-white) 78%, transparent),
+      color-mix(in oklab, var(--brand-green-soft) 60%, transparent)
+    ),
+    url('/media/images/2600x1200/bg-10.png');
 }
 .dark .page-bg {
-  background-image: url('/media/images/2600x1200/bg-10-dark.png');
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--brand-green-strong) 86%, transparent),
+      color-mix(in oklab, var(--brand-green) 66%, transparent)
+    ),
+    url('/media/images/2600x1200/bg-10-dark.png');
 }

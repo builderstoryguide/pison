@@ -3,7 +3,7 @@
 > **Purpose**: Single source of truth mapping [PRD.md](./PRD.md) requirements to implementation status.
 > **Workflow**: Before implementing a feature, check this tracker. Update it as features are completed.
 
-**Last Updated**: 2026-03-03 (App-wide i18n rollout in progress)
+**Last Updated**: 2026-03-03 (Agent auto-credentials and username login enabled)
 
 ---
 
@@ -86,6 +86,7 @@
 | [x] | Deactivate/delete client | Delete in client list |
 | [x] | View list of agents | `app/(protected)/agents/` |
 | [x] | Add new agent | `app/(protected)/agents/new/` |
+| [x] | Auto-provision agent credentials on creation | New agent creation now auto-generates `username` + temporary password, creates account/user/agent atomically, and auto-downloads credentials `.txt` | `app/api/agents/route.ts`, `lib/services/agent-service.ts`, `app/(protected)/agents/components/agent-form.tsx`, `app/api/auth/[...nextauth]/auth-options.ts`, `prisma/schema.prisma` |
 | [x] | Assign collection areas to agents | `app/(protected)/collection-areas/assignments/` |
 | [x] | Modify agent details | `app/(protected)/agents/[id]/` |
 | [x] | Refill agent account | `AgentAccountActions` (refill, transfer, withdrawal) |

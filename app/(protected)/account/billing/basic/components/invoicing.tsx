@@ -87,7 +87,7 @@ const Invoicing = () => {
         </TableCell>
         <TableCell>
           <Button variant="ghost" mode="icon">
-            <Download className="text-blue-500" />
+            <Download className="text-primary" />
           </Button>
         </TableCell>
       </TableRow>

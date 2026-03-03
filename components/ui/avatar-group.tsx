@@ -194,7 +194,7 @@ export function AvatarGroupItem({
               transition={{ duration: 0.15 }}
             />
             <motion.div
-              className="absolute -bottom-px left-10 z-30 h-px w-[40%] bg-gradient-to-r from-transparent via-sky-500 dark:via-sky-900 to-transparent"
+              className="absolute -bottom-px left-10 z-30 h-px w-[40%] bg-gradient-to-r from-transparent via-primary/10 dark:via-primary/10 to-transparent"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}

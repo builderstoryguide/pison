@@ -58,7 +58,7 @@ export function DropdownMenuApps({ trigger }: { trigger: ReactNode }) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
       <DropdownMenuContent className="w-[325px] p-0" side="bottom" align="end">
-        <div className="flex items-center justify-between gap-2.5 text-xs text-gray-600 font-medium px-5 py-3 border-b border-b-gray-100">
+        <div className="flex items-center justify-between gap-2.5 text-xs text-foreground font-medium px-5 py-3 border-b border-b-gray-100">
           <span>{t('pages.topbar.apps.title')}</span>
           <span>{t('pages.topbar.apps.enabled')}</span>
         </div>
@@ -69,7 +69,7 @@ export function DropdownMenuApps({ trigger }: { trigger: ReactNode }) {
               className="flex items-center justify-between flex-wrap gap-2 px-5 py-3.5"
             >
               <div className="flex items-center flex-wrap gap-2">
-                <div className="flex items-center justify-center shrink-0 rounded-full bg-gray-100 border border-gray-200 size-10">
+                <div className="flex items-center justify-center shrink-0 rounded-full bg-background border border-border size-10">
                   <img
                     src={toAbsoluteUrl(`/media/brand-logos/${item.logo}`)}
                     className="size-6"
@@ -80,11 +80,11 @@ export function DropdownMenuApps({ trigger }: { trigger: ReactNode }) {
                 <div className="flex flex-col">
                   <a
                     href="#"
-                    className="text-sm font-semibold text-gray-900 hover:text-primary-active"
+                    className="text-sm font-semibold text-foreground hover:text-primary-active"
                   >
                     {item.title}
                   </a>
-                  <span className="text-xs font-medium text-gray-600">
+                  <span className="text-xs font-medium text-foreground">
                     {item.description}
                   </span>
                 </div>

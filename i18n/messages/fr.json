@@ -242,7 +242,12 @@
       "transferFromAgentDesc": "Transférer depuis le compte de {{name}} ({{account}}) vers un autre compte.",
       "collectorLabel": "Collecteur",
       "amountXof": "Montant (XOF)",
-      "createRequest": "Créer la demande"
+      "createRequest": "Créer la demande",
+      "agentCreatedSuccess": "Agent créé avec succès",
+      "agentUpdatedSuccess": "Agent mis à jour avec succès",
+      "createFailed": "Échec de la création de l'agent",
+      "updateFailed": "Échec de la mise à jour de l'agent",
+      "credentialsDownloadedSuccess": "Les identifiants de l'agent ont été téléchargés avec succès"
     },
     "loans": {
       "title": "Prêts",
@@ -376,6 +381,8 @@
         "title": "Connexion à DCMS",
         "subtitle": "Système de gestion des collectes quotidiennes",
         "devCredentials": "Identifiants de développement (cliquez pour remplir) :",
+        "identifier": "Nom d'utilisateur ou email",
+        "identifierPlaceholder": "Votre nom d'utilisateur ou email",
         "email": "Email",
         "emailPlaceholder": "Votre email",
         "password": "Mot de passe",

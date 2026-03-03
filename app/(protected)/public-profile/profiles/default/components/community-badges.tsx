@@ -28,7 +28,7 @@ const CommunityBadges = ({ title }: ICommunityBadgesProps) => {
       stroke: 'stroke-blue-200 dark:stroke-blue-950',
       fill: 'fill-blue-50 dark:fill-blue-950/30',
       icon: Volleyball,
-      iconColor: 'text-blue-500',
+      iconColor: 'text-primary',
     },
     {
       stroke: 'stroke-orange-200 dark:stroke-orange-950',
@@ -46,7 +46,7 @@ const CommunityBadges = ({ title }: ICommunityBadgesProps) => {
       stroke: 'stroke-violet-200 dark:stroke-violet-950',
       fill: 'fill-violet-50  dark:fill-violet-950/30',
       icon: Truck,
-      iconColor: 'text-violet-500',
+      iconColor: 'text-primary',
     },
   ];
 

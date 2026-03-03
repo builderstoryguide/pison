@@ -189,11 +189,11 @@ export default function PendingTransactionsList() {
       case 'TRANSFER':
         return <ArrowUp className="size-5 text-red-600" />;
       case 'LOAN_DISBURSEMENT':
-        return <DollarSign className="size-5 text-blue-600" />;
+        return <DollarSign className="size-5 text-primary" />;
       case 'LOAN_REPAYMENT':
-        return <CreditCard className="size-5 text-purple-600" />;
+        return <CreditCard className="size-5 text-primary" />;
       default:
-        return <Receipt className="size-5 text-gray-600" />;
+        return <Receipt className="size-5 text-foreground" />;
     }
   };
 

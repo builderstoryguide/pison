@@ -21,7 +21,7 @@ export const Order = () => {
                 {index !== locations.length - 1 && (
                   <div className="absolute left-[2.2px] top-[15px] w-[2px] h-full bg-input rounded-full z-0"></div>
                 )}
-                <span className="size-1.5 rounded-full bg-gray-700 z-10 outline outline-gray-50 outline-3 mt-[2px]"></span>
+                <span className="size-1.5 rounded-full bg-background z-10 outline outline-gray-50 outline-3 mt-[2px]"></span>
                 <span className="text-xs font-medium text-foreground">
                   {location.address}
                 </span>

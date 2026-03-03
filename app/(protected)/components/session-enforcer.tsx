@@ -56,10 +56,10 @@ export function SessionEnforcer({ children }: SessionEnforcerProps) {
         <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-100">
           <Lock className="h-10 w-10 text-red-600" />
         </div>
-        <h1 className="mb-2 text-2xl font-bold text-gray-900">
+        <h1 className="mb-2 text-2xl font-bold text-foreground">
           System Locked
         </h1>
-        <p className="mb-8 max-w-md text-gray-500">
+        <p className="mb-8 max-w-md text-foreground">
           {message}
         </p>
         <Button

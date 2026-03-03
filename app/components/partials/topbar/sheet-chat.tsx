@@ -109,15 +109,15 @@ export function SheetChat({ trigger }: { trigger: ReactNode }) {
       <SheetTrigger asChild>{trigger}</SheetTrigger>
       <SheetContent className="p-0 sm:max-w-[500px]">
         <SheetHeader>
-          <div className="flex items-center justify-between p-3 border-b border-gray-100">
-            <h3 className="text-base font-semibold text-gray-900">
+          <div className="flex items-center justify-between p-3 border-b border-border">
+            <h3 className="text-base font-semibold text-foreground">
               {t('pages.topbar.chat.title')}
             </h3>
           </div>
-          <div className="border-b border-gray-200 p-3 shadow-xs">
+          <div className="border-b border-border p-3 shadow-xs">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <div className="w-11 h-11 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center">
+                <div className="w-11 h-11 rounded-full bg-background border border-border flex items-center justify-center">
                   <img
                     src={toAbsoluteUrl('/media/brand-logos/gitlab.svg')}
                     className="w-7 h-7"
@@ -127,11 +127,11 @@ export function SheetChat({ trigger }: { trigger: ReactNode }) {
                 <div>
                   <Link
                     href="#"
-                    className="text-sm font-semibold text-gray-900 hover:text-blue-600"
+                    className="text-sm font-semibold text-foreground hover:text-primary"
                   >
                     {t('pages.topbar.chat.teamName')}
                   </Link>
-                  <span className="text-xs italic text-gray-500 block">
+                  <span className="text-xs italic text-foreground block">
                     {t('pages.topbar.chat.typing')}
                   </span>
                 </div>
@@ -215,13 +215,13 @@ export function SheetChat({ trigger }: { trigger: ReactNode }) {
                     dangerouslySetInnerHTML={{ __html: message.text }}
                   />
                   <div className="flex items-center justify-end gap-1">
-                    <span className="text-xs text-gray-600">
+                    <span className="text-xs text-foreground">
                       {message.time}
                     </span>
                     <CheckCheck
                       className={cn(
                         'w-4 h-4',
-                        message.read ? 'text-green-500' : 'text-gray-400',
+                        message.read ? 'text-green-500' : 'text-foreground',
                       )}
                     />
                   </div>
@@ -247,10 +247,10 @@ export function SheetChat({ trigger }: { trigger: ReactNode }) {
                 </Avatar>
                 <div className="flex flex-col gap-1">
                   <div
-                    className="bg-accent/50 text-gray-700 text-sm font-medium p-3 rounded-lg shadow-xs"
+                    className="bg-accent/50 text-foreground text-sm font-medium p-3 rounded-lg shadow-xs"
                     dangerouslySetInnerHTML={{ __html: message.text }}
                   />
-                  <span className="text-xs text-gray-500">{message.time}</span>
+                  <span className="text-xs text-foreground">{message.time}</span>
                 </div>
               </div>
             ) : null,

@@ -200,7 +200,7 @@ const Teams = () => {
           { filename: '300-16.png' },
           {
             fallback: 'K',
-            variant: 'text-white ring-background bg-violet-500',
+            variant: 'text-white ring-background bg-primary/10',
           },
         ],
       },
