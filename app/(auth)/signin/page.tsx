@@ -8,6 +8,7 @@ import { RiErrorWarningFill } from '@remixicon/react';
 import { AlertCircle, Eye, EyeOff, LoaderCircleIcon } from 'lucide-react';
 import { signIn } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -23,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { getSigninSchema, SigninSchemaType } from '../forms/signin-schema';
 
 export default function Page() {
+  const { t } = useTranslation();
   const router = useRouter();
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -70,7 +72,7 @@ export default function Page() {
       setError(
         err instanceof Error
           ? err.message
-          : 'An unexpected error occurred. Please try again.',
+          : t('pages.auth.signin.unexpectedError'),
       );
     } finally {
       setIsProcessing(false);
@@ -85,10 +87,10 @@ export default function Page() {
       >
         <div className="space-y-1.5 pb-3">
           <h1 className="text-2xl font-semibold tracking-tight text-center">
-            Sign in to DCMS
+            {t('pages.auth.signin.title')}
           </h1>
           <p className="text-sm text-muted-foreground text-center">
-            Daily Collection Management System
+            {t('pages.auth.signin.subtitle')}
           </p>
         </div>
 
@@ -96,7 +98,7 @@ export default function Page() {
           <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
             <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
               <RiErrorWarningFill className="size-3.5 text-primary" />
-              Dev credentials (click to fill):
+              {t('pages.auth.signin.devCredentials')}
             </p>
             <div className="flex flex-wrap gap-1.5">
               {devCredentials.map((cred) => (
@@ -133,9 +135,9 @@ export default function Page() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>{t('pages.auth.signin.email')}</FormLabel>
               <FormControl>
-                <Input placeholder="Your email" {...field} />
+                <Input placeholder={t('pages.auth.signin.emailPlaceholder')} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -148,17 +150,17 @@ export default function Page() {
           render={({ field }) => (
             <FormItem>
               <div className="flex justify-between items-center gap-2.5">
-                <FormLabel>Password</FormLabel>
+                <FormLabel>{t('pages.auth.signin.password')}</FormLabel>
                 <Link
                   href="/reset-password"
                   className="text-sm font-semibold text-foreground hover:text-primary"
                 >
-                  Forgot Password?
+                  {t('pages.auth.signin.forgotPassword')}
                 </Link>
               </div>
               <div className="relative">
                 <Input
-                  placeholder="Your password"
+                  placeholder={t('pages.auth.signin.passwordPlaceholder')}
                   type={passwordVisible ? 'text' : 'password'}
                   {...field}
                 />
@@ -170,7 +172,9 @@ export default function Page() {
                   onClick={() => setPasswordVisible(!passwordVisible)}
                   className="absolute end-0 top-1/2 -translate-y-1/2 h-7 w-7 me-1.5 bg-transparent!"
                   aria-label={
-                    passwordVisible ? 'Hide password' : 'Show password'
+                    passwordVisible
+                      ? t('pages.auth.signin.hidePassword')
+                      : t('pages.auth.signin.showPassword')
                   }
                 >
                   {passwordVisible ? (
@@ -200,7 +204,7 @@ export default function Page() {
                   htmlFor="remember-me"
                   className="text-sm leading-none text-muted-foreground"
                 >
-                  Remember me
+                  {t('pages.auth.signin.rememberMe')}
                 </label>
               </>
             )}
@@ -210,12 +214,12 @@ export default function Page() {
         <div className="flex flex-col gap-2.5">
           <Button type="submit" disabled={isProcessing}>
             {isProcessing ? <LoaderCircleIcon className="size-4 animate-spin" /> : null}
-            Sign In
+            {t('pages.auth.signin.signIn')}
           </Button>
         </div>
 
         <p className="text-xs text-muted-foreground text-center">
-          Contact your manager if you need an account.
+          {t('pages.auth.signin.contactManager')}
         </p>
       </form>
     </Form>

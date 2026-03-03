@@ -353,7 +353,7 @@ export default function DailyCollectionForm() {
                               />
                             </div>
                             <span className="text-sm text-muted-foreground">
-                              CFA
+                              XAF
                             </span>
                           </div>
                         </div>
@@ -379,7 +379,7 @@ export default function DailyCollectionForm() {
                     disabled={
                       submitMutation.isPending ||
                       entries.filter((e) => parseFloat(e.amount) > 0).length ===
-                        0
+                      0
                     }
                     size="lg"
                   >

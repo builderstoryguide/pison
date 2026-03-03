@@ -23,8 +23,10 @@ import {
   getChangePasswordSchema,
 } from '../forms/change-password-schema';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function Page() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams?.get('token') || null;
@@ -61,10 +63,10 @@ export default function Page() {
           setIsValidToken(true);
         } else {
           const errorData = await response.json();
-          setError(errorData.message || 'Invalid or expired token.');
+          setError(errorData.message || t('pages.auth.changePassword.invalidOrExpiredToken'));
         }
       } catch {
-        setError('Unable to verify the reset token.');
+        setError(t('pages.auth.changePassword.unableVerifyToken'));
       } finally {
         setVerifyingToken(false);
       }
@@ -73,9 +75,9 @@ export default function Page() {
     if (token) {
       verifyToken();
     } else {
-      setError('No reset token provided.');
+      setError(t('pages.auth.changePassword.noToken'));
     }
-  }, [token]);
+  }, [token, t]);
 
   async function onSubmit(values: ChangePasswordSchemaType) {
     setIsProcessing(true);
@@ -90,14 +92,14 @@ export default function Page() {
       });
 
       if (response.ok) {
-        setSuccessMessage('Password reset successful! Redirecting to login...');
+        setSuccessMessage(t('pages.auth.changePassword.resetSuccess'));
         setTimeout(() => router.push('/signin'), 3000);
       } else {
         const errorData = await response.json();
-        setError(errorData.message || 'Password reset failed.');
+        setError(errorData.message || t('pages.auth.changePassword.resetFailed'));
       }
     } catch {
-      setError('An error occurred while resetting the password.');
+      setError(t('pages.auth.changePassword.resetError'));
     } finally {
       setIsProcessing(false);
     }
@@ -111,10 +113,10 @@ export default function Page() {
       >
         <div className="text-center space-y-1 pb-3">
           <h1 className="text-2xl font-semibold tracking-tight">
-            Reset Password
+            {t('pages.auth.changePassword.title')}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Enter your new password below.
+            {t('pages.auth.changePassword.description')}
           </p>
         </div>
 
@@ -128,7 +130,7 @@ export default function Page() {
             </Alert>
             <Button asChild>
               <Link href="/signin" className="text-primary">
-                Go back to Login
+                {t('pages.auth.changePassword.goBackToLogin')}
               </Link>
             </Button>
           </div>
@@ -148,7 +150,7 @@ export default function Page() {
             <AlertIcon>
               <LoaderCircleIcon className="size-4 animate-spin" />
             </AlertIcon>
-            <AlertTitle>Verifing...</AlertTitle>
+            <AlertTitle>{t('pages.auth.changePassword.verifying')}</AlertTitle>
           </Alert>
         )}
 
@@ -159,12 +161,12 @@ export default function Page() {
               name="newPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>New Password</FormLabel>
+                  <FormLabel>{t('pages.auth.changePassword.newPassword')}</FormLabel>
                   <div className="relative">
                     <FormControl>
                       <Input
                         type={passwordVisible ? 'text' : 'password'}
-                        placeholder="Enter new password"
+                        placeholder={t('pages.auth.changePassword.newPasswordPlaceholder')}
                         {...field}
                       />
                     </FormControl>
@@ -175,7 +177,9 @@ export default function Page() {
                       onClick={() => setPasswordVisible(!passwordVisible)}
                       className="absolute end-0 top-1/2 -translate-y-1/2 h-7 w-7 me-1.5 bg-transparent!"
                       aria-label={
-                        passwordVisible ? 'Hide password' : 'Show password'
+                        passwordVisible
+                          ? t('pages.auth.changePassword.hidePassword')
+                          : t('pages.auth.changePassword.showPassword')
                       }
                     >
                       {passwordVisible ? (
@@ -195,12 +199,12 @@ export default function Page() {
               name="confirmPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Confirm New Password</FormLabel>
+                  <FormLabel>{t('pages.auth.changePassword.confirmNewPassword')}</FormLabel>
                   <div className="relative">
                     <FormControl>
                       <Input
                         type={passwordConfirmationVisible ? 'text' : 'password'}
-                        placeholder="Confirm new password"
+                        placeholder={t('pages.auth.changePassword.confirmNewPasswordPlaceholder')}
                         {...field}
                       />
                     </FormControl>
@@ -216,8 +220,8 @@ export default function Page() {
                       className="absolute end-0 top-1/2 -translate-y-1/2 h-7 w-7 me-1.5 bg-transparent!"
                       aria-label={
                         passwordConfirmationVisible
-                          ? 'Hide password confirmation'
-                          : 'Show password confirmation'
+                          ? t('pages.auth.changePassword.hidePasswordConfirmation')
+                          : t('pages.auth.changePassword.showPasswordConfirmation')
                       }
                     >
                       {passwordConfirmationVisible ? (
@@ -234,7 +238,7 @@ export default function Page() {
 
             <Button type="submit" disabled={isProcessing} className="w-full">
               {isProcessing && <LoaderCircleIcon className="size-4 animate-spin" />}
-              Reset Password
+              {t('pages.auth.changePassword.submit')}
             </Button>
           </>
         )}

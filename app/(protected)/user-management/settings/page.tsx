@@ -7,6 +7,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ControllerRenderProps, FieldErrors, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api';
+import { useTranslation } from '@/hooks/useTranslation';
+import { I18N_LANGUAGES } from '@/i18n/config';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,45 +41,8 @@ import {
   GeneralSettingsSchemaType,
 } from './forms/general-settings-schema';
 
-const languages = [
-  {
-    code: 'en',
-    name: 'English',
-    shortName: 'EN',
-    direction: 'ltr',
-    flag: '/media/flags/united-states.svg',
-  },
-  {
-    code: 'ar',
-    name: 'Arabic',
-    shortName: 'AR',
-    direction: 'rtl',
-    flag: '/media/flags/saudi-arabia.svg',
-  },
-  {
-    code: 'es',
-    name: 'Spanish',
-    shortName: 'ES',
-    direction: 'ltr',
-    flag: '/media/flags/spain.svg',
-  },
-  {
-    code: 'de',
-    name: 'German',
-    shortName: 'DE',
-    direction: 'ltr',
-    flag: '/media/flags/germany.svg',
-  },
-  {
-    code: 'ch',
-    name: 'Chinese',
-    shortName: 'CH',
-    direction: 'ltr',
-    flag: '/media/flags/china.svg',
-  },
-];
-
 export default function Page() {
+  const { t } = useTranslation();
   const { settings } = useSettings();
   const queryClient = useQueryClient();
   const [logoExistingPreview, setLogoExistingPreview] = useState<string | null>(
@@ -153,7 +118,7 @@ export default function Page() {
             <AlertIcon>
               <RiCheckboxCircleFill />
             </AlertIcon>
-            <AlertTitle>Settings updated successfully</AlertTitle>
+            <AlertTitle>{t('pages.settings.updateSuccess')}</AlertTitle>
           </Alert>
         ),
         {
@@ -253,7 +218,7 @@ export default function Page() {
               <RiErrorWarningFill />
             </AlertIcon>
             <AlertTitle>
-              Your form has errors. Please fix them before submitting!
+              {t('pages.settings.formErrors')}
             </AlertTitle>
           </Alert>
         ),
@@ -267,7 +232,7 @@ export default function Page() {
   return (
     <Card>
       <CardHeader className="border-b border-border">
-        <CardTitle>Social Settings</CardTitle>
+        <CardTitle>{t('pages.settings.title')}</CardTitle>
       </CardHeader>
       <CardContent className="py-12">
         <Form {...form}>
@@ -289,12 +254,12 @@ export default function Page() {
                           logoExistingPreview ||
                           '/media/ui/empty-image.svg'
                         }
-                        alt="Logo preview"
+                        alt={t('pages.settings.logoPreviewAlt')}
                         className="object-cover size-full"
                       />
                     </div>
                     <div>
-                      <FormLabel>Company Logo</FormLabel>
+                      <FormLabel>{t('pages.settings.companyLogo')}</FormLabel>
                       <FormControl className="my-1.5">
                         <div className="flex flex-col space-y-2">
                           <div className="flex space-x-2">
@@ -303,7 +268,7 @@ export default function Page() {
                               variant="outline"
                               onClick={() => logoFileRef.current?.click()}
                             >
-                              Attach Image
+                              {t('pages.settings.attachImage')}
                             </Button>
 
                             {logoAttachedPreview ||
@@ -315,7 +280,7 @@ export default function Page() {
                                 variant="outline"
                                 onClick={handleCancelLogo}
                               >
-                                Cancel
+                                {t('common.buttons.cancel')}
                               </Button>
                             ) : null}
 
@@ -327,7 +292,7 @@ export default function Page() {
                                 variant="outline"
                                 onClick={handleRemoveLogo}
                               >
-                                Remove
+                                {t('common.buttons.remove')}
                               </Button>
                             ) : null}
                           </div>
@@ -341,7 +306,7 @@ export default function Page() {
                         </div>
                       </FormControl>
                       <FormDescription>
-                        We support PNGs, JPEGs and GIFs under 1MB.
+                        {t('pages.settings.logoDescription')}
                       </FormDescription>
                       <FormMessage />
                     </div>
@@ -356,9 +321,9 @@ export default function Page() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Shop Name</FormLabel>
+                  <FormLabel>{t('pages.settings.shopName')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter company name" {...field} />
+                    <Input placeholder={t('pages.settings.enterCompanyName')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -371,7 +336,7 @@ export default function Page() {
               name="active"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Shop Status</FormLabel>
+                  <FormLabel>{t('pages.settings.shopStatus')}</FormLabel>
                   <FormControl>
                     <div className="flex items-center space-x-2 rounded-lg bg-accent/60 p-4">
                       <Switch
@@ -380,8 +345,7 @@ export default function Page() {
                         onCheckedChange={field.onChange}
                       />
                       <Label htmlFor="active">
-                        Toggle the switch to enable or disable the store&apos;s
-                        active status.
+                        {t('pages.settings.shopStatusDescription')}
                       </Label>
                     </div>
                   </FormControl>
@@ -396,18 +360,18 @@ export default function Page() {
               name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Address</FormLabel>
+                  <FormLabel>{t('common.labels.address')}</FormLabel>
                   <FormControl>
                     <Textarea
                       rows={3}
                       id="address"
                       value={field.value || ''}
                       onChange={field.onChange}
-                      placeholder="Enter store address"
+                      placeholder={t('pages.settings.enterStoreAddress')}
                     />
                   </FormControl>
                   <FormDescription>
-                    Enter the full address of the store for customer reference.
+                    {t('pages.settings.addressDescription')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -420,18 +384,18 @@ export default function Page() {
               name="language"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Language</FormLabel>
+                  <FormLabel>{t('pages.topbar.userMenu.language')}</FormLabel>
                   <FormControl>
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select language" />
+                        <SelectValue placeholder={t('pages.settings.selectLanguage')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          {languages.map((language) => (
+                          {I18N_LANGUAGES.map((language) => (
                             <SelectItem
                               key={language.code}
                               value={language.code}
@@ -461,12 +425,12 @@ export default function Page() {
               name="websiteURL"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Website URL</FormLabel>
+                  <FormLabel>{t('pages.settings.websiteUrl')}</FormLabel>
                   <FormControl>
                     <Input
                       id="websiteURL"
                       type="url"
-                      placeholder="Enter website url"
+                      placeholder={t('pages.settings.enterWebsiteUrl')}
                       value={field.value || ''}
                       onChange={field.onChange}
                     />
@@ -482,12 +446,12 @@ export default function Page() {
               name="supportEmail"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Support Email</FormLabel>
+                  <FormLabel>{t('pages.settings.supportEmail')}</FormLabel>
                   <FormControl>
                     <Input
                       id="supportEmail"
                       type="email"
-                      placeholder="Enter support email"
+                      placeholder={t('pages.settings.enterSupportEmail')}
                       value={field.value || ''}
                       onChange={field.onChange}
                     />
@@ -503,12 +467,12 @@ export default function Page() {
               name="supportPhone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Support Phone</FormLabel>
+                  <FormLabel>{t('pages.settings.supportPhone')}</FormLabel>
                   <FormControl>
                     <Input
                       id="supportPhone"
                       type="tel"
-                      placeholder="Enter support phone"
+                      placeholder={t('pages.settings.enterSupportPhone')}
                       value={field.value || ''}
                       onChange={field.onChange}
                     />
@@ -524,14 +488,14 @@ export default function Page() {
               name="currency"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Currency</FormLabel>
+                  <FormLabel>{t('pages.settings.currency')}</FormLabel>
                   <FormControl>
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select currency" />
+                        <SelectValue placeholder={t('pages.settings.selectCurrency')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
@@ -552,7 +516,7 @@ export default function Page() {
                     </Select>
                   </FormControl>
                   <FormDescription>
-                    Select the currency used for transactions in your store.
+                    {t('pages.settings.currencyDescription')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -565,14 +529,14 @@ export default function Page() {
               name="currencyFormat"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Currency Format</FormLabel>
+                  <FormLabel>{t('pages.settings.currencyFormat')}</FormLabel>
                   <FormControl>
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select currency format" />
+                        <SelectValue placeholder={t('pages.settings.selectCurrencyFormat')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
@@ -597,8 +561,7 @@ export default function Page() {
                     </Select>
                   </FormControl>
                   <FormDescription>
-                    Choose how the currency is displayed (e.g., symbol before or
-                    after value).
+                    {t('pages.settings.currencyFormatDescription')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -611,7 +574,7 @@ export default function Page() {
               name="timezone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Timezone</FormLabel>
+                  <FormLabel>{t('pages.settings.timezone')}</FormLabel>
                   <FormControl>
                     <TimezoneSelect
                       defaultValue={field.value}
@@ -626,14 +589,14 @@ export default function Page() {
             {/* Action Buttons */}
             <div className="flex gap-2.5 justify-end">
               <Button type="button" variant="outline" onClick={handleFormReset}>
-                Reset
+                {t('pages.settings.reset')}
               </Button>
               <Button
                 type="submit"
                 disabled={!form.formState.isDirty || isProcessing}
               >
                 {isProcessing && <LoaderCircleIcon className="animate-spin" />}
-                Save Settings
+                {t('pages.settings.saveSettings')}
               </Button>
             </div>
           </form>

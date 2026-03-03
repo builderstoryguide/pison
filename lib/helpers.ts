@@ -1,3 +1,10 @@
+import i18n from 'i18next';
+
+const getCurrentLocale = (): string => {
+  const lang = i18n.language || 'en';
+  return lang.startsWith('fr') ? 'fr-FR' : 'en-US';
+};
+
 export const throttle = (
   func: (...args: unknown[]) => void,
   limit: number,
@@ -79,25 +86,22 @@ export function timeAgo(date: Date | string): string {
   const now = new Date();
   const inputDate = typeof date === 'string' ? new Date(date) : date;
   const diff = Math.floor((now.getTime() - inputDate.getTime()) / 1000);
+  const locale = getCurrentLocale();
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
 
-  if (diff < 60) return 'just now';
-  if (diff < 3600)
-    return `${Math.floor(diff / 60)} minute${Math.floor(diff / 60) > 1 ? 's' : ''} ago`;
-  if (diff < 86400)
-    return `${Math.floor(diff / 3600)} hour${Math.floor(diff / 3600) > 1 ? 's' : ''} ago`;
-  if (diff < 604800)
-    return `${Math.floor(diff / 86400)} day${Math.floor(diff / 86400) > 1 ? 's' : ''} ago`;
-  if (diff < 2592000)
-    return `${Math.floor(diff / 604800)} week${Math.floor(diff / 604800) > 1 ? 's' : ''} ago`;
-  if (diff < 31536000)
-    return `${Math.floor(diff / 2592000)} month${Math.floor(diff / 2592000) > 1 ? 's' : ''} ago`;
+  if (diff < 60) return rtf.format(-diff, 'second');
+  if (diff < 3600) return rtf.format(-Math.floor(diff / 60), 'minute');
+  if (diff < 86400) return rtf.format(-Math.floor(diff / 3600), 'hour');
+  if (diff < 604800) return rtf.format(-Math.floor(diff / 86400), 'day');
+  if (diff < 2592000) return rtf.format(-Math.floor(diff / 604800), 'week');
+  if (diff < 31536000) return rtf.format(-Math.floor(diff / 2592000), 'month');
 
-  return `${Math.floor(diff / 31536000)} year${Math.floor(diff / 31536000) > 1 ? 's' : ''} ago`;
+  return rtf.format(-Math.floor(diff / 31536000), 'year');
 }
 
 export function formatDate(input: Date | string | number): string {
   const date = new Date(input);
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(getCurrentLocale(), {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
@@ -106,7 +110,7 @@ export function formatDate(input: Date | string | number): string {
 
 export function formatDateTime(input: Date | string | number): string {
   const date = new Date(input);
-  return date.toLocaleString('en-US', {
+  return date.toLocaleString(getCurrentLocale(), {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
@@ -118,22 +122,18 @@ export function formatDateTime(input: Date | string | number): string {
 
 // ─── Number & currency formatting helpers ────────────────────────
 
-/** Locale for readable digits: comma thousands, period decimals (e.g. 5,000.00) */
-const NUMBER_LOCALE = 'en-US';
-
-const NUMBER_FORMATTER = new Intl.NumberFormat(NUMBER_LOCALE, {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
 /**
- * Format a number as CFA with thousands separator and 2 decimals.
- * Example: 5000 → "5,000.00 CFA"
+ * Format a number as XAF with thousands separator and 2 decimals.
+ * Example: 5000 → "5,000.00 XAF"
  */
 export function formatCurrency(value: number | string): string {
   const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(num)) return '0.00 CFA';
-  return `${NUMBER_FORMATTER.format(num)} CFA`;
+  if (isNaN(num)) return '0.00 XAF';
+  const formatted = new Intl.NumberFormat(getCurrentLocale(), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
+  return `${formatted} XAF`;
 }
 
 /**
@@ -143,5 +143,8 @@ export function formatCurrency(value: number | string): string {
 export function formatNumber(value: number | string): string {
   const num = typeof value === 'string' ? parseFloat(value) : value;
   if (isNaN(num)) return '0.00';
-  return NUMBER_FORMATTER.format(num);
+  return new Intl.NumberFormat(getCurrentLocale(), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
 }

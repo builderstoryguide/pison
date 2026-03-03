@@ -190,7 +190,7 @@ export class TransactionService {
         const balanceAfter = account.balance.toNumber() - data.amount;
         if (balanceAfter < minBal) {
           throw new Error(
-            `Withdrawal would bring balance below minimum required (${minBal} CFA)`
+            `Withdrawal would bring balance below minimum required (${minBal} XAF)`
           );
         }
       }
@@ -523,13 +523,13 @@ export class TransactionService {
     const isTransfer = transaction.reference?.startsWith('transfer-');
     const pairedTransaction = isTransfer
       ? await db.transaction.findFirst({
-          where: {
-            reference: transaction.reference,
-            id: { not: transactionId },
-            status: 'PENDING_APPROVAL',
-          },
-          include: { account: true },
-        })
+        where: {
+          reference: transaction.reference,
+          id: { not: transactionId },
+          status: 'PENDING_APPROVAL',
+        },
+        include: { account: true },
+      })
       : null;
 
     const runInTx = async (innerTx: Prisma.TransactionClient) => {
@@ -680,12 +680,12 @@ export class TransactionService {
     const isTransfer = transaction.reference?.startsWith('transfer-');
     const pairedTransaction = isTransfer
       ? await prisma.transaction.findFirst({
-          where: {
-            reference: transaction.reference,
-            id: { not: transactionId },
-            status: 'PENDING_APPROVAL',
-          },
-        })
+        where: {
+          reference: transaction.reference,
+          id: { not: transactionId },
+          status: 'PENDING_APPROVAL',
+        },
+      })
       : null;
 
     const result = await prisma.$transaction(async (tx) => {

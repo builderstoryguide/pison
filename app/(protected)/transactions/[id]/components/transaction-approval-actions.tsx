@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -22,6 +23,7 @@ interface TransactionApprovalActionsProps {
 }
 
 export function TransactionApprovalActions({ transactionId }: TransactionApprovalActionsProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -38,13 +40,13 @@ export function TransactionApprovalActions({ transactionId }: TransactionApprova
       { id: transactionId, notes: approveNotes || undefined },
       {
         onSuccess: () => {
-          toast.success('Transaction approved successfully');
+          toast.success(t('pages.validation.transactionApprovedSuccess'));
           setApproveDialogOpen(false);
           setApproveNotes('');
           router.refresh();
         },
         onError: (error: Error) => {
-          toast.error(error.message || 'Failed to approve transaction');
+          toast.error(error.message || t('pages.validation.approveFailed'));
         },
       }
     );
@@ -52,20 +54,20 @@ export function TransactionApprovalActions({ transactionId }: TransactionApprova
 
   const handleReject = () => {
     if (!rejectReason.trim()) {
-      toast.error('Please provide a reason for rejection');
+      toast.error(t('pages.validation.reasonRequired'));
       return;
     }
     rejectMutation.mutate(
       { id: transactionId, reason: rejectReason },
       {
         onSuccess: () => {
-          toast.success('Transaction rejected');
+          toast.success(t('pages.validation.transactionRejected'));
           setRejectDialogOpen(false);
           setRejectReason('');
           router.refresh();
         },
         onError: (error: Error) => {
-          toast.error(error.message || 'Failed to reject transaction');
+          toast.error(error.message || t('pages.validation.rejectFailed'));
         },
       }
     );
@@ -80,29 +82,28 @@ export function TransactionApprovalActions({ transactionId }: TransactionApprova
           disabled={isPending}
         >
           <XCircle className="mr-2 size-4" />
-          Reject
+          {t('pages.validation.reject')}
         </Button>
         <Button onClick={() => setApproveDialogOpen(true)} disabled={isPending}>
           <CheckCircle2 className="mr-2 size-4" />
-          Approve
+          {t('pages.validation.approve')}
         </Button>
       </div>
 
       <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Approve Transaction</DialogTitle>
+            <DialogTitle>{t('pages.validation.approveTransaction')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to approve this transaction? This will update
-              the account balance.
+              {t('pages.validation.approveConfirm')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="approve-notes">Notes (Optional)</Label>
+              <Label htmlFor="approve-notes">{t('pages.validation.notesOptional')}</Label>
               <Textarea
                 id="approve-notes"
-                placeholder="Add any notes about this approval..."
+                placeholder={t('pages.validation.notesPlaceholder')}
                 value={approveNotes}
                 onChange={(e) => setApproveNotes(e.target.value)}
                 rows={3}
@@ -116,18 +117,18 @@ export function TransactionApprovalActions({ transactionId }: TransactionApprova
               onClick={() => setApproveDialogOpen(false)}
               disabled={approveMutation.isPending}
             >
-              Cancel
+              {t('common.buttons.cancel')}
             </Button>
             <Button onClick={handleApprove} disabled={approveMutation.isPending}>
               {approveMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
-                  Approving...
+                  {t('pages.validation.approving')}
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="mr-2 size-4" />
-                  Approve
+                  {t('pages.validation.approve')}
                 </>
               )}
             </Button>
@@ -138,18 +139,17 @@ export function TransactionApprovalActions({ transactionId }: TransactionApprova
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject Transaction</DialogTitle>
+            <DialogTitle>{t('pages.validation.rejectTransaction')}</DialogTitle>
             <DialogDescription>
-              Please provide a reason for rejecting this transaction. This action
-              cannot be undone.
+              {t('pages.validation.rejectConfirm')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="reject-reason">Reason *</Label>
+              <Label htmlFor="reject-reason">{t('pages.validation.reasonRequiredLabel')}</Label>
               <Textarea
                 id="reject-reason"
-                placeholder="Enter the reason for rejection..."
+                placeholder={t('pages.validation.reasonPlaceholder')}
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 rows={3}
@@ -164,7 +164,7 @@ export function TransactionApprovalActions({ transactionId }: TransactionApprova
               onClick={() => setRejectDialogOpen(false)}
               disabled={rejectMutation.isPending}
             >
-              Cancel
+              {t('common.buttons.cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -174,12 +174,12 @@ export function TransactionApprovalActions({ transactionId }: TransactionApprova
               {rejectMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
-                  Rejecting...
+                  {t('pages.validation.rejecting')}
                 </>
               ) : (
                 <>
                   <XCircle className="mr-2 size-4" />
-                  Reject
+                  {t('pages.validation.reject')}
                 </>
               )}
             </Button>

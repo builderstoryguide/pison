@@ -1,12 +1,16 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { PrismaClient } = require('@prisma/client');
+const { PrismaPg } = require('@prisma/adapter-pg');
+const pg = require('pg');
 const { faker } = require('@faker-js/faker');
 const bcrypt = require('bcrypt');
 const rolesData = require('./data/roles');
 const usersData = require('./data/users');
 const permissionsData = require('./data/permissions');
 
-const prisma = new PrismaClient();
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log('Running database seeding...');
@@ -251,4 +255,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end();
   });

@@ -1,9 +1,11 @@
 'use client';
 
+import { useTranslation } from '@/hooks/useTranslation';
 import { toAbsoluteUrl } from '@/lib/helpers';
 import { Button } from '@/components/ui/button';
 
 export function SearchNoResults() {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col text-center py-9 gap-5">
       <div className="flex justify-center">
@@ -20,14 +22,14 @@ export function SearchNoResults() {
       </div>
       <div className="flex flex-col gap-1.5">
         <h3 className="text-base font-semibold text-mono text-center">
-          No Results Found
+          {t('pages.dialogs.search.noResultsTitle')}
         </h3>
         <span className="text-sm font-medium text-center text-secondary-foreground">
-          Refine your query to discover relevant items
+          {t('pages.dialogs.search.noResultsDescription')}
         </span>
       </div>
       <div className="flex justify-center">
-        <Button variant="outline">View Projects</Button>
+        <Button variant="outline">{t('pages.dialogs.search.viewProjects')}</Button>
       </div>
     </div>
   );

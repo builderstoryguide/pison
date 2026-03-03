@@ -5,13 +5,13 @@ import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ExportButtonProps {
-  reportType: 'monthly-balance' | 'collection-journal' | 'client-statement';
+  reportType: 'monthly-balance' | 'collection-journal' | 'client-statement' | 'commissions';
   params: Record<string, string>;
-  label?: string;
+  labelPrefix?: string;
 }
 
-export default function ExportButton({ reportType, params }: ExportButtonProps) {
-  const handleExport = async (format: 'csv' | 'excel') => {
+export default function ExportButton({ reportType, params, labelPrefix }: ExportButtonProps) {
+  const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
     const searchParams = new URLSearchParams(params);
     searchParams.append('format', format);
     
@@ -48,11 +48,15 @@ export default function ExportButton({ reportType, params }: ExportButtonProps) 
     <div className="flex gap-2">
       <Button variant="outline" size="sm" onClick={() => handleExport('csv')}>
         <Download className="mr-2 size-4" />
-        CSV
+        {labelPrefix ? `${labelPrefix} CSV` : 'CSV'}
       </Button>
       <Button variant="outline" size="sm" onClick={() => handleExport('excel')}>
         <Download className="mr-2 size-4" />
-        Excel
+        {labelPrefix ? `${labelPrefix} Excel` : 'Excel'}
+      </Button>
+      <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
+        <Download className="mr-2 size-4" />
+        {labelPrefix ? `${labelPrefix} PDF` : 'PDF'}
       </Button>
     </div>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { EllipsisVertical } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { toAbsoluteUrl } from '@/lib/helpers';
 import {
   AccordionMenu,
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { SearchDocsItem } from './types';
 
 export function SearchDocs({ items }: { items: SearchDocsItem[] }) {
+  const { t } = useTranslation();
   // Example items moved inside the component
   return (
     <AccordionMenu
@@ -49,7 +51,7 @@ export function SearchDocs({ items }: { items: SearchDocsItem[] }) {
         </div>
         <AccordionMenuItem className="px-4 pt-2.5" value={''}>
           <Button variant="outline" className="mx-auto w-full max-w-full">
-            Go to Users
+            {t('pages.dialogs.search.goToUsers')}
           </Button>
         </AccordionMenuItem>
       </AccordionMenuGroup>

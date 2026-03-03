@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import { transactionKeys } from '@/hooks/queries/query-keys';
+import { useTranslation } from '@/hooks/useTranslation';
 import { formatCurrency, formatDateTime } from '@/lib/helpers';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,6 +66,7 @@ interface Transaction {
 }
 
 export default function PendingTransactionsList() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -78,7 +80,7 @@ export default function PendingTransactionsList() {
     queryFn: async () => {
       const response = await apiFetch('/api/transactions/pending');
       if (!response.ok) {
-        throw new Error('Failed to fetch pending transactions');
+        throw new Error(t('pages.validation.fetchPendingFailed'));
       }
       const result = await response.json();
       return result.data || [];
@@ -99,7 +101,7 @@ export default function PendingTransactionsList() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to approve transaction');
+        throw new Error(error.error?.message || t('pages.validation.approveFailed'));
       }
 
       return response.json();
@@ -107,13 +109,13 @@ export default function PendingTransactionsList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: transactionKeys.pending() });
       queryClient.invalidateQueries({ queryKey: transactionKeys.all });
-      toast.success('Transaction approved successfully');
+      toast.success(t('pages.validation.transactionApprovedSuccess'));
       setApproveDialogOpen(false);
       setSelectedTransaction(null);
       setApproveNotes('');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to approve transaction');
+      toast.error(error.message || t('pages.validation.approveFailed'));
     },
   });
 
@@ -130,7 +132,7 @@ export default function PendingTransactionsList() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to reject transaction');
+        throw new Error(error.error?.message || t('pages.validation.rejectFailed'));
       }
 
       return response.json();
@@ -138,13 +140,13 @@ export default function PendingTransactionsList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: transactionKeys.pending() });
       queryClient.invalidateQueries({ queryKey: transactionKeys.all });
-      toast.success('Transaction rejected');
+      toast.success(t('pages.validation.transactionRejected'));
       setRejectDialogOpen(false);
       setSelectedTransaction(null);
       setRejectReason('');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to reject transaction');
+      toast.error(error.message || t('pages.validation.rejectFailed'));
     },
   });
 
@@ -174,7 +176,7 @@ export default function PendingTransactionsList() {
         reason: rejectReason,
       });
     } else {
-      toast.error('Please provide a reason for rejection');
+      toast.error(t('pages.validation.reasonRequired'));
     }
   };
 
@@ -229,9 +231,11 @@ export default function PendingTransactionsList() {
       <Card>
         <CardContent className="py-12 text-center">
           <CheckCircle2 className="size-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Pending Transactions</h3>
+          <h3 className="text-lg font-semibold mb-2">
+            {t('pages.validation.noPendingTransactions')}
+          </h3>
           <p className="text-muted-foreground">
-            All transactions have been reviewed and processed.
+            {t('pages.validation.allTransactionsProcessed')}
           </p>
         </CardContent>
       </Card>
@@ -256,7 +260,7 @@ export default function PendingTransactionsList() {
                     <div>
                       <CardTitle className="text-lg">
                         {isTransferRef(transaction.reference)
-                          ? 'Transfer'
+                          ? t('pages.transactions.typeTransfer')
                           : getTransactionTypeLabel(transaction.type)}
                       </CardTitle>
                       <div className="text-sm text-muted-foreground mt-1">
@@ -264,7 +268,7 @@ export default function PendingTransactionsList() {
                       </div>
                     </div>
                   </div>
-                  <Badge variant="warning">Pending Approval</Badge>
+                  <Badge variant="warning">{t('pages.validation.pendingApproval')}</Badge>
                 </div>
               </CardHeader>
               <CardContent>
@@ -274,7 +278,9 @@ export default function PendingTransactionsList() {
                       <div className="flex items-center gap-2">
                         <Users className="size-4 text-muted-foreground" />
                         <div>
-                          <div className="text-sm text-muted-foreground">Client</div>
+                          <div className="text-sm text-muted-foreground">
+                            {t('common.labels.client')}
+                          </div>
                           <div className="font-medium">
                             {transaction.client.fullName}
                           </div>
@@ -289,7 +295,9 @@ export default function PendingTransactionsList() {
                       <div className="flex items-center gap-2">
                         <Users className="size-4 text-muted-foreground" />
                         <div>
-                          <div className="text-sm text-muted-foreground">Agent</div>
+                          <div className="text-sm text-muted-foreground">
+                            {t('common.labels.agent')}
+                          </div>
                           <div className="font-medium">
                             {transaction.agent.fullName}
                           </div>
@@ -304,7 +312,9 @@ export default function PendingTransactionsList() {
                       <div className="flex items-center gap-2">
                         <Calendar className="size-4 text-muted-foreground" />
                         <div>
-                          <div className="text-sm text-muted-foreground">Area</div>
+                          <div className="text-sm text-muted-foreground">
+                            {t('pages.clients.columnArea')}
+                          </div>
                           <div className="font-medium">
                             {transaction.area.name} ({transaction.area.code})
                           </div>
@@ -315,7 +325,9 @@ export default function PendingTransactionsList() {
 
                   <div className="space-y-2">
                     <div>
-                      <div className="text-sm text-muted-foreground">Amount</div>
+                      <div className="text-sm text-muted-foreground">
+                        {t('pages.transactions.columnAmount')}
+                      </div>
                       <div
                         className={`text-2xl font-bold ${
                           isCredit ? 'text-green-600' : 'text-red-600'
@@ -328,13 +340,17 @@ export default function PendingTransactionsList() {
 
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <div className="text-muted-foreground">Balance Before</div>
+                        <div className="text-muted-foreground">
+                          {t('pages.validation.balanceBefore')}
+                        </div>
                         <div className="font-medium">
                           {formatCurrency(transaction.balanceBefore)}
                         </div>
                       </div>
                       <div>
-                        <div className="text-muted-foreground">Balance After</div>
+                        <div className="text-muted-foreground">
+                          {t('pages.validation.balanceAfter')}
+                        </div>
                         <div className="font-medium">
                           {formatCurrency(transaction.balanceAfter)}
                         </div>
@@ -343,13 +359,17 @@ export default function PendingTransactionsList() {
 
                     {transaction.description && (
                       <div>
-                        <div className="text-sm text-muted-foreground">Description</div>
+                        <div className="text-sm text-muted-foreground">
+                          {t('common.labels.description')}
+                        </div>
                         <div className="text-sm">{transaction.description}</div>
                       </div>
                     )}
 
                     <div>
-                      <div className="text-sm text-muted-foreground">Created</div>
+                      <div className="text-sm text-muted-foreground">
+                        {t('pages.clients.columnCreated')}
+                      </div>
                       <div className="text-sm">
                         {formatDateTime(new Date(transaction.createdAt))}
                       </div>
@@ -366,7 +386,7 @@ export default function PendingTransactionsList() {
                     }
                   >
                     <XCircle className="mr-2 size-4" />
-                    Reject
+                    {t('pages.validation.reject')}
                   </Button>
                   <Button
                     onClick={() => handleApprove(transaction)}
@@ -375,7 +395,7 @@ export default function PendingTransactionsList() {
                     }
                   >
                     <CheckCircle2 className="mr-2 size-4" />
-                    Approve
+                    {t('pages.validation.approve')}
                   </Button>
                 </div>
               </CardContent>
@@ -388,18 +408,17 @@ export default function PendingTransactionsList() {
       <Dialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Approve Transaction</DialogTitle>
+            <DialogTitle>{t('pages.validation.approveTransaction')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to approve this transaction? This will update
-              the account balance.
+              {t('pages.validation.approveConfirm')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Label htmlFor="notes">{t('pages.validation.notesOptional')}</Label>
               <Textarea
                 id="notes"
-                placeholder="Add any notes about this approval..."
+                placeholder={t('pages.validation.notesPlaceholder')}
                 value={approveNotes}
                 onChange={(e) => setApproveNotes(e.target.value)}
                 rows={3}
@@ -415,7 +434,7 @@ export default function PendingTransactionsList() {
               }}
               disabled={approveMutation.isPending}
             >
-              Cancel
+              {t('common.buttons.cancel')}
             </Button>
             <Button
               onClick={handleApproveConfirm}
@@ -424,12 +443,12 @@ export default function PendingTransactionsList() {
               {approveMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
-                  Approving...
+                  {t('pages.validation.approving')}
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="mr-2 size-4" />
-                  Approve
+                  {t('pages.validation.approve')}
                 </>
               )}
             </Button>
@@ -441,17 +460,17 @@ export default function PendingTransactionsList() {
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject Transaction</DialogTitle>
+            <DialogTitle>{t('pages.validation.rejectTransaction')}</DialogTitle>
             <DialogDescription>
-              Please provide a reason for rejecting this transaction.
+              {t('pages.validation.rejectConfirm')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="reason">Reason *</Label>
+              <Label htmlFor="reason">{t('pages.validation.reasonRequiredLabel')}</Label>
               <Textarea
                 id="reason"
-                placeholder="Enter the reason for rejection..."
+                placeholder={t('pages.validation.reasonPlaceholder')}
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 rows={3}
@@ -468,7 +487,7 @@ export default function PendingTransactionsList() {
               }}
               disabled={rejectMutation.isPending}
             >
-              Cancel
+              {t('common.buttons.cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -478,12 +497,12 @@ export default function PendingTransactionsList() {
               {rejectMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
-                  Rejecting...
+                  {t('pages.validation.rejecting')}
                 </>
               ) : (
                 <>
                   <XCircle className="mr-2 size-4" />
-                  Reject
+                  {t('pages.validation.reject')}
                 </>
               )}
             </Button>

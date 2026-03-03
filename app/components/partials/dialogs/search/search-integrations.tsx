@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 import { AvatarGroup } from '@/partials/common/avatar-group';
 import { toAbsoluteUrl } from '@/lib/helpers';
 import {
@@ -18,6 +19,7 @@ export function SearchIntegrations({
   items: SearchIntegrationsItem[];
   more?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <AccordionMenu
       type="single"
@@ -66,7 +68,7 @@ export function SearchIntegrations({
         {!more || (
           <AccordionMenuItem className="px-4 pt-2" value={''}>
             <Button variant="outline" className="mx-auto w-full max-w-full">
-              Go to Users
+              {t('pages.dialogs.search.goToUsers')}
             </Button>
           </AccordionMenuItem>
         )}

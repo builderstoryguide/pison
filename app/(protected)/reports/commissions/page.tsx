@@ -26,7 +26,7 @@ export default function Page() {
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>{t('pages.reports.commissionReport')}</ToolbarTitle>
+            <ToolbarTitle>{t('menu.commissionReport')}</ToolbarTitle>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
@@ -38,7 +38,7 @@ export default function Page() {
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{t('pages.reports.commissions')}</BreadcrumbPage>
+                  <BreadcrumbPage>{t('menu.commissionReport')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { EllipsisVertical } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { toAbsoluteUrl } from '@/lib/helpers';
 import {
   AccordionMenu,
@@ -19,6 +20,7 @@ export function SearchUsers({
   items: SearchUsersItem[];
   more?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <AccordionMenu
       type="single"
@@ -75,7 +77,7 @@ export function SearchUsers({
         {!more || (
           <AccordionMenuItem className="px-4 pt-2" value={''}>
             <Button variant="outline" className="mx-auto w-full max-w-full">
-              Go to Users
+              {t('pages.dialogs.search.goToUsers')}
             </Button>
           </AccordionMenuItem>
         )}

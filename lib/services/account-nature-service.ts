@@ -5,7 +5,7 @@
 
 import { prisma } from '@/lib/prisma';
 
-const DEFAULT_TRANSACTION_FEE_VARIABLE = 100; // CFA - default when transactionFeeVariable is true
+const DEFAULT_TRANSACTION_FEE_VARIABLE = 100; // XAF - default when transactionFeeVariable is true
 
 export interface AccountNatureWithDocuments {
   id: string;
@@ -145,12 +145,12 @@ export class AccountNatureService {
       if (openingAmount === undefined || openingAmount === null) {
         errors.push({
           field: 'openingAmount',
-          message: `Minimum opening amount of ${minRequired} CFA is required`,
+          message: `Minimum opening amount of ${minRequired} XAF is required`,
         });
       } else if (openingAmount < minRequired) {
         errors.push({
           field: 'openingAmount',
-          message: `Opening amount must be at least ${minRequired} CFA`,
+          message: `Opening amount must be at least ${minRequired} XAF`,
         });
       }
     }
@@ -162,7 +162,7 @@ export class AccountNatureService {
   }
 
   /**
-   * Get transaction fee for withdrawal (CFA amount)
+   * Get transaction fee for withdrawal (XAF amount)
    */
   async getTransactionFee(natureId: string): Promise<number> {
     const nature = await prisma.accountNature.findUnique({

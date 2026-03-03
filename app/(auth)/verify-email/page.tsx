@@ -4,15 +4,17 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/dist/client/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { apiFetch } from '@/lib/api';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { LoaderCircleIcon } from 'lucide-react';
 
 export default function Page() {
+  const { t } = useTranslation();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [message, setMessage] = useState<string | null>('Verifying...');
+  const [message, setMessage] = useState<string | null>(t('pages.auth.verifyEmail.verifying'));
   const [error, setError] = useState<string | null>(null);
 
   const verify = useCallback(
@@ -28,20 +30,20 @@ export default function Page() {
 
         if (res.status === 200) {
           setError(null);
-          setMessage('Your email has been successfully verified!');
+          setMessage(t('pages.auth.verifyEmail.success'));
           setTimeout(() => {
             router.push('/signin'); // Redirect to sign-in page or another page
           }, 2000);
         } else {
           setMessage(null);
-          setError(data.message || 'Verification failed.');
+          setError(data.message || t('pages.auth.verifyEmail.failed'));
         }
       } catch {
         setMessage(null);
-        setError('An error occurred during verification.');
+        setError(t('pages.auth.verifyEmail.error'));
       }
     },
-    [router],
+    [router, t],
   );
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export default function Page() {
 
     if (!token) {
       setMessage(null);
-      setError('Invalid or missing token.');
+      setError(t('pages.auth.verifyEmail.invalidToken'));
       return;
     }
 
@@ -59,7 +61,7 @@ export default function Page() {
   return (
     <Suspense>
       <div className="w-full space-y-6">
-        <h1 className="text-2x font-semibold">Email Verification</h1>
+        <h1 className="text-2x font-semibold">{t('pages.auth.verifyEmail.title')}</h1>
         {error && (
           <>
             <Alert variant="destructive">
@@ -71,7 +73,7 @@ export default function Page() {
 
             <Button asChild>
               <Link href="/signin" className="text-primary">
-                Go back to Login
+                {t('pages.auth.verifyEmail.goBackToLogin')}
               </Link>
             </Button>
           </>

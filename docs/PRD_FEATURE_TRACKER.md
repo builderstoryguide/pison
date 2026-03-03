@@ -3,7 +3,7 @@
 > **Purpose**: Single source of truth mapping [PRD.md](./PRD.md) requirements to implementation status.
 > **Workflow**: Before implementing a feature, check this tracker. Update it as features are completed.
 
-**Last Updated**: 2026-02-25 (Ventilation restricted to agent-assigned clients)
+**Last Updated**: 2026-03-03 (App-wide i18n rollout in progress)
 
 ---
 
@@ -28,7 +28,7 @@
 | [x] | Collection journal | By agent, area, date | `app/(protected)/reports/collection-journal/`, `app/api/reports/collection-journal/` |
 | [x] | Client statement | Full statement with filters | `app/(protected)/reports/client-statement/`, `app/api/reports/client-statement/` |
 | [x] | Statistics by collection area | Deposits, withdrawals, metrics | `app/(protected)/reports/area-statistics/`, `app/api/reports/area-statistics/` |
-| [x] | Automatic monthly commission calculation | Manual trigger + cron (1st of month); `commissions.calculate` permission (Accountant/Manager); summary by client; Decimal precision | `app/api/commissions/calculate/`, `lib/jobs/commission-calculation.ts`, `lib/services/commission-service.ts`, `app/(protected)/reports/commissions/` |
+| [x] | Automatic monthly commission calculation | Manual trigger + cron (1st of month); `commissions.calculate` permission (Accountant/Manager); summary by client; Decimal precision; commission report route + export endpoint restored | `app/api/commissions/calculate/`, `lib/jobs/commission-calculation.ts`, `lib/services/commission-service.ts`, `app/(protected)/reports/commissions/`, `app/api/reports/commissions/export/route.ts` |
 | [x] | Transaction validation (four-eye principle) | Pending approval, approve/reject by admin | `app/(protected)/validation/pending/`, `app/api/transactions/[id]/approve/` |
 | [x] | Monitoring of surpluses and shortages | Report with physical vs system cash; `reports.surplus_shortage` permission (Accountant/Manager only); shortage alert banner; dashboard widget (last 30 days) | `app/(protected)/reports/surplus-shortage/`, `app/api/reports/surplus-shortage/`, `lib/services/dashboard-service.ts` |
 
@@ -51,6 +51,14 @@
 |--------|-------------|----------------|----------|
 | [x] | French | Translation keys | `i18n/messages/fr.json` |
 | [x] | English | Translation keys | `i18n/messages/en.json` |
+| [~] | App-wide translated UI coverage | Auth, topbar, search dialogs, notifications, and approval flows migrated to `t(...)`; remaining legacy/demo literals tracked by `npm run i18n:check` warnings | `app/(auth)/`, `app/components/partials/`, `app/(protected)/validation/`, `scripts/check-i18n.ts` |
+
+### i18n Delivery Checklist (for new PRD features)
+
+- [ ] All user-facing strings use `t('...')` keys (labels, placeholders, buttons, aria labels, toasts, empty states).
+- [ ] New keys are added in both `i18n/messages/en.json` and `i18n/messages/fr.json`.
+- [ ] Locale-sensitive values use locale-aware formatters (date, time, currency, numbers).
+- [ ] `npm run i18n:check` passes with no key mismatches or unknown keys.
 
 ---
 

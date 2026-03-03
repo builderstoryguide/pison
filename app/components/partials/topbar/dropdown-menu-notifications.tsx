@@ -2,6 +2,7 @@
 
 import { ReactNode } from 'react';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   Archive,
   Calendar,
@@ -49,25 +50,28 @@ import Item16 from './notifications/item-16';
 import Item17 from './notifications/item-17';
 
 export function SheetNotifications({ trigger }: { trigger: ReactNode }) {
+  const { t } = useTranslation();
   return (
     <Sheet>
       <SheetTrigger asChild>{trigger}</SheetTrigger>
       <SheetContent className="p-0 sm:max-w-[500px]">
         <SheetHeader className="mb-0">
           <h3 className="text-base font-semibold p-3 text-gray-900">
-            Notifications
+            {t('pages.topbar.notifications.title')}
           </h3>
         </SheetHeader>
         <SheetBody className="grow p-0">
           <Tabs defaultValue="all" className="w-full relative">
             <TabsList variant="line" className="w-full px-5 mb-5">
-              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="all">{t('pages.topbar.notifications.tabs.all')}</TabsTrigger>
               <TabsTrigger value="inbox" className="relative">
-                Inbox
+                {t('pages.topbar.notifications.tabs.inbox')}
                 <div className="w-1.5 h-1.5 rounded-full bg-success absolute top-1 -end-1" />
               </TabsTrigger>
-              <TabsTrigger value="team">Team</TabsTrigger>
-              <TabsTrigger value="following">Following</TabsTrigger>
+              <TabsTrigger value="team">{t('pages.topbar.notifications.tabs.team')}</TabsTrigger>
+              <TabsTrigger value="following">
+                {t('pages.topbar.notifications.tabs.following')}
+              </TabsTrigger>
               <div className="grow flex items-center justify-end">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -87,30 +91,30 @@ export function SheetNotifications({ trigger }: { trigger: ReactNode }) {
                   >
                     <DropdownMenuItem asChild>
                       <Link href="/account/members/teams">
-                        <Users /> Invite Users
+                        <Users /> {t('pages.topbar.chat.inviteUsers')}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger>
                         <Settings2 />
-                        <span>Team Settings</span>
+                        <span>{t('pages.topbar.chat.teamSettings')}</span>
                       </DropdownMenuSubTrigger>
                       <DropdownMenuPortal>
                         <DropdownMenuSubContent className="w-44">
                           <DropdownMenuItem asChild>
                             <Link href="/account/members/import-members">
                               <Shield />
-                              Find Members
+                              {t('pages.topbar.chat.findMembers')}
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
                             <Link href="/account/members/import-members">
-                              <Calendar /> Meetings
+                              <Calendar /> {t('pages.topbar.chat.meetings')}
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
                             <Link href="/account/members/import-members">
-                              <Shield /> Group Settings
+                              <Shield /> {t('pages.topbar.chat.groupSettings')}
                             </Link>
                           </DropdownMenuItem>
                         </DropdownMenuSubContent>
@@ -118,7 +122,7 @@ export function SheetNotifications({ trigger }: { trigger: ReactNode }) {
                     </DropdownMenuSub>
                     <DropdownMenuItem asChild>
                       <Link href="/account/security/privacy-settings">
-                        <Shield /> Group Settings
+                        <Shield /> {t('pages.topbar.chat.groupSettings')}
                       </Link>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -266,10 +270,10 @@ export function SheetNotifications({ trigger }: { trigger: ReactNode }) {
         </SheetBody>
         <SheetFooter className="border-t border-gray-100 p-5 grid grid-cols-2 gap-2.5">
           <Button variant="outline" size="sm">
-            <Archive className="w-4 h-4" /> Archive all
+            <Archive className="w-4 h-4" /> {t('pages.topbar.notifications.archiveAll')}
           </Button>
           <Button variant="outline" size="sm">
-            <CheckSquare className="w-4 h-4" /> Mark all as read
+            <CheckSquare className="w-4 h-4" /> {t('pages.topbar.notifications.markAllRead')}
           </Button>
         </SheetFooter>
       </SheetContent>

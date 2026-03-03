@@ -150,4 +150,4 @@ Auth state persisted in `e2e/.auth/user.json`.
 - Always validate session is open before creating transactions
 - Monetary calculations must use Decimal types (never JavaScript floats)
 - Audit logs are automatically created for transaction approvals/rejections
-- Currency is CFA Franc by default; format configured in `SystemSetting`
+- Currency is XAF Franc by default; format configured in `SystemSetting`

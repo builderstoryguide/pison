@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertCircle, ArrowLeft, Check } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { useTranslation } from '@/hooks/useTranslation';
 import { apiFetch } from '@/lib/api';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -22,13 +23,14 @@ import { LoaderCircleIcon } from 'lucide-react';
 import { RecaptchaPopover } from '@/components/common/recaptcha-popover';
 
 export default function Page() {
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [showRecaptcha, setShowRecaptcha] = useState(false);
 
   const formSchema = z.object({
-    email: z.string().email({ message: 'Please enter a valid email address.' }),
+    email: z.string().email({ message: t('pages.auth.resetPassword.invalidEmail') }),
   });
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -77,7 +79,7 @@ export default function Page() {
       setError(
         err instanceof Error
           ? err.message
-          : 'An unexpected error occurred. Please try again.',
+          : t('pages.auth.resetPassword.unexpectedError'),
       );
     } finally {
       setIsProcessing(false);
@@ -90,10 +92,10 @@ export default function Page() {
         <form onSubmit={handleSubmit} className="block w-full space-y-5">
           <div className="text-center space-y-1 pb-3">
             <h1 className="text-2xl font-semibold tracking-tight">
-              Reset Password
+              {t('pages.auth.resetPassword.title')}
             </h1>
             <p className="text-sm text-muted-foreground">
-              Enter your email to receive a password reset link.
+              {t('pages.auth.resetPassword.description')}
             </p>
           </div>
 
@@ -120,11 +122,11 @@ export default function Page() {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email</FormLabel>
+                <FormLabel>{t('pages.auth.resetPassword.email')}</FormLabel>
                 <FormControl>
                   <Input
                     type="email"
-                    placeholder="Enter your email address"
+                    placeholder={t('pages.auth.resetPassword.emailPlaceholder')}
                     disabled={!!success || isProcessing}
                     {...field}
                   />
@@ -149,7 +151,7 @@ export default function Page() {
                 className="w-full"
               >
                 {isProcessing ? <LoaderCircleIcon className="animate-spin" /> : null}
-                Submit
+                {t('pages.auth.resetPassword.submit')}
               </Button>
             }
           />
@@ -157,7 +159,7 @@ export default function Page() {
           <div className="space-y-3">
             <Button type="button" variant="outline" className="w-full" asChild>
               <Link href="/signin">
-                <ArrowLeft className="size-3.5" /> Back
+                <ArrowLeft className="size-3.5" /> {t('pages.auth.resetPassword.back')}
               </Link>
             </Button>
           </div>

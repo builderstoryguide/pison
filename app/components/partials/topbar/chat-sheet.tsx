@@ -11,6 +11,7 @@ import {
   Upload,
   Users,
 } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { toAbsoluteUrl } from '@/lib/helpers';
 import { cn } from '@/lib/utils';
 import {
@@ -53,6 +54,7 @@ interface Message {
 }
 
 export function ChatSheet({ trigger }: { trigger: ReactNode }) {
+  const { t } = useTranslation();
   const [emailInput, setEmailInput] = useState('');
 
   const messages: Message[] = [
@@ -109,7 +111,7 @@ export function ChatSheet({ trigger }: { trigger: ReactNode }) {
       <SheetContent className="p-0 gap-0 sm:w-[450px] sm:max-w-none inset-5 start-auto h-auto rounded-lg p-0 sm:max-w-none [&_[data-slot=sheet-close]]:top-4.5 [&_[data-slot=sheet-close]]:end-5">
         <SheetHeader>
           <div className="flex items-center justify-between p-3 border-b border-border">
-            <SheetTitle>Chat</SheetTitle>
+            <SheetTitle>{t('pages.topbar.chat.title')}</SheetTitle>
           </div>
           <div className="border-b border-border p-3 shadow-xs">
             <div className="flex items-center justify-between gap-2">
@@ -126,10 +128,10 @@ export function ChatSheet({ trigger }: { trigger: ReactNode }) {
                     href="#"
                     className="text-sm font-semibold text-mono hover:text-blue-600"
                   >
-                    HR Team
+                    {t('pages.topbar.chat.teamName')}
                   </Link>
                   <span className="text-xs italic text-muted-foreground block">
-                    Jessy is typing...
+                    {t('pages.topbar.chat.typing')}
                   </span>
                 </div>
               </div>
@@ -159,30 +161,30 @@ export function ChatSheet({ trigger }: { trigger: ReactNode }) {
                   >
                     <DropdownMenuItem asChild>
                       <Link href="/account/members/teams">
-                        <Users /> Invite Users
+                        <Users /> {t('pages.topbar.chat.inviteUsers')}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger>
                         <Settings2 />
-                        <span>Team Settings</span>
+                        <span>{t('pages.topbar.chat.teamSettings')}</span>
                       </DropdownMenuSubTrigger>
                       <DropdownMenuPortal>
                         <DropdownMenuSubContent className="w-44">
                           <DropdownMenuItem asChild>
                             <Link href="/account/members/import-members">
                               <Shield />
-                              Find Members
+                              {t('pages.topbar.chat.findMembers')}
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
                             <Link href="/account/members/import-members">
-                              <Calendar /> Meetings
+                              <Calendar /> {t('pages.topbar.chat.meetings')}
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
                             <Link href="/account/members/import-members">
-                              <Shield /> Group Settings
+                              <Shield /> {t('pages.topbar.chat.groupSettings')}
                             </Link>
                           </DropdownMenuItem>
                         </DropdownMenuSubContent>
@@ -190,7 +192,7 @@ export function ChatSheet({ trigger }: { trigger: ReactNode }) {
                     </DropdownMenuSub>
                     <DropdownMenuItem asChild>
                       <Link href="/account/security/privacy-settings">
-                        <Shield /> Group Settings
+                        <Shield /> {t('pages.topbar.chat.groupSettings')}
                       </Link>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -279,19 +281,19 @@ export function ChatSheet({ trigger }: { trigger: ReactNode }) {
                     Jane Perez
                   </Link>
                   <span className="text-muted-foreground">
-                    wants to join chat
+                    {t('pages.topbar.chat.joinRequest')}
                   </span>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  1 day ago • Design Team
+                  {t('pages.topbar.chat.joinRequestMeta')}
                 </span>
               </div>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline">
-                  Decline
+                  {t('pages.topbar.chat.decline')}
                 </Button>
                 <Button size="sm" variant="mono">
-                  Accept
+                  {t('pages.topbar.chat.accept')}
                 </Button>
               </div>
             </div>
@@ -306,7 +308,7 @@ export function ChatSheet({ trigger }: { trigger: ReactNode }) {
               type="text"
               value={emailInput}
               onChange={(e) => setEmailInput(e.target.value)}
-              placeholder="Write a message..."
+              placeholder={t('pages.topbar.chat.writeMessage')}
               className="w-full ps-12 pe-24 py-4 h-auto"
             />
             <div className="absolute end-7 top-1/2 -translate-y-1/2 flex gap-2">
@@ -314,7 +316,7 @@ export function ChatSheet({ trigger }: { trigger: ReactNode }) {
                 <Upload className="size-4!" />
               </Button>
               <Button size="sm" variant="mono">
-                Send
+                {t('pages.topbar.chat.send')}
               </Button>
             </div>
           </div>

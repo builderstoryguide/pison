@@ -7,8 +7,17 @@ import pg from 'pg';
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
 function createPrismaClient(): PrismaClient {
+  const connectionString = process.env.DATABASE_URL;
+  
+  if (!connectionString) {
+    throw new Error(
+      'DATABASE_URL environment variable is not set. ' +
+      'Please ensure your .env file exists and contains DATABASE_URL.'
+    );
+  }
+
   const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
     max: parseInt(process.env.DB_POOL_MAX ?? '20', 10),
     min: parseInt(process.env.DB_POOL_MIN ?? '5', 10),
     idleTimeoutMillis: parseInt(process.env.DB_POOL_IDLE_TIMEOUT_SEC ?? '600', 10) * 1000,

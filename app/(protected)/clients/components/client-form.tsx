@@ -148,7 +148,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
     queryFn: async () => {
       const response = await apiFetch(`/api/clients/${clientId}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch client');
+          throw new Error(t('pages.clients.fetchFailed'));
       }
       const result = await response.json();
       return result.data;
@@ -186,18 +186,18 @@ export default function ClientForm({ clientId }: ClientFormProps) {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to create client');
+        throw new Error(error.error?.message || t('pages.clients.createFailed'));
       }
 
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
-      toast.success('Client created successfully');
+      toast.success(t('pages.clients.clientCreatedSuccess'));
       router.push('/clients');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to create client');
+      toast.error(error.message || t('pages.clients.createFailed'));
     },
   });
 
@@ -214,7 +214,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to update client');
+        throw new Error(error.error?.message || t('pages.clients.updateFailed'));
       }
 
       return response.json();
@@ -222,11 +222,11 @@ export default function ClientForm({ clientId }: ClientFormProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['client', clientId] });
-      toast.success('Client updated successfully');
+      toast.success(t('pages.clients.clientUpdatedSuccess'));
       router.push('/clients');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update client');
+      toast.error(error.message || t('pages.clients.updateFailed'));
     },
   });
 
@@ -241,7 +241,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
       updateMutation.mutate(payload);
     } else {
       if (!data.accountNatureId) {
-        toast.error('Please select an account type');
+        toast.error(t('pages.clients.selectAccountTypeError'));
         return;
       }
       const payload = {
@@ -274,7 +274,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
     <Card>
       <CardHeader>
         <CardTitle>
-          {isEditMode ? 'Edit Client' : 'Create New Client'}
+          {isEditMode ? t('pages.clients.editClient') : t('pages.clients.createNewClient')}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -434,7 +434,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                   name="accountNatureId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Account Type *</FormLabel>
+                      <FormLabel>{t('pages.clients.accountType')} *</FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         value={field.value}
@@ -442,7 +442,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select account type" />
+                            <SelectValue placeholder={t('pages.clients.selectAccountType')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -454,7 +454,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        The type of account determines fees, interest, and requirements.
+                        {t('pages.clients.accountTypeDesc')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -467,9 +467,9 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                     name="documentChecklist"
                     render={() => (
                       <FormItem>
-                        <FormLabel>Required Documents</FormLabel>
+                        <FormLabel>{t('pages.clients.requiredDocuments')}</FormLabel>
                         <FormDescription>
-                          Confirm that the following documents have been provided.
+                          {t('pages.clients.requiredDocumentsDesc')}
                         </FormDescription>
                         <div className="space-y-2 rounded-lg border p-4">
                           {requiredDocs.map((doc: { code: string; name: string }) => (
@@ -503,13 +503,13 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                     name="openingAmount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Opening Amount (CFA) *</FormLabel>
+                        <FormLabel>{t('pages.clients.openingAmountXaf')} *</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
                             min={minOpening}
                             step="1"
-                            placeholder={`Minimum ${minOpening} CFA`}
+                            placeholder={t('pages.clients.minimumXaf', { amount: minOpening })}
                             {...field}
                             value={field.value ?? ''}
                             onChange={(e) => {
@@ -520,7 +520,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                           />
                         </FormControl>
                         <FormDescription>
-                          Minimum opening amount: {formatNumber(minOpening)} CFA
+                          {t('pages.clients.minimumOpeningAmount', { amount: formatNumber(minOpening) })}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -534,14 +534,14 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                     name="customInterestRate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Interest Rate (negotiated) *</FormLabel>
+                        <FormLabel>{t('pages.clients.interestRateNegotiated')} *</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
                             min={0}
                             max={1}
                             step="0.01"
-                            placeholder="e.g. 0.06 for 6%"
+                            placeholder={t('pages.clients.interestRateExample')}
                             {...field}
                             value={field.value ?? ''}
                             onChange={(e) => {
@@ -552,7 +552,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                           />
                         </FormControl>
                         <FormDescription>
-                          Enter the negotiated annual interest rate (e.g. 0.06 for 6%).
+                          {t('pages.clients.interestRateNegotiatedDesc')}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

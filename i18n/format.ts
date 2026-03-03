@@ -1,14 +1,15 @@
 import i18n from 'i18next';
 
-// Default currency, but you can make this dynamic as well.
-const DEFAULT_CURRENCY = 'USD';
+// Default currency for this microfinance app.
+const DEFAULT_CURRENCY = 'XAF';
 
 /**
  * Get the current locale from i18n.
  * @returns Current locale string (e.g., 'en-US').
  */
 const getCurrentLocale = (): string => {
-  return i18n.language || 'en-US'; // Fallback to 'en-US' if locale is not set
+  const lang = i18n.language || 'en';
+  return lang.startsWith('fr') ? 'fr-FR' : 'en-US';
 };
 
 /**

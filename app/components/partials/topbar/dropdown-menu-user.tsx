@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { I18N_LANGUAGES, Language } from '@/i18n/config';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   BetweenHorizontalStart,
   Coffee,
@@ -34,6 +35,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 
 export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
+  const { t } = useTranslation();
   const { changeLanguage, language } = useLanguage();
   const { theme, setTheme } = useTheme();
 
@@ -86,7 +88,7 @@ export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
             className="flex items-center gap-2"
           >
             <UserCircle />
-            Public Profile
+            {t('pages.topbar.userMenu.publicProfile')}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
@@ -95,7 +97,7 @@ export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
             className="flex items-center gap-2"
           >
             <User />
-            My Profile
+            {t('pages.topbar.userMenu.myProfile')}
           </Link>
         </DropdownMenuItem>
 
@@ -103,7 +105,7 @@ export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="flex items-center gap-2">
             <Settings />
-            My Account
+            {t('pages.topbar.userMenu.myAccount')}
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-48">
             <DropdownMenuItem asChild>
@@ -112,7 +114,7 @@ export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
                 className="flex items-center gap-2"
               >
                 <Coffee />
-                Get Started
+                {t('pages.topbar.userMenu.getStarted')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -121,7 +123,7 @@ export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
                 className="flex items-center gap-2"
               >
                 <FileText />
-                My Profile
+                {t('pages.topbar.userMenu.myProfile')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -130,7 +132,7 @@ export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
                 className="flex items-center gap-2"
               >
                 <CreditCard />
-                Billing
+                {t('pages.topbar.userMenu.billing')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -139,7 +141,7 @@ export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
                 className="flex items-center gap-2"
               >
                 <Shield />
-                Security
+                {t('pages.topbar.userMenu.security')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -148,7 +150,7 @@ export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
                 className="flex items-center gap-2"
               >
                 <Users />
-                Members & Roles
+                {t('pages.topbar.userMenu.membersRoles')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -157,28 +159,18 @@ export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
                 className="flex items-center gap-2"
               >
                 <BetweenHorizontalStart />
-                Integrations
+                {t('pages.topbar.userMenu.integrations')}
               </Link>
             </DropdownMenuItem>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
-
-        <DropdownMenuItem asChild>
-          <Link
-            href="https://devs.keenthemes.com"
-            className="flex items-center gap-2"
-          >
-            <FileText />
-            Dev Forum
-          </Link>
-        </DropdownMenuItem>
 
         {/* Language Submenu with Radio Group */}
         <DropdownMenuSub>
           <DropdownMenuSubTrigger className="flex items-center gap-2 [&_[data-slot=dropdown-menu-sub-trigger-indicator]]:hidden hover:[&_[data-slot=badge]]:border-input data-[state=open]:[&_[data-slot=badge]]:border-input">
             <Globe />
             <span className="flex items-center justify-between gap-2 grow relative">
-              Language
+              {t('pages.topbar.userMenu.language')}
               <Badge
                 variant="outline"
                 className="absolute end-0 top-1/2 -translate-y-1/2"
@@ -229,7 +221,7 @@ export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
         >
           <Moon />
           <div className="flex items-center gap-2 justify-between grow">
-            Dark Mode
+            {t('pages.topbar.userMenu.darkMode')}
             <Switch
               size="sm"
               checked={theme === 'dark'}
@@ -244,7 +236,7 @@ export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
             className="w-full"
             type="button"
           >
-            Logout
+            {t('pages.topbar.userMenu.logout')}
           </Button>
         </div>
       </DropdownMenuContent>

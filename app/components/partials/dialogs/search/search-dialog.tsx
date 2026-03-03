@@ -2,6 +2,7 @@
 
 import { ReactNode, useState } from 'react';
 import { DropdownMenu4 } from '@/partials/dropdown-menu/dropdown-menu-4';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   Badge,
   Bolt,
@@ -43,6 +44,7 @@ import {
 } from './';
 
 export function SearchDialog({ trigger }: { trigger: ReactNode }) {
+  const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState('');
 
   const mixedSettingsItems: SearchSettingsItem[] = [
@@ -126,7 +128,7 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
 
   const settingsItems = [
     {
-      title: 'Shortcuts',
+      title: t('pages.dialogs.search.groups.shortcuts'),
       children: [
         { icon: Home, info: 'Go to Dashboard' },
         { icon: Badge, info: 'Public Profile' },
@@ -136,7 +138,7 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
       ],
     },
     {
-      title: 'Actions',
+      title: t('pages.dialogs.search.groups.actions'),
       children: [
         { icon: UserRoundPlus, info: 'Create User' },
         { icon: UserRoundPen, info: 'Create Team' },
@@ -256,7 +258,7 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
               value={searchInput}
               className="ps-6 outline-none! ring-0! shadow-none! border-0"
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search..."
+              placeholder={t('pages.dialogs.search.placeholder')}
             />
           </div>
         </DialogHeader>
@@ -264,13 +266,13 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
           <Tabs defaultValue="1">
             <TabsList className="justify-between px-5 mb-2.5" variant="line">
               <div className="flex items-center gap-5">
-                <TabsTrigger value="1">Mixed</TabsTrigger>
-                <TabsTrigger value="2">Settings</TabsTrigger>
-                <TabsTrigger value="3">Integrations</TabsTrigger>
-                <TabsTrigger value="4">Users</TabsTrigger>
-                <TabsTrigger value="5">Docs</TabsTrigger>
-                <TabsTrigger value="6">Empty</TabsTrigger>
-                <TabsTrigger value="7">No Results</TabsTrigger>
+                <TabsTrigger value="1">{t('pages.dialogs.search.tabs.mixed')}</TabsTrigger>
+                <TabsTrigger value="2">{t('pages.dialogs.search.tabs.settings')}</TabsTrigger>
+                <TabsTrigger value="3">{t('pages.dialogs.search.tabs.integrations')}</TabsTrigger>
+                <TabsTrigger value="4">{t('pages.dialogs.search.tabs.users')}</TabsTrigger>
+                <TabsTrigger value="5">{t('pages.dialogs.search.tabs.docs')}</TabsTrigger>
+                <TabsTrigger value="6">{t('pages.dialogs.search.tabs.empty')}</TabsTrigger>
+                <TabsTrigger value="7">{t('pages.dialogs.search.tabs.noResults')}</TabsTrigger>
               </div>
 
               <DropdownMenu4

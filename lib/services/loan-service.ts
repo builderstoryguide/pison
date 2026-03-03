@@ -189,7 +189,7 @@ export class LoanService {
       }
       if (data.principalAmount > product.maxAmount.toNumber()) {
         throw new Error(
-          `Principal exceeds maximum allowed (${product.maxAmount.toNumber()} CFA) for this product`
+          `Principal exceeds maximum allowed (${product.maxAmount.toNumber()} XAF) for this product`
         );
       }
       interestRate = product.interestRate.toNumber();
@@ -545,12 +545,12 @@ export class LoanService {
     let remainingBalance = Number(loan.remainingBalance);
     const principalAmount = data.principalAmount ?? Number(loan.principalAmount);
     const interestRate = data.interestRate ?? Number(loan.interestRate);
-    
+
     // Recalculate if financial terms change
     if (data.principalAmount || data.interestRate || data.maturityDate) {
       // Calculate term in months
       const startDate = new Date();
-      
+
       let maturityDate = data.maturityDate;
       if (!maturityDate) {
         if (loan.maturityDate) {
@@ -560,16 +560,16 @@ export class LoanService {
           maturityDate.setFullYear(maturityDate.getFullYear() + 1);
         }
       }
-      
+
       const diffTime = Math.abs(maturityDate.getTime() - startDate.getTime());
-      const termMonths = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30)); 
-      
+      const termMonths = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30));
+
       const interestAmount = this.calculateInterest(
         principalAmount,
         interestRate,
         termMonths || 12 // fallback
       );
-      
+
       totalAmount = principalAmount + interestAmount;
       remainingBalance = totalAmount;
     }
