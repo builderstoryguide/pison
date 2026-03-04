@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       .select('name')
       .eq('id', subjectId)
       .single()
-    
+
     if (subjectError || !subject) {
       return NextResponse.json(
         { error: 'Subject not found' },
@@ -37,15 +37,15 @@ export async function GET(request: NextRequest) {
     // 2. Determine Title
     let title = examinationName
     if (!title && sequenceId) {
-        const SEQUENCE_NAMES: Record<string, string> = {
-            "seq1": "First Sequence",
-            "seq2": "Second Sequence",
-            "seq3": "Third Sequence",
-            "seq4": "Fourth Sequence",
-            "seq5": "Fifth Sequence",
-            "seq6": "Sixth Sequence",
-        }
-        title = SEQUENCE_NAMES[sequenceId] || sequenceId
+      const SEQUENCE_NAMES: Record<string, string> = {
+        "seq1": "First Sequence",
+        "seq2": "Second Sequence",
+        "seq3": "Third Sequence",
+        "seq4": "Fourth Sequence",
+        "seq5": "Fifth Sequence",
+        "seq6": "Sixth Sequence",
+      }
+      title = SEQUENCE_NAMES[sequenceId] || sequenceId
     }
 
     // 3. Find Assessment
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       .eq('subject', subjectName)
       .eq('title', title)
       .maybeSingle()
-    
+
     // Case-insensitive fallback
     if (!assessment) {
       const { data: allMatches } = await supabase
@@ -64,10 +64,10 @@ export async function GET(request: NextRequest) {
         .select('id, subject')
         .eq('class_id', classId)
         .eq('title', title)
-      
+
       if (allMatches && allMatches.length > 0) {
         const normalizedNew = subjectName.toLowerCase().trim();
-        const match = allMatches.find(a => 
+        const match = allMatches.find(a =>
           a.subject && a.subject.trim().toLowerCase() === normalizedNew
         );
         if (match) {
@@ -93,9 +93,9 @@ export async function GET(request: NextRequest) {
 
     // Format for frontend
     const formattedGrades = grades.map(g => ({
-        studentId: g.student_id,
-        mark: g.marks_obtained,
-        remarks: g.remarks
+      studentId: g.student_id,
+      mark: g.marks_obtained,
+      remarks: g.remarks
     }))
 
     return NextResponse.json({ grades: formattedGrades })
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
       .select('name')
       .eq('id', subjectId)
       .single()
-    
+
     if (subjectError || !subject) {
       return NextResponse.json(
         { error: 'Subject not found' },
@@ -156,15 +156,15 @@ export async function POST(request: NextRequest) {
     // ClassGradeEntry sends 'sequenceId' (e.g. 'seq1'). TeacherGradesEntry sends 'examinationName'.
     let title = examinationName
     if (!title && sequenceId) {
-        const SEQUENCE_NAMES: Record<string, string> = {
-            "seq1": "First Sequence",
-            "seq2": "Second Sequence",
-            "seq3": "Third Sequence",
-            "seq4": "Fourth Sequence",
-            "seq5": "Fifth Sequence",
-            "seq6": "Sixth Sequence",
-        }
-        title = SEQUENCE_NAMES[sequenceId] || sequenceId
+      const SEQUENCE_NAMES: Record<string, string> = {
+        "seq1": "First Sequence",
+        "seq2": "Second Sequence",
+        "seq3": "Third Sequence",
+        "seq4": "Fourth Sequence",
+        "seq5": "Fifth Sequence",
+        "seq6": "Sixth Sequence",
+      }
+      title = SEQUENCE_NAMES[sequenceId] || sequenceId
     }
 
     // 3. Find or Create Assessment
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
     // REGARDLESS of teacher (to allow multiple teachers to edit same assessment if needed, 
     // or just use the first creator). 
     // But strictly adhering to schema: teacher_id is required.
-    
+
     // Search for existing assessment
     // First try exact match (most common case)
     let { data: assessment } = await supabase
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
       .eq('subject', subjectName)
       .eq('title', title)
       .maybeSingle()
-    
+
     // If not found with exact match, try case-insensitive search
     // (in case there are legacy assessments with different casing)
     if (!assessment) {
@@ -193,11 +193,11 @@ export async function POST(request: NextRequest) {
         .select('id, subject')
         .eq('class_id', classId)
         .eq('title', title)
-      
+
       if (allMatches && allMatches.length > 0) {
         // Find case-insensitive match
         const normalizedNew = subjectName.toLowerCase().trim();
-        const match = allMatches.find(a => 
+        const match = allMatches.find(a =>
           a.subject && a.subject.trim().toLowerCase() === normalizedNew
         );
         if (match) {
@@ -207,26 +207,26 @@ export async function POST(request: NextRequest) {
     }
 
     if (!assessment) {
-       const { data: newAssessment, error: createError } = await supabase
-         .from('assessments')
-         .insert({
-           title: title,
-           type: 'test', // Changed from 'sequence_grade' to 'test' which is allowed by CHECK constraint
-           subject: subjectName, // Storing Name as per schema
-           class_id: classId,
-           teacher_id: teacherId,
-           total_marks: 20,
-           status: 'published',
-           assessment_date: new Date().toISOString().split('T')[0], // Convert to DATE format (YYYY-MM-DD)
-         })
-         .select()
-         .single()
-       
-       if (createError) {
-           console.error("Error creating assessment:", createError)
-           return NextResponse.json({ error: "Failed to create assessment record" }, { status: 500 })
-       }
-       assessment = newAssessment
+      const { data: newAssessment, error: createError } = await supabase
+        .from('assessments')
+        .insert({
+          title: title,
+          type: 'test', // Changed from 'sequence_grade' to 'test' which is allowed by CHECK constraint
+          subject: subjectName, // Storing Name as per schema
+          class_id: classId,
+          teacher_id: teacherId,
+          total_marks: 20,
+          status: 'published',
+          assessment_date: new Date().toISOString().split('T')[0], // Convert to DATE format (YYYY-MM-DD)
+        })
+        .select()
+        .single()
+
+      if (createError) {
+        console.error("Error creating assessment:", createError)
+        return NextResponse.json({ error: "Failed to create assessment record" }, { status: 500 })
+      }
+      assessment = newAssessment
     }
 
     // 4. Prepare Grades
@@ -235,16 +235,16 @@ export async function POST(request: NextRequest) {
     // To be safe, we check if we should delete existing or just insert.
     // Since we don't know the schema constraint for sure, we'll try to DELETE existing grades 
     // for these students in this assessment first, then INSERT.
-    
+
     const studentIds = grades.map((g: { studentId: string }) => g.studentId)
-    
+
     // Delete existing grades for these students in this assessment
     if (studentIds.length > 0) {
-        await supabase
-            .from('grades')
-            .delete()
-            .eq('assessment_id', assessment!.id)
-            .in('student_id', studentIds)
+      await supabase
+        .from('grades')
+        .delete()
+        .eq('assessment_id', assessment!.id)
+        .in('student_id', studentIds)
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -263,8 +263,8 @@ export async function POST(request: NextRequest) {
       .insert(gradesToInsert)
 
     if (insertError) {
-        console.error("Error inserting grades:", insertError)
-        throw insertError
+      console.error("Error inserting grades:", insertError)
+      throw insertError
     }
 
     // Trigger Admin Notifications
@@ -273,7 +273,9 @@ export async function POST(request: NextRequest) {
       classId,
       subjectName,
       title
-    })    return NextResponse.json({ success: true, assessmentId: assessment!.id })
+    })
+
+    return NextResponse.json({ success: true, assessmentId: assessment!.id })
 
   } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     console.error("Error in POST /api/grades:", error)
@@ -297,7 +299,7 @@ async function triggerAdminNotifications(
       .select('first_name, last_name')
       .eq('user_id', teacherId)
       .maybeSingle()
-    
+
     const teacherName = teacher ? `${teacher.first_name} ${teacher.last_name}` : 'A teacher'
 
     // 2. Fetch Class Name
@@ -306,7 +308,7 @@ async function triggerAdminNotifications(
       .select('name, class_name')
       .eq('id', classId)
       .maybeSingle()
-    
+
     const className = classData?.name || classData?.class_name || 'an unknown class'
 
     // 3. Fetch All Admins
@@ -339,21 +341,21 @@ async function triggerAdminNotifications(
 }
 
 function calculateGrade(mark: number) {
-    if (mark >= 17) return 'A'
-    if (mark >= 14) return 'B'
-    if (mark >= 10) return 'C'
-    if (mark >= 7) return 'D'
-    return 'U'
+  if (mark >= 17) return 'A'
+  if (mark >= 14) return 'B'
+  if (mark >= 10) return 'C'
+  if (mark >= 7) return 'D'
+  return 'U'
 }
 
 function calculateRemarks(grade: string) {
-    switch (grade) {
-      case 'A': return 'Excellent'
-      case 'B': return 'Very Good'
-      case 'C': return 'Pass'
-      case 'D': return 'Failed'
-      case 'U': return 'Very Weak'
-      default: return ''
-    }
+  switch (grade) {
+    case 'A': return 'Excellent'
+    case 'B': return 'Very Good'
+    case 'C': return 'Pass'
+    case 'D': return 'Failed'
+    case 'U': return 'Very Weak'
+    default: return ''
+  }
 }
 

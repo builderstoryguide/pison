@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useState, type ReactNode } from "react"
 import { supabase, testConnection } from "./supabase"
 import { useNotifications } from "./notification-context"
 import { activityLogger } from "./activity-logger"
@@ -23,20 +22,6 @@ function generateInitials(name: string): string {
     .join('')
     .toUpperCase()
     .slice(0, 2) // Limit to 2 characters
-}
-
-// Fallback UUID generation function
-const generateUUID = (): string => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID()
-  }
-  
-  // Fallback for environments without crypto.randomUUID
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0
-    const v = c === 'x' ? r : (r & 0x3 | 0x8)
-    return v.toString(16)
-  })
 }
 
 export interface StudentEnrollmentData {
@@ -90,12 +75,11 @@ interface StudentEnrollmentContextType {
 
 const StudentEnrollmentContext = createContext<StudentEnrollmentContextType | undefined>(undefined)
 
-export function StudentEnrollmentProvider({ children }: { children: React.ReactNode }) {
+export function StudentEnrollmentProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isUsingDatabase, setIsUsingDatabase] = useState(false)
-  const [students, setStudents] = useState<any[]>([])
-  const [parents, setParents] = useState<any[]>([])
+  const [, setStudents] = useState<any[]>([])
   const { addNotification } = useNotifications()
   const globalAcademicYear = useGlobalAcademicYear()
 
@@ -219,16 +203,21 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
         throw new Error("Parent information is required: name and phone number must be provided.")
       }
 
-      // Trim and validate parent email
+      // Normalize optional email fields
+      const studentEmail = studentData.email?.trim() || ""
       const parentEmail = studentData.parentEmail?.trim() || ""
-      if (!parentEmail) {
-        throw new Error("Parent email address is required.")
+      const normalizedStudentEmail = studentEmail || null
+      const normalizedParentEmail = parentEmail || null
+
+      // Validate parent email format only when provided
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (parentEmail && !emailRegex.test(parentEmail)) {
+        throw new Error("Please provide a valid parent email address.")
       }
 
-      // Validate parent email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(parentEmail)) {
-        throw new Error("Please provide a valid parent email address.")
+      // Validate student email format only when provided
+      if (studentEmail && !emailRegex.test(studentEmail)) {
+        throw new Error("Please provide a valid student email address.")
       }
 
       const studentId = await generateActualStudentId()
@@ -241,7 +230,7 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
       }
       
       // First, let's check if the students table exists and is accessible
-      const { data: tableCheckData, error: tableCheckError } = await supabase
+      const { data: _tableCheckData, error: tableCheckError } = await supabase
         .from("students")
         .select("student_id")
         .limit(1)
@@ -286,7 +275,7 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
           last_name: studentData.lastName,
           middle_name: studentData.middleName,
           matricule_number: studentData.matriculeNumber,
-          email: studentData.email,
+          email: normalizedStudentEmail,
           phone: studentData.phone,
           date_of_birth: studentData.dateOfBirth,
           gender: studentData.gender,
@@ -344,7 +333,7 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
       const { error: parentError } = await supabase.from("parents").insert({
         parent_code: parentCode,
         name: studentData.parentName,
-        email: parentEmail,
+        email: normalizedParentEmail,
         phone: studentData.parentPhone,
         address: studentData.parentAddress,
         occupation: studentData.parentOccupation,
@@ -365,14 +354,14 @@ export function StudentEnrollmentProvider({ children }: { children: React.ReactN
 
       // Create user account for student
       let studentUser = null
-      if (studentData.email) {
+      if (studentEmail) {
         const studentName = `${studentData.firstName} ${studentData.lastName}`
         const studentInitials = generateInitials(studentName)
         
         const { data: studentUserData, error: studentUserError } = await supabase
           .from('users')
           .insert({
-            email: studentData.email,
+            email: studentEmail,
             password_hash: await bcrypt.hash(studentPassword, 12),
             name: studentName,
             role: 'student',

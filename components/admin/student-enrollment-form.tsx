@@ -91,7 +91,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
     nationality: 'Cameroonian',
     religion: '',
     email: '',
-    phone: '+237 6',
+    phone: '',
     address: '',
     city: '',
     region: 'Centre',
@@ -132,10 +132,22 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
 
   const totalSteps = 6
   const progress = (currentStep / totalSteps) * 100
+  const isPhoneEffectivelyEmpty = (phone: string | undefined) => {
+    const normalizedPhone = (phone || '').replace(/\s/g, '')
+    return !normalizedPhone || normalizedPhone === '+2376' || normalizedPhone === '+237'
+  }
+  const isOptionalPhoneValid = (phone: string | undefined) =>
+    isPhoneEffectivelyEmpty(phone) || isValidPhoneFormat(phone || '')
 
   const updateFormData = (field: keyof StudentEnrollmentData, value: unknown) => {
     // Special handling for phone numbers
     if (field === 'phone' || field === 'parentPhone' || field === 'emergencyContactPhone') {
+      // Allow empty phone string
+      if (!value || (typeof value === 'string' && !value.trim())) {
+        setFormData(prev => ({ ...prev, [field]: '' }))
+        return
+      }
+      
       // Use the centralized phone utility for formatting
       const formattedPhone = formatPhoneNumber(value as string)
       setFormData(prev => ({ ...prev, [field]: formattedPhone }))
@@ -179,15 +191,21 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
       case 1:
         return !!(formData.firstName && formData.lastName && formData.dateOfBirth && formData.placeOfBirth)
       case 2:
-        return !!(formData.address && formData.city && (!formData.email || formData.email.includes('@')) && (!formData.phone || isValidPhoneFormat(formData.phone)))
+        return !!(
+          formData.address &&
+          formData.city &&
+          (!formData.email || formData.email.includes('@')) &&
+          isOptionalPhoneValid(formData.phone)
+        )
       case 3:
         return !!(formData.class)
       case 4: {
-        const parentEmailValid = formData.parentEmail?.trim() && formData.parentEmail.includes('@')
-        return !!(formData.parentName && formData.parentEmail?.trim() && parentEmailValid && (!formData.parentPhone || isValidPhoneFormat(formData.parentPhone)))
+        const parentEmail = formData.parentEmail?.trim() || ''
+        const parentEmailValid = !parentEmail || parentEmail.includes('@')
+        return !!(formData.parentName && parentEmailValid && isOptionalPhoneValid(formData.parentPhone))
       }
       case 5:
-        return !!(formData.emergencyContactName && (!formData.emergencyContactPhone || isValidPhoneFormat(formData.emergencyContactPhone)))
+        return !!(formData.emergencyContactName && isOptionalPhoneValid(formData.emergencyContactPhone))
       case 6:
         return formData.birthCertificate && formData.passportPhoto
       default:
@@ -207,20 +225,19 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
         if (!formData.address) return "Home address is required"
         if (!formData.city) return "City is required"
         if (formData.email && !formData.email.includes('@')) return "Please enter a valid email address"
-        if (formData.phone && !isValidPhoneFormat(formData.phone)) return "Valid phone number is required (Format: +237 6XXXXXXXX)"
+        if (!isOptionalPhoneValid(formData.phone)) return "If provided, phone number must follow +237 6XXXXXXXX"
         break
       case 3:
         if (!formData.class) return "Class selection is required"
         break
       case 4:
         if (!formData.parentName) return "Parent/guardian name is required"
-        if (!formData.parentEmail?.trim()) return "Parent email address is required"
         if (formData.parentEmail && !formData.parentEmail.includes('@')) return "Please enter a valid parent email address"
-        if (formData.parentPhone && !isValidPhoneFormat(formData.parentPhone)) return "Valid parent phone number is required (Format: +237 6XXXXXXXX)"
+        if (!isOptionalPhoneValid(formData.parentPhone)) return "If provided, parent phone must follow +237 6XXXXXXXX"
         break
       case 5:
         if (!formData.emergencyContactName) return "Emergency contact name is required"
-        if (formData.emergencyContactPhone && !isValidPhoneFormat(formData.emergencyContactPhone)) return "Valid emergency contact phone number is required (Format: +237 6XXXXXXXX)"
+        if (!isOptionalPhoneValid(formData.emergencyContactPhone)) return "If provided, emergency contact phone must follow +237 6XXXXXXXX"
         break
       case 6:
         if (!formData.birthCertificate) return "Birth certificate confirmation is required"
@@ -669,7 +686,7 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                 <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="parentEmail">
-                      Parent Email
+                      Parent Email (Optional)
                     </Label>
                     <Input
                       id="parentEmail"
@@ -678,7 +695,6 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
                       onChange={(e) => updateFormData('parentEmail', e.target.value)}
                       onBlur={(e) => updateFormData('parentEmail', e.target.value.trim())}
                       placeholder="parent@example.com"
-                      required
                     />
                   </div>
                   <div className="space-y-2">

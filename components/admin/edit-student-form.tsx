@@ -9,10 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { 
-  User, 
-  GraduationCap, 
-  Mail, 
+import {
+  User,
+  GraduationCap,
+  Mail,
   Save,
   X,
   AlertCircle,
@@ -76,7 +76,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
     enrollment_status: "pending",
     academic_year: globalAcademicYear, // Use global academic year
   })
-  
+
   // Calculate remaining balance (can be overridden manually)
   const [remainingBalance, setRemainingBalance] = useState<number>(0)
   const [isRemainingBalanceManual, setIsRemainingBalanceManual] = useState(false)
@@ -87,12 +87,12 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
   const [availableClasses, setAvailableClasses] = useState<ClassData[]>([])
   const [isLoadingClasses, setIsLoadingClasses] = useState(false)
   const [classesError, setClassesError] = useState<string | null>(null)
-  
+
   const [term, setTerm] = useState<"first" | "second" | "third">("first")
-  
+
   // Prefetch hook for fee structure
   const prefetchFeeStructure = usePrefetchFeeStructureByClass()
-  
+
   // Payment dialog state
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
 
@@ -122,7 +122,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
       })
 
       const response = await fetch(`/api/classes?${params.toString()}`)
-      
+
       if (!response.ok) {
         // Try to get error message from response
         let errorMessage = 'Failed to fetch classes'
@@ -137,10 +137,10 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
       }
 
       const data = await response.json()
-      
+
       // Handle both array and object responses
       const classesArray = Array.isArray(data) ? data : (data?.classes || data?.data || [])
-      
+
       // Transform API response to match our format
       const transformedClasses: ClassData[] = (classesArray || []).map((cls: Record<string, string | number | undefined>) => ({
         id: cls.id,
@@ -197,14 +197,14 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
     const totalFees = student.total_fees || 0
     const paidFees = student.paid_fees || 0
     const calculatedBalance = totalFees - paidFees
-    
+
     setFormData({
       first_name: student.first_name || "",
       last_name: student.last_name || "",
       middle_name: student.middle_name || "",
       matricule_number: student.matricule_number || "",
       email: student.email || "",
-      phone: student.phone || "+237 6",
+      phone: student.phone || "",
       date_of_birth: student.date_of_birth || "",
       gender: student.gender || "",
       place_of_birth: student.place_of_birth || "",
@@ -231,7 +231,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
     setTerm("first")
     // Note: Fee structure state is now managed by React Query, no manual reset needed
   }, [student, globalAcademicYear])
-  
+
   // Update remaining balance when total_fees or paid_fees changes (if not manually set)
   useEffect(() => {
     if (!isRemainingBalanceManual) {
@@ -301,7 +301,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
     if (formData.class && isUUID(formData.class)) {
       return formData.class
     }
-    
+
     // If not a UUID, try to find the class in availableClasses by name or ID
     // Use stableAvailableClasses if available, otherwise fall back to availableClasses
     const classesToSearch = stableAvailableClasses || availableClasses
@@ -313,13 +313,13 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
         return matchedClass.id
       }
     }
-    
+
     return null
   }, [formData.class, stableAvailableClasses, availableClasses])
-  
+
   // Resolve class ID for React Query
   const classId = useMemo(() => resolveClassId(), [resolveClassId])
-  
+
   // Use React Query hook for fee structure
   const {
     data: feeStructureData,
@@ -334,14 +334,14 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
       enabled: activeTab === "fees" && !!classId && !!formData.academic_year && !!term,
     }
   )
-  
+
   // Derived state from React Query
   const feeStructureName = feeStructureData?.name || null
-  
+
   // Determine error message with priority: validation errors > query errors
   const feeStructureError = useMemo(() => {
     if (activeTab !== "fees") return null
-    
+
     // Validation errors take priority
     if (!classId) {
       return "Student is not assigned to a class. Please assign a class first."
@@ -352,12 +352,12 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
     if (!term) {
       return "Term is required"
     }
-    
+
     // Query errors
     if (feeStructureQueryError) {
       return (feeStructureQueryError as Error).message
     }
-    
+
     return null
   }, [activeTab, classId, formData.academic_year, term, feeStructureQueryError])
 
@@ -367,7 +367,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
     if (feeStructureData && hasValidFeeStructure && feeStructureData.totalAmount > 0) {
       setFormData(prev => ({ ...prev, total_fees: feeStructureData.totalAmount }))
     }
-  }, [feeStructureData, hasValidFeeStructure, feeStructureQueryError, activeTab])  
+  }, [feeStructureData, hasValidFeeStructure, feeStructureQueryError, activeTab])
   // Prefetch fee structure when class, academic year, or term changes (even when not on fees tab)
   useEffect(() => {
     if (classId && formData.academic_year && term && isUUID(classId)) {
@@ -379,6 +379,12 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
   const handleInputChange = (field: keyof Student, value: string | number) => {
     // Special handling for phone numbers
     if (field === 'phone') {
+      // Allow empty string to skip enforcement
+      if (!value) {
+        setFormData(prev => ({ ...prev, [field]: '' }))
+        return
+      }
+
       // Ensure phone number starts with +237 6 for Cameroon
       let formattedPhone = String(value)
       if (!formattedPhone.startsWith('+237 6')) {
@@ -403,7 +409,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
         // Adjust total_fees to match: total_fees = paid_fees + remaining_balance
         dataToSave.total_fees = (formData.paid_fees || 0) + remainingBalance
       }
-      
+
       const success = await onSave(dataToSave)
       if (!success) {
         setError("Failed to update student. Please try again.")
@@ -427,7 +433,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
     // Or we can manually update the local state if we know the amount
     // Ideally, the parent should be listening to student changes.
     // For now, let's close the dialog. The user will see the updated amount if they reopen the edit form or if the parent refreshes.
-    
+
     // Hint: The parent usually reloads students when specific events occur.
     // We can dispatch a custom event if needed, but let's assume the user will see it eventually.
     // A better approach for this form is to perhaps be able to trigger a reload.
@@ -439,15 +445,14 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
     const baseValidation = !!(
       formData.first_name &&
       formData.last_name &&
-      formData.email &&
       formData.class
     )
-    
+
     // If on fees tab, also require valid fee structure
     if (activeTab === "fees") {
       return baseValidation && hasValidFeeStructure
     }
-    
+
     return baseValidation
   }
 
@@ -460,8 +465,8 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
             <X className="h-4 w-4 mr-2" />
             Cancel
           </Button>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             disabled={!isFormValid() || isLoading}
             title={activeTab === "fees" && !hasValidFeeStructure ? "Cannot save: No fee structure assigned to this class" : undefined}
           >
@@ -571,8 +576,8 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="gender">Gender</Label>
-                  <Select 
-                    value={formData.gender} 
+                  <Select
+                    value={formData.gender}
                     onValueChange={(value) => handleInputChange("gender", value)}
                   >
                     <SelectTrigger>
@@ -632,8 +637,8 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
               <div className="grid gap-4 grid-cols-1">
                 <div className="space-y-2">
                   <Label htmlFor="subsystem">Sub-system</Label>
-                  <Select 
-                    value={formData.subsystem} 
+                  <Select
+                    value={formData.subsystem}
                     onValueChange={(value) => {
                       handleInputChange("subsystem", value)
                       handleInputChange("class", "") // Reset class when subsystem changes
@@ -650,8 +655,8 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="branch">Branch</Label>
-                  <Select 
-                    value={formData.branch} 
+                  <Select
+                    value={formData.branch}
                     onValueChange={(value) => {
                       handleInputChange("branch", value)
                       handleInputChange("class", "") // Reset class when branch changes
@@ -705,8 +710,8 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                       </Alert>
                     </div>
                   ) : (
-                    <Select 
-                      value={formData.class} 
+                    <Select
+                      value={formData.class}
                       onValueChange={(value) => {
                         handleInputChange("class", value)
                         // React Query will automatically refetch and update fee structure state
@@ -730,8 +735,8 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
               <div className="grid gap-4 grid-cols-1">
                 <div className="space-y-2">
                   <Label htmlFor="term">Term *</Label>
-                  <Select 
-                    value={term} 
+                  <Select
+                    value={term}
                     onValueChange={(value: "first" | "second" | "third") => {
                       setTerm(value)
                       // React Query will automatically refetch and update fee structure state
@@ -798,7 +803,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
+                  <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
                     type="email"
@@ -909,10 +914,10 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="paid_fees">Amount Paid (Installments) (XOF)</Label>
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
                       className="h-6 px-2 text-xs text-primary"
                       onClick={() => setShowPaymentDialog(true)}
                     >
@@ -931,7 +936,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                     placeholder="Paid fees"
                   />
                   <p className="text-[10px] text-muted-foreground">
-                     * Auto-calculated from payment records. Cannot be edited directly.
+                    * Auto-calculated from payment records. Cannot be edited directly.
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -949,16 +954,16 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                     min={0}
                   />
                   <p className="text-[10px] text-muted-foreground">
-                     {isRemainingBalanceManual 
-                       ? "* Manually adjusted. Auto-calculation disabled."
-                       : "* Auto-calculated (Total Fees - Amount Paid). Click to edit manually."
-                     }
+                    {isRemainingBalanceManual
+                      ? "* Manually adjusted. Auto-calculation disabled."
+                      : "* Auto-calculated (Total Fees - Amount Paid). Click to edit manually."
+                    }
                   </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="fees_status">Fees Status</Label>
-                  <Select 
-                    value={formData.fees_status} 
+                  <Select
+                    value={formData.fees_status}
                     onValueChange={(value) => handleInputChange("fees_status", value)}
                   >
                     <SelectTrigger className="w-full">
@@ -977,8 +982,8 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
               <div className="grid gap-4 grid-cols-1">
                 <div className="space-y-2">
                   <Label htmlFor="enrollment_status">Enrollment Status</Label>
-                  <Select 
-                    value={formData.enrollment_status} 
+                  <Select
+                    value={formData.enrollment_status}
                     onValueChange={(value) => handleInputChange("enrollment_status", value)}
                   >
                     <SelectTrigger className="w-full">
@@ -1022,8 +1027,8 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
                     <div className="flex justify-between">
                       <span>Payment Progress:</span>
                       <span className="font-medium">
-                        {(formData.total_fees || 0) > 0 
-                          ? Math.round(((formData.paid_fees || 0) / (formData.total_fees || 1)) * 100) 
+                        {(formData.total_fees || 0) > 0
+                          ? Math.round(((formData.paid_fees || 0) / (formData.total_fees || 1)) * 100)
                           : 0}%
                       </span>
                     </div>
@@ -1041,7 +1046,7 @@ export function EditStudentForm({ student, onSave, onCancel }: EditStudentFormPr
           <DialogHeader>
             <DialogTitle>Record Payment for {formData.first_name} {formData.last_name}</DialogTitle>
           </DialogHeader>
-          <PaymentForm 
+          <PaymentForm
             onSuccess={handlePaymentSuccess}
             onCancel={() => setShowPaymentDialog(false)}
             editData={{

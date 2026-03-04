@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, type ChangeEvent } from "react"
 import { Upload, FileSpreadsheet, FileText, X, AlertCircle, Download, Eye } from "lucide-react"
 import * as XLSX from "xlsx"
 import Papa from "papaparse"
@@ -29,7 +29,7 @@ interface StudentUploadData {
   placeOfBirth: string
   nationality: string
   religion?: string
-  email: string
+  email?: string
   phone?: string
   address: string
   city: string
@@ -40,7 +40,7 @@ interface StudentUploadData {
   previousSchool?: string
   previousClass?: string
   parentName: string
-  parentEmail: string
+  parentEmail?: string
   parentPhone: string
   parentAddress?: string
   parentOccupation?: string
@@ -73,8 +73,8 @@ interface StudentBulkUploadProps {
 
 const REQUIRED_FIELDS = [
   'firstName', 'lastName', 'dateOfBirth', 'gender', 'placeOfBirth', 'nationality',
-  'email', 'address', 'city', 'region', 'subsystem', 'branch', 'class',
-  'parentName', 'parentEmail', 'parentPhone', 'relationship',
+  'address', 'city', 'region', 'subsystem', 'branch', 'class',
+  'parentName', 'parentPhone', 'relationship',
   'emergencyContactName', 'emergencyContactPhone'
 ]
 
@@ -128,7 +128,7 @@ export function StudentBulkUpload({ onSuccess, onCancel: _onCancel }: StudentBul
   const [currentProcessingIndex, setCurrentProcessingIndex] = useState(0)
   const [processingStatus, setProcessingStatus] = useState<string>('')
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
 
     event.preventDefault() // Prevent any form submission
     const selectedFile = event.target.files?.[0]
@@ -555,7 +555,8 @@ export function StudentBulkUpload({ onSuccess, onCancel: _onCancel }: StudentBul
                     <ul className="mt-2 list-disc list-inside space-y-1">
                       <li>File must be in Excel (.xls, .xlsx) or CSV format</li>
                       <li>First row should contain column headers</li>
-                      <li>Required fields: First Name, Last Name, Date of Birth, Gender, Email, etc.</li>
+                      <li>Required fields: First Name, Last Name, Date of Birth, Gender, Parent Phone, etc.</li>
+                      <li>Student and parent email columns are optional</li>
                       <li>Download the template for the correct column format</li>
                     </ul>
                   </AlertDescription>

@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Fetch marks if requested
-    let marksMap = new Map<string, any[]>()
+    const marksMap = new Map<string, any[]>()
     if (includeMarks && studentsArray.length > 0) {
       const academicYearForMarks = academicYear || await getAcademicYearFromConfig()
       const studentIds = studentsArray.map((s: any) => s.id)
@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
       )]
       
       // Fetch class subjects to ensure we only get marks for subjects in the student's class
-      let classSubjectsMap = new Map<string, Set<string>>()
+      const classSubjectsMap = new Map<string, Set<string>>()
       if (classIds.length > 0) {
         const { data: classSubjectsData } = await supabase
           .from('class_subjects')
