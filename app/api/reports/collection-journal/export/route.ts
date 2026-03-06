@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
+import { denyAgentAccess } from '@/lib/auth';
 import { reportService } from '@/lib/services';
 import { sanitizeFilenameSegment } from '@/lib/utils/filename';
 
@@ -11,6 +12,11 @@ export async function GET(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const roleForbidden = denyAgentAccess(
+      session,
+      'Reports are not available for Agent role'
+    );
+    if (roleForbidden) return roleForbidden;
 
     const searchParams = request.nextUrl.searchParams;
     const startDate = searchParams.get('startDate');

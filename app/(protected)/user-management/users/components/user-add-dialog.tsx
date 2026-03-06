@@ -22,6 +22,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -39,6 +40,17 @@ import {
 import { UserRole } from '@/app/models/user';
 import { useRoleSelectQuery } from '../../roles/hooks/use-role-select-query';
 import { UserAddSchema, UserAddSchemaType } from '../forms/user-add-schema';
+
+type AddUserResponse = {
+  message: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    username?: string;
+    status: string;
+  };
+};
 
 const UserAddDialog = ({
   open,
@@ -69,6 +81,7 @@ const UserAddDialog = ({
     defaultValues: {
       name: '',
       email: '',
+      username: '',
       password: '',
       passwordConfirmation: '',
       roleId: '',
@@ -94,6 +107,7 @@ const UserAddDialog = ({
         body: JSON.stringify({
           name: values.name,
           email: values.email,
+          username: values.username?.trim() || undefined,
           password: values.password,
           roleId: values.roleId,
         }),
@@ -104,9 +118,34 @@ const UserAddDialog = ({
         throw new Error(message);
       }
 
-      return response.json();
+      return response.json() as Promise<AddUserResponse>;
     },
-    onSuccess: () => {
+    onSuccess: (result, variables) => {
+      // Download credential file
+      const user = result?.user;
+      if (user) {
+        const username = user.username || variables.name;
+        const content = [
+          'DCMS User Account Credentials',
+          '------------------------------',
+          `Name: ${user.name}`,
+          `Username: ${username}`,
+          `Email: ${user.email}`,
+          `Password: ${variables.password}`,
+          '',
+          'You can login with either your username or email and your password.',
+          'Important: Change this password after first login.',
+        ].join('\n');
+
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `user-credentials-${username}.txt`;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
       const message = 'User added successfully';
       toast.custom(
         () => (
@@ -179,6 +218,26 @@ const UserAddDialog = ({
                     <FormControl>
                       <Input placeholder={t('common.placeholders.enterEmail')} {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('common.labels.username')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g. john_doe123 (optional)"
+                        {...field}
+                        value={field.value ?? ''}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Leave blank to auto-generate from name. Used for login alongside email.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

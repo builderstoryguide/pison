@@ -16,6 +16,8 @@ export interface MenuItem {
   separator?: boolean;
   /** Permission slug required to see this item. Omit to show to all authenticated users. */
   permission?: string;
+  /** Hide this item when roleName matches any provided lowercase substring (e.g. 'agent'). */
+  hiddenForRoles?: string[];
 }
 
 export type MenuConfig = MenuItem[];

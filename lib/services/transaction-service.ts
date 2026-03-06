@@ -290,14 +290,13 @@ export class TransactionService {
       throw new Error('Agent account must be approved before performing collections');
     }
 
-    // Validate all clients belong to the area, are approved, and are assigned to this agent
+    // Validate all clients belong to the area and are approved
     const clients = await prisma.client.findMany({
       where: {
         id: {
           in: data.entries.map((e) => e.clientId),
         },
         areaId: data.areaId,
-        agentId: data.agentId,
         status: 'ACTIVE',
         approvalStatus: 'APPROVED',
       },
@@ -308,7 +307,7 @@ export class TransactionService {
 
     if (clients.length !== data.entries.length) {
       throw new Error(
-        'Some clients were not found, do not belong to this area, or are not assigned to you.'
+        'Some clients were not found or do not belong to this area.'
       );
     }
 
@@ -505,6 +504,20 @@ export class TransactionService {
 
     if (!transaction) {
       throw new Error('Transaction not found');
+    }
+
+    // Idempotent: if already approved/completed, return existing transaction (handles double-clicks, stale UI, transfer pairs)
+    if (transaction.status === 'COMPLETED' || transaction.status === 'APPROVED') {
+      const existing = await db.transaction.findUnique({
+        where: { id: transactionId },
+        include: {
+          account: true,
+          approver: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      });
+      return existing!;
     }
 
     if (transaction.status !== 'PENDING_APPROVAL') {

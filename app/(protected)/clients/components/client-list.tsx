@@ -47,6 +47,8 @@ import {
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '@/lib/api';
 import {
   useClients,
   useDeleteClient,
@@ -74,8 +76,40 @@ const ClientList = ({ initialData }: ClientListProps) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
-  // Fetch collection areas for filter using centralized hook
-  const { data: areasData } = useCollectionAreas({ status: 'ACTIVE' });
+  // Fetch collection areas for filter
+  // Agents see only their assigned areas; others see all active areas
+  const roleName = (session?.user?.roleName || '').toLowerCase();
+  const isAgent = roleName.includes('agent') || roleName.includes('collector');
+
+  const { data: agentData } = useQuery({
+    queryKey: ['me-agent', session?.user?.id],
+    queryFn: async () => {
+      if (!session?.user?.id) return null;
+      const response = await apiFetch('/api/me/agent');
+      if (!response.ok) return null;
+      const result = await response.json();
+      return result.data || null;
+    },
+    enabled: isAgent && !!session?.user?.id,
+  });
+
+  const { data: agentAreasData } = useQuery({
+    queryKey: ['agent-areas', agentData?.id],
+    queryFn: async () => {
+      if (!agentData?.id) return [];
+      const response = await apiFetch(
+        `/api/collection-areas/assignments?agentId=${agentData.id}`,
+      );
+      if (!response.ok) return [];
+      const result = await response.json();
+      return result.data || [];
+    },
+    enabled: isAgent && !!agentData?.id,
+  });
+
+  const { data: allAreasData } = useCollectionAreas({ status: 'ACTIVE' });
+
+  const areasData = isAgent ? agentAreasData : allAreasData;
 
   // Fetch clients using centralized hook with server-side pagination
   const statusParam = selectedStatus === 'all' || !selectedStatus ? undefined : selectedStatus;
@@ -140,7 +174,6 @@ const ClientList = ({ initialData }: ClientListProps) => {
   };
 
   // Check if user can manage clients (create, edit, delete)
-  const roleName = (session?.user?.roleName || '').toLowerCase();
   const canManage = roleName.includes('manager') || roleName.includes('accountant') || roleName.includes('administrator');
   const canCreate = canManage; // Alias for toolbar "Add" button (matches agent-list pattern)
 

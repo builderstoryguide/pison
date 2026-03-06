@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { getServerSession } from 'next-auth/next';
 import { getClientIP } from '@/lib/api';
 import { prisma } from '@/lib/prisma';
@@ -12,6 +13,36 @@ import {
 import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
 import { requirePermission } from '@/lib/auth';
 import { UserStatus } from '@/app/models/user';
+
+const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
+
+/** Derive a clean seed string from a display name */
+function normalizeUsernameSeed(name: string): string {
+  const base = name
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+  return base.slice(0, 16) || 'user';
+}
+
+/** Generate a unique username by appending a random hex suffix */
+async function generateUniqueUsername(
+  tx: Prisma.TransactionClient,
+  name: string,
+): Promise<string> {
+  const seed = normalizeUsernameSeed(name);
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const suffix = crypto.randomBytes(3).toString('hex');
+    const candidate = `${seed}${suffix}`;
+    const exists = await tx.user.findUnique({
+      where: { username: candidate },
+      select: { id: true },
+    });
+    if (!exists) return candidate;
+  }
+  throw new Error('Unable to generate a unique username. Please try again.');
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -46,8 +77,8 @@ export async function GET(req: NextRequest) {
     const totalCount = await prisma.user.count({
       where: {
         AND: [
-          ...(statusFilter ? [{ status: statusFilter }] : []), // Add status filter if valid
-          ...(roleId && roleId !== 'all' ? [{ roleId }] : []), // Add role filter if valid
+          ...(statusFilter ? [{ status: statusFilter }] : []),
+          ...(roleId && roleId !== 'all' ? [{ roleId }] : []),
           {
             OR: [
               { name: { contains: query, mode: 'insensitive' } },
@@ -67,7 +98,6 @@ export async function GET(req: NextRequest) {
       lastSignInAt: { lastSignInAt: sortDirection as Prisma.SortOrder },
     };
 
-    // Default to createdAt sorting if no valid field is found
     const orderBy = sortMap[sortField] || {
       createdAt: sortDirection as Prisma.SortOrder,
     };
@@ -76,8 +106,8 @@ export async function GET(req: NextRequest) {
     const users = await prisma.user.findMany({
       where: {
         AND: [
-          ...(statusFilter ? [{ status: statusFilter }] : []), // Add status filter if valid
-          ...(roleId && roleId !== 'all' ? [{ roleId }] : []), // Add role filter if valid
+          ...(statusFilter ? [{ status: statusFilter }] : []),
+          ...(roleId && roleId !== 'all' ? [{ roleId }] : []),
           {
             OR: [
               { name: { contains: query, mode: 'insensitive' } },
@@ -150,7 +180,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, email, password, roleId }: UserAddSchemaType = parsedData.data;
+    const { name, email, username: providedUsername, password, roleId }: UserAddSchemaType = parsedData.data;
+
+    // Validate provided username format if given
+    if (providedUsername && !USERNAME_REGEX.test(providedUsername)) {
+      return NextResponse.json(
+        { message: 'Username must be 3-30 characters, letters, numbers, and underscores only.' },
+        { status: 400 },
+      );
+    }
 
     // Check if the email already exists
     const existingUser = await prisma.user.findUnique({
@@ -162,6 +200,20 @@ export async function POST(request: NextRequest) {
         { message: 'Email is already registered.' },
         { status: 409 },
       );
+    }
+
+    // Check if provided username is already taken
+    if (providedUsername) {
+      const existingUsername = await prisma.user.findUnique({
+        where: { username: providedUsername },
+        select: { id: true },
+      });
+      if (existingUsername) {
+        return NextResponse.json(
+          { message: 'Username is already in use. Please choose a different one.' },
+          { status: 409 },
+        );
+      }
     }
 
     // Check if the role exists
@@ -192,11 +244,15 @@ export async function POST(request: NextRequest) {
 
     // Use a transaction to insert multiple records atomically
     const result = await prisma.$transaction(async (tx) => {
+      // Resolve final username — use provided one or auto-generate from name
+      const username = providedUsername || await generateUniqueUsername(tx, name);
+
       // Create the user with hashed password
       const user = await tx.user.create({
         data: {
           name,
           email,
+          username,
           password: hashedPassword,
           status: UserStatus.ACTIVE,
           roleId,
@@ -237,6 +293,7 @@ export async function POST(request: NextRequest) {
           id: result.id,
           name: result.name,
           email: result.email,
+          username: result.username,
           status: result.status,
         },
       },

@@ -1,324 +1,328 @@
 'use client';
 
 import { ReactNode, useState } from 'react';
-import Link from 'next/link';
-import {
-  Calendar,
-  CheckCheck,
-  MoreVertical,
-  Settings2,
-  Shield,
-  Upload,
-  Users,
-} from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Send, Search } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
-import { toAbsoluteUrl } from '@/lib/helpers';
 import { cn } from '@/lib/utils';
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  AvatarIndicator,
-  AvatarStatus,
-} from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuPortal,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
   Sheet,
   SheetBody,
   SheetContent,
-  SheetFooter,
   SheetHeader,
+  SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { AvatarGroup } from '../common/avatar-group';
+import {
+  getConversations,
+  getMessages,
+  sendMessage,
+  createConversation,
+  getUsersForChat,
+} from '@/lib/actions/chat';
 
-interface Message {
-  avatar: string;
-  text: string;
-  time: string;
-  in?: boolean;
-  out?: boolean;
-  read?: boolean;
+interface Participant {
+  user: {
+    id: string;
+    avatar: string | null;
+    name: string | null;
+    email: string | null;
+  }
+}
+
+interface ConversationType {
+  id: string;
+  updatedAt: Date;
+  participants: Participant[];
+  messages: { content: string; createdAt: Date }[];
+}
+
+interface ChatUser {
+  id: string;
+  name: string | null;
+  email: string | null;
+  avatar: string | null;
+  role: { name: string } | null;
+}
+
+interface MessageType {
+  id: string;
+  content: string;
+  createdAt: Date;
+  sender: {
+    id: string;
+    name: string | null;
+    avatar: string | null;
+    email: string | null;
+  }
 }
 
 export function SheetChat({ trigger }: { trigger: ReactNode }) {
-  const { t } = useTranslation();
-  const [emailInput, setEmailInput] = useState('');
+  const queryClient = useQueryClient();
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const messages: Message[] = [
-    {
-      avatar: '/media/avatars/300-5.png',
-      time: '14:04',
-      text: 'Hello! <br> Next week we are closing the project. Do You have questions?',
-      in: true,
+  // Fetch Conversations
+  const { data: convData, isLoading: isLoadingConvs } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => getConversations(),
+    enabled: isOpen,
+    refetchInterval: isOpen && !activeConversationId ? 5000 : false,
+  });
+
+  // Fetch users for new chat
+  const { data: usersData } = useQuery({
+    queryKey: ['usersForChat', searchQuery],
+    queryFn: () => getUsersForChat(searchQuery),
+    enabled: isOpen && !activeConversationId,
+  });
+
+  const startChatMutation = useMutation({
+    mutationFn: (userId: string) => createConversation([userId]),
+    onSuccess: (res) => {
+      if (res.success && res.conversation) {
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        setActiveConversationId(res.conversation.id);
+      }
     },
-    {
-      avatar: '/media/avatars/300-2.png',
-      text: 'This is excellent news!',
-      time: '14:08',
-      read: true,
-      out: true,
-    },
-    {
-      avatar: '/media/avatars/300-4.png',
-      time: '14:26',
-      text: 'I have checked the features, can not wait to demo them!',
-      in: true,
-    },
-    {
-      avatar: '/media/avatars/300-1.png',
-      time: '15:09',
-      text: 'I have looked over the rollout plan, and everything seems spot on. I am ready on my end and can not wait for the user feedback.',
-      in: true,
-    },
-    {
-      avatar: '/media/avatars/300-2.png',
-      text: "Haven't seen the build yet, I'll look now.",
-      time: '15:52',
-      read: false,
-      out: true,
-    },
-    {
-      avatar: '/media/avatars/300-2.png',
-      text: 'Checking the build now',
-      time: '15:52',
-      read: false,
-      out: true,
-    },
-    {
-      avatar: '/media/avatars/300-4.png',
-      time: '17:40',
-      text: 'Tomorrow, I will send the link for the meeting',
-      in: true,
-    },
-  ];
+  });
 
   return (
-    <Sheet>
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>{trigger}</SheetTrigger>
-      <SheetContent className="p-0 sm:max-w-[500px]">
-        <SheetHeader>
-          <div className="flex items-center justify-between p-3 border-b border-border">
-            <h3 className="text-base font-semibold text-foreground">
-              {t('pages.topbar.chat.title')}
-            </h3>
-          </div>
-          <div className="border-b border-border p-3 shadow-xs">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <div className="w-11 h-11 rounded-full bg-background border border-border flex items-center justify-center">
-                  <img
-                    src={toAbsoluteUrl('/media/brand-logos/gitlab.svg')}
-                    className="w-7 h-7"
-                    alt=""
-                  />
-                </div>
-                <div>
-                  <Link
-                    href="#"
-                    className="text-sm font-semibold text-foreground hover:text-primary"
-                  >
-                    {t('pages.topbar.chat.teamName')}
-                  </Link>
-                  <span className="text-xs italic text-foreground block">
-                    {t('pages.topbar.chat.typing')}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <AvatarGroup
-                  size="size-8"
-                  group={[
-                    { path: '/media/avatars/300-4.png' },
-                    { path: '/media/avatars/300-1.png' },
-                    { path: '/media/avatars/300-2.png' },
-                    {
-                      fallback: '+10',
-                      variant: 'bg-success text-success-foreground',
-                    },
-                  ]}
-                />
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <MoreVertical />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    className="w-44"
-                    side="bottom"
-                    align="end"
-                  >
-                    <DropdownMenuItem asChild>
-                      <Link href="/account/members/teams">
-                        <Users /> {t('pages.topbar.chat.inviteUsers')}
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        <Settings2 />
-                        <span>{t('pages.topbar.chat.teamSettings')}</span>
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuPortal>
-                        <DropdownMenuSubContent className="w-44">
-                          <DropdownMenuItem asChild>
-                            <Link href="/account/members/import-members">
-                              <Shield />
-                              {t('pages.topbar.chat.findMembers')}
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href="/account/members/import-members">
-                              <Calendar /> {t('pages.topbar.chat.meetings')}
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href="/account/members/import-members">
-                              <Shield /> {t('pages.topbar.chat.groupSettings')}
-                            </Link>
-                          </DropdownMenuItem>
-                        </DropdownMenuSubContent>
-                      </DropdownMenuPortal>
-                    </DropdownMenuSub>
-                    <DropdownMenuItem asChild>
-                      <Link href="/account/security/privacy-settings">
-                        <Shield /> {t('pages.topbar.chat.groupSettings')}
-                      </Link>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          </div>
-        </SheetHeader>
-        <SheetBody className="scrollable-y-auto grow space-y-3.5">
-          {messages.map((message, index) =>
-            message.out ? (
-              <div
-                key={index}
-                className="flex items-end justify-end gap-3 px-5"
-              >
-                <div className="flex flex-col gap-1">
-                  <div
-                    className="bg-primary text-primary-foreground text-sm font-medium p-3 rounded-lg shadow-xs"
-                    dangerouslySetInnerHTML={{ __html: message.text }}
-                  />
-                  <div className="flex items-center justify-end gap-1">
-                    <span className="text-xs text-foreground">
-                      {message.time}
-                    </span>
-                    <CheckCheck
-                      className={cn(
-                        'w-4 h-4',
-                        message.read ? 'text-green-500' : 'text-foreground',
-                      )}
-                    />
-                  </div>
-                </div>
-                <div className="relative">
-                  <Avatar className="size-9">
-                    <AvatarImage
-                      src={toAbsoluteUrl('/media/avatars//300-2.png')}
-                      alt=""
-                    />
-                    <AvatarFallback>CH</AvatarFallback>
-                    <AvatarIndicator className="-end-2 -bottom-2">
-                      <AvatarStatus variant="online" className="size-2.5" />
-                    </AvatarIndicator>
-                  </Avatar>
-                </div>
-              </div>
-            ) : message.in ? (
-              <div key={index} className="flex items-end gap-3 px-5">
-                <Avatar className="size-9">
-                  <AvatarImage src={toAbsoluteUrl(message.avatar)} alt="" />
-                  <AvatarFallback>CH</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col gap-1">
-                  <div
-                    className="bg-accent/50 text-foreground text-sm font-medium p-3 rounded-lg shadow-xs"
-                    dangerouslySetInnerHTML={{ __html: message.text }}
-                  />
-                  <span className="text-xs text-foreground">{message.time}</span>
-                </div>
-              </div>
-            ) : null,
-          )}
-        </SheetBody>
-        <SheetFooter className="block p-0 sm:space-x-0">
-          <div className="p-4 bg-accent/50 flex gap-2">
-            <Avatar className="size-9">
-              <AvatarImage
-                src={toAbsoluteUrl('/media/avatars//300-14.png')}
-                alt=""
-              />
-              <AvatarFallback>CH</AvatarFallback>
-              <AvatarIndicator className="-end-2 -bottom-2">
-                <AvatarStatus variant="online" className="size-2.5" />
-              </AvatarIndicator>
-            </Avatar>
-            <div className="flex-1 flex items-center justify-between gap-0.5">
-              <div className="flex flex-col">
-                <div className="inline-flex gap-0.5 text-sm">
-                  <Link
-                    href="#"
-                    className="font-semibold text-mono hover:text-primary"
-                  >
-                    Jane Perez
-                  </Link>
-                  <span className="text-muted-foreground">
-                    {t('pages.topbar.chat.joinRequest')}
-                  </span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {t('pages.topbar.chat.joinRequestMeta')}
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline">
-                  {t('pages.topbar.chat.decline')}
-                </Button>
-                <Button size="sm" variant="mono">
-                  {t('pages.topbar.chat.accept')}
-                </Button>
-              </div>
-            </div>
-          </div>
-          <div className="p-5 flex items-center gap-2 relative">
-            <img
-              src={toAbsoluteUrl('/media/avatars/300-2.png')}
-              className="w-8 h-8 rounded-full absolute left-7 top-1/2 -translate-y-1/2"
-              alt=""
-            />
-            <Input
-              type="text"
-              value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              placeholder={t('pages.topbar.chat.writeMessage')}
-              className="w-full ps-12 pe-24 py-3 h-14"
-            />
-            <div className="absolute end-7 top-1/2 -translate-y-1/2 flex gap-2">
-              <Button size="sm" variant="ghost" mode="icon">
-                <Upload className="size-4!" />
-              </Button>
-              <Button size="sm" variant="mono">
-                {t('pages.topbar.chat.send')}
-              </Button>
-            </div>
-          </div>
-        </SheetFooter>
+      <SheetContent className="p-0 sm:max-w-[500px] flex flex-col">
+        {activeConversationId ? (
+          <ActiveChat
+            conversationId={activeConversationId}
+            onBack={() => setActiveConversationId(null)}
+          />
+        ) : (
+          <ChatList
+            conversations={(convData?.conversations || []) as ConversationType[]}
+            users={(usersData?.users || []) as ChatUser[]}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onSelectConversation={setActiveConversationId}
+            onStartChat={(id) => startChatMutation.mutate(id)}
+            isLoading={isLoadingConvs}
+          />
+        )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function ChatList({
+  conversations,
+  users,
+  searchQuery,
+  setSearchQuery,
+  onSelectConversation,
+  onStartChat,
+  isLoading,
+}: {
+  conversations: ConversationType[];
+  users: ChatUser[];
+  searchQuery: string;
+  setSearchQuery: (val: string) => void;
+  onSelectConversation: (id: string) => void;
+  onStartChat: (id: string) => void;
+  isLoading: boolean;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      <SheetHeader>
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <SheetTitle>{t('pages.topbar.chat.title') || 'Messages'}</SheetTitle>
+        </div>
+        <div className="p-3 border-b border-border">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search or start new chat..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </div>
+      </SheetHeader>
+      <SheetBody className="scrollable-y-auto grow p-0">
+        <div className="p-3 flex flex-col gap-6">
+          {!searchQuery && (
+            <div>
+              <h4 className="text-xs font-semibold mb-3 text-muted-foreground uppercase tracking-wider px-2">Recent Chats</h4>
+              <div className="flex flex-col gap-1">
+                {isLoading ? (
+                  <div className="p-2 text-center text-sm text-muted-foreground">Loading...</div>
+                ) : conversations.length === 0 ? (
+                  <div className="p-2 text-sm text-muted-foreground px-2">No recent chats</div>
+                ) : (
+                  conversations.map((conv) => {
+                    const otherParticipant = conv.participants.find(
+                      (p: Participant) => p.user
+                    )?.user;
+
+                    const lastMessage = conv.messages?.[0];
+
+                    return (
+                      <div
+                        key={conv.id}
+                        onClick={() => onSelectConversation(conv.id)}
+                        className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 hover:bg-accent rounded-lg cursor-pointer transition-colors"
+                      >
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={otherParticipant?.avatar || ''} />
+                          <AvatarFallback>{otherParticipant?.name?.charAt(0) || 'C'}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 overflow-hidden w-full">
+                          <div className="flex justify-between items-center w-full">
+                            <span className="font-medium truncate">{otherParticipant?.name || 'Chat'}</span>
+                            {lastMessage && (
+                              <span className="text-xs text-muted-foreground shrink-0 ms-2">
+                                {new Date(lastMessage.createdAt).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-sm text-muted-foreground truncate block">
+                            {lastMessage?.content || 'New conversation'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h4 className="text-xs font-semibold mb-3 text-muted-foreground uppercase tracking-wider px-2">
+              {searchQuery ? 'Search Results' : 'Other Contacts'}
+            </h4>
+            <div className="flex flex-col gap-1">
+              {users.length === 0 ? (
+                <div className="p-2 text-sm text-muted-foreground px-2">No contacts found</div>
+              ) : (
+                users.map((user) => (
+                  <div
+                    key={user.id}
+                    onClick={() => onStartChat(user.id)}
+                    className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 hover:bg-accent rounded-lg cursor-pointer transition-colors"
+                  >
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={user.avatar || ''} />
+                      <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 overflow-hidden w-full">
+                      <div className="flex justify-between items-center w-full">
+                        <span className="font-medium truncate">{user.name}</span>
+                      </div>
+                      <span className="text-sm text-muted-foreground truncate block">{user.role?.name || 'User'}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </SheetBody>
+    </>
+  );
+}
+
+function ActiveChat({ conversationId, onBack }: { conversationId: string; onBack: () => void }) {
+  const queryClient = useQueryClient();
+  const [text, setText] = useState('');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['messages', conversationId],
+    queryFn: () => getMessages(conversationId),
+    refetchInterval: 3000,
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: () => sendMessage(conversationId, text),
+    onSuccess: () => {
+      setText('');
+      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+
+  const messages = (data?.messages || []) as MessageType[];
+
+  return (
+    <>
+      <SheetHeader>
+        <div className="flex items-center gap-2 p-4 border-b border-border">
+          <Button variant="ghost" size="icon" className="w-8 h-8 rounded-full" onClick={onBack}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-base">Chat</span>
+          </div>
+        </div>
+      </SheetHeader>
+
+      <SheetBody className="scrollable-y-auto grow p-4 flex flex-col gap-3">
+        {isLoading ? (
+          <div className="text-center text-sm text-muted-foreground mt-4">Loading messages...</div>
+        ) : (
+          messages.map((msg) => (
+            <div key={msg.id} className={cn("flex items-end gap-2 px-2")}>
+              <Avatar className="w-8 h-8 shrink-0 mb-1">
+                <AvatarImage src={msg.sender?.avatar || ''} />
+                <AvatarFallback>{msg.sender?.name?.charAt(0) || 'U'}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col">
+                <span className="text-xs text-muted-foreground ml-1 mb-1">{msg.sender?.name}</span>
+                <div className="bg-accent/60 text-foreground text-sm font-medium p-3 rounded-2xl rounded-bl-sm">
+                  {msg.content}
+                </div>
+                <span className="text-[10px] text-muted-foreground mt-1 ml-1">
+                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+      </SheetBody>
+
+      <div className="p-4 border-t border-border bg-background">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (text.trim()) sendMutation.mutate();
+          }}
+          className="flex items-center gap-2 relative"
+        >
+          <Input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Type a message..."
+            className="flex-1 pr-12 rounded-full h-11"
+            disabled={sendMutation.isPending}
+          />
+          <Button
+            type="submit"
+            size="icon"
+            className="absolute right-1 top-1 w-9 h-9 rounded-full"
+            disabled={sendMutation.isPending || !text.trim()}
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </form>
+      </div>
+    </>
   );
 }

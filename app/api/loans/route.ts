@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
-import { requirePermission } from '@/lib/auth';
+import { denyAgentAccess, requirePermission } from '@/lib/auth';
 import { loanService } from '@/lib/services';
 import { parseFieldsParam } from '@/lib/utils/field-select';
 import { cachedJson } from '@/lib/api';
@@ -55,6 +55,12 @@ const createLoanSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+    const roleForbidden = denyAgentAccess(
+      session,
+      'Loans are not available for Agent role'
+    );
+    if (roleForbidden) return roleForbidden;
+
     const forbidden = await requirePermission(session, 'loans.view');
     if (forbidden) return forbidden;
 
@@ -227,6 +233,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+    const roleForbidden = denyAgentAccess(
+      session,
+      'Loans are not available for Agent role'
+    );
+    if (roleForbidden) return roleForbidden;
+
     const forbidden = await requirePermission(session, 'loans.create');
     if (forbidden) return forbidden;
 

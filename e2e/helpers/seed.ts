@@ -16,6 +16,7 @@ const prisma = new PrismaClient();
 
 export async function createTestUser(roleSlug: string = 'agent') {
   const email = faker.internet.email();
+  const username = `test_${Date.now()}_${faker.string.alphanumeric(6).toLowerCase()}`;
   const password = 'password123';
   const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -30,6 +31,7 @@ export async function createTestUser(roleSlug: string = 'agent') {
   const user = await prisma.user.create({
     data: {
       email,
+      username,
       password: hashedPassword,
       name: faker.person.fullName(),
       roleId: role.id,

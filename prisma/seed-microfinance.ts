@@ -147,7 +147,7 @@ async function main() {
     // Agent: limited to collections and assigned clients
     const agentPermSlugs = [
       'dashboard.view', 'clients.view', 'collection_areas.view',
-      'collections.create', 'transactions.view', 'loans.view', 'loans.repayment', 'reports.view',
+      'collections.create', 'transactions.view',
     ];
     for (const slug of agentPermSlugs) {
       const permId = createdPermissions[slug];
@@ -161,6 +161,24 @@ async function main() {
         });
       }
     }
+
+    // Cleanup existing Agent role permissions that are no longer allowed.
+    // This keeps existing environments in sync (not only fresh seeds).
+    const allowedAgentPermissionIds = agentPermSlugs
+      .map((slug) => createdPermissions[slug])
+      .filter((id): id is string => Boolean(id));
+    await prisma.userRolePermission.deleteMany({
+      where: {
+        roleId: agentRole.id,
+        permissionId: {
+          notIn: allowedAgentPermissionIds,
+        },
+      },
+    });
+
+    console.log(
+      '   ℹ️  Agent role permissions synced for existing environments. Existing agent sessions must sign out and sign back in to refresh JWT permissions.\n'
+    );
     console.log('   ✅ Default permissions assigned to roles\n');
 
     // 4. Create Manager User
@@ -282,9 +300,10 @@ async function main() {
     const agent1Password = await bcrypt.hash('agent123', 12);
     const agent1User = await prisma.user.upsert({
       where: { email: 'agent1@dcm.local' },
-      update: {},
+      update: { username: 'agent1' },
       create: {
         email: 'agent1@dcm.local',
+        username: 'agent1',
         name: 'Marie Martin',
         password: agent1Password,
         roleId: agentRole.id,

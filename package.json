@@ -13,6 +13,7 @@
     "db:test:push": "npx dotenv -e .env.test -- prisma db push",
     "format": "prettier --write .",
     "seed:microfinance": "tsx prisma/seed-microfinance.ts",
+    "sync:agent-permissions": "tsx scripts/sync-agent-role-permissions.ts",
     "seed:account-natures": "tsx prisma/seed-account-natures.ts",
     "verify:redis": "tsx scripts/verify-redis.ts",
     "i18n:check": "tsx scripts/check-i18n.ts"

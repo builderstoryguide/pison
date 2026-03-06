@@ -25,11 +25,15 @@ export interface CreateAgentInput {
   areaIds?: string[]; // Collection areas to assign
 }
 
+const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
+
 export interface CreateAgentWithCredentialsInput {
   fullName: string;
   nationalId?: string;
   phone?: string;
-  email?: string;
+  email: string; // Required for login with email
+  username?: string; // Optional; auto-generated if not provided
+  password?: string; // Optional; auto-generated if not provided
   address?: string;
   hireDate?: Date;
   areaIds?: string[];
@@ -262,17 +266,38 @@ export class AgentService {
     createdBy: string,
     creatorRoleName?: string,
   ): Promise<CreateAgentWithCredentialsResult> {
-    const emailInput = data.email?.trim().toLowerCase() || undefined;
-    const MAX_RETRIES = 5;
+    const emailInput = data.email?.trim().toLowerCase();
+    if (!emailInput) {
+      throw new Error('Email is required for agent login');
+    }
 
+    if (data.username !== undefined && data.username !== '') {
+      const trimmed = data.username.trim();
+      if (!USERNAME_REGEX.test(trimmed)) {
+        throw new Error(
+          'Username must be 3-30 characters, alphanumeric and underscores only',
+        );
+      }
+    }
+
+    if (data.password !== undefined && data.password !== '') {
+      if (data.password.length < 8) {
+        throw new Error('Password must be at least 8 characters');
+      }
+    }
+
+    const plainPassword =
+      data.password?.trim() && data.password.length >= 8
+        ? data.password
+        : this.generateTemporaryPassword();
+    const hashedPassword = await bcrypt.hash(plainPassword, 12);
+    const approvalStatus = this.requiresApproval(creatorRoleName)
+      ? 'PENDING_APPROVAL'
+      : 'APPROVED';
+
+    const MAX_RETRIES = 5;
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        const temporaryPassword = this.generateTemporaryPassword();
-        const hashedPassword = await bcrypt.hash(temporaryPassword, 12);
-        const approvalStatus = this.requiresApproval(creatorRoleName)
-          ? 'PENDING_APPROVAL'
-          : 'APPROVED';
-
         const result = await prisma.$transaction(async (tx) => {
           const role = await tx.userRole.findFirst({
             where: { slug: { equals: 'agent', mode: 'insensitive' } },
@@ -283,15 +308,28 @@ export class AgentService {
             throw new Error('Agent role is not configured');
           }
 
-          const username = await this.generateUniqueUsername(tx, data.fullName);
-          const email = emailInput ?? `${username}@agents.local`;
+          let username: string;
+          const providedUsername = data.username?.trim();
+          if (providedUsername && USERNAME_REGEX.test(providedUsername)) {
+            const exists = await tx.user.findUnique({
+              where: { username: providedUsername },
+              select: { id: true },
+            });
+            if (exists) {
+              throw new Error('Username is already in use');
+            }
+            username = providedUsername;
+          } else {
+            username = await this.generateUniqueUsername(tx, data.fullName);
+          }
+
           const agentCode = await this.generateAgentCode(tx);
           const accountId = await this.createAgentAccount(tx);
 
           const user = await tx.user.create({
             data: {
               name: data.fullName,
-              email,
+              email: emailInput,
               username,
               password: hashedPassword,
               status: 'ACTIVE',
@@ -364,7 +402,7 @@ export class AgentService {
           agent: result.createdAgent,
           credentials: {
             username: result.username,
-            password: temporaryPassword,
+            password: plainPassword,
           },
         };
       } catch (error: unknown) {

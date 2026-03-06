@@ -7,13 +7,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
-import { requirePermission } from '@/lib/auth';
+import { denyAgentAccess, requirePermission } from '@/lib/auth';
 import { reportService, commissionService } from '@/lib/services';
 import { z } from 'zod';
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+    const roleForbidden = denyAgentAccess(
+      session,
+      'Reports are not available for Agent role'
+    );
+    if (roleForbidden) return roleForbidden;
+
     const forbidden = await requirePermission(session, 'reports.view');
     if (forbidden) return forbidden;
 
@@ -43,6 +49,12 @@ const calcSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+    const roleForbidden = denyAgentAccess(
+      session,
+      'Reports are not available for Agent role'
+    );
+    if (roleForbidden) return roleForbidden;
+
     const forbidden = await requirePermission(session, 'commissions.calculate');
     if (forbidden) return forbidden;
 

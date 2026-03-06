@@ -15,7 +15,7 @@ import {
   ToolbarHeading,
   ToolbarTitle,
 } from '@/components/common/toolbar';
-import AgentForm from '../components/agent-form';
+import AgentEditForm from '../components/agent-edit-form';
 import AgentAccountActions from '../components/agent-account-actions';
 import { agentService } from '@/lib/services';
 import { formatCurrency } from '@/lib/helpers';
@@ -86,7 +86,7 @@ export default async function Page({ params }: PageProps) {
       </Container>
 
       <Container>
-        <AgentForm agentId={agent.id} />
+        <AgentEditForm agentId={agent.id} />
       </Container>
     </>
   );

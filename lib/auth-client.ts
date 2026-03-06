@@ -39,6 +39,15 @@ export const PERMISSIONS = {
 } as const;
 
 /**
+ * Agent role matcher used for feature restrictions.
+ * Substring matching supports role labels like "Senior Agent" or "Collector".
+ */
+export function isAgentOrCollectorRole(roleName: string | null | undefined): boolean {
+  const normalizedRole = (roleName || '').toLowerCase();
+  return normalizedRole.includes('agent') || normalizedRole.includes('collector');
+}
+
+/**
  * Check if the role has full access (bypasses permission checks).
  * Uses substring matching for manager roles (matches "Manager", "Branch Manager", etc.)
  * and "administrator" for legacy role names. Matches server semantics in lib/auth.ts.

@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
-import { requirePermission } from '@/lib/auth';
+import { isAgentOrCollectorRole, requirePermission } from '@/lib/auth';
 import { transactionService } from '@/lib/services';
 import { parseFieldsParam } from '@/lib/utils/field-select';
 import { cachedJson } from '@/lib/api';
@@ -53,6 +53,19 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get('type') || undefined;
+    if (isAgentOrCollectorRole(session?.user?.roleName) && type !== 'DEPOSIT') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Agent role can only access deposits in transactions',
+          },
+        },
+        { status: 403 }
+      );
+    }
+
     const status = searchParams.get('status') || undefined;
     const accountId = searchParams.get('accountId') || undefined;
     const areaId = searchParams.get('areaId') || undefined;
@@ -223,6 +236,22 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const validatedData = createTransactionSchema.parse(body);
+
+    if (
+      isAgentOrCollectorRole(session?.user?.roleName) &&
+      validatedData.type !== 'DEPOSIT'
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'FORBIDDEN',
+            message: 'Agent role can only create deposits',
+          },
+        },
+        { status: 403 }
+      );
+    }
 
     const transaction = await transactionService.createTransaction(
       {

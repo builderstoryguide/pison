@@ -53,12 +53,12 @@ async function globalSetup(_config: FullConfig) {
     
     // Login as default manager user (from seed data)
     await page.goto('/signin');
-    await page.getByLabel('Email').fill('admin@dcm.local');
-    await page.getByLabel('Password').fill('admin123');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.locator('input[name="identifier"]').fill('admin@dcm.local');
+    await page.locator('input[name="password"]').fill('admin123');
+    await page.locator('button[type="submit"]').click();
     
-    // Wait for successful login (redirects to dashboard)
-    await page.waitForURL(/dashboard/, { timeout: 10000 });
+    // Successful auth should navigate away from the sign-in page.
+    await page.waitForURL((url) => !url.pathname.includes('/signin'), { timeout: 10000 });
     
     // Save authenticated state
     await context.storageState({ path: authFile });

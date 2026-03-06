@@ -10,6 +10,13 @@ export const UserAddSchema = z
     email: z.string().email({
       message: 'Please enter a valid email address.',
     }),
+    username: z
+      .string()
+      .optional()
+      .refine((v) => !v || /^[a-zA-Z0-9_]{3,30}$/.test(v), {
+        message: 'Username must be 3-30 characters, letters, numbers, and underscores only.',
+      })
+      .transform((v) => (v?.trim() ? v.trim() : undefined)),
     password: z
       .string()
       .min(8, { message: 'Password must be at least 8 characters long.' })

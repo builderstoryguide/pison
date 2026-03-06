@@ -1,5 +1,5 @@
 import type { MenuConfig, MenuItem } from '@/config/types';
-import { hasPermission } from '@/lib/auth-client';
+import { hasPermission, isAgentOrCollectorRole } from '@/lib/auth-client';
 
 export type SessionForMenu = {
   user?: { permissions?: string[]; roleName?: string };
@@ -16,9 +16,21 @@ export function filterMenuByPermission(
   session: SessionForMenu
 ): MenuConfig {
   if (session === null || !session?.user) return [];
+  const roleName = session.user.roleName ?? '';
+  const isAgentRole = isAgentOrCollectorRole(roleName);
   const filtered = items
     .map((item) => {
       if (item.heading) return item;
+      if (
+        item.hiddenForRoles?.some((roleToken) => {
+          const normalizedRoleToken = roleToken.toLowerCase();
+          return isAgentRole
+            ? normalizedRoleToken === 'agent' || normalizedRoleToken === 'collector'
+            : roleName.toLowerCase().includes(normalizedRoleToken);
+        })
+      ) {
+        return null;
+      }
       if (item.permission && !hasPermission(session, item.permission)) return null;
       if (item.children) {
         const filteredChildren = filterMenuByPermission(item.children, session);
