@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/select';
 import { LoaderCircleIcon } from 'lucide-react';
 import { User, UserRole } from '@/app/models/user';
-import { useRoleSelectQuery } from '../../../roles/hooks/use-role-select-query';
+import { useRoleSelectQuery } from '@/app/(protected)/user-management/roles/hooks/use-role-select-query';
 import { UserStatusProps } from '../../constants/status';
 import {
   UserProfileSchema,

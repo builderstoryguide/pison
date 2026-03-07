@@ -10,12 +10,14 @@ export type SessionForMenu = {
  * Items without a permission are shown to all authenticated users.
  * Parent items are hidden when all children are filtered out.
  * Headings with no visible items below them (until the next heading) are removed.
+ * When session is unknown (undefined) or loading (null), returns empty menu (least privilege).
  */
 export function filterMenuByPermission(
   items: MenuConfig,
   session: SessionForMenu
 ): MenuConfig {
-  if (session === null || !session?.user) return [];
+  // Session unknown/loading (undefined) or unauthenticated (null): return empty menu (least privilege)
+  if (session === undefined || session === null || !session?.user) return [];
   const roleName = session.user.roleName ?? '';
   const isAgentRole = isAgentOrCollectorRole(roleName);
   const filtered = items
