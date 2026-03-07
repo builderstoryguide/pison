@@ -17,6 +17,8 @@ export const PERMISSIONS = {
   AGENTS_VIEW: 'agents.view',
   AGENTS_CREATE: 'agents.create',
   AGENTS_EDIT: 'agents.edit',
+  ACCOUNTANTS_VIEW: 'accountants.view',
+  ACCOUNTANTS_CREATE: 'accountants.create',
   COLLECTION_AREAS_VIEW: 'collection_areas.view',
   COLLECTION_AREAS_MANAGE: 'collection_areas.manage',
   COLLECTIONS_CREATE: 'collections.create',

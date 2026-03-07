@@ -284,12 +284,14 @@ const authOptions: NextAuthOptions = {
             },
           });
           token.roleName = role?.name ?? null;
+          token.roleSlug = role?.slug ?? null;
           token.permissions =
             role?.permissions
               ?.map((rp) => rp.permission?.slug)
               .filter((slug): slug is string => Boolean(slug)) ?? [];
         } else {
           token.roleName = null;
+          token.roleSlug = null;
           token.permissions = [];
         }
         token._permissionsHydrated = true;
@@ -307,6 +309,7 @@ const authOptions: NextAuthOptions = {
           },
         });
         token.roleName = role?.name ?? null;
+        token.roleSlug = role?.slug ?? null;
         token.permissions =
           role?.permissions
             ?.map((rp) => rp.permission?.slug)
@@ -327,6 +330,7 @@ const authOptions: NextAuthOptions = {
         session.user.status = token.status;
         session.user.roleId = token.roleId;
         session.user.roleName = token.roleName;
+        session.user.roleSlug = token.roleSlug;
         session.user.permissions = token.permissions ?? [];
       }
       return session;

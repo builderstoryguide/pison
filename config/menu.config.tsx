@@ -90,6 +90,14 @@ export const MENU_SIDEBAR: MenuConfig = [
     ],
   },
   {
+    title: 'menu.accountants',
+    icon: Calculator,
+    children: [
+      { title: 'menu.allAccountants', path: '/accountants', permission: 'accountants.view' },
+      { title: 'menu.addAccountant', path: '/accountants/new', permission: 'accountants.create' },
+    ],
+  },
+  {
     title: 'menu.collectionAreas',
     icon: MapPin,
     children: [
@@ -256,6 +264,7 @@ export const MENU_MEGA: MenuConfig = [
     title: 'menu.management',
     children: [
       {
+        title: 'menu.clients',
         children: [
           { title: 'menu.allClients', icon: Users, path: '/clients', permission: 'clients.view' },
           { title: 'menu.addClient', icon: UserCircle, path: '/clients/new', permission: 'clients.create' },
@@ -263,11 +272,26 @@ export const MENU_MEGA: MenuConfig = [
         ],
       },
       {
+        title: 'menu.agents',
         children: [
           { title: 'menu.allAgents', icon: UserCheck, path: '/agents', permission: 'agents.view' },
           { title: 'menu.addAgent', icon: UserCircle, path: '/agents/new', permission: 'agents.create' },
           { title: 'menu.agentAccounts', icon: Wallet, path: '/agents/accounts', permission: 'agents.view' },
-          { title: 'menu.collectionAreas', icon: MapPin, path: '/collection-areas', permission: 'collection_areas.view' },
+        ],
+      },
+      {
+        title: 'menu.accountants',
+        children: [
+          { title: 'menu.allAccountants', icon: Calculator, path: '/accountants', permission: 'accountants.view' },
+          { title: 'menu.addAccountant', icon: UserCircle, path: '/accountants/new', permission: 'accountants.create' },
+        ],
+      },
+      {
+        title: 'menu.collectionAreas',
+        children: [
+          { title: 'menu.allAreas', icon: MapPin, path: '/collection-areas', permission: 'collection_areas.view' },
+          { title: 'menu.addArea', icon: UserCircle, path: '/collection-areas/new', permission: 'collection_areas.manage' },
+          { title: 'menu.areaAssignments', icon: MapPin, path: '/collection-areas/assignments', permission: 'collection_areas.manage' },
         ],
       },
     ],
@@ -342,6 +366,8 @@ export const MENU_MEGA_MOBILE: MenuConfig = [
       { title: 'menu.addClient', icon: UserCircle, path: '/clients/new', permission: 'clients.create' },
       { title: 'menu.allAgents', icon: UserCheck, path: '/agents', permission: 'agents.view' },
       { title: 'menu.addAgent', icon: UserCircle, path: '/agents/new', permission: 'agents.create' },
+      { title: 'menu.allAccountants', icon: Calculator, path: '/accountants', permission: 'accountants.view' },
+      { title: 'menu.addAccountant', icon: UserCircle, path: '/accountants/new', permission: 'accountants.create' },
       { title: 'menu.collectionAreas', icon: MapPin, path: '/collection-areas', permission: 'collection_areas.view' },
     ],
   },

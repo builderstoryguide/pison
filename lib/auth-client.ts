@@ -18,6 +18,8 @@ export const PERMISSIONS = {
   AGENTS_VIEW: 'agents.view',
   AGENTS_CREATE: 'agents.create',
   AGENTS_EDIT: 'agents.edit',
+  ACCOUNTANTS_VIEW: 'accountants.view',
+  ACCOUNTANTS_CREATE: 'accountants.create',
   COLLECTION_AREAS_VIEW: 'collection_areas.view',
   COLLECTION_AREAS_MANAGE: 'collection_areas.manage',
   COLLECTIONS_CREATE: 'collections.create',
@@ -49,10 +51,17 @@ export function isAgentOrCollectorRole(roleName: string | null | undefined): boo
 
 /**
  * Check if the role has full access (bypasses permission checks).
- * Uses substring matching for manager roles (matches "Manager", "Branch Manager", etc.)
- * and "administrator" for legacy role names. Matches server semantics in lib/auth.ts.
+ * Uses role slug (manager, administrator) for reliable matching, with role name as fallback.
+ * Matches server semantics in lib/auth.ts.
  */
-function hasFullAccessByRole(roleName: string): boolean {
+function hasFullAccessByRole(
+  roleName: string,
+  roleSlug?: string | null
+): boolean {
+  const slug = (roleSlug ?? '').toLowerCase();
+  if (slug === 'manager' || slug === 'administrator' || slug === 'admin') {
+    return true;
+  }
   const r = roleName.toLowerCase();
   return r.includes('manager') || r.includes('administrator');
 }
@@ -71,7 +80,8 @@ export function hasPermission(
   }
 
   const roleName = session.user?.roleName ?? '';
-  if (hasFullAccessByRole(roleName)) {
+  const roleSlug = session.user?.roleSlug ?? null;
+  if (hasFullAccessByRole(roleName, roleSlug)) {
     return true;
   }
 
@@ -91,7 +101,8 @@ export function hasAnyPermission(
   }
 
   const roleName = session.user?.roleName ?? '';
-  if (hasFullAccessByRole(roleName)) {
+  const roleSlug = session.user?.roleSlug ?? null;
+  if (hasFullAccessByRole(roleName, roleSlug)) {
     return true;
   }
 

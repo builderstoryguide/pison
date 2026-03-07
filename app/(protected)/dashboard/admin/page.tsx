@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Activity,
   AlertTriangle,
+  Calculator,
   CheckCircle2,
   FileText,
   Loader2,
@@ -326,6 +327,18 @@ export default function AdminDashboard({ initialStats }: AdminDashboardProps) {
                     <p className="font-medium">{t('menu.userManagement')}</p>
                     <p className="text-xs text-muted-foreground">
                         {t('pages.dashboard.manageUsersRoles')}
+                    </p>
+                    </div>
+                </Link>
+                <Link
+                    href="/accountants/new"
+                    className="flex items-center p-4 border rounded-lg hover:bg-accent transition-colors"
+                >
+                    <Calculator className="h-5 w-5 mr-3 text-primary" />
+                    <div className="space-y-1">
+                    <p className="font-medium">{t('menu.addAccountant')}</p>
+                    <p className="text-xs text-muted-foreground">
+                        {t('pages.dashboard.addNewAccountant')}
                     </p>
                     </div>
                 </Link>

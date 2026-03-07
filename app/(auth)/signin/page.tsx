@@ -71,6 +71,7 @@ export default function Page() {
       if (response?.error) {
         const errorData = JSON.parse(response.error);
         setError(errorData.message);
+        setIsProcessing(false);
       } else {
         router.push('/');
       }
@@ -80,7 +81,6 @@ export default function Page() {
           ? err.message
           : t('pages.auth.signin.unexpectedError'),
       );
-    } finally {
       setIsProcessing(false);
     }
   }
@@ -240,7 +240,7 @@ export default function Page() {
             className="min-w-[120px]"
           >
             {isProcessing && (
-              <LoaderCircleIcon className="size-4 shrink-0 animate-spin" aria-hidden />
+              <LoaderCircleIcon className="size-4 shrink-0 me-2 animate-spin" aria-hidden />
             )}
             {isProcessing ? t('pages.auth.signin.signingIn') : t('pages.auth.signin.signIn')}
           </Button>

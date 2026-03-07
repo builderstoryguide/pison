@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
   const sortDirection = searchParams.get('dir') === 'desc' ? 'desc' : 'asc';
   const status = searchParams.get('status') || null;
   const roleId = searchParams.get('roleId') || null;
+  const roleSlug = searchParams.get('roleSlug') || null;
 
   try {
     // Validate user session
@@ -79,6 +80,7 @@ export async function GET(req: NextRequest) {
         AND: [
           ...(statusFilter ? [{ status: statusFilter }] : []),
           ...(roleId && roleId !== 'all' ? [{ roleId }] : []),
+          ...(roleSlug ? [{ role: { slug: roleSlug } }] : []),
           {
             OR: [
               { name: { contains: query, mode: 'insensitive' } },
@@ -108,6 +110,7 @@ export async function GET(req: NextRequest) {
         AND: [
           ...(statusFilter ? [{ status: statusFilter }] : []),
           ...(roleId && roleId !== 'all' ? [{ roleId }] : []),
+          ...(roleSlug ? [{ role: { slug: roleSlug } }] : []),
           {
             OR: [
               { name: { contains: query, mode: 'insensitive' } },
