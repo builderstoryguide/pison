@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import { formatDate, formatDateTime } from '@/lib/helpers';
 import { Button } from '@/components/ui/button';
@@ -14,11 +14,13 @@ import {
   Unlock,
   Clock,
   CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSession } from 'next-auth/react';
 import { hasPermission } from '@/lib/auth-client';
 import Link from 'next/link';
+import { useSessionStatus } from '@/hooks/use-session-status';
 
 interface DailySession {
   id: string;
@@ -37,20 +39,8 @@ interface DailySession {
 export default function SessionStatus() {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
-
-  // Fetch current session
-  const { data: currentSession, isLoading } = useQuery({
-    queryKey: ['current-session'],
-    queryFn: async () => {
-      const response = await apiFetch('/api/operations/session');
-      if (!response.ok) {
-        throw new Error('Failed to fetch session status');
-      }
-      const result = await response.json();
-      return result.data.session;
-    },
-    refetchInterval: 30000, // Refetch every 30 seconds
-  });
+  const { data: sessionStatusData, isLoading, isError, error, refetch } = useSessionStatus();
+  const currentSession = sessionStatusData?.session ?? null;
 
   // Open session mutation
   const openSessionMutation = useMutation({
@@ -67,7 +57,7 @@ export default function SessionStatus() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['current-session'] });
+      queryClient.invalidateQueries({ queryKey: ['session-status'] });
       toast.success('Session opened successfully');
     },
     onError: (error: Error) => {
@@ -84,6 +74,23 @@ export default function SessionStatus() {
         <CardContent className="space-y-4 py-8">
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-20 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isError && !currentSession) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <AlertTriangle className="size-12 text-amber-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Unable to Load Session Status</h3>
+          <p className="text-muted-foreground mb-4">
+            {error?.message || 'Failed to fetch session status.'}
+          </p>
+          <Button variant="outline" onClick={() => refetch()}>
+            Try Again
+          </Button>
         </CardContent>
       </Card>
     );

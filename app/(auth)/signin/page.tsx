@@ -85,16 +85,12 @@ export default function Page() {
     }
   }
 
-  if (!isMounted) {
-    return (
-      <div className="flex min-h-[400px] w-full items-center justify-center">
-        <LoaderCircleIcon className="size-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
-    <Form {...form}>
+    <div className="flex min-h-[400px] w-full flex-col items-center justify-center">
+      {!isMounted ? (
+        <LoaderCircleIcon className="size-8 animate-spin text-muted-foreground" />
+      ) : (
+        <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
         className="block w-full space-y-5"
@@ -251,5 +247,7 @@ export default function Page() {
         </p>
       </form>
     </Form>
+      )}
+    </div>
   );
 }

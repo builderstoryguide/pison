@@ -23,13 +23,14 @@ export async function GET() {
       data,
     });
   } catch (error: unknown) {
-    console.error('Error fetching session status:', error);
+    const message = error instanceof Error ? error.message : 'Failed to fetch session status';
+    console.error('[Session API] Error fetching session status:', error);
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'FETCH_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to fetch session status',
+          message,
         },
       },
       { status: 500 }
