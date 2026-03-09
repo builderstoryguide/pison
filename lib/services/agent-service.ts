@@ -59,6 +59,24 @@ export interface UpdateAgentInput {
   areaIds?: string[]; // Collection areas to assign
 }
 
+/** Error thrown when attempting to assign an area already assigned to another agent */
+export class AreaAlreadyAssignedError extends Error {
+  code = 'AREA_ALREADY_ASSIGNED' as const;
+  details: { areaId: string; areaName: string; agentFullName: string }[];
+
+  constructor(details: { areaId: string; areaName: string; agentFullName: string }[]) {
+    const message =
+      details.length === 1
+        ? `Area "${details[0].areaName}" is already assigned to ${details[0].agentFullName}.`
+        : `The following areas are already assigned to other agents: ${details
+            .map((d) => `${d.areaName} (${d.agentFullName})`)
+            .join(', ')}.`;
+    super(message);
+    this.name = 'AreaAlreadyAssignedError';
+    this.details = details;
+  }
+}
+
 export class AgentService {
   private normalizeUsernameSeed(name: string): string {
     const base = name
@@ -177,6 +195,51 @@ export class AgentService {
   }
 
   /**
+   * Get areas that are already assigned to other agents (excluding optional agent).
+   * Used to enforce exclusive zone-to-agent assignment.
+   */
+  private async getAreasAssignedToOtherAgents(
+    areaIds: string[],
+    excludeAgentId?: string,
+  ): Promise<{ areaId: string; areaName: string; agentFullName: string }[]> {
+    if (areaIds.length === 0) return [];
+
+    const where: Prisma.AgentAreaAssignmentWhereInput = {
+      areaId: { in: areaIds },
+    };
+    if (excludeAgentId) {
+      where.agentId = { not: excludeAgentId };
+    }
+
+    const assignments = await prisma.agentAreaAssignment.findMany({
+      where,
+      include: {
+        area: { select: { id: true, name: true } },
+        agent: { select: { fullName: true } },
+      },
+    });
+
+    return assignments.map((a) => ({
+      areaId: a.areaId,
+      areaName: a.area.name,
+      agentFullName: a.agent.fullName,
+    }));
+  }
+
+  /**
+   * Throw AreaAlreadyAssignedError if any of the given areas are assigned to another agent.
+   */
+  private async throwIfAreasAlreadyAssigned(
+    areaIds: string[],
+    excludeAgentId?: string,
+  ): Promise<void> {
+    const conflicts = await this.getAreasAssignedToOtherAgents(areaIds, excludeAgentId);
+    if (conflicts.length > 0) {
+      throw new AreaAlreadyAssignedError(conflicts);
+    }
+  }
+
+  /**
    * Create a new agent
    * @param creatorRoleName - If 'accountant', agent is created with PENDING_APPROVAL; Manager creates as APPROVED
    */
@@ -188,6 +251,11 @@ export class AgentService {
 
     if (existingAgent) {
       throw new Error('User already has an agent record');
+    }
+
+    // Validate areas are not already assigned to other agents
+    if (data.areaIds && data.areaIds.length > 0) {
+      await this.throwIfAreasAlreadyAssigned(data.areaIds);
     }
 
     return await prisma.$transaction(async (tx) => {
@@ -294,6 +362,11 @@ export class AgentService {
     const approvalStatus = this.requiresApproval(creatorRoleName)
       ? 'PENDING_APPROVAL'
       : 'APPROVED';
+
+    // Validate areas are not already assigned to other agents
+    if (data.areaIds && data.areaIds.length > 0) {
+      await this.throwIfAreasAlreadyAssigned(data.areaIds);
+    }
 
     const MAX_RETRIES = 5;
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -447,6 +520,11 @@ export class AgentService {
 
     // If areaIds are provided, use a transaction to update both agent and areas
     if (areaIds !== undefined) {
+      // Validate areas are not already assigned to other agents (exclude current agent)
+      if (areaIds.length > 0) {
+        await this.throwIfAreasAlreadyAssigned(areaIds, id);
+      }
+
       const updated = await prisma.$transaction(async (tx) => {
         // Update agent data
         await tx.agent.update({
@@ -691,6 +769,11 @@ export class AgentService {
 
     if (!agent) {
       throw new Error('Agent not found');
+    }
+
+    // Validate areas are not already assigned to other agents (exclude current agent)
+    if (areaIds.length > 0) {
+      await this.throwIfAreasAlreadyAssigned(areaIds, agentId);
     }
 
     return await prisma.$transaction(async (tx) => {

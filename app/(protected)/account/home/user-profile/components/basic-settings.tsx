@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Copy, SquarePen } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { toAbsoluteUrl } from '@/lib/helpers';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,13 +15,14 @@ interface IBasicSettingsProps {
 }
 
 const BasicSettings = ({ title }: IBasicSettingsProps) => {
+  const { t } = useTranslation();
   return (
     <Card className="min-w-full">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <div className="flex items-center gap-2">
           <Label htmlFor="auto-update" className="text-sm">
-            Public Profile
+            {t('pages.profile.publicProfile')}
           </Label>
           <Switch defaultChecked size="sm" />
         </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { useTranslation } from '@/hooks/useTranslation';
 import { usePathname } from 'next/navigation';
 import {
   Bell,
@@ -58,6 +59,7 @@ import { MegaMenuMobile } from './mega-menu-mobile';
 import { SidebarMenu } from './sidebar-menu';
 
 export function Header() {
+  const { t } = useTranslation();
   const [isSidebarSheetOpen, setIsSidebarSheetOpen] = useState(false);
   const [isMegaMenuSheetOpen, setIsMegaMenuSheetOpen] = useState(false);
 
@@ -210,7 +212,7 @@ export function Header() {
                   <img
                     className="size-9 rounded-full border-2 border-green-500 shrink-0 cursor-pointer"
                     src={toAbsoluteUrl('/media/avatars/300-2.png')}
-                    alt="User Avatar"
+                    alt={t('common.aria.userAvatar')}
                   />
                 }
               />

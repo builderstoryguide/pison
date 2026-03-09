@@ -28,6 +28,7 @@
       "agent": "Agent",
       "none": "Aucun",
       "client": "Client",
+      "account": "Compte",
       "status": "Statut",
       "role": "Rôle",
       "description": "Description"
@@ -47,6 +48,7 @@
       "selectAgent": "Sélectionner un agent",
       "selectUser": "Sélectionner un utilisateur à assigner comme agent",
       "selectStatus": "Sélectionner le statut",
+      "selectRegion": "Sélectionner une région",
       "selectRole": "Sélectionner un rôle",
       "amount": "0.00",
       "interestRate": "0.15",
@@ -70,6 +72,21 @@
       "amountPositive": "Le montant doit être positif",
       "amountExceedsBalance": "Le montant dépasse le solde disponible"
     },
+    "regions": {
+      "adamawa": "Adamaoua",
+      "centre": "Centre",
+      "east": "Est",
+      "farNorth": "Extrême-Nord",
+      "littoral": "Littoral",
+      "north": "Nord",
+      "northwest": "Nord-Ouest",
+      "south": "Sud",
+      "southwest": "Sud-Ouest",
+      "west": "Ouest"
+    },
+    "aria": {
+      "userAvatar": "Avatar utilisateur"
+    },
     "breadcrumbs": {
       "home": "Accueil",
       "new": "Nouveau",
@@ -90,8 +107,72 @@
       "title": "Paramètres du compte",
       "notifications": {
         "title": "Notifications",
-        "description": "Gérer vos préférences de notification"
+        "description": "Gérer vos préférences de notification",
+        "channels": {
+          "title": "Canaux de notification",
+          "teamWideAlerts": "Alertes pour toute l'équipe",
+          "email": "Email",
+          "mobile": "Mobile",
+          "slack": "Slack",
+          "desktop": "Bureau",
+          "connectSlack": "Connecter Slack",
+          "slackDesc": "Recevez des alertes instantanées pour les messages et mises à jour directement dans Slack.",
+          "desktopDesc": "Activer les notifications pour des alertes bureau en temps réel."
+        },
+        "posts": {
+          "streamlinedAlerts": "Configuration simplifiée : Préférences de notification personnalisées",
+          "streamlinedAlertsSummary": "Adaptez vos préférences d'alertes avec notre configuration simplifiée. Restez informé avec les notifications qui comptent pour vous.",
+          "effectiveCommunication": "Communication efficace : Outils de notification instantanée",
+          "effectiveCommunicationSummary": "Assurez une communication en temps opportun avec nos outils de notification instantanée. Personnalisez les alertes pour rester en avance dans la collaboration en temps réel.",
+          "personalizedUpdates": "Mises à jour personnalisées : Système d'alertes intelligent",
+          "personalizedUpdatesSummary": "Contrôlez la réception de vos mises à jour avec notre système d'alertes intelligent. Personnalisez les notifications pour un flux de travail plus efficace."
+        },
+        "contactSupport": "Contacter le support",
+        "contactSupportDesc": "Besoin d'aide ? Contactez notre équipe support pour une assistance rapide et personnalisée à vos questions et préoccupations.",
+        "doNotDisturb": {
+          "title": "Ne pas déranger",
+          "description": "Activez 'Ne pas déranger' pour couper toutes les notifications et vous concentrer sans interruption pendant les heures ou tâches spécifiées.",
+          "learnMore": "En savoir plus",
+          "pauseNotifications": "Mettre en pause les notifications"
+        },
+        "other": {
+          "title": "Autres notifications",
+          "taskAlert": "Alerte tâche",
+          "taskAlertDesc": "Notification lorsqu'une tâche vous est assignée.",
+          "budgetWarning": "Avertissement budget",
+          "budgetWarningDesc": "Soyez notifié si vous approchez de la limite budgétaire.",
+          "invoiceAlert": "Alerte facture",
+          "invoiceAlertDesc": "Alerte pour les nouvelles factures et factures impayées.",
+          "viewInvoices": "Voir les factures",
+          "feedbackAlert": "Alerte retour",
+          "feedbackAlertDesc": "Lorsqu'un client soumet un nouveau retour.",
+          "collaborationRequest": "Demande de collaboration",
+          "collaborationRequestDesc": "Invitation à collaborer sur un nouveau document.",
+          "meetingReminder": "Rappel de réunion",
+          "meetingReminderDesc": "Rappel des réunions programmées pour la journée.",
+          "showMeetings": "Afficher les réunions",
+          "statusChange": "Changement de statut",
+          "statusChangeDesc": "Notifie les changements de statut du projet ou de la tâche."
+        }
       }
+    },
+    "profile": {
+      "cardTitle": "Profil",
+      "cardDescription": "Gérer les informations du profil",
+      "avatarLabel": "Avatar du profil",
+      "attachImage": "Joindre une image",
+      "enterNamePlaceholder": "Entrez votre nom",
+      "saveProfile": "Enregistrer le profil",
+      "updateSuccess": "Compte mis à jour avec succès",
+      "centralHubDescription": "Centre de personnalisation personnel",
+      "basicSettings": "Paramètres de base",
+      "myFiles": "Mes fichiers",
+      "personalInfo": "Informations personnelles",
+      "work": "Travail",
+      "connections": "Connexions",
+      "publicProfile": "Profil public",
+      "jointLinks": "Liens communs",
+      "viewMore": "Voir {{count}} de plus"
     },
     "dashboard": {
       "adminTitle": "Tableau de bord Manager",
@@ -159,6 +240,7 @@
       "clientCreatedSuccess": "Client créé avec succès",
       "clientUpdatedSuccess": "Client mis à jour avec succès",
       "createFailed": "Échec de création du client",
+      "accessDenied": "Vous n'avez pas la permission d'ajouter de nouveaux clients.",
       "updateFailed": "Échec de mise à jour du client",
       "fetchFailed": "Échec du chargement du client",
       "selectAccountTypeError": "Veuillez sélectionner un type de compte",
@@ -266,7 +348,8 @@
       "usernamePlaceholder": "ex. marie.martin",
       "usernameOptionalDesc": "Optionnel. Si vide, un nom d'utilisateur sera généré automatiquement.",
       "passwordPlaceholder": "Laisser vide pour générer automatiquement",
-      "passwordOptionalDesc": "Laisser vide pour générer un mot de passe sécurisé automatiquement."
+      "passwordOptionalDesc": "Laisser vide pour générer un mot de passe sécurisé automatiquement.",
+      "autoCredentialsInfo": "Un nom d'utilisateur et un mot de passe seront générés automatiquement. Les identifiants de connexion seront téléchargés dans un fichier après la création."
     },
     "loans": {
       "title": "Prêts",
@@ -311,6 +394,18 @@
     "topbar": {
       "chat": {
         "title": "Discussion",
+        "searchPlaceholder": "Rechercher ou démarrer une nouvelle discussion...",
+        "recentChats": "Discussions récentes",
+        "noRecentChats": "Aucune discussion récente",
+        "newConversation": "Nouvelle conversation",
+        "searchResults": "Résultats de recherche",
+        "otherContacts": "Autres contacts",
+        "noContactsFound": "Aucun contact trouvé",
+        "loadingMessages": "Chargement des messages...",
+        "loadMessagesFailed": "Échec du chargement des messages",
+        "typeMessagePlaceholder": "Écrire un message...",
+        "startChatFailed": "Échec du démarrage de la discussion",
+        "sendMessageFailed": "Échec de l'envoi du message",
         "teamName": "Équipe RH",
         "typing": "Jessy est en train d'écrire...",
         "inviteUsers": "Inviter des utilisateurs",
@@ -334,9 +429,10 @@
         "none": "Aucune notification pour le moment.",
         "loading": "Chargement...",
         "allCaughtUp": "Tout est à jour !",
-        "allCaughtUpDesc": "Aucune transaction ni aucun compte en attente ne nécessite votre approbation.",
-        "pendingApproval": "En attente d'approbation ({{transactions}} transactions{{accounts}})",
+        "allCaughtUpDesc": "Aucune transaction, compte ou prêt en attente ne nécessite votre approbation.",
+        "pendingApproval": "En attente d'approbation ({{transactions}} transactions{{accounts}}{{loans}})",
         "accountsSuffix": ", {{count}} comptes",
+        "loansSuffix": ", {{count}} prêts",
         "viewPendingTransactions": "Voir les transactions en attente ->",
         "viewPendingAccounts": "Voir les comptes en attente ->",
         "openTxHint": "Cliquez pour voir les détails et approuver ou rejeter",
@@ -352,7 +448,14 @@
       "apps": {
         "title": "Applications",
         "enabled": "Active",
-        "goToApps": "Aller aux applications"
+        "goToApps": "Aller aux applications",
+        "items": {
+          "jira": "Gestion de projet",
+          "inferno": "Application de santé",
+          "evernote": "Application de gestion de notes",
+          "gitlab": "Plateforme DevOps",
+          "googleWebdev": "Création d'expériences web"
+        }
       },
       "userMenu": {
         "publicProfile": "Profil public",
@@ -392,7 +495,24 @@
         "noResultsTitle": "Aucun résultat trouvé",
         "noResultsDescription": "Affinez votre recherche pour trouver des éléments pertinents",
         "viewProjects": "Voir les projets",
-        "goToUsers": "Aller aux utilisateurs"
+        "goToUsers": "Aller aux utilisateurs",
+        "shortcuts": {
+          "goToDashboard": "Aller au tableau de bord",
+          "publicProfile": "Profil public",
+          "myProfile": "Mon profil",
+          "myAccount": "Mon compte"
+        },
+        "actions": {
+          "createUser": "Créer un utilisateur",
+          "createTeam": "Créer une équipe",
+          "changePlan": "Changer de forfait",
+          "setupBranding": "Configurer la marque"
+        },
+        "labels": {
+          "inOffice": "Au bureau",
+          "onLeave": "En congé",
+          "remote": "À distance"
+        }
       }
     },
     "auth": {
@@ -533,6 +653,8 @@
       "areaAssignments": "Affectations des zones",
       "searchPlaceholder": "Rechercher des zones...",
       "filterByStatus": "Filtrer par statut",
+      "filterByRegion": "Filtrer par région",
+      "allRegions": "Toutes les régions",
       "addArea": "Ajouter une zone",
       "createNewArea": "Créer une nouvelle zone de collecte",
       "editCollectionArea": "Modifier la zone de collecte",
@@ -599,7 +721,17 @@
       "rejectAccount": "Rejeter le compte",
       "approveAccountConfirm": "Êtes-vous sûr de vouloir approuver ce compte ?",
       "rejectAccountConfirm": "Veuillez fournir une raison pour le rejet (optionnel).",
-      "createdBy": "Créé par"
+      "createdBy": "Créé par",
+      "pendingLoans": "Prêts en attente ({{count}})",
+      "noPendingTransactionsOrLoans": "Aucune transaction ou prêt en attente",
+      "approveLoan": "Approuver le prêt",
+      "approveLoanConfirm": "Êtes-vous sûr de vouloir approuver ce prêt ? Cela débloquera les fonds sur le compte du client.",
+      "approveLoanFailed": "Échec de l'approbation du prêt",
+      "rejectLoan": "Rejeter le prêt",
+      "rejectLoanConfirm": "Veuillez fournir une raison pour le rejet de ce prêt (optionnel).",
+      "rejectLoanFailed": "Échec du rejet du prêt",
+      "loanApprovedSuccess": "Prêt approuvé et débloqué avec succès",
+      "loanRejected": "Prêt rejeté"
     },
     "auditLog": {
       "title": "Journal d'audit",
@@ -637,7 +769,10 @@
       "selectArea": "Sélectionner une zone de collecte",
       "selectCollectionArea": "Sélectionner la zone de collecte",
       "selectCollectionAreaDesc": "Choisissez la zone où vous avez collecté de l'argent aujourd'hui",
-      "noAreasAssigned": "Aucune zone de collecte assignée. Veuillez contacter le manager.",
+      "noAreasAssigned": "Aucune zone de collecte assignée",
+      "noAreasAssignedDesc": "Contactez votre manager pour assigner des zones de collecte via la page Assignations de zones.",
+      "sessionClosed": "Session fermée — collectes indisponibles. Veuillez attendre qu'un manager ouvre la session.",
+      "sessionOpen": "Session ouverte",
       "enterCollectionAmounts": "Saisir les montants collectés",
       "enterCollectionAmountsDesc": "Entrez le montant collecté pour chaque client",
       "addAllClients": "Ajouter tous les clients",
@@ -749,7 +884,8 @@
     "system_error": "Oups ! Quelque chose ne s'est pas passé comme prévu. Veuillez réessayer dans un instant.",
     "invalid_input": "Saisie invalide. Veuillez vérifier vos données et réessayer.",
     "data_not_found": "Données demandées introuvables.",
-    "delete_restricted_error": "Impossible de supprimer cet enregistrement car il est lié à d'autres enregistrements."
+    "delete_restricted_error": "Impossible de supprimer cet enregistrement car il est lié à d'autres enregistrements.",
+    "area_already_assigned": "Une ou plusieurs zones sont déjà assignées à un autre agent. Chaque zone ne peut être assignée qu'à un seul agent à la fois."
   },
   "menu": {
     "dashboard": "Tableau de bord",
@@ -776,6 +912,9 @@
     "allAgents": "Tous les agents",
     "addAgent": "Ajouter un agent",
     "agentAccounts": "Comptes agents",
+    "accountants": "Comptables",
+    "allAccountants": "Tous les comptables",
+    "addAccountant": "Ajouter un comptable",
     "collectionAreas": "Zones de collecte",
     "allAreas": "Toutes les zones",
     "addArea": "Ajouter une zone",
@@ -822,7 +961,6 @@
     "security": "Sécurité",
     "membersRoles": "Membres et rôles",
     "integrations": "Intégrations",
-    "devForum": "Forum développeurs",
     "language": "Langue",
     "darkMode": "Mode sombre",
     "logout": "Déconnexion",

@@ -2,7 +2,7 @@ import type { MenuConfig, MenuItem } from '@/config/types';
 import { hasPermission, isAgentOrCollectorRole } from '@/lib/auth-client';
 
 export type SessionForMenu = {
-  user?: { permissions?: string[]; roleName?: string };
+  user?: { permissions?: string[]; roleName?: string; roleSlug?: string | null };
 } | null | undefined;
 
 /**
@@ -19,6 +19,7 @@ export function filterMenuByPermission(
   // Session unknown/loading (undefined) or unauthenticated (null): return empty menu (least privilege)
   if (session === undefined || session === null || !session?.user) return [];
   const roleName = session.user.roleName ?? '';
+  const roleSlug = (session.user.roleSlug ?? '').toLowerCase();
   const isAgentRole = isAgentOrCollectorRole(roleName);
   const filtered = items
     .map((item) => {
@@ -32,6 +33,13 @@ export function filterMenuByPermission(
         })
       ) {
         return null;
+      }
+      if (item.requiredRoles?.length) {
+        const matches = item.requiredRoles.some((r) => {
+          const token = r.toLowerCase();
+          return roleSlug === token || roleName.toLowerCase().includes(token);
+        });
+        if (!matches) return null;
       }
       if (item.permission && !hasPermission(session, item.permission)) return null;
       if (item.children) {

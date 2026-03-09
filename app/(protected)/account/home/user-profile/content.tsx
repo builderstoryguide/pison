@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/hooks/useTranslation';
 import { RecentUploads } from '@/app/(protected)/public-profile/profiles/default/components/recent-uploads';
 import {
   BasicSettings,
@@ -12,12 +13,13 @@ import {
 } from './components';
 
 export function AccountUserProfileContent() {
+  const { t } = useTranslation();
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 lg:gap-7.5">
       <div className="col-span-1">
         <div className="grid gap-5 lg:gap-7.5">
           <PersonalInfo />
-          <BasicSettings title="Basic Settings" />
+          <BasicSettings title={t('pages.profile.basicSettings')} />
           <Work />
           <CommunityBadges />
         </div>
@@ -27,7 +29,7 @@ export function AccountUserProfileContent() {
           <StartNow />
           <CalendarAccounts />
           <Connections url="#" />
-          <RecentUploads title="My Files" />
+          <RecentUploads title={t('pages.profile.myFiles')} />
         </div>
       </div>
     </div>

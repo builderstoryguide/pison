@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { SIGNIN_IDENTIFIER_LABEL } from '../constants';
 
 export const getSigninSchema = () => {
   return z.object({

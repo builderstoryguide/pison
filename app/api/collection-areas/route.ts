@@ -29,11 +29,13 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') as 'ACTIVE' | 'INACTIVE' | null;
     const city = searchParams.get('city');
     const region = searchParams.get('region');
+    const search = searchParams.get('search');
 
     const areas = await collectionAreaService.getAllAreas({
       status: status || undefined,
       city: city || undefined,
       region: region || undefined,
+      search: search || undefined,
     });
 
     return NextResponse.json({

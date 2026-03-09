@@ -3,16 +3,18 @@
 import Link from 'next/link';
 import { AvatarInput } from '@/partials/common/avatar-input';
 import { SquarePen } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 
 const PersonalInfo = () => {
+  const { t } = useTranslation();
   return (
     <Card className="min-w-full">
       <CardHeader>
-        <CardTitle>Personal Info</CardTitle>
+        <CardTitle>{t('pages.profile.personalInfo')}</CardTitle>
       </CardHeader>
       <CardContent className="kt-scrollable-x-auto pb-3 p-0">
         <Table className="align-middle text-sm text-muted-foreground">
@@ -32,7 +34,7 @@ const PersonalInfo = () => {
             </TableRow>
             <TableRow>
               <TableCell className="py-2 text-secondary-foreground font-normal">
-                Name
+                {t('common.labels.name')}
               </TableCell>
               <TableCell className="py-2 text-foreground font-normaltext-sm">
                 Jason Tatum

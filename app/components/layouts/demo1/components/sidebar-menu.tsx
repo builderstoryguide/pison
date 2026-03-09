@@ -1,6 +1,6 @@
 'use client';
 
-import { JSX, useCallback, useMemo } from 'react';
+import { JSX, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -20,16 +20,24 @@ import {
   AccordionMenuSubTrigger,
 } from '@/components/ui/accordion-menu';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function SidebarMenu() {
   const pathname = usePathname();
   const { t } = useTranslation();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const previousMenuRef = useRef<MenuConfig>([]);
 
-  const filteredMenu = useMemo(
-    () => filterMenuByPermission(MENU_SIDEBAR, session ?? null),
-    [session]
-  );
+  const filteredMenu = useMemo(() => {
+    if (status === 'loading' || session === undefined) {
+      return previousMenuRef.current.length > 0 ? previousMenuRef.current : [];
+    }
+    const menu = filterMenuByPermission(MENU_SIDEBAR, session ?? null);
+    if (menu.length > 0) {
+      previousMenuRef.current = menu;
+    }
+    return menu;
+  }, [session, status]);
 
   // Memoize matchPath to prevent unnecessary re-renders
   const matchPath = useCallback(
@@ -232,6 +240,24 @@ export function SidebarMenu() {
   const buildMenuHeading = (item: MenuItem, index: number): JSX.Element => {
     return <AccordionMenuLabel key={index}>{item.heading ? t(item.heading) : ''}</AccordionMenuLabel>;
   };
+
+  const isLoading = status === 'loading' || session === undefined;
+  const showSkeleton = isLoading && filteredMenu.length === 0;
+
+  if (showSkeleton) {
+    return (
+      <div className="flex grow shrink-0 flex-col gap-3 py-5 px-5 lg:max-h-[calc(100vh-5.5rem)]">
+        <Skeleton className="h-8 w-3/4" />
+        <Skeleton className="h-4 w-1/2" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-4 w-1/2" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="kt-scrollable-y-hover flex grow shrink-0 py-5 px-5 lg:max-h-[calc(100vh-5.5rem)]">

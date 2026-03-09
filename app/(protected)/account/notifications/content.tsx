@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Engage } from '@/partials/common/engage';
 import { Faq } from '@/partials/common/faq';
 import {
@@ -12,26 +13,24 @@ import { toAbsoluteUrl } from '@/lib/helpers';
 import { Channels, DoNotDistrub, OtherNotifications } from './components';
 
 export function AccountNotificationsContent() {
+  const { t } = useTranslation();
   const posts: HighlightedPostsItems = [
     {
       icon: BellRing,
-      title: 'Streamlined Alerts Setup: Custom Notification Preferences',
-      summary:
-        'Tailor your alert preferences with our streamlined setup. Stay informed with notifications that matter to you most.',
+      title: t('pages.account.notifications.posts.streamlinedAlerts'),
+      summary: t('pages.account.notifications.posts.streamlinedAlertsSummary'),
       path: '#',
     },
     {
       icon: MessageSquareText,
-      title: 'Effective Communication: Instant Notification Tools',
-      summary:
-        'Ensure timely communication with our instant notification tools. Customize alerts to stay ahead in real-time collaboration.',
+      title: t('pages.account.notifications.posts.effectiveCommunication'),
+      summary: t('pages.account.notifications.posts.effectiveCommunicationSummary'),
       path: '#',
     },
     {
       icon: BellDot,
-      title: 'Personalized Updates: Smart Alert System',
-      summary:
-        'Control how you receive updates with our smart alert system. Personalize notifications for a more efficient workflow.',
+      title: t('pages.account.notifications.posts.personalizedUpdates'),
+      summary: t('pages.account.notifications.posts.personalizedUpdatesSummary'),
       path: '#',
     },
   ];
@@ -44,8 +43,8 @@ export function AccountNotificationsContent() {
           <OtherNotifications />
           <Faq />
           <Engage
-            title="Contact Support"
-            description="Need assistance? Contact our support team for prompt, personalized help your queries & concerns."
+            title={t('pages.account.notifications.contactSupport')}
+            description={t('pages.account.notifications.contactSupportDesc')}
             image={
               <Fragment>
                 <img
@@ -61,7 +60,7 @@ export function AccountNotificationsContent() {
               </Fragment>
             }
             more={{
-              title: 'Contact Support',
+              title: t('pages.account.notifications.contactSupport'),
               url: '',
             }}
           />

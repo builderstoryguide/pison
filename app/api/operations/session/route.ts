@@ -7,7 +7,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
-import { requirePermission } from '@/lib/auth';
+import { requireManagerRole, requirePermission } from '@/lib/auth';
 import { sessionService } from '@/lib/services';
 
 export async function GET() {
@@ -41,7 +41,7 @@ export async function GET() {
 export async function POST() {
   try {
     const session = await getServerSession(authOptions);
-    const forbidden = await requirePermission(session, 'session.manage');
+    const forbidden = requireManagerRole(session);
     if (forbidden) return forbidden;
 
     const newSession = await sessionService.openSession(session.user?.id || '');

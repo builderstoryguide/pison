@@ -199,9 +199,9 @@ export class TransactionService {
     // Calculate balance after
     let balanceAfter = account.balance;
     if (data.type === 'DEPOSIT' || data.type === 'COLLECTION' || data.type === 'LOAN_DISBURSEMENT') {
-      balanceAfter = (account.balance instanceof Prisma.Decimal ? account.balance.toNumber() : Number(account.balance)) + data.amount;
+      balanceAfter = new Prisma.Decimal((account.balance instanceof Prisma.Decimal ? account.balance.toNumber() : Number(account.balance)) + data.amount);
     } else if (data.type === 'WITHDRAWAL' || data.type === 'LOAN_REPAYMENT' || data.type === 'TRANSFER' || data.type === 'COMMISSION') {
-      balanceAfter = (account.balance instanceof Prisma.Decimal ? account.balance.toNumber() : Number(account.balance)) - data.amount;
+      balanceAfter = new Prisma.Decimal((account.balance instanceof Prisma.Decimal ? account.balance.toNumber() : Number(account.balance)) - data.amount);
     }
 
     const transactionNumber = await this.generateTransactionNumber(tx);
@@ -327,6 +327,7 @@ export class TransactionService {
           data: {
             transactionNumber,
             accountId: client.accountId,
+            clientId: client.id,
             type: 'COLLECTION',
             amount: entry.amount,
             balanceBefore: client.account.balance,
@@ -362,7 +363,7 @@ export class TransactionService {
       },
     });
 
-    const accountIds = [...new Set(transactions.map((t) => t.accountId))];
+    const accountIds = Array.from(new Set(transactions.map((t) => t.accountId)));
     const collOps: Promise<unknown>[] = [
       ...accountIds.map((id) => invalidateRecentTransactionsForAccount(id)),
       invalidateRecentTransactionsForAgent(data.agentId),
@@ -602,7 +603,7 @@ export class TransactionService {
                 approvedAt: new Date(),
               },
             });
-            finalBalance = balAfterFee;
+            finalBalance = new Prisma.Decimal(balAfterFee);
             newAvailableBalance -= feeAmount;
           }
         }
@@ -767,6 +768,7 @@ export class TransactionService {
     accountId?: string;
     areaId?: string;
     agentId?: string;
+    createdById?: string;
     search?: string;
     sort?: string;
     dir?: 'asc' | 'desc';
@@ -793,6 +795,9 @@ export class TransactionService {
     }
     if (filters?.agentId) {
       where.agentId = filters.agentId;
+    }
+    if (filters?.createdById) {
+      where.createdBy = filters.createdById;
     }
     if (filters?.search?.trim()) {
       const term = filters.search.trim();
@@ -855,6 +860,7 @@ export class TransactionService {
       accountId: filters?.accountId,
       areaId: filters?.areaId,
       agentId: filters?.agentId,
+      createdById: filters?.createdById,
       search: filters?.search?.trim() || undefined,
       startDate: filters?.startDate?.toISOString(),
       endDate: filters?.endDate?.toISOString(),
@@ -885,6 +891,13 @@ export class TransactionService {
           },
         },
       },
+      creator: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
     };
 
     const TXN_SORT_FIELDS = ['createdAt', 'amount', 'type', 'status', 'transactionNumber'];
@@ -898,6 +911,7 @@ export class TransactionService {
       accountId: filters?.accountId,
       areaId: filters?.areaId,
       agentId: filters?.agentId,
+      createdById: filters?.createdById,
       search: filters?.search?.trim() || undefined,
       sort: sortField,
       dir: sortDir,

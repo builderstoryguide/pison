@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -28,6 +29,7 @@ import { formatCurrency, formatDate } from '@/lib/helpers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { isManagerRole } from '@/lib/auth-client';
 
 interface Transaction {
   id: string;
@@ -44,6 +46,8 @@ interface AdminDashboardProps {
 
 export default function AdminDashboard({ initialStats }: AdminDashboardProps) {
   const { t } = useTranslation();
+  const { data: session } = useSession();
+  const isManager = isManagerRole(session);
   const [isExporting, setIsExporting] = useState(false);
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -357,7 +361,7 @@ export default function AdminDashboard({ initialStats }: AdminDashboardProps) {
                     </div>
                 </Link>
                 <Link
-                    href="/loans/new"
+                    href="/loans"
                     className="flex items-center p-4 border rounded-lg hover:bg-accent transition-colors"
                 >
                     <Wallet className="h-5 w-5 mr-3 text-primary" />
@@ -370,6 +374,7 @@ export default function AdminDashboard({ initialStats }: AdminDashboardProps) {
                     </p>
                     </div>
                 </Link>
+                {isManager && (
                 <Link
                     href="/operations/day-closure"
                     className="flex items-center p-4 border rounded-lg hover:bg-accent transition-colors"
@@ -384,6 +389,7 @@ export default function AdminDashboard({ initialStats }: AdminDashboardProps) {
                     </p>
                     </div>
                 </Link>
+                )}
                 </CardContent>
             </Card>
             </div>

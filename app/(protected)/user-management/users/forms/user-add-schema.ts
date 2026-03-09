@@ -19,29 +19,37 @@ export const UserAddSchema = z
       .transform((v) => (v?.trim() ? v.trim() : undefined)),
     password: z
       .string()
-      .min(8, { message: 'Password must be at least 8 characters long.' })
-      .regex(/[A-Z]/, {
+      .optional()
+      .refine((v) => !v || v.length >= 8, {
+        message: 'Password must be at least 8 characters long.',
+      })
+      .refine((v) => !v || /[A-Z]/.test(v), {
         message: 'Password must contain at least one uppercase letter.',
       })
-      .regex(/[a-z]/, {
+      .refine((v) => !v || /[a-z]/.test(v), {
         message: 'Password must contain at least one lowercase letter.',
       })
-      .regex(/[0-9]/, {
+      .refine((v) => !v || /[0-9]/.test(v), {
         message: 'Password must contain at least one number.',
       })
-      .regex(/[^A-Za-z0-9]/, {
+      .refine((v) => !v || /[^A-Za-z0-9]/.test(v), {
         message: 'Password must contain at least one special character.',
       }),
-    passwordConfirmation: z.string().min(1, {
-      message: 'Please confirm the password.',
-    }),
+    passwordConfirmation: z.string().optional(),
     roleId: z.string().nonempty({
       message: 'Role is required.',
     }),
   })
-  .refine((data) => data.password === data.passwordConfirmation, {
-    message: 'Passwords do not match.',
-    path: ['passwordConfirmation'],
-  });
+  .refine(
+    (data) => {
+      // Only validate match when password is explicitly provided
+      if (!data.password) return true;
+      return data.password === data.passwordConfirmation;
+    },
+    {
+      message: 'Passwords do not match.',
+      path: ['passwordConfirmation'],
+    },
+  );
 
 export type UserAddSchemaType = z.infer<typeof UserAddSchema>;

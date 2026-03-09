@@ -53,6 +53,7 @@ export function isAgentOrCollectorRole(roleName: string | null | undefined): boo
  * Check if the role has full access (bypasses permission checks).
  * Uses role slug (manager, administrator) for reliable matching, with role name as fallback.
  * Matches server semantics in lib/auth.ts.
+ * Returns true when roleSlug is manager/admin even if roleName is empty.
  */
 function hasFullAccessByRole(
   roleName: string,
@@ -62,14 +63,27 @@ function hasFullAccessByRole(
   if (slug === 'manager' || slug === 'administrator' || slug === 'admin') {
     return true;
   }
-  const r = roleName.toLowerCase();
+  const r = (roleName ?? '').toLowerCase();
   return r.includes('manager') || r.includes('administrator');
+}
+
+/**
+ * Check if the user has the Manager role (for session open/close restrictions).
+ * Only Manager can open and close daily sessions; Accountant and Agent cannot.
+ */
+export function isManagerRole(session: Session | null): boolean {
+  if (!session?.user?.roleId) return false;
+  const roleName = session.user?.roleName ?? '';
+  const roleSlug = session.user?.roleSlug ?? null;
+  return hasFullAccessByRole(roleName, roleSlug);
 }
 
 /**
  * Check if the user has a specific permission (client-side).
  * Uses session.permissions from JWT - no database access.
  * Manager bypass: always returns true (substring match for manager roles).
+ * Grace period: when roleId exists but roleName/roleSlug are missing (session hydrating),
+ * allow access to avoid flash of empty menu until full session loads.
  */
 export function hasPermission(
   session: Session | null,
@@ -81,7 +95,13 @@ export function hasPermission(
 
   const roleName = session.user?.roleName ?? '';
   const roleSlug = session.user?.roleSlug ?? null;
+
   if (hasFullAccessByRole(roleName, roleSlug)) {
+    return true;
+  }
+
+  // Grace period: roleId exists but role metadata not yet hydrated (e.g. during refetch)
+  if (!roleName && !roleSlug) {
     return true;
   }
 
@@ -102,7 +122,13 @@ export function hasAnyPermission(
 
   const roleName = session.user?.roleName ?? '';
   const roleSlug = session.user?.roleSlug ?? null;
+
   if (hasFullAccessByRole(roleName, roleSlug)) {
+    return true;
+  }
+
+  // Grace period: roleId exists but role metadata not yet hydrated
+  if (!roleName && !roleSlug) {
     return true;
   }
 

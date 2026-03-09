@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,6 +32,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useSessionStatus } from '@/hooks/use-session-status';
+import { isManagerRole } from '@/lib/auth-client';
 
 const closureSchema = z.object({
   physicalCash: z.string().min(1, 'Physical cash amount is required'),
@@ -42,6 +44,7 @@ type ClosureFormData = z.infer<typeof closureSchema>;
 export default function DayClosureForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { data: session } = useSession();
   const { data: sessionStatusData, isLoading: isLoadingSession } = useSessionStatus();
   const sessionData = sessionStatusData?.session ?? null;
   const systemBalance = sessionStatusData?.systemBalance ?? 0;
@@ -101,6 +104,23 @@ export default function DayClosureForm() {
         <CardContent className="space-y-4 py-8">
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-20 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!isManagerRole(session)) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <AlertTriangle className="size-12 text-amber-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+          <p className="text-muted-foreground mb-4">
+            Only managers can close the daily session.
+          </p>
+          <Button variant="outline" onClick={() => router.push('/')}>
+            Return to Dashboard
+          </Button>
         </CardContent>
       </Card>
     );

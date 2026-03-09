@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
 import { requirePermission, hasPermission } from '@/lib/auth';
-import { agentService } from '@/lib/services';
+import { agentService, AreaAlreadyAssignedError } from '@/lib/services';
 import { z } from 'zod';
 
 const assignAreasSchema = z.object({
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         {
@@ -100,13 +100,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (error instanceof AreaAlreadyAssignedError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'AREA_ALREADY_ASSIGNED',
+            message: error.message,
+            details: error.details,
+          },
+        },
+        { status: 409 }
+      );
+    }
+
     console.error('Error assigning areas to agent:', error);
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'ASSIGN_ERROR',
-          message: error.message || 'Failed to assign areas to agent',
+          message: error instanceof Error ? error.message : 'Failed to assign areas to agent',
         },
       },
       { status: 500 }

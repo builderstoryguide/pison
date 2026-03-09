@@ -56,7 +56,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
 
   const handleLogout = async () => {
     await signOut({ redirect: false });
-    router.push('/signin');
+    router.push('/auth/signin');
   };
 
   return (
@@ -73,7 +73,7 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
                   ? toAbsoluteUrl(session.user.avatar)
                   : toAbsoluteUrl('/media/avatars/300-2.png')
               }
-              alt="User avatar"
+              alt={t('common.aria.userAvatar')}
             />
             <div className="flex flex-col">
               <Link
@@ -180,16 +180,6 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
             </DropdownMenuItem>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
-
-        <DropdownMenuItem asChild>
-          <Link
-            href="https://devs.INNOVATE CREDIT.com"
-            className="flex items-center gap-2"
-          >
-            <FileText />
-            {t('menu.devForum')}
-          </Link>
-        </DropdownMenuItem>
 
         {/* Language Submenu with Radio Group */}
         <DropdownMenuSub>

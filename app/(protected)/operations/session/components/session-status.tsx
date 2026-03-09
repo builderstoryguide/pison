@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSession } from 'next-auth/react';
-import { hasPermission } from '@/lib/auth-client';
+import { isManagerRole } from '@/lib/auth-client';
 import Link from 'next/link';
 import { useSessionStatus } from '@/hooks/use-session-status';
 
@@ -66,7 +66,7 @@ export default function SessionStatus() {
   });
 
 
-  const canManageSession = hasPermission(session, 'session.manage');
+  const canManageSession = isManagerRole(session);
 
   if (isLoading) {
     return (

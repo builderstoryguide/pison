@@ -16,6 +16,30 @@ import { UserStatus } from '@/app/models/user';
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
 
+/** Generate a secure temporary password with uppercase, lowercase, digit, and symbol */
+function generateTemporaryPassword(): string {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnopqrstuvwxyz';
+  const digits = '23456789';
+  const symbols = '!@#$%&*';
+  const all = upper + lower + digits + symbols;
+
+  const chars = [
+    upper[crypto.randomInt(upper.length)],
+    lower[crypto.randomInt(lower.length)],
+    digits[crypto.randomInt(digits.length)],
+    symbols[crypto.randomInt(symbols.length)],
+  ];
+
+  while (chars.length < 12) {
+    chars.push(all[crypto.randomInt(all.length)]);
+  }
+
+  return chars
+    .sort(() => crypto.randomInt(3) - 1)
+    .join('');
+}
+
 /** Derive a clean seed string from a display name */
 function normalizeUsernameSeed(name: string): string {
   const base = name
@@ -183,7 +207,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, email, username: providedUsername, password, roleId }: UserAddSchemaType = parsedData.data;
+    const { name, email, username: providedUsername, password: providedPassword, roleId }: UserAddSchemaType = parsedData.data;
+
+    // If no password was provided, auto-generate a secure temporary one
+    const wasPasswordGenerated = !providedPassword;
+    const password = providedPassword || generateTemporaryPassword();
 
     // Validate provided username format if given
     if (providedUsername && !USERNAME_REGEX.test(providedUsername)) {
@@ -299,6 +327,8 @@ export async function POST(request: NextRequest) {
           username: result.username,
           status: result.status,
         },
+        // Return the plain password only when it was auto-generated
+        ...(wasPasswordGenerated ? { generatedPassword: password } : {}),
       },
       { status: 201 },
     );

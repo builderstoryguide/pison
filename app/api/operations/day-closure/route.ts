@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
-import { requirePermission } from '@/lib/auth';
+import { requireManagerRole } from '@/lib/auth';
 import { sessionService } from '@/lib/services';
 import { z } from 'zod';
 
@@ -18,7 +18,7 @@ const closureSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const forbidden = await requirePermission(session, 'day_closure.manage');
+    const forbidden = requireManagerRole(session);
     if (forbidden) return forbidden;
 
     const body = await request.json();

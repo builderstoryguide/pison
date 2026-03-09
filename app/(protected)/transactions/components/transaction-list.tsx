@@ -40,7 +40,7 @@ interface Transaction {
   id: string;
   transactionNumber: string;
   type: string;
-  amount: string;
+  amount: number | string;
   status: string;
   createdAt: string;
   client?: {
@@ -48,6 +48,10 @@ interface Transaction {
   };
   account?: {
     accountNumber: string;
+  };
+  creator?: {
+    name: string | null;
+    email: string | null;
   };
 }
 
@@ -172,15 +176,15 @@ const TransactionList = ({ defaultType, accountId }: TransactionListProps) => {
           />
         ),
         cell: ({ row }) => {
-          const amount = parseFloat(row.original.amount);
+          const rawAmount = row.original.amount;
+          const amount = typeof rawAmount === 'string' ? parseFloat(rawAmount) : rawAmount;
           const isCredit = ['COLLECTION', 'DEPOSIT', 'LOAN_REPAYMENT'].includes(
             row.original.type,
           );
           return (
             <span
-              className={`font-medium ${
-                isCredit ? 'text-green-600' : 'text-red-600'
-              }`}
+              className={`font-medium ${isCredit ? 'text-green-600' : 'text-red-600'
+                }`}
             >
               {isCredit ? '+' : '-'}
               {formatCurrency(Math.abs(amount))}
@@ -256,6 +260,32 @@ const TransactionList = ({ defaultType, accountId }: TransactionListProps) => {
         enableHiding: true,
       },
       {
+        accessorKey: 'creator',
+        id: 'creator',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title={t('pages.transactions.columnCreator') || 'Created By'}
+            visibility={true}
+            column={column}
+          />
+        ),
+        cell: ({ row }) => {
+          const creator = row.original.creator;
+          return (
+            <span className="text-muted-foreground text-sm">
+              {creator?.name || creator?.email || '-'}
+            </span>
+          );
+        },
+        size: 150,
+        meta: {
+          headerTitle: t('pages.transactions.columnCreator') || 'Created By',
+          skeleton: <Skeleton className="w-24 h-7" />,
+        },
+        enableSorting: false,
+        enableHiding: true,
+      },
+      {
         accessorKey: 'actions',
         header: '',
         cell: () => (
@@ -327,45 +357,45 @@ const TransactionList = ({ defaultType, accountId }: TransactionListProps) => {
               <X />
             </Button>
           )}
-          </div>
-          <Select
-            onValueChange={handleTypeSelection}
-            value={selectedType || 'all'}
-            defaultValue="all"
-            disabled={isLoading}
-          >
-            <SelectTrigger className="w-full sm:w-36">
-              <SelectValue placeholder={t('pages.transactions.filterByType')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('pages.transactions.allTypes')}</SelectItem>
-              <SelectItem value="COLLECTION">{t('pages.transactions.typeCollection')}</SelectItem>
-              <SelectItem value="DEPOSIT">{t('pages.transactions.typeDeposit')}</SelectItem>
-              <SelectItem value="WITHDRAWAL">{t('pages.transactions.typeWithdrawal')}</SelectItem>
-              <SelectItem value="TRANSFER">{t('pages.transactions.typeTransfer')}</SelectItem>
-              <SelectItem value="LOAN_DISBURSEMENT">{t('pages.transactions.typeLoanDisbursement')}</SelectItem>
-              <SelectItem value="LOAN_REPAYMENT">{t('pages.transactions.typeLoanRepayment')}</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            onValueChange={handleStatusSelection}
-            value={selectedStatus || 'all'}
-            defaultValue="all"
-            disabled={isLoading}
-          >
-            <SelectTrigger className="w-full sm:w-36">
-              <SelectValue placeholder={t('pages.transactions.filterByStatus')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('pages.transactions.allStatuses')}</SelectItem>
-              <SelectItem value="PENDING_APPROVAL">{t('pages.transactions.statusPending')}</SelectItem>
-              <SelectItem value="APPROVED">{t('pages.transactions.statusApproved')}</SelectItem>
-              <SelectItem value="COMPLETED">{t('pages.transactions.statusCompleted')}</SelectItem>
-              <SelectItem value="REJECTED">{t('pages.transactions.statusRejected')}</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
-      </CardHeader>
+        <Select
+          onValueChange={handleTypeSelection}
+          value={selectedType || 'all'}
+          defaultValue="all"
+          disabled={isLoading}
+        >
+          <SelectTrigger className="w-full sm:w-36">
+            <SelectValue placeholder={t('pages.transactions.filterByType')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('pages.transactions.allTypes')}</SelectItem>
+            <SelectItem value="COLLECTION">{t('pages.transactions.typeCollection')}</SelectItem>
+            <SelectItem value="DEPOSIT">{t('pages.transactions.typeDeposit')}</SelectItem>
+            <SelectItem value="WITHDRAWAL">{t('pages.transactions.typeWithdrawal')}</SelectItem>
+            <SelectItem value="TRANSFER">{t('pages.transactions.typeTransfer')}</SelectItem>
+            <SelectItem value="LOAN_DISBURSEMENT">{t('pages.transactions.typeLoanDisbursement')}</SelectItem>
+            <SelectItem value="LOAN_REPAYMENT">{t('pages.transactions.typeLoanRepayment')}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
+          onValueChange={handleStatusSelection}
+          value={selectedStatus || 'all'}
+          defaultValue="all"
+          disabled={isLoading}
+        >
+          <SelectTrigger className="w-full sm:w-36">
+            <SelectValue placeholder={t('pages.transactions.filterByStatus')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('pages.transactions.allStatuses')}</SelectItem>
+            <SelectItem value="PENDING_APPROVAL">{t('pages.transactions.statusPending')}</SelectItem>
+            <SelectItem value="APPROVED">{t('pages.transactions.statusApproved')}</SelectItem>
+            <SelectItem value="COMPLETED">{t('pages.transactions.statusCompleted')}</SelectItem>
+            <SelectItem value="REJECTED">{t('pages.transactions.statusRejected')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </CardHeader>
   );
 
   const { data: sessionStatus, isLoading: isSessionLoading } = useSessionStatus();
@@ -384,33 +414,33 @@ const TransactionList = ({ defaultType, accountId }: TransactionListProps) => {
       )}
 
       <DataGrid
-      table={table}
-      recordCount={totalCount}
-      isLoading={isLoading}
-      onRowClick={handleRowClick}
-      tableLayout={{
-        columnsResizable: true,
-        columnsPinnable: true,
-        columnsMovable: true,
-        columnsVisibility: true,
-      }}
-      tableClassNames={{
-        edgeCell: 'px-5',
-      }}
-    >
-      <Card>
-        <DataGridToolbar />
-        <CardTable>
-          <ScrollArea>
-            <DataGridTable />
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </CardTable>
-        <CardFooter>
-          <DataGridPagination />
-        </CardFooter>
-      </Card>
-    </DataGrid>
+        table={table}
+        recordCount={totalCount}
+        isLoading={isLoading}
+        onRowClick={handleRowClick}
+        tableLayout={{
+          columnsResizable: true,
+          columnsPinnable: true,
+          columnsMovable: true,
+          columnsVisibility: true,
+        }}
+        tableClassNames={{
+          edgeCell: 'px-5',
+        }}
+      >
+        <Card>
+          <DataGridToolbar />
+          <CardTable>
+            <ScrollArea>
+              <DataGridTable />
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          </CardTable>
+          <CardFooter>
+            <DataGridPagination />
+          </CardFooter>
+        </Card>
+      </DataGrid>
     </div>
   );
 };

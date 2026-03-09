@@ -30,13 +30,22 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import {
+  CAMEROON_REGIONS,
+  CAMEROON_REGION_VALUES,
+} from '@/lib/constants/cameroon-regions';
 
 const collectionAreaSchema = z.object({
   code: z.string().min(1, 'Code is required').max(20, 'Code must be 20 characters or less'),
   name: z.string().min(1, 'Name is required').max(255, 'Name must be 255 characters or less'),
   description: z.string().optional(),
   city: z.string().optional(),
-  region: z.string().optional(),
+  region: z
+    .string()
+    .refine((val) => !val || CAMEROON_REGION_VALUES.includes(val), {
+      message: 'Please select a valid region',
+    })
+    .optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
 });
 
@@ -276,13 +285,25 @@ export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) 
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t('common.labels.region')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t('common.placeholders.region')}
-                        {...field}
-                        disabled={isLoading}
-                      />
-                    </FormControl>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value === '' ? '' : field.value || undefined}
+                      disabled={isLoading}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t('common.placeholders.selectRegion')} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="">{t('common.labels.none')}</SelectItem>
+                        {CAMEROON_REGIONS.map((r) => (
+                          <SelectItem key={r.value} value={r.value}>
+                            {t(`common.regions.${r.i18nKey}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

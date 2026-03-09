@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
 import { requirePermission } from '@/lib/auth';
-import { agentService } from '@/lib/services';
+import { agentService, AreaAlreadyAssignedError } from '@/lib/services';
 import { prisma } from '@/lib/prisma';
 import { parseFieldsParam } from '@/lib/utils/field-select';
 import { cachedJson } from '@/lib/api';
@@ -248,6 +248,20 @@ export async function POST(request: NextRequest) {
           },
         },
         { status: 400 }
+      );
+    }
+
+    if (error instanceof AreaAlreadyAssignedError) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'AREA_ALREADY_ASSIGNED',
+            message: error.message,
+            details: error.details,
+          },
+        },
+        { status: 409 }
       );
     }
 

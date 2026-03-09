@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import { ControllerRenderProps, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { useTranslation } from '@/hooks/useTranslation';
 import { apiFetch } from '@/lib/api';
 import { getInitials } from '@/lib/helpers';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
@@ -38,6 +39,7 @@ import { useAccount } from './account-context';
 import { LoaderCircleIcon } from 'lucide-react';
 
 export default function AccountDetails() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { data: session, update: updateSession } = useSession();
   const { user } = useAccount();
@@ -106,7 +108,7 @@ export default function AccountDetails() {
           <AlertIcon>
             <RiCheckboxCircleFill />
           </AlertIcon>
-          <AlertTitle>Account updated successfully</AlertTitle>
+          <AlertTitle>{t('pages.profile.updateSuccess')}</AlertTitle>
         </Alert>
       ));
 
@@ -185,8 +187,8 @@ export default function AccountDetails() {
     <Card>
       <CardHeader className="py-4">
         <CardHeading>
-          <CardTitle>Profile</CardTitle>
-          <CardDescription>Manage profile information</CardDescription>
+          <CardTitle>{t('pages.profile.cardTitle')}</CardTitle>
+          <CardDescription>{t('pages.profile.cardDescription')}</CardDescription>
         </CardHeading>
       </CardHeader>
       <CardContent className="py-8">
@@ -216,7 +218,7 @@ export default function AccountDetails() {
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <FormLabel>Profile Avatar</FormLabel>
+                      <FormLabel>{t('pages.profile.avatarLabel')}</FormLabel>
                       <FormControl className="my-1.5">
                         <div className="flex flex-col space-y-1">
                           <div className="flex space-x-2">
@@ -225,7 +227,7 @@ export default function AccountDetails() {
                               variant="outline"
                               onClick={() => avatarFileRef.current?.click()}
                             >
-                              Attach Image
+                              {t('pages.profile.attachImage')}
                             </Button>
 
                             {avatarAttachedPreview ||
@@ -237,7 +239,7 @@ export default function AccountDetails() {
                                 variant="outline"
                                 onClick={handleCancelAvatar}
                               >
-                                Cancel
+                                {t('common.buttons.cancel')}
                               </Button>
                             ) : null}
 
@@ -249,7 +251,7 @@ export default function AccountDetails() {
                                 variant="outline"
                                 onClick={handleRemoveAvatar}
                               >
-                                Remove
+                                {t('common.buttons.remove')}
                               </Button>
                             ) : null}
                           </div>
@@ -263,7 +265,7 @@ export default function AccountDetails() {
                         </div>
                       </FormControl>
                       <FormDescription>
-                        We support PNGs, JPEGs, and GIFs under 1MB.
+                        {t('pages.settings.logoDescription')}
                       </FormDescription>
                       <FormMessage />
                     </div>
@@ -278,9 +280,9 @@ export default function AccountDetails() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>{t('common.labels.name')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter your name" {...field} />
+                    <Input placeholder={t('pages.profile.enterNamePlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -290,14 +292,14 @@ export default function AccountDetails() {
             {/* Action Buttons */}
             <div className="flex justify-end gap-2.5">
               <Button type="button" variant="outline" onClick={handleFormReset}>
-                Reset
+                {t('pages.settings.reset')}
               </Button>
               <Button
                 type="submit"
                 disabled={!form.formState.isDirty || isProcessing}
               >
                 {isProcessing && <LoaderCircleIcon className="animate-spin" />}
-                Save Profile
+                {t('pages.profile.saveProfile')}
               </Button>
             </div>
           </form>

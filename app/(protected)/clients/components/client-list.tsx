@@ -48,6 +48,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useQuery } from '@tanstack/react-query';
+import { hasPermission } from '@/lib/auth-client';
 import { apiFetch } from '@/lib/api';
 import {
   useClients,
@@ -173,9 +174,10 @@ const ClientList = ({ initialData }: ClientListProps) => {
     }
   };
 
-  // Check if user can manage clients (create, edit, delete)
-  const canManage = roleName.includes('manager') || roleName.includes('accountant') || roleName.includes('administrator');
-  const canCreate = canManage; // Alias for toolbar "Add" button (matches agent-list pattern)
+  // Check if user can manage clients (create, edit, delete) - permission-based
+  const canCreate = hasPermission(session, 'clients.create');
+  const canEdit = hasPermission(session, 'clients.edit');
+  const canDelete = hasPermission(session, 'clients.delete');
 
   const columns = useMemo<ColumnDef<Client>[]>(
     () => [
@@ -363,28 +365,28 @@ const ClientList = ({ initialData }: ClientListProps) => {
         header: '',
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
-            {canManage && (
-              <>
-                <Button
-                  mode="icon"
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    router.push(`/clients/${row.original.id}/edit`);
-                  }}
-                >
-                  <Edit className="size-4" />
-                </Button>
-                <Button
-                  mode="icon"
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => handleDeleteClick(e, row.original)}
-                >
-                  <Trash2 className="size-4 text-destructive" />
-                </Button>
-              </>
+            {canEdit && (
+              <Button
+                mode="icon"
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push(`/clients/${row.original.id}/edit`);
+                }}
+              >
+                <Edit className="size-4" />
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                mode="icon"
+                variant="ghost"
+                size="sm"
+                onClick={(e) => handleDeleteClick(e, row.original)}
+              >
+                <Trash2 className="size-4 text-destructive" />
+              </Button>
             )}
             <ChevronRight className="text-muted-foreground/70 size-3.5" />
           </div>
@@ -392,13 +394,13 @@ const ClientList = ({ initialData }: ClientListProps) => {
         meta: {
           skeleton: <Skeleton className="size-4" />,
         },
-        size: canManage ? 120 : 40,
+        size: canEdit || canDelete ? 120 : 40,
         enableSorting: false,
         enableHiding: false,
         enableResizing: false,
       },
     ],
-    [router, canManage, t],
+    [router, canEdit, canDelete, t],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(

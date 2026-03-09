@@ -44,7 +44,7 @@ export function useSessionStatus() {
       if (!response.ok) {
         const message = await parseApiError(response);
         if (response.status === 401) {
-          await signOut({ callbackUrl: '/signin' });
+          await signOut({ callbackUrl: '/auth/signin' });
         }
         throw new Error(message);
       }

@@ -143,9 +143,9 @@ export const MENU_SIDEBAR: MenuConfig = [
     title: 'menu.dailyOperations',
     icon: CalendarCheck,
     children: [
-      { title: 'menu.sessionStatus', path: '/operations/session', permission: 'session.manage' },
-      { title: 'menu.dayClosure', path: '/operations/day-closure', permission: 'day_closure.manage' },
-      { title: 'menu.cashReconciliation', path: '/operations/reconciliation', permission: 'day_closure.manage' },
+      { title: 'menu.sessionStatus', path: '/operations/session', permission: 'session.manage', requiredRoles: ['manager'] },
+      { title: 'menu.dayClosure', path: '/operations/day-closure', permission: 'day_closure.manage', requiredRoles: ['manager'] },
+      { title: 'menu.cashReconciliation', path: '/operations/reconciliation', permission: 'day_closure.manage', requiredRoles: ['manager'] },
       { title: 'menu.auditLog', path: '/operations/audit-log', permission: 'reports.view' },
     ],
   },

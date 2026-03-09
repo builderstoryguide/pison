@@ -30,20 +30,6 @@ const createAgentSchema = z.object({
   nationalId: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
-  username: z
-    .string()
-    .optional()
-    .refine((v) => !v || /^[a-zA-Z0-9_]{3,30}$/.test(v), {
-      message: 'Username must be 3-30 characters, letters, numbers, and underscores only',
-    })
-    .transform((v) => (v?.trim() ? v.trim() : undefined)),
-  password: z
-    .string()
-    .optional()
-    .refine((v) => !v || v.length >= 8, {
-      message: 'Password must be at least 8 characters when provided',
-    })
-    .transform((v) => (v && v.length >= 8 ? v : undefined)),
   address: z.string().optional(),
   hireDate: z.string().optional(),
   areaIds: z.array(z.string().uuid()).default([]),
@@ -66,7 +52,6 @@ export default function CreateAgentForm() {
   const { t } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const [passwordVisible, setPasswordVisible] = React.useState(false);
 
   const { data: areasData } = useQuery({
     queryKey: ['collection-areas'],
@@ -94,11 +79,13 @@ export default function CreateAgentForm() {
   const createMutation = useMutation({
     mutationFn: async (data: CreateAgentFormData) => {
       const payload = {
-        ...data,
+        fullName: data.fullName,
+        nationalId: data.nationalId || undefined,
+        phone: data.phone || undefined,
         email: data.email?.trim() || undefined,
-        username: data.username?.trim() || undefined,
-        password: data.password?.trim() || undefined,
+        address: data.address || undefined,
         hireDate: data.hireDate ? new Date(data.hireDate).toISOString() : undefined,
+        areaIds: data.areaIds,
       };
       const response = await apiFetch('/api/agents', {
         method: 'POST',
@@ -247,53 +234,8 @@ export default function CreateAgentForm() {
               />
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('common.labels.username')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t('pages.agents.usernamePlaceholder')}
-                        {...field}
-                        disabled={isLoading}
-                        value={field.value ?? ''}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t('pages.agents.usernameOptionalDesc')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => {
-                  return (
-                    <FormItem>
-                      <FormLabel>{t('common.labels.password')}</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          placeholder={t('pages.agents.passwordPlaceholder')}
-                          {...field}
-                          disabled={isLoading}
-                          value={field.value ?? ''}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        {t('pages.agents.passwordOptionalDesc')}
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
-              />
+            <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-4 text-sm text-muted-foreground">
+              {t('pages.agents.autoCredentialsInfo')}
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">

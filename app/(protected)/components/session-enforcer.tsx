@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { useSessionStatus } from '@/hooks/use-session-status';
-import { hasPermission } from '@/lib/auth-client';
+import { isManagerRole } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { signOut } from 'next-auth/react';
 import { Lock } from 'lucide-react';
@@ -17,7 +17,7 @@ export function SessionEnforcer({ children }: SessionEnforcerProps) {
   const { data: sessionStatus, isLoading: isSessionLoading, isError, error, refetch } = useSessionStatus();
 
   // Allow managers to bypass the check entirely (no wait)
-  const canManageSession = hasPermission(session, 'session.manage');
+  const canManageSession = isManagerRole(session);
   if (canManageSession) {
     return <>{children}</>;
   }
@@ -39,7 +39,7 @@ export function SessionEnforcer({ children }: SessionEnforcerProps) {
           <Button variant="outline" onClick={() => refetch()}>
             Try Again
           </Button>
-          <Button variant="outline" onClick={() => signOut({ callbackUrl: '/signin' })}>
+          <Button variant="outline" onClick={() => signOut({ callbackUrl: '/auth/signin' })}>
             Sign Out
           </Button>
         </div>

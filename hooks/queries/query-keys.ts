@@ -53,6 +53,7 @@ export const loanKeys = {
   lists: () => [...loanKeys.all, 'list'] as const,
   list: (filters: Record<string, string | undefined>) =>
     [...loanKeys.lists(), filters] as const,
+  pending: () => [...loanKeys.all, 'pending'] as const,
   details: () => [...loanKeys.all, 'detail'] as const,
   detail: (id: string) => [...loanKeys.details(), id] as const,
   byClient: (clientId: string) =>

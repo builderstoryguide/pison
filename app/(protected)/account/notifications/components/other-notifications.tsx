@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 import { CardNotification } from '@/partials/cards';
 import {
   CalendarClock,
@@ -21,55 +22,56 @@ import {
 } from '@/app/(protected)/account/notifications/components/channels';
 
 const OtherNotifications = () => {
+  const { t } = useTranslation();
   const items: IChannelsItems = [
     {
       icon: Tablet,
-      title: 'Task Alert',
-      description: 'Notification when a task is assigned to you.',
+      title: t('pages.account.notifications.other.taskAlert'),
+      description: t('pages.account.notifications.other.taskAlertDesc'),
       actions: <Switch id="size-sm" size="sm" defaultChecked />,
     },
     {
       icon: DollarSign,
-      title: 'Budget Warning',
-      description: 'Get notified if nearing budget limit.',
+      title: t('pages.account.notifications.other.budgetWarning'),
+      description: t('pages.account.notifications.other.budgetWarningDesc'),
       actions: <Switch id="size-sm" size="sm" defaultChecked />,
     },
     {
       icon: FileText,
-      title: 'Invoice Alert',
-      description: 'Alert for new and unpaid invoices.',
+      title: t('pages.account.notifications.other.invoiceAlert'),
+      description: t('pages.account.notifications.other.invoiceAlertDesc'),
       actions: (
         <Button variant="outline">
-          <Link href="#">View Invoices</Link>
+          <Link href="#">{t('pages.account.notifications.other.viewInvoices')}</Link>
         </Button>
       ),
     },
     {
       icon: MessageCircle,
-      title: 'Feedback Alert',
-      description: 'When a client submits new feedback.',
+      title: t('pages.account.notifications.other.feedbackAlert'),
+      description: t('pages.account.notifications.other.feedbackAlertDesc'),
       actions: <Switch id="size-sm" size="sm" defaultChecked />,
     },
     {
       icon: Users,
-      title: 'Collaboration Request',
-      description: 'Invite to collaborate on a new document.',
+      title: t('pages.account.notifications.other.collaborationRequest'),
+      description: t('pages.account.notifications.other.collaborationRequestDesc'),
       actions: <Switch id="size-sm" size="sm" defaultChecked />,
     },
     {
       icon: CalendarClock,
-      title: 'Meeting Reminder',
-      description: 'Reminder of scheduled meetings for the day.',
+      title: t('pages.account.notifications.other.meetingReminder'),
+      description: t('pages.account.notifications.other.meetingReminderDesc'),
       actions: (
         <Button variant="outline">
-          <Link href="#">Show Meetings</Link>
+          <Link href="#">{t('pages.account.notifications.other.showMeetings')}</Link>
         </Button>
       ),
     },
     {
       icon: ClipboardCheck,
-      title: 'Status Change',
-      description: 'Notifies changes in project or task status.',
+      title: t('pages.account.notifications.other.statusChange'),
+      description: t('pages.account.notifications.other.statusChangeDesc'),
       actions: <Switch id="size-sm" size="sm" defaultChecked />,
     },
   ];
@@ -90,10 +92,10 @@ const OtherNotifications = () => {
   return (
     <Card>
       <CardHeader className="gap-2">
-        <CardTitle>Other Notifications</CardTitle>
+        <CardTitle>{t('pages.account.notifications.other.title')}</CardTitle>
         <div className="flex items-center gap-2">
           <Label htmlFor="size-sm" className="text-sm">
-            Team-Wide Alerts
+            {t('pages.account.notifications.channels.teamWideAlerts')}
           </Label>
           <Switch id="size-sm" size="sm" />
         </div>

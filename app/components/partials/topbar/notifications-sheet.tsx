@@ -2,10 +2,13 @@
 
 import { ReactNode } from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import { useSession } from 'next-auth/react';
 import { hasPermission } from '@/lib/auth-client';
+import { apiFetch } from '@/lib/api';
 import { usePendingTransactions } from '@/hooks/queries/use-transactions';
 import { usePendingAccounts } from '@/hooks/queries/use-pending-accounts';
+import { loanKeys } from '@/hooks/queries/query-keys';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatCurrency, formatDateTime } from '@/lib/helpers';
@@ -55,6 +58,7 @@ export function NotificationsSheet({ trigger }: { trigger: ReactNode }) {
   const { t } = useTranslation();
   const { data: session, status } = useSession();
   const canApprove = status === 'authenticated' && hasPermission(session, 'transactions.approve');
+  const canApproveLoans = status === 'authenticated' && hasPermission(session, 'loans.approve');
   const {
     isSupported: pushSupported,
     permission: pushPermission,
@@ -73,6 +77,18 @@ export function NotificationsSheet({ trigger }: { trigger: ReactNode }) {
     refetchInterval: canApprove ? 30000 : false,
   });
 
+  const { data: pendingLoans = [] } = useQuery({
+    queryKey: loanKeys.pending(),
+    queryFn: async () => {
+      const response = await apiFetch('/api/loans?status=PENDING&limit=50');
+      if (!response.ok) return [];
+      const result = await response.json();
+      return result.data || [];
+    },
+    enabled: canApproveLoans,
+    refetchInterval: canApproveLoans ? 30000 : false,
+  });
+
   // Deduplicate transfers (show one notification per transfer pair)
   const isTransferRef = (ref: string | null) => ref?.startsWith('transfer-');
   const transferRefsSeen = new Set<string>();
@@ -86,7 +102,9 @@ export function NotificationsSheet({ trigger }: { trigger: ReactNode }) {
 
   const pendingTransactionsCount = displayTransactions.length;
   const pendingAccountsCount = pendingAccountsData?.total ?? 0;
-  const pendingCount = pendingTransactionsCount + pendingAccountsCount;
+  const pendingLoansCount = pendingLoans.length;
+  const pendingCount =
+    pendingTransactionsCount + pendingAccountsCount + pendingLoansCount;
 
   return (
     <Sheet>
@@ -138,7 +156,9 @@ export function NotificationsSheet({ trigger }: { trigger: ReactNode }) {
                 <div className="py-8 text-center text-muted-foreground text-sm">
                   {t('pages.topbar.notifications.loading')}
                 </div>
-              ) : displayTransactions.length === 0 && pendingAccountsCount === 0 ? (
+              ) : displayTransactions.length === 0 &&
+                pendingAccountsCount === 0 &&
+                pendingLoansCount === 0 ? (
                 <div className="py-8 text-center text-muted-foreground text-sm">
                   <CheckCircle2 className="size-12 mx-auto mb-3 text-green-500" />
                   <p className="font-medium">{t('pages.topbar.notifications.allCaughtUp')}</p>
@@ -153,6 +173,12 @@ export function NotificationsSheet({ trigger }: { trigger: ReactNode }) {
                         pendingAccountsCount > 0
                           ? t('pages.topbar.notifications.accountsSuffix', {
                               count: pendingAccountsCount,
+                            })
+                          : '',
+                      loans:
+                        pendingLoansCount > 0
+                          ? t('pages.topbar.notifications.loansSuffix', {
+                              count: pendingLoansCount,
                             })
                           : '',
                     })}

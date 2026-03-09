@@ -82,6 +82,46 @@ function hasFullAccessByRole(roleName: string): boolean {
 }
 
 /**
+ * Check if the user has the Manager role (for session open/close restrictions).
+ * Only Manager can open and close daily sessions; Accountant and Agent cannot.
+ */
+export function isManagerRole(session: Session | null): boolean {
+  if (!session?.user) return false;
+  const roleName = session.user.roleName ?? '';
+  const roleSlug = session.user.roleSlug ?? '';
+  const slug = roleSlug.toLowerCase();
+  if (slug === 'manager' || slug === 'administrator' || slug === 'admin') return true;
+  const r = roleName.toLowerCase();
+  return r.includes('manager') || r.includes('administrator');
+}
+
+/**
+ * Require Manager role for API routes (e.g. session open/close).
+ * Returns null if authorized, or a NextResponse (401/403) to return.
+ */
+export function requireManagerRole(session: Session | null): NextResponse | null {
+  if (!session) {
+    return NextResponse.json(
+      { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+      { status: 401 }
+    );
+  }
+  if (!isManagerRole(session)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only managers can open or close the daily session',
+        },
+      },
+      { status: 403 }
+    );
+  }
+  return null;
+}
+
+/**
  * Check if the user has a specific permission.
  * Manager bypass: always returns true (Manager has full access).
  * Other roles: checks session.user.permissions (no DB lookup).

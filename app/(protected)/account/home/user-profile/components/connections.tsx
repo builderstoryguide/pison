@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 import { DropdownMenu4 } from '@/partials/dropdown-menu/dropdown-menu-4';
 import { DropdownMenu5 } from '@/partials/dropdown-menu/dropdown-menu-5';
 import { Check, EllipsisVertical, Plus } from 'lucide-react';
@@ -30,6 +31,7 @@ interface IConnectionsProps {
 }
 
 const Connections = ({ url }: IConnectionsProps) => {
+  const { t } = useTranslation();
   const [items, setItems] = useState<IConnectionsItems>([
     {
       avatar: '300-3.png',
@@ -136,7 +138,7 @@ const Connections = ({ url }: IConnectionsProps) => {
   return (
     <Card className="min-w-full">
       <CardHeader>
-        <CardTitle>Connections</CardTitle>
+        <CardTitle>{t('pages.profile.connections')}</CardTitle>
         <DropdownMenu4
           trigger={
             <Button variant="ghost" mode="icon">
@@ -151,13 +153,13 @@ const Connections = ({ url }: IConnectionsProps) => {
             <TableBody>
               <TableRow className="bg-accent/60">
                 <TableCell className="text-start font-normal min-w-48 py-2.5">
-                  Name
+                  {t('common.labels.name')}
                 </TableCell>
                 <TableCell className="text-end font-medium min-w-20 py-2.5">
-                  Joint Links
+                  {t('pages.profile.jointLinks')}
                 </TableCell>
                 <TableCell className="text-end font-medium min-w-20 py-2.5">
-                  Status
+                  {t('common.labels.status')}
                 </TableCell>
                 <TableCell className="min-w-16" />
               </TableRow>
@@ -168,7 +170,7 @@ const Connections = ({ url }: IConnectionsProps) => {
       </CardContent>
       <CardFooter className="justify-center">
         <Button mode="link" underlined="dashed" asChild>
-          <Link href={url}>View 64 more</Link>
+          <Link href={url}>{t('pages.profile.viewMore', { count: 64 })}</Link>
         </Button>
       </CardFooter>
     </Card>

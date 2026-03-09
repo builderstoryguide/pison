@@ -9,6 +9,7 @@ import {
   ToolbarHeading,
   ToolbarPageTitle,
 } from '@/partials/common/toolbar';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useSettings } from '@/providers/settings-provider';
 import { Button } from '@/components/ui/button';
 import { Container } from '@/components/common/container';
@@ -16,6 +17,7 @@ import { AccountUserProfileContent } from '@/app/(protected)/account/home/user-p
 import { PageNavbar } from '@/app/(protected)/account/page-navbar';
 
 export default function AccountUserProfilePage() {
+  const { t } = useTranslation();
   const { settings } = useSettings();
 
   return (
@@ -27,15 +29,15 @@ export default function AccountUserProfilePage() {
             <ToolbarHeading>
               <ToolbarPageTitle />
               <ToolbarDescription>
-                Central Hub for Personal Customization
+                {t('pages.profile.centralHubDescription')}
               </ToolbarDescription>
             </ToolbarHeading>
             <ToolbarActions>
               <Button variant="outline">
-                <Link href="#">Public Profile</Link>
+                <Link href="#">{t('menu.publicProfile')}</Link>
               </Button>
               <Button>
-                <Link href="#">Account Settings</Link>
+                <Link href="#">{t('pages.account.title')}</Link>
               </Button>
             </ToolbarActions>
           </Toolbar>

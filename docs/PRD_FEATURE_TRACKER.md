@@ -3,7 +3,7 @@
 > **Purpose**: Single source of truth mapping [PRD.md](./PRD.md) requirements to implementation status.
 > **Workflow**: Before implementing a feature, check this tracker. Update it as features are completed.
 
-**Last Updated**: 2026-03-03 (Agent auto-credentials and username login enabled)
+**Last Updated**: 2026-03-09 (Agent daily collection: clientId on tx, session indicator, empty state, E2E session/open)
 
 ---
 
@@ -29,7 +29,7 @@
 | [x] | Client statement | Full statement with filters | `app/(protected)/reports/client-statement/`, `app/api/reports/client-statement/` |
 | [x] | Statistics by collection area | Deposits, withdrawals, metrics | `app/(protected)/reports/area-statistics/`, `app/api/reports/area-statistics/` |
 | [x] | Automatic monthly commission calculation | Manual trigger + cron (1st of month); `commissions.calculate` permission (Accountant/Manager); summary by client; Decimal precision; commission report route + export endpoint restored | `app/api/commissions/calculate/`, `lib/jobs/commission-calculation.ts`, `lib/services/commission-service.ts`, `app/(protected)/reports/commissions/`, `app/api/reports/commissions/export/route.ts` |
-| [x] | Transaction validation (four-eye principle) | Pending approval, approve/reject by admin | `app/(protected)/validation/pending/`, `app/api/transactions/[id]/approve/` |
+| [x] | Transaction validation (four-eye principle) | Pending approval, approve/reject by admin; pending loans appear in same list | `app/(protected)/validation/pending/`, `app/api/transactions/[id]/approve/`, `app/api/loans/[id]/approve/` |
 | [x] | Monitoring of surpluses and shortages | Report with physical vs system cash; `reports.surplus_shortage` permission (Accountant/Manager only); shortage alert banner; dashboard widget (last 30 days) | `app/(protected)/reports/surplus-shortage/`, `app/api/reports/surplus-shortage/`, `lib/services/dashboard-service.ts` |
 
 ---
@@ -74,7 +74,7 @@
 | [x] | System validates input | Zod validation, session check |
 | [x] | Amounts recorded against accounts | `POST /api/collections/daily` |
 | [x] | Confirmation receipt (print/forward) | VentilationReceiptDialog – print/download after submit (`app/(protected)/collections/daily/components/ventilation-receipt-dialog.tsx`) |
-| [x] | Ventilation restricted to agent's assigned clients | Backend: `createCollectionEntries` validates clients by `agentId`; GET /api/clients filters by agent for agent role | `lib/services/transaction-service.ts`, `app/api/clients/route.ts` |
+| [x] | Ventilation restricted to agent's assigned clients | Backend: `createCollectionEntries` validates area access; GET /api/clients filters by agent's areas; COLLECTION tx sets `clientId`; session indicator and improved empty state on form | `lib/services/transaction-service.ts`, `app/api/clients/route.ts`, `app/(protected)/collections/daily/components/daily-collection-form.tsx` |
 
 ### 4.2 Management of Clients and Agents
 

@@ -63,6 +63,7 @@ interface MessageType {
 }
 
 export function ChatSheet({ trigger }: { trigger: ReactNode }) {
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
@@ -91,11 +92,11 @@ export function ChatSheet({ trigger }: { trigger: ReactNode }) {
         queryClient.invalidateQueries({ queryKey: ['conversations'] });
         setActiveConversationId(res.conversation.id);
       } else {
-        toast.error(res.error || 'Failed to start chat');
+        toast.error(res.error || t('pages.topbar.chat.startChatFailed'));
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to start chat');
+      toast.error(error.message || t('pages.topbar.chat.startChatFailed'));
     },
   });
 
@@ -159,7 +160,7 @@ function ChatList({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search or start new chat..."
+              placeholder={t('pages.topbar.chat.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -171,12 +172,12 @@ function ChatList({
         <div className="p-3 flex flex-col gap-6">
           {!searchQuery && (
             <div>
-              <h4 className="text-xs font-semibold mb-3 text-muted-foreground uppercase tracking-wider px-2">Recent Chats</h4>
+              <h4 className="text-xs font-semibold mb-3 text-muted-foreground uppercase tracking-wider px-2">{t('pages.topbar.chat.recentChats')}</h4>
               <div className="flex flex-col gap-1">
                 {isLoading ? (
-                  <div className="p-2 text-center text-sm text-muted-foreground">Loading...</div>
+                  <div className="p-2 text-center text-sm text-muted-foreground">{t('common.messages.loading')}</div>
                 ) : conversations.length === 0 ? (
-                  <div className="p-2 text-sm text-muted-foreground px-2">No recent chats</div>
+                  <div className="p-2 text-sm text-muted-foreground px-2">{t('pages.topbar.chat.noRecentChats')}</div>
                 ) : (
                   conversations.map((conv) => {
                     const otherParticipant = conv.participants.find(
@@ -208,7 +209,7 @@ function ChatList({
                             )}
                           </div>
                           <span className="text-sm text-muted-foreground truncate block">
-                            {lastMessage?.content || 'New conversation'}
+                            {lastMessage?.content || t('pages.topbar.chat.newConversation')}
                           </span>
                         </div>
                       </div>
@@ -284,7 +285,7 @@ function ActiveChat({ conversationId, onBack }: { conversationId: string; onBack
       }
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to send message');
+        toast.error(error.message || t('pages.topbar.chat.sendMessageFailed'));
     },
   });
 
@@ -298,17 +299,17 @@ function ActiveChat({ conversationId, onBack }: { conversationId: string; onBack
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-base">Chat</span>
+            <span className="font-semibold text-base">{t('pages.topbar.chat.title')}</span>
           </div>
         </div>
       </SheetHeader>
 
       <SheetBody className="scrollable-y-auto grow p-4 flex flex-col gap-3">
         {isLoading ? (
-          <div className="text-center text-sm text-muted-foreground mt-4">Loading messages...</div>
+          <div className="text-center text-sm text-muted-foreground mt-4">{t('pages.topbar.chat.loadingMessages')}</div>
         ) : isError ? (
           <div className="text-center text-sm text-destructive mt-4">
-            {t('pages.validation.fetchPendingFailed') || 'Failed to load messages'}
+            {t('pages.topbar.chat.loadMessagesFailed')}
           </div>
         ) : (
           messages.map((msg) => (
@@ -342,7 +343,7 @@ function ActiveChat({ conversationId, onBack }: { conversationId: string; onBack
           <Input
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Type a message..."
+            placeholder={t('pages.topbar.chat.typeMessagePlaceholder')}
             className="flex-1 pr-12 rounded-full h-11"
             disabled={sendMutation.isPending}
           />

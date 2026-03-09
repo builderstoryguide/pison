@@ -11,6 +11,7 @@ import { isAgentOrCollectorRole, requirePermission } from '@/lib/auth';
 import { transactionService } from '@/lib/services';
 import { parseFieldsParam } from '@/lib/utils/field-select';
 import { cachedJson } from '@/lib/api';
+import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 const TRANSACTION_FIELDS_ALLOWLIST = [
@@ -26,6 +27,7 @@ const TRANSACTION_FIELDS_ALLOWLIST = [
   'createdAt',
   'approvedAt',
   'account',
+  'creator',
 ];
 
 const TRANSACTION_RELATION_SELECTS: Record<string, Record<string, unknown>> = {
@@ -34,6 +36,13 @@ const TRANSACTION_RELATION_SELECTS: Record<string, Record<string, unknown>> = {
       id: true,
       accountNumber: true,
       client: { select: { id: true, clientNumber: true, fullName: true } },
+    },
+  },
+  creator: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
     },
   },
 };
@@ -70,6 +79,7 @@ export async function GET(request: NextRequest) {
     const accountId = searchParams.get('accountId') || undefined;
     const areaId = searchParams.get('areaId') || undefined;
     const agentId = searchParams.get('agentId') || undefined;
+    const createdById = searchParams.get('createdById') || undefined;
     const search = searchParams.get('search') || undefined;
     const sort = searchParams.get('sort') || undefined;
     const dir = (searchParams.get('dir') || 'desc') as 'asc' | 'desc';
@@ -163,6 +173,7 @@ export async function GET(request: NextRequest) {
       accountId,
       areaId,
       agentId,
+      createdById,
       search,
       sort,
       dir,
@@ -253,12 +264,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let agentId: string | undefined = undefined;
+    if (isAgentOrCollectorRole(session?.user?.roleName)) {
+      const agent = await prisma.agent.findUnique({
+        where: { userId },
+        select: { id: true },
+      });
+      if (agent) {
+        agentId = agent.id;
+      }
+    }
+
     const transaction = await transactionService.createTransaction(
       {
         accountId: validatedData.accountId,
         type: validatedData.type,
         amount: validatedData.amount,
         description: validatedData.description,
+        agentId,
       },
       userId
     );
