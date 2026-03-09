@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { prisma } from '@/lib/prisma';
+import { isAgentOrCollectorRole } from '@/lib/auth';
 import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
 
 export async function GET() {
@@ -11,6 +12,12 @@ export async function GET() {
       return NextResponse.json(
         { message: 'Unauthorized request' },
         { status: 401 }, // Unauthorized
+      );
+    }
+    if (isAgentOrCollectorRole(session.user?.roleName)) {
+      return NextResponse.json(
+        { message: 'Access denied for Agent role' },
+        { status: 403 },
       );
     }
 

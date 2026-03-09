@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,6 +21,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { SIGNIN_IDENTIFIER_LABEL } from '../constants';
 import { getSigninSchema, SigninSchemaType } from '../forms/signin-schema';
 
 export default function Page() {
@@ -29,16 +30,21 @@ export default function Page() {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const showDevCredentials =
     process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_SHOW_DEV_CREDENTIALS === '1';
 
   const devCredentials = showDevCredentials
     ? [
-        { label: 'Manager', email: 'admin@dcm.local', password: 'admin123' },
-        { label: 'Accountant', email: 'accountant@dcm.local', password: 'accountant123' },
-        { label: 'Agent', email: 'agent1@dcm.local', password: 'agent123' },
-      ]
+      { label: 'Manager', email: 'admin@dcm.local', password: 'admin123' },
+      { label: 'Accountant', email: 'accountant@dcm.local', password: 'accountant123' },
+      { label: 'Agent', email: 'agent1@dcm.local', password: 'agent123' },
+    ]
     : [];
 
   const form = useForm<SigninSchemaType>({
@@ -65,6 +71,7 @@ export default function Page() {
       if (response?.error) {
         const errorData = JSON.parse(response.error);
         setError(errorData.message);
+        setIsProcessing(false);
       } else {
         router.push('/');
       }
@@ -74,16 +81,20 @@ export default function Page() {
           ? err.message
           : t('pages.auth.signin.unexpectedError'),
       );
-    } finally {
       setIsProcessing(false);
     }
   }
 
   return (
-    <Form {...form}>
+    <div className="flex min-h-[400px] w-full flex-col items-center justify-center">
+      {!isMounted ? (
+        <LoaderCircleIcon className="size-8 animate-spin text-muted-foreground" />
+      ) : (
+        <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
         className="block w-full space-y-5"
+        noValidate
       >
         <div className="space-y-1.5 pb-3">
           <h1 className="text-2xl font-semibold tracking-tight text-center">
@@ -135,9 +146,14 @@ export default function Page() {
           name="identifier"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('pages.auth.signin.identifier')}</FormLabel>
+              <FormLabel>{t('pages.auth.signin.identifier', SIGNIN_IDENTIFIER_LABEL)}</FormLabel>
               <FormControl>
-                <Input placeholder={t('pages.auth.signin.identifierPlaceholder')} {...field} />
+                <Input
+                  type="text"
+                  autoComplete="username"
+                  placeholder={t('pages.auth.signin.identifierPlaceholder', 'Your email or username')}
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -212,9 +228,17 @@ export default function Page() {
         </div>
 
         <div className="flex flex-col gap-2.5">
-          <Button type="submit" disabled={isProcessing}>
-            {isProcessing ? <LoaderCircleIcon className="size-4 animate-spin" /> : null}
-            {t('pages.auth.signin.signIn')}
+          <Button
+            type="submit"
+            size="lg"
+            disabled={isProcessing}
+            aria-busy={isProcessing}
+            className="min-w-[120px]"
+          >
+            {isProcessing && (
+              <LoaderCircleIcon className="size-4 shrink-0 me-2 animate-spin" aria-hidden />
+            )}
+            {isProcessing ? t('pages.auth.signin.signingIn') : t('pages.auth.signin.signIn')}
           </Button>
         </div>
 
@@ -223,5 +247,7 @@ export default function Page() {
         </p>
       </form>
     </Form>
+      )}
+    </div>
   );
 }

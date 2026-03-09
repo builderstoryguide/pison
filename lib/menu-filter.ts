@@ -1,8 +1,8 @@
 import type { MenuConfig, MenuItem } from '@/config/types';
-import { hasPermission } from '@/lib/auth-client';
+import { hasPermission, isAgentOrCollectorRole } from '@/lib/auth-client';
 
 export type SessionForMenu = {
-  user?: { permissions?: string[]; roleName?: string };
+  user?: { permissions?: string[]; roleName?: string; roleSlug?: string | null };
 } | null | undefined;
 
 /**
@@ -10,15 +10,37 @@ export type SessionForMenu = {
  * Items without a permission are shown to all authenticated users.
  * Parent items are hidden when all children are filtered out.
  * Headings with no visible items below them (until the next heading) are removed.
+ * When session is unknown (undefined) or loading (null), returns empty menu (least privilege).
  */
 export function filterMenuByPermission(
   items: MenuConfig,
   session: SessionForMenu
 ): MenuConfig {
-  if (session === null || !session?.user) return [];
+  // Session unknown/loading (undefined) or unauthenticated (null): return empty menu (least privilege)
+  if (session === undefined || session === null || !session?.user) return [];
+  const roleName = session.user.roleName ?? '';
+  const roleSlug = (session.user.roleSlug ?? '').toLowerCase();
+  const isAgentRole = isAgentOrCollectorRole(roleName);
   const filtered = items
     .map((item) => {
       if (item.heading) return item;
+      if (
+        item.hiddenForRoles?.some((roleToken) => {
+          const normalizedRoleToken = roleToken.toLowerCase();
+          return isAgentRole
+            ? normalizedRoleToken === 'agent' || normalizedRoleToken === 'collector'
+            : roleName.toLowerCase().includes(normalizedRoleToken);
+        })
+      ) {
+        return null;
+      }
+      if (item.requiredRoles?.length) {
+        const matches = item.requiredRoles.some((r) => {
+          const token = r.toLowerCase();
+          return roleSlug === token || roleName.toLowerCase().includes(token);
+        });
+        if (!matches) return null;
+      }
       if (item.permission && !hasPermission(session, item.permission)) return null;
       if (item.children) {
         const filteredChildren = filterMenuByPermission(item.children, session);

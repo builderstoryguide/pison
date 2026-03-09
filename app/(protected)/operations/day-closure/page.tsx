@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14,6 +15,9 @@ import {
   ToolbarTitle,
 } from '@/components/common/toolbar';
 import DayClosureForm from './components/day-closure-form';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
+import { isManagerRole } from '@/lib/auth';
 
 export const metadata: Metadata = {
   title: 'Day Closure',
@@ -21,6 +25,10 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
+  const session = await getServerSession(authOptions);
+  if (!isManagerRole(session)) {
+    redirect('/');
+  }
   return (
     <>
       <Container>

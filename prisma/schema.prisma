@@ -7,47 +7,51 @@ datasource db {
 }
 
 model User {
-  id              String      @id @default(uuid())
-  email           String      @unique
-  username        String?     @unique
-  password        String?
-  country         String?
-  timezone        String?
-  name            String?
-  roleId          String
-  status          UserStatus  @default(INACTIVE)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  lastSignInAt    DateTime?
-  emailVerifiedAt DateTime?
-  isTrashed       Boolean     @default(false)
-  avatar          String?
-  invitedByUserId String?
-  isProtected     Boolean     @default(false)
-  failedLoginAttempts Int      @default(0)
-  lockedUntil     DateTime?
-  accounts        Account[]
-  Session         Session[]
-  systemLog       SystemLog[]
-  role            UserRole    @relation(fields: [roleId], references: [id])
+  id                  String      @id @default(uuid())
+  email               String      @unique
+  username            String?     @unique
+  password            String?
+  country             String?
+  timezone            String?
+  name                String?
+  roleId              String
+  status              UserStatus  @default(INACTIVE)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  lastSignInAt        DateTime?
+  emailVerifiedAt     DateTime?
+  isTrashed           Boolean     @default(false)
+  avatar              String?
+  invitedByUserId     String?
+  isProtected         Boolean     @default(false)
+  failedLoginAttempts Int         @default(0)
+  lockedUntil         DateTime?
+  accounts            Account[]
+  Session             Session[]
+  systemLog           SystemLog[]
+  role                UserRole    @relation(fields: [roleId], references: [id])
 
   // Microfinance-specific relations
   agent                Agent?
-  createdClients       Client[]       @relation("ClientCreator")
-  updatedClients       Client[]       @relation("ClientUpdater")
-  createdAgents        Agent[]        @relation("AgentCreator")
-  updatedAgents        Agent[]        @relation("AgentUpdater")
-  createdTransactions  Transaction[]  @relation("TransactionCreator")
-  approvedTransactions Transaction[]  @relation("TransactionApprover")
-  createdLoans         Loan[]         @relation("LoanCreator")
-  approvedLoans        Loan[]         @relation("LoanApprover")
-  approvedClients     Client[]       @relation("ClientApprover")
-  approvedAgents      Agent[]        @relation("AgentApprover")
-  openedSessions       DailySession[] @relation("SessionOpener")
-  closedSessions       DailySession[] @relation("SessionCloser")
+  createdClients       Client[]           @relation("ClientCreator")
+  updatedClients       Client[]           @relation("ClientUpdater")
+  createdAgents        Agent[]            @relation("AgentCreator")
+  updatedAgents        Agent[]            @relation("AgentUpdater")
+  createdTransactions  Transaction[]      @relation("TransactionCreator")
+  approvedTransactions Transaction[]      @relation("TransactionApprover")
+  createdLoans         Loan[]             @relation("LoanCreator")
+  approvedLoans        Loan[]             @relation("LoanApprover")
+  approvedClients      Client[]           @relation("ClientApprover")
+  approvedAgents       Agent[]            @relation("AgentApprover")
+  openedSessions       DailySession[]     @relation("SessionOpener")
+  closedSessions       DailySession[]     @relation("SessionCloser")
   closures             DailyClosure[]
   auditLogs            AuditLog[]
   pushSubscriptions    PushSubscription[]
+
+  // Communication relations
+  conversationParticipations ConversationParticipant[]
+  sentMessages               Message[]
 
   @@index([invitedByUserId])
   @@index([roleId])
@@ -218,7 +222,7 @@ model CollectionArea {
 
   clients          Client[]
   agentAssignments AgentAreaAssignment[]
-  agents           Agent[]              @relation("AgentCollectionArea")
+  agents           Agent[]               @relation("AgentCollectionArea")
   transactions     Transaction[]
 
   @@index([code])
@@ -232,22 +236,22 @@ enum AreaStatus {
 
 // Financial Accounts (separate from NextAuth Account)
 model FinancialAccount {
-  id                String        @id @default(uuid())
-  accountNumber     String        @unique
-  accountType       AccountType
-  accountNatureId   String?
-  balance           Decimal       @default(0) @db.Decimal(19, 4)
-  availableBalance  Decimal       @default(0) @db.Decimal(19, 4)
-  status            AccountStatus @default(ACTIVE)
-  openedAt          DateTime      @default(now())
-  closedAt          DateTime?
-  blockedUntil      DateTime?
-  maturityDate      DateTime?
-  customInterestRate Decimal?     @db.Decimal(5, 4)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  id                 String        @id @default(uuid())
+  accountNumber      String        @unique
+  accountType        AccountType
+  accountNatureId    String?
+  balance            Decimal       @default(0) @db.Decimal(19, 4)
+  availableBalance   Decimal       @default(0) @db.Decimal(19, 4)
+  status             AccountStatus @default(ACTIVE)
+  openedAt           DateTime      @default(now())
+  closedAt           DateTime?
+  blockedUntil       DateTime?
+  maturityDate       DateTime?
+  customInterestRate Decimal?      @db.Decimal(5, 4)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
-  accountNature AccountNature?   @relation(fields: [accountNatureId], references: [id])
+  accountNature AccountNature? @relation(fields: [accountNatureId], references: [id])
   client        Client?
   agent         Agent?
   transactions  Transaction[]
@@ -279,34 +283,34 @@ enum MaintenanceFeeType {
 
 // Account Nature (reference config - 12 account types)
 model AccountNature {
-  id                     String             @id @default(uuid())
-  code                   String             @unique
+  id                     String              @id @default(uuid())
+  code                   String              @unique
   name                   String
   description            String?
-  minBalance             Decimal?           @db.Decimal(19, 4)
-  minOpeningContribution Decimal?           @db.Decimal(19, 4)
-  interestRateDefault    Decimal?           @db.Decimal(5, 4)
-  interestRateMin        Decimal?           @db.Decimal(5, 4)
-  interestRateMax        Decimal?           @db.Decimal(5, 4)
-  interestRateNegotiable Boolean            @default(false)
-  maintenanceFee         Decimal?           @db.Decimal(19, 4)
+  minBalance             Decimal?            @db.Decimal(19, 4)
+  minOpeningContribution Decimal?            @db.Decimal(19, 4)
+  interestRateDefault    Decimal?            @db.Decimal(5, 4)
+  interestRateMin        Decimal?            @db.Decimal(5, 4)
+  interestRateMax        Decimal?            @db.Decimal(5, 4)
+  interestRateNegotiable Boolean             @default(false)
+  maintenanceFee         Decimal?            @db.Decimal(19, 4)
   maintenanceFeeType     MaintenanceFeeType?
-  transactionFee         Decimal?           @db.Decimal(19, 4)
-  transactionFeeVariable Boolean            @default(false)
-  openingFee             Decimal?           @db.Decimal(19, 4)
-  isBlocked              Boolean            @default(false)
+  transactionFee         Decimal?            @db.Decimal(19, 4)
+  transactionFeeVariable Boolean             @default(false)
+  openingFee             Decimal?            @db.Decimal(19, 4)
+  isBlocked              Boolean             @default(false)
   blockedDurationMonths  Int?
   minTermMonths          Int?
-  isActive               Boolean            @default(true)
-  sortOrder              Int                @default(0)
-  allowDeposit           Boolean            @default(true)
-  allowWithdrawal        Boolean            @default(true)
-  allowTransfer          Boolean            @default(true)
-  createdAt              DateTime          @default(now())
-  updatedAt              DateTime          @updatedAt
+  isActive               Boolean             @default(true)
+  sortOrder              Int                 @default(0)
+  allowDeposit           Boolean             @default(true)
+  allowWithdrawal        Boolean             @default(true)
+  allowTransfer          Boolean             @default(true)
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
 
-  accounts               FinancialAccount[]
-  requiredDocuments      AccountNatureDocument[]
+  accounts          FinancialAccount[]
+  requiredDocuments AccountNatureDocument[]
 
   @@index([code])
   @@index([isActive])
@@ -324,13 +328,13 @@ model DocumentType {
 
 // Which documents are required per account nature
 model AccountNatureDocument {
-  id              String        @id @default(uuid())
+  id              String  @id @default(uuid())
   accountNatureId String
   documentTypeId  String
-  isRequired      Boolean       @default(true)
+  isRequired      Boolean @default(true)
 
   accountNature AccountNature @relation(fields: [accountNatureId], references: [id], onDelete: Cascade)
-  documentType  DocumentType   @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
+  documentType  DocumentType  @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
 
   @@unique([accountNatureId, documentTypeId])
   @@index([accountNatureId])
@@ -358,9 +362,9 @@ model LoanProduct {
 
 // Clients
 model Client {
-  id                 String       @id @default(uuid())
-  clientNumber       String       @unique
-  userId             String?      @unique
+  id                 String         @id @default(uuid())
+  clientNumber       String         @unique
+  userId             String?        @unique
   fullName           String
   nationalId         String?
   phone              String?
@@ -369,27 +373,27 @@ model Client {
   city               String?
   areaId             String
   agentId            String?
-  accountId          String       @unique
-  status             ClientStatus @default(ACTIVE)
-  isCommissionExempt Boolean      @default(false)
+  accountId          String         @unique
+  status             ClientStatus   @default(ACTIVE)
+  isCommissionExempt Boolean        @default(false)
   documentChecklist  Json?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
   createdBy          String?
   updatedBy          String?
   approvalStatus     ApprovalStatus @default(APPROVED)
   approvedBy         String?
   approvedAt         DateTime?
 
-  area         CollectionArea   @relation(fields: [areaId], references: [id])
-  account      FinancialAccount @relation(fields: [accountId], references: [id])
-  assignedAgent Agent?          @relation("ClientAgent", fields: [agentId], references: [id]) 
-  transactions Transaction[]
-  loans        Loan[]
-  commissions  Commission[]
-  creator      User?            @relation("ClientCreator", fields: [createdBy], references: [id])
-  updater      User?            @relation("ClientUpdater", fields: [updatedBy], references: [id])
-  approver     User?            @relation("ClientApprover", fields: [approvedBy], references: [id])
+  area          CollectionArea   @relation(fields: [areaId], references: [id])
+  account       FinancialAccount @relation(fields: [accountId], references: [id])
+  assignedAgent Agent?           @relation("ClientAgent", fields: [agentId], references: [id])
+  transactions  Transaction[]
+  loans         Loan[]
+  commissions   Commission[]
+  creator       User?            @relation("ClientCreator", fields: [createdBy], references: [id])
+  updater       User?            @relation("ClientUpdater", fields: [updatedBy], references: [id])
+  approver      User?            @relation("ClientApprover", fields: [approvedBy], references: [id])
 
   @@index([clientNumber])
   @@index([areaId])
@@ -414,26 +418,26 @@ enum ApprovalStatus {
 
 // Agents
 model Agent {
-  id         String      @id @default(uuid())
-  agentCode  String      @unique
-  userId     String      @unique
-  fullName   String
-  nationalId String?
-  phone      String?
-  email      String?
-  address    String?
-  accountId  String      @unique
-  status     AgentStatus @default(ACTIVE)
-  hireDate   DateTime?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  createdBy  String?
-  updatedBy  String?
-  city       String?
-  approvalStatus     ApprovalStatus @default(APPROVED)
-  approvedBy         String?
-  approvedAt         DateTime?
-  collectionAreaId   String?
+  id               String         @id @default(uuid())
+  agentCode        String         @unique
+  userId           String         @unique
+  fullName         String
+  nationalId       String?
+  phone            String?
+  email            String?
+  address          String?
+  accountId        String         @unique
+  status           AgentStatus    @default(ACTIVE)
+  hireDate         DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  createdBy        String?
+  updatedBy        String?
+  city             String?
+  approvalStatus   ApprovalStatus @default(APPROVED)
+  approvedBy       String?
+  approvedAt       DateTime?
+  collectionAreaId String?
 
   user            User                  @relation(fields: [userId], references: [id])
   collectionArea  CollectionArea?       @relation("AgentCollectionArea", fields: [collectionAreaId], references: [id])
@@ -558,15 +562,14 @@ model Loan {
   approvedBy       String?
   approvedAt       DateTime?
 
-  account      FinancialAccount @relation(fields: [accountId], references: [id])
-  client       Client           @relation(fields: [clientId], references: [id])
-  loanProduct  LoanProduct?     @relation(fields: [loanProductId], references: [id])
-  creator      User             @relation("LoanCreator", fields: [createdBy], references: [id])
-  approver     User?            @relation("LoanApprover", fields: [approvedBy], references: [id])
-  repayments   LoanRepayment[]
+  account     FinancialAccount @relation(fields: [accountId], references: [id])
+  client      Client           @relation(fields: [clientId], references: [id])
+  loanProduct LoanProduct?     @relation(fields: [loanProductId], references: [id])
+  creator     User             @relation("LoanCreator", fields: [createdBy], references: [id])
+  approver    User?            @relation("LoanApprover", fields: [approvedBy], references: [id])
+  repayments  LoanRepayment[]
 
   @@index([loanProductId])
-
   @@index([loanNumber])
   @@index([accountId])
   @@index([clientId])
@@ -689,4 +692,48 @@ model AuditLog {
   @@index([entityId])
   @@index([createdAt])
   @@index([action])
+}
+
+// ============================================
+// Communication Models
+// ============================================
+
+model Conversation {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  id             String   @id @default(uuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime @default(now())
+  lastReadAt     DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String
+  senderId       String
+  content        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([conversationId, createdAt])
 }

@@ -11,6 +11,7 @@ declare module 'next-auth' {
       avatar?: string | null;
       roleId?: string | null;
       roleName?: string | null;
+      roleSlug?: string | null;
       permissions?: string[];
       status: string;
     };
@@ -37,6 +38,7 @@ declare module 'next-auth/jwt' {
     avatar?: string | null;
     roleId?: string | null;
     roleName?: string | null;
+    roleSlug?: string | null;
     permissions?: string[];
     status: string;
     /** Sentinel: true when roleName/permissions have been hydrated from DB. Avoids re-fetching for legitimately role-less users. */

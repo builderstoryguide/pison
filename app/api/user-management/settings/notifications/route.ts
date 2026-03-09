@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { getClientIP } from '@/lib/api';
+import { isAgentOrCollectorRole } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { systemLog } from '@/services/system-log';
 import { NotificationSettingsSchema } from '@/app/(protected)/user-management/settings/forms/notification-settings-schema';
@@ -14,6 +15,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { message: 'Unauthorized request' },
         { status: 401 }, // Unauthorized
+      );
+    }
+    if (isAgentOrCollectorRole(session.user?.roleName)) {
+      return NextResponse.json(
+        { message: 'Access denied for Agent role' },
+        { status: 403 },
       );
     }
 

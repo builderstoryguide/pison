@@ -3,6 +3,8 @@ import { JWT } from 'next-auth/jwt';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcrypt';
 import prisma from '@/lib/prisma';
+import { SIGNIN_IDENTIFIER_LABEL } from '@/app/(auth)/constants';
+import { getSigninSchema } from '@/app/(auth)/forms/signin-schema';
 
 // ──────────────────────────────────────────────────────────────────
 // Authentication configuration for the DCMS microfinance system.
@@ -26,30 +28,47 @@ const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        identifier: { label: 'Username or Email', type: 'text' },
-        email: { label: 'Email', type: 'text' },
+        identifier: { label: SIGNIN_IDENTIFIER_LABEL, type: 'text' },
+        email: { label: SIGNIN_IDENTIFIER_LABEL, type: 'text' },
         password: { label: 'Password', type: 'password' },
         rememberMe: { label: 'Remember me', type: 'text' },
       },
 
       async authorize(credentials) {
-        const identifier = credentials?.identifier ?? credentials?.email;
-        if (!identifier || !credentials?.password) {
+        if (!credentials) {
+          throw new Error(JSON.stringify({ message: 'Missing credentials.' }));
+        }
+
+        // Validate credentials using the shared Zod schema
+        const schema = getSigninSchema();
+        const parsed = schema.safeParse(credentials);
+
+        if (!parsed.success) {
           throw new Error(
             JSON.stringify({
-              message: 'Username/email and password are required.',
-            }),
+              message: 'Invalid input data. Please check your credentials.',
+              errors: parsed.error.flatten().fieldErrors,
+            })
           );
         }
 
-        const normalizedIdentifier = identifier.toLowerCase().trim();
+        const identifierValue = parsed.data.identifier || parsed.data.email;
+        if (!identifierValue) {
+          throw new Error(
+            JSON.stringify({
+              message: 'Missing identifier or email.',
+            })
+          );
+        }
 
-        // 1. Look up user by username or email (include role)
+        const normalizedIdentifier = identifierValue.trim();
+
+        // 1. Look up user by username or email (include role) (case-insensitive)
         const user = await prisma.user.findFirst({
           where: {
             OR: [
-              { email: normalizedIdentifier },
-              { username: normalizedIdentifier },
+              { email: { equals: normalizedIdentifier, mode: 'insensitive' } },
+              { username: { equals: normalizedIdentifier, mode: 'insensitive' } },
             ],
           },
           include: { role: true },
@@ -265,20 +284,22 @@ const authOptions: NextAuthOptions = {
             },
           });
           token.roleName = role?.name ?? null;
+          token.roleSlug = role?.slug ?? null;
           token.permissions =
             role?.permissions
               ?.map((rp) => rp.permission?.slug)
               .filter((slug): slug is string => Boolean(slug)) ?? [];
         } else {
           token.roleName = null;
+          token.roleSlug = null;
           token.permissions = [];
         }
         token._permissionsHydrated = true;
       }
 
-      // Hydrate role info when not yet hydrated (handles old sessions, token refresh, edge cases)
-      // Use sentinel to avoid re-fetching for legitimately role-less users (roleName null, permissions [])
-      if (token.roleId && !token._permissionsHydrated) {
+      // Always refresh role info from DB so permission changes are applied to active sessions.
+      // This ensures UI/API authorization updates take effect without requiring a full sign-out.
+      if (token.roleId) {
         const role = await prisma.userRole.findUnique({
           where: { id: token.roleId },
           include: {
@@ -288,6 +309,7 @@ const authOptions: NextAuthOptions = {
           },
         });
         token.roleName = role?.name ?? null;
+        token.roleSlug = role?.slug ?? null;
         token.permissions =
           role?.permissions
             ?.map((rp) => rp.permission?.slug)
@@ -308,6 +330,7 @@ const authOptions: NextAuthOptions = {
         session.user.status = token.status;
         session.user.roleId = token.roleId;
         session.user.roleName = token.roleName;
+        session.user.roleSlug = token.roleSlug;
         session.user.permissions = token.permissions ?? [];
       }
       return session;

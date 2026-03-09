@@ -7,7 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
-import { reportService, clientService, agentService } from '@/lib/services';
+import { denyAgentAccess } from '@/lib/auth';
+import { reportService } from '@/lib/services';
 import { z } from 'zod';
 
 const querySchema = z.object({
@@ -22,6 +23,11 @@ export async function GET(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const roleForbidden = denyAgentAccess(
+      session,
+      'Reports are not available for Agent role'
+    );
+    if (roleForbidden) return roleForbidden;
 
     const sp = request.nextUrl.searchParams;
     const params = querySchema.parse({
@@ -29,23 +35,6 @@ export async function GET(request: NextRequest) {
       startDate: sp.get('startDate') || '',
       endDate: sp.get('endDate') || '',
     });
-
-    // Agents can only access statements for clients in their assigned zones
-    const roleName = (session.user?.roleName || '').toLowerCase();
-    if (roleName.includes('agent') || roleName.includes('collector')) {
-      const client = await clientService.getClientById(params.clientId);
-      if (!client) {
-        return NextResponse.json({ error: 'Client not found' }, { status: 404 });
-      }
-      const agent = await agentService.getAgentByUserId(session.user?.id || '');
-      if (!agent) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-      const hasAccess = await agentService.validateAgentAreaAccess(agent.id, client.areaId);
-      if (!hasAccess) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-    }
 
     const data = await reportService.generateClientStatement(params);
 

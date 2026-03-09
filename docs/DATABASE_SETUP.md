@@ -104,4 +104,7 @@ Copy `.env.example` to `.env` and set:
 ```bash
 npx prisma db push
 npm run seed:microfinance
+npm run seed:account-natures
 ```
+
+**Note:** `seed:account-natures` is required for client creation. Without it, the Add Client form will have no account types to select.

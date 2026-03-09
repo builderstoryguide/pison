@@ -40,6 +40,9 @@ npm run db:test:push
 
 # Seed microfinance data
 npm run seed:microfinance
+
+# Seed account natures (required for client creation)
+npm run seed:account-natures
 ```
 
 ## Architecture

@@ -46,6 +46,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { hasPermission } from '@/lib/auth-client';
+import { CAMEROON_REGIONS } from '@/lib/constants/cameroon-regions';
 
 interface CollectionArea {
   id: string;
@@ -70,9 +72,7 @@ const CollectionAreaList = () => {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
 
-  // Only Manager can create, edit, or delete collection zones
-  const roleName = (session?.user?.roleName || '').toLowerCase();
-  const isManager = roleName.includes('manager');
+  const canManage = hasPermission(session, 'collection_areas.manage');
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
@@ -80,6 +80,7 @@ const CollectionAreaList = () => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string | null>('all');
+  const [selectedRegion, setSelectedRegion] = useState<string | null>('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [areaToDelete, setAreaToDelete] = useState<CollectionArea | null>(null);
 
@@ -88,6 +89,12 @@ const CollectionAreaList = () => {
     const params = new URLSearchParams();
     if (selectedStatus && selectedStatus !== 'all') {
       params.append('status', selectedStatus);
+    }
+    if (selectedRegion && selectedRegion !== 'all') {
+      params.append('region', selectedRegion);
+    }
+    if (searchQuery.trim()) {
+      params.append('search', searchQuery.trim());
     }
 
     const response = await apiFetch(
@@ -104,7 +111,7 @@ const CollectionAreaList = () => {
 
   // Areas query
   const { data: areas, isLoading } = useQuery({
-    queryKey: ['collection-areas', selectedStatus],
+    queryKey: ['collection-areas', selectedStatus, selectedRegion, searchQuery],
     queryFn: fetchAreas,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
@@ -134,23 +141,15 @@ const CollectionAreaList = () => {
     },
   });
 
-  // Filter areas based on search query
-  const filteredAreas = useMemo(() => {
-    if (!areas) return [];
-    if (!searchQuery) return areas;
-
-    const query = searchQuery.toLowerCase();
-    return areas.filter(
-      (area) =>
-        area.code.toLowerCase().includes(query) ||
-        area.name.toLowerCase().includes(query) ||
-        area.city?.toLowerCase().includes(query) ||
-        area.region?.toLowerCase().includes(query),
-    );
-  }, [areas, searchQuery]);
+  const displayAreas = areas ?? [];
 
   const handleStatusSelection = (status: string) => {
     setSelectedStatus(status);
+    setPagination({ ...pagination, pageIndex: 0 });
+  };
+
+  const handleRegionSelection = (region: string) => {
+    setSelectedRegion(region);
     setPagination({ ...pagination, pageIndex: 0 });
   };
 
@@ -323,7 +322,7 @@ const CollectionAreaList = () => {
         header: '',
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
-            {isManager && (
+            {canManage && (
               <>
                 <Button
                   mode="icon"
@@ -358,7 +357,7 @@ const CollectionAreaList = () => {
         enableResizing: false,
       },
     ],
-    [router, isManager],
+    [router, canManage],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -367,8 +366,8 @@ const CollectionAreaList = () => {
 
   const table = useReactTable({
     columns,
-    data: filteredAreas,
-    pageCount: Math.ceil(filteredAreas.length / pagination.pageSize),
+    data: displayAreas,
+    pageCount: Math.ceil(displayAreas.length / pagination.pageSize),
     getRowId: (row: CollectionArea) => row.id,
     state: {
       pagination,
@@ -416,6 +415,7 @@ const CollectionAreaList = () => {
                 onClick={() => {
                   setSearchQuery('');
                   setInputValue('');
+                  setPagination((p) => ({ ...p, pageIndex: 0 }));
                 }}
               >
                 <X />
@@ -437,8 +437,26 @@ const CollectionAreaList = () => {
               <SelectItem value="INACTIVE">Inactive</SelectItem>
             </SelectContent>
           </Select>
+          <Select
+            onValueChange={handleRegionSelection}
+            value={selectedRegion || 'all'}
+            defaultValue="all"
+            disabled={isLoading}
+          >
+            <SelectTrigger className="w-full sm:w-36">
+              <SelectValue placeholder={t('pages.collectionAreas.filterByRegion')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('pages.collectionAreas.allRegions')}</SelectItem>
+              {CAMEROON_REGIONS.map((r) => (
+                <SelectItem key={r.value} value={r.value}>
+                  {t(`common.regions.${r.i18nKey}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        {isManager && (
+        {canManage && (
           <div className="flex items-center justify-end">
             <Link href="/collection-areas/new">
               <Button disabled={isLoading}>
@@ -456,7 +474,7 @@ const CollectionAreaList = () => {
     <>
       <DataGrid
         table={table}
-        recordCount={filteredAreas.length}
+        recordCount={displayAreas.length}
         isLoading={isLoading}
         onRowClick={handleRowClick}
         tableLayout={{

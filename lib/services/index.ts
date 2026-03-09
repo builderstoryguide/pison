@@ -5,7 +5,11 @@
 
 export { accountNatureService, AccountNatureService } from './account-nature-service';
 export { collectionAreaService, CollectionAreaService } from './collection-area-service';
-export { agentService, AgentService } from './agent-service';
+export {
+  agentService,
+  AgentService,
+  AreaAlreadyAssignedError,
+} from './agent-service';
 export { clientService, ClientService } from './client-service';
 export { transactionService, TransactionService } from './transaction-service';
 export { loanService, LoanService } from './loan-service';

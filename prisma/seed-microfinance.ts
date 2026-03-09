@@ -73,6 +73,8 @@ async function main() {
       { slug: 'agents.edit', name: 'Edit Agents', description: 'Edit agent details' },
       { slug: 'agents.approve', name: 'Approve Agents', description: 'Approve pending agent accounts' },
       { slug: 'agents.reject', name: 'Reject Agents', description: 'Reject pending agent accounts' },
+      { slug: 'accountants.view', name: 'View Accountants', description: 'View accountant list and details' },
+      { slug: 'accountants.create', name: 'Create Accountants', description: 'Create new accountant accounts' },
       { slug: 'collection_areas.view', name: 'View Collection Areas', description: 'View collection zones' },
       { slug: 'collection_areas.manage', name: 'Manage Collection Areas', description: 'Create, edit, and deactivate collection zones' },
       { slug: 'collections.create', name: 'Enter Collections', description: 'Enter daily collection amounts (ventilation)' },
@@ -124,11 +126,11 @@ async function main() {
       });
     }
 
-    // Accountant: clients, agents, collections, transactions, loans (no approve), reports, commissions
+    // Accountant: clients, agents, collections, transactions, reports, commissions (no loans by default; Manager grants via Roles)
     const accountantPermSlugs = [
       'dashboard.view', 'clients.view', 'clients.create', 'clients.edit',
       'agents.view', 'agents.create', 'agents.edit', 'collection_areas.view',
-      'collections.create', 'transactions.view', 'transactions.create', 'loans.view', 'loans.create', 'loans.repayment',
+      'collections.create', 'transactions.view', 'transactions.create',
       'reports.view', 'reports.export', 'reports.surplus_shortage', 'commissions.calculate',
     ];
     for (const slug of accountantPermSlugs) {
@@ -144,10 +146,23 @@ async function main() {
       }
     }
 
+    // Cleanup existing Accountant role permissions that are no longer in default.
+    const allowedAccountantPermissionIds = accountantPermSlugs
+      .map((slug) => createdPermissions[slug])
+      .filter((id): id is string => Boolean(id));
+    await prisma.userRolePermission.deleteMany({
+      where: {
+        roleId: accountantRole.id,
+        permissionId: {
+          notIn: allowedAccountantPermissionIds,
+        },
+      },
+    });
+
     // Agent: limited to collections and assigned clients
     const agentPermSlugs = [
       'dashboard.view', 'clients.view', 'collection_areas.view',
-      'collections.create', 'transactions.view', 'loans.view', 'loans.repayment', 'reports.view',
+      'collections.create', 'transactions.view',
     ];
     for (const slug of agentPermSlugs) {
       const permId = createdPermissions[slug];
@@ -161,6 +176,24 @@ async function main() {
         });
       }
     }
+
+    // Cleanup existing Agent role permissions that are no longer allowed.
+    // This keeps existing environments in sync (not only fresh seeds).
+    const allowedAgentPermissionIds = agentPermSlugs
+      .map((slug) => createdPermissions[slug])
+      .filter((id): id is string => Boolean(id));
+    await prisma.userRolePermission.deleteMany({
+      where: {
+        roleId: agentRole.id,
+        permissionId: {
+          notIn: allowedAgentPermissionIds,
+        },
+      },
+    });
+
+    console.log(
+      '   ℹ️  Agent role permissions synced for existing environments. Existing agent sessions must sign out and sign back in to refresh JWT permissions.\n'
+    );
     console.log('   ✅ Default permissions assigned to roles\n');
 
     // 4. Create Manager User
@@ -168,10 +201,10 @@ async function main() {
     const managerPassword = await bcrypt.hash('admin123', 12);
     const managerUser = await prisma.user.upsert({
       where: { email: 'admin@dcm.local' },
-      update: {},
+      update: { name: 'Manager' },
       create: {
         email: 'admin@dcm.local',
-        name: 'System Manager',
+        name: 'Manager',
         password: managerPassword,
         roleId: managerRole.id,
         status: 'ACTIVE',
@@ -282,9 +315,10 @@ async function main() {
     const agent1Password = await bcrypt.hash('agent123', 12);
     const agent1User = await prisma.user.upsert({
       where: { email: 'agent1@dcm.local' },
-      update: {},
+      update: { username: 'agent1' },
       create: {
         email: 'agent1@dcm.local',
+        username: 'agent1',
         name: 'Marie Martin',
         password: agent1Password,
         roleId: agentRole.id,

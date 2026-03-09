@@ -42,7 +42,7 @@ export async function GET(
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
-    // For agents/collectors: verify direct client assignment
+    // For agents/collectors: verify client is in an area assigned to this agent
     const roleName = (session?.user?.roleName || '').toLowerCase();
     if (roleName.includes('agent') || roleName.includes('collector')) {
       const { agentService } = await import('@/lib/services');
@@ -50,9 +50,8 @@ export async function GET(
       if (!agent) {
         return NextResponse.json({ error: 'Agent record not found' }, { status: 403 });
       }
-      // Grant access ONLY if the client is directly assigned to this agent
-      const isDirectlyAssigned = client.agentId === agent.id;
-      if (!isDirectlyAssigned) {
+      const hasAreaAccess = await agentService.validateAgentAreaAccess(agent.id, client.areaId);
+      if (!hasAreaAccess) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     }

@@ -1,5 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -15,10 +18,33 @@ import {
   ToolbarTitle,
 } from '@/components/common/toolbar';
 import { useTranslation } from '@/hooks/useTranslation';
+import { hasPermission } from '@/lib/auth-client';
+import { toast } from 'sonner';
 import ClientForm from '../components/client-form';
 
 export default function Page() {
   const { t } = useTranslation();
+  const router = useRouter();
+  const { data: session, status } = useSession();
+
+  useEffect(() => {
+    if (status === 'loading') return;
+    if (status === 'unauthenticated' || !session) return;
+    if (!hasPermission(session, 'clients.create')) {
+      toast.error(t('pages.clients.accessDenied'));
+      router.replace('/clients');
+    }
+  }, [session, status, router, t]);
+
+  if (status === 'loading') {
+    return null;
+  }
+  if (status === 'unauthenticated' || !session) {
+    return null;
+  }
+  if (!hasPermission(session, 'clients.create')) {
+    return null;
+  }
 
   return (
     <>

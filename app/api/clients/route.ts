@@ -124,12 +124,13 @@ export async function GET(request: NextRequest) {
     const sort = searchParams.get('sort') || undefined;
     const dir = (searchParams.get('dir') || 'desc') as 'asc' | 'desc';
 
-    // Check role and filter by agent's own assigned clients if agent/collector
+    // Check role and filter by agent's assigned areas if agent/collector
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const roleName = (session.user.roleName || '').toLowerCase();
-    let agentIdFilter: string | undefined = searchParams.get('agentId') || undefined;
+    let areaIdsFilter: string[] | undefined;
+    let areaIdFilter: string | undefined = areaId || undefined;
 
     if (roleName.includes('agent') || roleName.includes('collector')) {
       const { agentService } = await import('@/lib/services/agent-service');
@@ -138,19 +139,33 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Agent record not found' }, { status: 404 });
       }
 
-      // If agentId was specified in query, ensure it matches the current user's agent ID
-      if (agentIdFilter && agentIdFilter !== agent.id) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      const assignedAreas = await agentService.getAgentAreas(agent.id);
+      const agentAreaIds = assignedAreas.map((a) => a.id);
+
+      if (agentAreaIds.length === 0) {
+        return cachedJson({
+          success: true,
+          data: [],
+          pagination: { total: 0, limit, page: 1, total_pages: 1, has_more: false, offset: 0 },
+          meta: { total: 0, page: 1, limit, total_pages: 1, has_more: false },
+        }, 30);
       }
 
-      // Force filter to only show clients assigned to this agent
-      agentIdFilter = agent.id;
+      // If areaId was specified in query, validate it is in the agent's assigned areas
+      if (areaId) {
+        if (!agentAreaIds.includes(areaId)) {
+          return NextResponse.json({ error: 'Forbidden: area not assigned to you' }, { status: 403 });
+        }
+        areaIdFilter = areaId;
+      } else {
+        areaIdsFilter = agentAreaIds;
+      }
     }
 
     const result = await clientService.getAllClients({
       status: status || undefined,
-      areaId: areaId || undefined,
-      agentId: agentIdFilter,
+      areaId: areaIdsFilter ? undefined : areaIdFilter,
+      areaIds: areaIdsFilter,
       search: search || undefined,
       sort,
       dir,

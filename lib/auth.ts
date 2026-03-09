@@ -17,6 +17,8 @@ export const PERMISSIONS = {
   AGENTS_VIEW: 'agents.view',
   AGENTS_CREATE: 'agents.create',
   AGENTS_EDIT: 'agents.edit',
+  ACCOUNTANTS_VIEW: 'accountants.view',
+  ACCOUNTANTS_CREATE: 'accountants.create',
   COLLECTION_AREAS_VIEW: 'collection_areas.view',
   COLLECTION_AREAS_MANAGE: 'collection_areas.manage',
   COLLECTIONS_CREATE: 'collections.create',
@@ -39,6 +41,37 @@ export const PERMISSIONS = {
 } as const;
 
 /**
+ * Agent role matcher used for feature restrictions.
+ * Substring matching supports role labels like "Senior Agent" or "Collector".
+ */
+export function isAgentOrCollectorRole(roleName: string | null | undefined): boolean {
+  const normalizedRole = (roleName || '').toLowerCase();
+  return normalizedRole.includes('agent') || normalizedRole.includes('collector');
+}
+
+/**
+ * Return a forbidden response when the current role is Agent/Collector.
+ */
+export function denyAgentAccess(
+  session: Session | null,
+  message = 'Access denied for Agent role'
+): NextResponse | null {
+  if (!session?.user) return null;
+  if (!isAgentOrCollectorRole(session.user.roleName)) return null;
+
+  return NextResponse.json(
+    {
+      success: false,
+      error: {
+        code: 'FORBIDDEN',
+        message,
+      },
+    },
+    { status: 403 }
+  );
+}
+
+/**
  * Check if the role has full access (bypasses permission checks).
  * Uses substring matching for manager roles (matches "Manager", "Branch Manager", etc.)
  * and "administrator" for legacy role names. Matches client semantics in lib/auth-client.ts.
@@ -46,6 +79,46 @@ export const PERMISSIONS = {
 function hasFullAccessByRole(roleName: string): boolean {
   const r = (roleName || '').toLowerCase();
   return r.includes('manager') || r.includes('administrator');
+}
+
+/**
+ * Check if the user has the Manager role (for session open/close restrictions).
+ * Only Manager can open and close daily sessions; Accountant and Agent cannot.
+ */
+export function isManagerRole(session: Session | null): boolean {
+  if (!session?.user) return false;
+  const roleName = session.user.roleName ?? '';
+  const roleSlug = session.user.roleSlug ?? '';
+  const slug = roleSlug.toLowerCase();
+  if (slug === 'manager' || slug === 'administrator' || slug === 'admin') return true;
+  const r = roleName.toLowerCase();
+  return r.includes('manager') || r.includes('administrator');
+}
+
+/**
+ * Require Manager role for API routes (e.g. session open/close).
+ * Returns null if authorized, or a NextResponse (401/403) to return.
+ */
+export function requireManagerRole(session: Session | null): NextResponse | null {
+  if (!session) {
+    return NextResponse.json(
+      { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+      { status: 401 }
+    );
+  }
+  if (!isManagerRole(session)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only managers can open or close the daily session',
+        },
+      },
+      { status: 403 }
+    );
+  }
+  return null;
 }
 
 /**

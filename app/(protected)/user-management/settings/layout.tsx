@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import { apiFetch } from '@/lib/api';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Container } from '@/components/common/container';
@@ -14,6 +15,7 @@ import {
   ToolbarTitle,
 } from '@/components/common/toolbar';
 import { SettingsProvider } from './components/settings-context';
+import { isAgentOrCollectorRole } from '@/lib/auth-client';
 
 type NavRoutes = Record<
   string,
@@ -34,6 +36,7 @@ const fetchSettings = async () => {
 export default function Layout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { data: session, status } = useSession();
 
   const { data = { settings: null, roles: [] }, isLoading } = useQuery({
     queryKey: ['system-settings'],
@@ -86,6 +89,28 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     // Navigate after a short delay (or immediately) so that the UI updates first
     router.push(path);
   };
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/signin');
+      return;
+    }
+    if (
+      status === 'authenticated' &&
+      isAgentOrCollectorRole(session?.user?.roleName)
+    ) {
+      router.replace('/');
+    }
+  }, [router, session?.user?.roleName, status]);
+
+  if (
+    status === 'loading' ||
+    status === 'unauthenticated' ||
+    (status === 'authenticated' &&
+      isAgentOrCollectorRole(session?.user?.roleName))
+  ) {
+    return null;
+  }
 
   if (isLoading) {
     return <ContentLoader className="mt-[30%]" />;

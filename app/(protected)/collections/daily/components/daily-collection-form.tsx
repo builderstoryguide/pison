@@ -17,13 +17,14 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Loader2, MapPin, Users, DollarSign, Save, Plus } from 'lucide-react';
+import { Loader2, Lock, MapPin, Users, DollarSign, Save, Plus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSession } from 'next-auth/react';
 import { Badge } from '@/components/ui/badge';
 import { transactionKeys } from '@/hooks/queries/query-keys';
 import { formatCurrency } from '@/lib/helpers';
 import { VentilationReceiptDialog, type VentilationReceiptData } from './ventilation-receipt-dialog';
+import { useSessionStatus } from '@/hooks/use-session-status';
 
 interface CollectionArea {
   id: string;
@@ -68,6 +69,9 @@ export default function DailyCollectionForm() {
   });
 
   const agentId = agentData?.id;
+
+  const { data: sessionStatus } = useSessionStatus();
+  const isSessionOpen = sessionStatus?.isOpen ?? true;
 
   // Fetch agent's areas
   const { data: areasData, isLoading: isLoadingAreas } = useQuery({
@@ -240,6 +244,23 @@ export default function DailyCollectionForm() {
 
   return (
     <div className="grid gap-6">
+      {!isSessionOpen && (
+        <div
+          className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+          role="alert"
+        >
+          <Lock className="size-5 shrink-0" />
+          <p className="text-sm font-medium">
+            {t('pages.collections.sessionClosed')}
+          </p>
+        </div>
+      )}
+      {isSessionOpen && agentId && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="size-2 rounded-full bg-emerald-500" aria-hidden />
+          {t('pages.collections.sessionOpen')}
+        </div>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>{t('pages.collections.selectCollectionArea')}</CardTitle>
@@ -251,8 +272,14 @@ export default function DailyCollectionForm() {
           {isLoadingAreas ? (
             <Skeleton className="h-10 w-full" />
           ) : areas.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              {t('pages.collections.noAreasAssigned')}
+            <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+              <MapPin className="mb-3 size-12 text-muted-foreground/60" />
+              <p className="font-medium text-foreground">
+                {t('pages.collections.noAreasAssigned')}
+              </p>
+              <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+                {t('pages.collections.noAreasAssignedDesc')}
+              </p>
             </div>
           ) : (
             <Select value={selectedAreaId} onValueChange={handleAreaSelect}>
@@ -377,6 +404,7 @@ export default function DailyCollectionForm() {
                   <Button
                     onClick={handleSubmit}
                     disabled={
+                      !isSessionOpen ||
                       submitMutation.isPending ||
                       entries.filter((e) => parseFloat(e.amount) > 0).length ===
                       0

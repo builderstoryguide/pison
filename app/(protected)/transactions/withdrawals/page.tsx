@@ -17,14 +17,32 @@ import {
 } from '@/components/common/toolbar';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { hasPermission } from '@/lib/auth-client';
+import { isAgentOrCollectorRole } from '@/lib/auth-client';
 import TransactionList from '../components/transaction-list';
 import NewTransactionDialog from '../components/new-transaction-dialog';
 
 export default function Page() {
   const { t } = useTranslation();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const canCreateTransaction = hasPermission(session, 'transactions.create');
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    if (isAgentOrCollectorRole(session?.user?.roleName)) {
+      router.replace('/');
+    }
+  }, [router, session?.user?.roleName, status]);
+
+  if (
+    status === 'authenticated' &&
+    isAgentOrCollectorRole(session?.user?.roleName)
+  ) {
+    return null;
+  }
 
   return (
     <>

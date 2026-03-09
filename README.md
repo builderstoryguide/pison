@@ -34,13 +34,12 @@ This will create the necessary tables in database for user authorization and use
 
 ```bash
 npx prisma db push
-```
-
-Once your schema is deployed, you need to generate the Prisma Client:
-
-```bash
 npx prisma generate
+npm run seed:microfinance
+npm run seed:account-natures
 ```
+
+`seed:account-natures` is required for client creation (Add Client form).
 
 ### Development
 

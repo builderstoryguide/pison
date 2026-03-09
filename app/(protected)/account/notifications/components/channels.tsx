@@ -2,6 +2,7 @@
 
 import { ReactNode } from 'react';
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 import { CardNotification } from '@/partials/cards';
 import { LucideIcon, Mail, Monitor, Phone, Slack } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,36 +20,36 @@ interface IChannelsItem {
 type IChannelsItems = Array<IChannelsItem>;
 
 const Channels = () => {
+  const { t } = useTranslation();
   const items: IChannelsItems = [
     {
       icon: Mail,
-      title: 'Email',
+      title: t('pages.account.notifications.channels.email'),
       description: 'jamescollins@ktstudio.com',
       button: true,
       actions: <Switch id="size-sm" size="sm" defaultChecked />,
     },
     {
       icon: Phone,
-      title: 'Mobile',
+      title: t('pages.account.notifications.channels.mobile'),
       description: '(225) 555-0118',
       button: true,
       actions: <Switch id="size-sm" size="sm" />,
     },
     {
       icon: Slack,
-      title: 'Slack',
-      description:
-        'Receive instant alerts for messages and updates directly in Slack.',
+      title: t('pages.account.notifications.channels.slack'),
+      description: t('pages.account.notifications.channels.slackDesc'),
       actions: (
         <Button variant="outline">
-          <Link href="#">Connect Slack</Link>
+          <Link href="#">{t('pages.account.notifications.channels.connectSlack')}</Link>
         </Button>
       ),
     },
     {
       icon: Monitor,
-      title: 'Desctop',
-      description: 'Enable notifications for real-time desktop alerts.',
+      title: t('pages.account.notifications.channels.desktop'),
+      description: t('pages.account.notifications.channels.desktopDesc'),
       actions: <Switch id="size-sm" size="sm" defaultChecked />,
     },
   ];
@@ -69,10 +70,10 @@ const Channels = () => {
   return (
     <Card>
       <CardHeader className="gap-2">
-        <CardTitle>Notification Channels</CardTitle>
+        <CardTitle>{t('pages.account.notifications.channels.title')}</CardTitle>
         <div className="flex items-center gap-2">
           <Label htmlFor="size-sm" className="text-sm">
-            Team-Wide Alerts
+            {t('pages.account.notifications.channels.teamWideAlerts')}
           </Label>
           <Switch id="size-sm" size="sm" />
         </div>

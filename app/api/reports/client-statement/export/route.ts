@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
-import { reportService, clientService, agentService } from '@/lib/services';
+import { denyAgentAccess } from '@/lib/auth';
+import { reportService } from '@/lib/services';
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,6 +11,11 @@ export async function GET(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    const roleForbidden = denyAgentAccess(
+      session,
+      'Reports are not available for Agent role'
+    );
+    if (roleForbidden) return roleForbidden;
 
     const searchParams = request.nextUrl.searchParams;
     const clientId = searchParams.get('clientId');
@@ -23,23 +29,6 @@ export async function GET(request: NextRequest) {
 
     if (!['csv', 'excel', 'pdf'].includes(format)) {
       return NextResponse.json({ error: 'Invalid format. Use csv, excel or pdf' }, { status: 400 });
-    }
-
-    // Agents can only export statements for clients in their assigned zones
-    const roleName = (session.user?.roleName || '').toLowerCase();
-    if (roleName.includes('agent') || roleName.includes('collector')) {
-      const client = await clientService.getClientById(clientId);
-      if (!client) {
-        return NextResponse.json({ error: 'Client not found' }, { status: 404 });
-      }
-      const agent = await agentService.getAgentByUserId(session.user?.id || '');
-      if (!agent) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-      const hasAccess = await agentService.validateAgentAreaAccess(agent.id, client.areaId);
-      if (!hasAccess) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
     }
 
     const data = await reportService.generateClientStatement({

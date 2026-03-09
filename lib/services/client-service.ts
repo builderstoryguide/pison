@@ -149,7 +149,12 @@ export class ClientService {
       throw new Error('Account nature not found or not active');
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    const MAX_RETRIES = 3;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const result = await prisma.$transaction(async (tx) => {
       // Generate client number and account number
       const clientNumber = await this.generateClientNumber();
       const accountNumber = await this.generateAccountNumber();
@@ -228,12 +233,28 @@ export class ClientService {
       });
     });
 
-    const { invalidateCountCacheForEntity, invalidateClientListCache } = await import('@/lib/cache');
-    await Promise.allSettled([
-      invalidateCountCacheForEntity('clients'),
-      invalidateClientListCache(),
-    ]);
-    return result;
+        const { invalidateCountCacheForEntity, invalidateClientListCache } = await import('@/lib/cache');
+        await Promise.allSettled([
+          invalidateCountCacheForEntity('clients'),
+          invalidateClientListCache(),
+        ]);
+        return result;
+      } catch (error: unknown) {
+        lastError = error;
+        const isRetryable =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002' &&
+          Array.isArray(error.meta?.target) &&
+          (error.meta.target as string[]).some(
+            (t) => t === 'clientNumber' || t === 'accountNumber'
+          );
+        if (!isRetryable || attempt === MAX_RETRIES) {
+          throw error;
+        }
+      }
+    }
+
+    throw lastError;
   }
 
   /**

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
-import { requirePermission, requireAnyPermission } from '@/lib/auth';
+import { denyAgentAccess, requirePermission, requireAnyPermission } from '@/lib/auth';
 import { loanService } from '@/lib/services';
 import { z } from 'zod';
 
@@ -20,6 +20,12 @@ export async function GET(
   const params = await props.params;
   try {
     const session = await getServerSession(authOptions);
+    const roleForbidden = denyAgentAccess(
+      session,
+      'Loans are not available for Agent role'
+    );
+    if (roleForbidden) return roleForbidden;
+
     const forbidden = await requirePermission(session, 'loans.view');
     if (forbidden) return forbidden;
 
@@ -55,6 +61,12 @@ export async function PUT(
   const params = await props.params;
   try {
     const session = await getServerSession(authOptions);
+    const roleForbidden = denyAgentAccess(
+      session,
+      'Loans are not available for Agent role'
+    );
+    if (roleForbidden) return roleForbidden;
+
     const forbidden = await requireAnyPermission(session, ['loans.create', 'loans.approve']);
     if (forbidden) return forbidden;
 

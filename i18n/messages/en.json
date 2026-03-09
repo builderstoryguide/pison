@@ -28,6 +28,7 @@
       "agent": "Agent",
       "none": "None",
       "client": "Client",
+      "account": "Account",
       "status": "Status",
       "role": "Role",
       "description": "Description"
@@ -47,6 +48,7 @@
       "selectAgent": "Select an agent",
       "selectUser": "Select a user to assign as agent",
       "selectStatus": "Select status",
+      "selectRegion": "Select region",
       "selectRole": "Select a role",
       "amount": "0.00",
       "interestRate": "0.15",
@@ -70,6 +72,21 @@
       "amountPositive": "Amount must be positive",
       "amountExceedsBalance": "Amount exceeds available balance"
     },
+    "regions": {
+      "adamawa": "Adamawa",
+      "centre": "Centre",
+      "east": "East",
+      "farNorth": "Far North",
+      "littoral": "Littoral",
+      "north": "North",
+      "northwest": "Northwest",
+      "south": "South",
+      "southwest": "Southwest",
+      "west": "West"
+    },
+    "aria": {
+      "userAvatar": "User avatar"
+    },
     "breadcrumbs": {
       "home": "Home",
       "new": "New",
@@ -90,8 +107,72 @@
       "title": "Account Settings",
       "notifications": {
         "title": "Notifications",
-        "description": "Manage your notification preferences"
+        "description": "Manage your notification preferences",
+        "channels": {
+          "title": "Notification Channels",
+          "teamWideAlerts": "Team-Wide Alerts",
+          "email": "Email",
+          "mobile": "Mobile",
+          "slack": "Slack",
+          "desktop": "Desktop",
+          "connectSlack": "Connect Slack",
+          "slackDesc": "Receive instant alerts for messages and updates directly in Slack.",
+          "desktopDesc": "Enable notifications for real-time desktop alerts."
+        },
+        "posts": {
+          "streamlinedAlerts": "Streamlined Alerts Setup: Custom Notification Preferences",
+          "streamlinedAlertsSummary": "Tailor your alert preferences with our streamlined setup. Stay informed with notifications that matter to you most.",
+          "effectiveCommunication": "Effective Communication: Instant Notification Tools",
+          "effectiveCommunicationSummary": "Ensure timely communication with our instant notification tools. Customize alerts to stay ahead in real-time collaboration.",
+          "personalizedUpdates": "Personalized Updates: Smart Alert System",
+          "personalizedUpdatesSummary": "Control how you receive updates with our smart alert system. Personalize notifications for a more efficient workflow."
+        },
+        "contactSupport": "Contact Support",
+        "contactSupportDesc": "Need assistance? Contact our support team for prompt, personalized help your queries & concerns.",
+        "doNotDisturb": {
+          "title": "Do Not Disturb",
+          "description": "Activate 'Do Not Disturb' to silence all notifications and focus without interruptions during specified hours or tasks.",
+          "learnMore": "Learn more",
+          "pauseNotifications": "Pause Notifications"
+        },
+        "other": {
+          "title": "Other Notifications",
+          "taskAlert": "Task Alert",
+          "taskAlertDesc": "Notification when a task is assigned to you.",
+          "budgetWarning": "Budget Warning",
+          "budgetWarningDesc": "Get notified if nearing budget limit.",
+          "invoiceAlert": "Invoice Alert",
+          "invoiceAlertDesc": "Alert for new and unpaid invoices.",
+          "viewInvoices": "View Invoices",
+          "feedbackAlert": "Feedback Alert",
+          "feedbackAlertDesc": "When a client submits new feedback.",
+          "collaborationRequest": "Collaboration Request",
+          "collaborationRequestDesc": "Invite to collaborate on a new document.",
+          "meetingReminder": "Meeting Reminder",
+          "meetingReminderDesc": "Reminder of scheduled meetings for the day.",
+          "showMeetings": "Show Meetings",
+          "statusChange": "Status Change",
+          "statusChangeDesc": "Notifies changes in project or task status."
+        }
       }
+    },
+    "profile": {
+      "cardTitle": "Profile",
+      "cardDescription": "Manage profile information",
+      "avatarLabel": "Profile Avatar",
+      "attachImage": "Attach Image",
+      "enterNamePlaceholder": "Enter your name",
+      "saveProfile": "Save Profile",
+      "updateSuccess": "Account updated successfully",
+      "centralHubDescription": "Central Hub for Personal Customization",
+      "basicSettings": "Basic Settings",
+      "myFiles": "My Files",
+      "personalInfo": "Personal Info",
+      "work": "Work",
+      "connections": "Connections",
+      "publicProfile": "Public Profile",
+      "jointLinks": "Joint Links",
+      "viewMore": "View {{count}} more"
     },
     "dashboard": {
       "adminTitle": "Manager Dashboard",
@@ -110,6 +191,7 @@
       "noRecentTransactions": "No recent transactions",
       "quickActions": "Quick Actions",
       "manageUsersRoles": "Manage users and roles",
+      "addNewAccountant": "Create a new accountant account",
       "validateTransactions": "Validate Transactions",
       "approvePendingCollections": "Approve pending collections",
       "newLoanRequest": "New Loan Request",
@@ -158,6 +240,7 @@
       "clientCreatedSuccess": "Client created successfully",
       "clientUpdatedSuccess": "Client updated successfully",
       "createFailed": "Failed to create client",
+      "accessDenied": "You do not have permission to add new clients.",
       "updateFailed": "Failed to update client",
       "fetchFailed": "Failed to fetch client",
       "selectAccountTypeError": "Please select an account type",
@@ -247,7 +330,26 @@
       "agentUpdatedSuccess": "Agent updated successfully",
       "createFailed": "Failed to create agent",
       "updateFailed": "Failed to update agent",
-      "credentialsDownloadedSuccess": "Agent credentials were downloaded successfully"
+      "credentialsDownloadedSuccess": "Agent credentials were downloaded successfully",
+      "creationMode": "Creation mode",
+      "createNewAccount": "Create new agent account",
+      "createNewAccountDesc": "Create a new user account and agent profile. Login credentials will be downloaded after creation.",
+      "createNewAccountChoiceDesc": "Create a new user account and agent profile. Credentials will be downloaded after creation.",
+      "linkExistingUser": "Link to existing user",
+      "linkExistingUserChoiceDesc": "Link an existing user with Agent role to an agent profile.",
+      "selectExistingUser": "Select user",
+      "searchUserPlaceholder": "Search by name or email...",
+      "noUsersMatchSearch": "No users found.",
+      "noUsersAvailable": "No users with Agent role available for linking. Create a new agent instead.",
+      "createUserFirst": "Create user first",
+      "linkAgent": "Link Agent",
+      "hireDate": "Hire Date",
+      "agentLinkedSuccess": "Agent record created and linked successfully.",
+      "usernamePlaceholder": "e.g. marie.martin",
+      "usernameOptionalDesc": "Optional. If empty, a username will be auto-generated.",
+      "passwordPlaceholder": "Leave empty to auto-generate",
+      "passwordOptionalDesc": "Leave empty to auto-generate a secure password.",
+      "autoCredentialsInfo": "A username and password will be automatically generated. Login credentials will be downloaded as a file after creation."
     },
     "loans": {
       "title": "Loans",
@@ -292,6 +394,18 @@
     "topbar": {
       "chat": {
         "title": "Chat",
+        "searchPlaceholder": "Search or start new chat...",
+        "recentChats": "Recent Chats",
+        "noRecentChats": "No recent chats",
+        "newConversation": "New conversation",
+        "searchResults": "Search Results",
+        "otherContacts": "Other Contacts",
+        "noContactsFound": "No contacts found",
+        "loadingMessages": "Loading messages...",
+        "loadMessagesFailed": "Failed to load messages",
+        "typeMessagePlaceholder": "Type a message...",
+        "startChatFailed": "Failed to start chat",
+        "sendMessageFailed": "Failed to send message",
         "teamName": "HR Team",
         "typing": "Jessy is typing...",
         "inviteUsers": "Invite Users",
@@ -315,9 +429,10 @@
         "none": "No notifications at this time.",
         "loading": "Loading...",
         "allCaughtUp": "All caught up!",
-        "allCaughtUpDesc": "No pending transactions or accounts require your approval.",
-        "pendingApproval": "Pending approval ({{transactions}} transactions{{accounts}})",
+        "allCaughtUpDesc": "No pending transactions, accounts, or loans require your approval.",
+        "pendingApproval": "Pending approval ({{transactions}} transactions{{accounts}}{{loans}})",
         "accountsSuffix": ", {{count}} accounts",
+        "loansSuffix": ", {{count}} loans",
         "viewPendingTransactions": "View pending transactions ->",
         "viewPendingAccounts": "View pending accounts ->",
         "openTxHint": "Click to view details and approve or reject",
@@ -333,7 +448,14 @@
       "apps": {
         "title": "Apps",
         "enabled": "Enabled",
-        "goToApps": "Go to Apps"
+        "goToApps": "Go to Apps",
+        "items": {
+          "jira": "Project management",
+          "inferno": "Ensures healthcare app",
+          "evernote": "Notes management app",
+          "gitlab": "DevOps platform",
+          "googleWebdev": "Building web experiences"
+        }
       },
       "userMenu": {
         "publicProfile": "Public Profile",
@@ -373,7 +495,24 @@
         "noResultsTitle": "No Results Found",
         "noResultsDescription": "Refine your query to discover relevant items",
         "viewProjects": "View Projects",
-        "goToUsers": "Go to Users"
+        "goToUsers": "Go to Users",
+        "shortcuts": {
+          "goToDashboard": "Go to Dashboard",
+          "publicProfile": "Public Profile",
+          "myProfile": "My Profile",
+          "myAccount": "My Account"
+        },
+        "actions": {
+          "createUser": "Create User",
+          "createTeam": "Create Team",
+          "changePlan": "Change Plan",
+          "setupBranding": "Setup Branding"
+        },
+        "labels": {
+          "inOffice": "In Office",
+          "onLeave": "On Leave",
+          "remote": "Remote"
+        }
       }
     },
     "auth": {
@@ -381,8 +520,8 @@
         "title": "Sign in to DCMS",
         "subtitle": "Daily Collection Management System",
         "devCredentials": "Dev credentials (click to fill):",
-        "identifier": "Username or Email",
-        "identifierPlaceholder": "Your username or email",
+        "identifier": "Email/Username",
+        "identifierPlaceholder": "Your email or username",
         "email": "Email",
         "emailPlaceholder": "Your email",
         "password": "Password",
@@ -390,6 +529,7 @@
         "forgotPassword": "Forgot Password?",
         "rememberMe": "Remember me",
         "signIn": "Sign In",
+        "signingIn": "Signing in...",
         "showPassword": "Show password",
         "hidePassword": "Hide password",
         "contactManager": "Contact your manager if you need an account.",
@@ -513,6 +653,8 @@
       "areaAssignments": "Area Assignments",
       "searchPlaceholder": "Search areas...",
       "filterByStatus": "Filter by status",
+      "filterByRegion": "Filter by region",
+      "allRegions": "All regions",
       "addArea": "Add Area",
       "createNewArea": "Create New Collection Area",
       "editCollectionArea": "Edit Collection Area",
@@ -577,9 +719,19 @@
       "allAccountsReviewed": "All accounts have been reviewed and processed.",
       "approveAccount": "Approve Account",
       "rejectAccount": "Reject Account",
-      "approveConfirm": "Are you sure you want to approve this account?",
-      "rejectConfirm": "Please provide a reason for rejecting this account (optional).",
-      "createdBy": "Created by"
+      "approveAccountConfirm": "Are you sure you want to approve this account?",
+      "rejectAccountConfirm": "Please provide a reason for rejecting this account (optional).",
+      "createdBy": "Created by",
+      "pendingLoans": "Pending Loans ({{count}})",
+      "noPendingTransactionsOrLoans": "No Pending Transactions or Loans",
+      "approveLoan": "Approve Loan",
+      "approveLoanConfirm": "Are you sure you want to approve this loan? This will disburse the funds to the client's account.",
+      "approveLoanFailed": "Failed to approve loan",
+      "rejectLoan": "Reject Loan",
+      "rejectLoanConfirm": "Please provide a reason for rejecting this loan (optional).",
+      "rejectLoanFailed": "Failed to reject loan",
+      "loanApprovedSuccess": "Loan approved and disbursed successfully",
+      "loanRejected": "Loan rejected"
     },
     "auditLog": {
       "title": "Audit Log",
@@ -617,7 +769,10 @@
       "selectArea": "Select a collection area",
       "selectCollectionArea": "Select Collection Area",
       "selectCollectionAreaDesc": "Choose the area where you collected money today",
-      "noAreasAssigned": "No collection areas assigned. Please contact manager.",
+      "noAreasAssigned": "No collection areas assigned",
+      "noAreasAssignedDesc": "Contact your manager to assign collection areas at the Area Assignments page.",
+      "sessionClosed": "Session closed — collections unavailable. Please wait for a manager to open the session.",
+      "sessionOpen": "Session open",
       "enterCollectionAmounts": "Enter Collection Amounts",
       "enterCollectionAmountsDesc": "Enter the amount collected for each client",
       "addAllClients": "Add All Clients",
@@ -729,7 +884,8 @@
     "system_error": "Oops! Something didn't go as planned. Please try again in a moment.",
     "invalid_input": "Invalid input. Please check your data and try again.",
     "data_not_found": "Requested data not found.",
-    "delete_restricted_error": "Unable to delete this record because it is linked to other records."
+    "delete_restricted_error": "Unable to delete this record because it is linked to other records.",
+    "area_already_assigned": "One or more areas are already assigned to another agent. Each zone can only be assigned to one agent at a time."
   },
   "menu": {
     "dashboard": "Dashboard",
@@ -756,6 +912,9 @@
     "allAgents": "All Agents",
     "addAgent": "Add Agent",
     "agentAccounts": "Agent Accounts",
+    "accountants": "Accountants",
+    "allAccountants": "All Accountants",
+    "addAccountant": "Add Accountant",
     "collectionAreas": "Collection Areas",
     "allAreas": "All Areas",
     "addArea": "Add Area",
@@ -802,7 +961,6 @@
     "security": "Security",
     "membersRoles": "Members & Roles",
     "integrations": "Integrations",
-    "devForum": "Dev Forum",
     "language": "Language",
     "darkMode": "Dark Mode",
     "logout": "Logout",

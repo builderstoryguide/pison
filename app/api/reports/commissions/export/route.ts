@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
-import { requirePermission } from '@/lib/auth';
+import { denyAgentAccess, requirePermission } from '@/lib/auth';
 import { reportService } from '@/lib/services';
 
 function sanitizePeriodForFilename(period?: string): string | null {
@@ -12,6 +12,12 @@ function sanitizePeriodForFilename(period?: string): string | null {
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+    const roleForbidden = denyAgentAccess(
+      session,
+      'Reports are not available for Agent role'
+    );
+    if (roleForbidden) return roleForbidden;
+
     const forbidden = await requirePermission(session, 'reports.view');
     if (forbidden) return forbidden;
 

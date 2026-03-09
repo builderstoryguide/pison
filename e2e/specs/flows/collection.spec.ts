@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { createTestUser, createCollectionArea, createClient, createAgent, assignAgentToArea, cleanupTestUser } from '../../helpers/seed';
+import {
+  createTestUser,
+  createCollectionArea,
+  createClient,
+  createAgent,
+  assignAgentToArea,
+  openDailySession,
+  cleanupTestUser,
+} from '../../helpers/seed';
 import { login, logout } from '../../helpers/auth';
 
 test.describe('Daily Collection Flow', () => {
@@ -23,6 +31,11 @@ test.describe('Daily Collection Flow', () => {
     
     // Create client in area
     client = await createClient(area.id, adminUser.id);
+
+    // Open daily session (required for collections)
+    await openDailySession(adminUser.id).catch((e) => {
+      if (!e?.message?.includes('already open')) throw e;
+    });
   });
 
   test.afterAll(async () => {
@@ -53,6 +66,9 @@ test.describe('Daily Collection Flow', () => {
     await agentPage.getByRole('button', { name: /submit collections/i }).click();
 
     await expect(agentPage.getByText(/collections submitted successfully/i)).toBeVisible();
+    // Verify receipt dialog is shown
+    await expect(agentPage.getByRole('dialog')).toBeVisible();
+    await expect(agentPage.getByText(/collection receipt|receipt de collecte/i)).toBeVisible();
     await logout(agentPage);
     await agentContext.close();
 

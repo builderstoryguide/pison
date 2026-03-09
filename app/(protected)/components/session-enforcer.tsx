@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { useSessionStatus } from '@/hooks/use-session-status';
-import { hasPermission } from '@/lib/auth-client';
+import { isManagerRole } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { signOut } from 'next-auth/react';
 import { Lock } from 'lucide-react';
@@ -14,12 +14,37 @@ interface SessionEnforcerProps {
 
 export function SessionEnforcer({ children }: SessionEnforcerProps) {
   const { data: session } = useSession();
-  const { data: sessionStatus, isLoading: isSessionLoading } = useSessionStatus();
+  const { data: sessionStatus, isLoading: isSessionLoading, isError, error, refetch } = useSessionStatus();
 
   // Allow managers to bypass the check entirely (no wait)
-  const canManageSession = hasPermission(session, 'session.manage');
+  const canManageSession = isManagerRole(session);
   if (canManageSession) {
     return <>{children}</>;
+  }
+
+  // Show retry UI when session status fetch fails (e.g. network, server error)
+  if (isError && !sessionStatus) {
+    return (
+      <div className="flex min-h-[60vh] w-full flex-col items-center justify-center p-4 text-center">
+        <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-amber-100">
+          <Lock className="h-10 w-10 text-amber-600" />
+        </div>
+        <h1 className="mb-2 text-2xl font-bold text-foreground">
+          Unable to Load Session Status
+        </h1>
+        <p className="mb-6 max-w-md text-muted-foreground">
+          {error?.message || 'Failed to fetch session status. Please check your connection and try again.'}
+        </p>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => refetch()}>
+            Try Again
+          </Button>
+          <Button variant="outline" onClick={() => signOut({ callbackUrl: '/auth/signin' })}>
+            Sign Out
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   if (isSessionLoading) {

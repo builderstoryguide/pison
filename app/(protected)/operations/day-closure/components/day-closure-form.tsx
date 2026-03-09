@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -30,6 +31,8 @@ import {
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { useSessionStatus } from '@/hooks/use-session-status';
+import { isManagerRole } from '@/lib/auth-client';
 
 const closureSchema = z.object({
   physicalCash: z.string().min(1, 'Physical cash amount is required'),
@@ -41,19 +44,10 @@ type ClosureFormData = z.infer<typeof closureSchema>;
 export default function DayClosureForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
-
-  // Fetch current session
-  const { data: currentSession, isLoading: isLoadingSession } = useQuery({
-    queryKey: ['current-session'],
-    queryFn: async () => {
-      const response = await apiFetch('/api/operations/session');
-      if (!response.ok) {
-        throw new Error('Failed to fetch session status');
-      }
-      const result = await response.json();
-      return result.data;
-    },
-  });
+  const { data: session } = useSession();
+  const { data: sessionStatusData, isLoading: isLoadingSession } = useSessionStatus();
+  const sessionData = sessionStatusData?.session ?? null;
+  const systemBalance = sessionStatusData?.systemBalance ?? 0;
 
   const form = useForm<ClosureFormData>({
     resolver: zodResolver(closureSchema),
@@ -82,7 +76,7 @@ export default function DayClosureForm() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['current-session'] });
+      queryClient.invalidateQueries({ queryKey: ['session-status'] });
       toast.success('Session closed successfully');
       router.push('/operations/session');
     },
@@ -115,8 +109,24 @@ export default function DayClosureForm() {
     );
   }
 
-  const sessionData = currentSession || null;
-  const isOpen = sessionData?.status === 'OPEN';
+  if (!isManagerRole(session)) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <AlertTriangle className="size-12 text-amber-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+          <p className="text-muted-foreground mb-4">
+            Only managers can close the daily session.
+          </p>
+          <Button variant="outline" onClick={() => router.push('/')}>
+            Return to Dashboard
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const isOpen = sessionStatusData?.isOpen ?? false;
 
   if (!sessionData) {
     return (
@@ -154,8 +164,6 @@ export default function DayClosureForm() {
 
   const watchPhysicalCash = form.watch('physicalCash');
   const physicalCashValue = parseFloat(watchPhysicalCash) || 0;
-  
-  const systemBalance = sessionData?.systemBalance || 0;
   const surplusShortage = physicalCashValue - systemBalance;
 
   return (

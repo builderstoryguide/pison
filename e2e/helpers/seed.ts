@@ -1,21 +1,27 @@
-import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
 import { faker } from '@faker-js/faker';
 import bcrypt from 'bcrypt';
 import path from 'path';
 
-// Ensure env vars are loaded
+// Ensure env vars are loaded for E2E (uses .env.test)
 if (!process.env.DATABASE_URL) {
   require('dotenv').config({ path: path.resolve(process.cwd(), '.env.test') });
 }
 
-// #region agent log
-// fetch('http://127.0.0.1:7243/ingest/2646fe79-66c2-4061-bac2-d73445eb31a2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'e2e/helpers/seed.ts:5',message:'Before PrismaClient init',data:{envDbUrl:process.env.DATABASE_URL, cwd: process.cwd()},timestamp:Date.now()})}).catch(()=>{});
-// #endregion
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error('DATABASE_URL is required. Run with: dotenv -e .env.test -- npx playwright test ...');
+}
 
-const prisma = new PrismaClient();
+const pool = new pg.Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+const prisma = new PrismaClient({ adapter });
 
 export async function createTestUser(roleSlug: string = 'agent') {
   const email = faker.internet.email();
+  const username = `test_${Date.now()}_${faker.string.alphanumeric(6).toLowerCase()}`;
   const password = 'password123';
   const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -30,6 +36,7 @@ export async function createTestUser(roleSlug: string = 'agent') {
   const user = await prisma.user.create({
     data: {
       email,
+      username,
       password: hashedPassword,
       name: faker.person.fullName(),
       roleId: role.id,
@@ -123,7 +130,70 @@ export async function assignAgentToArea(agentId: string, areaId: string, assigne
 }
 
 export async function cleanupTestUser(email: string) {
-  await prisma.user.deleteMany({
-    where: { email },
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) return;
+
+  // Delete Agent first (FK: Agent.userId -> User, RESTRICT)
+  const agents = await prisma.agent.findMany({
+    where: { userId: user.id },
+    select: { id: true, accountId: true },
   });
+  for (const a of agents) {
+    await prisma.agent.delete({ where: { id: a.id } });
+    await prisma.financialAccount.delete({ where: { id: a.accountId } }).catch(() => {});
+  }
+
+  await prisma.user.deleteMany({ where: { email } });
+}
+
+/**
+ * Open the daily session for today (required for collection/transaction tests).
+ * Call with a manager/admin user ID.
+ */
+export async function openDailySession(openedByUserId: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const existing = await prisma.dailySession.findUnique({
+    where: { sessionDate: today },
+  });
+
+  if (existing) {
+    if (existing.status === 'OPEN') {
+      throw new Error('Session is already open');
+    }
+    return await prisma.dailySession.update({
+      where: { id: existing.id },
+      data: {
+        status: 'OPEN',
+        openedBy: openedByUserId,
+        openedAt: new Date(),
+        closedAt: null,
+        closedBy: null,
+      },
+    });
+  }
+
+  return await prisma.dailySession.create({
+    data: {
+      sessionDate: today,
+      status: 'OPEN',
+      openedBy: openedByUserId,
+    },
+  });
+}
+
+/**
+ * Get the first active account nature (for client creation tests).
+ * Requires seed:account-natures to have been run.
+ */
+export async function getFirstAccountNature() {
+  const nature = await prisma.accountNature.findFirst({
+    where: { isActive: true },
+    orderBy: { sortOrder: 'asc' },
+  });
+  if (!nature) {
+    throw new Error('No account nature found. Run npm run seed:account-natures first.');
+  }
+  return nature;
 }

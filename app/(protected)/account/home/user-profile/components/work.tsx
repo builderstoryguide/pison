@@ -1,6 +1,7 @@
 'use client';
 
 import { SquarePen } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,10 +10,11 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 
 const Work = () => {
+  const { t } = useTranslation();
   return (
     <Card className="min-w-full">
       <CardHeader>
-        <CardTitle>Work</CardTitle>
+        <CardTitle>{t('pages.profile.work')}</CardTitle>
         <div className="flex items-center gap-2">
           <Label htmlFor="auto-update" className="text-sm">
             Available now

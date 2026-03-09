@@ -42,13 +42,18 @@ export class CollectionAreaService {
       throw new Error(`Collection area with code "${data.code}" already exists`);
     }
 
-    return await prisma.collectionArea.create({
+    const area = await prisma.collectionArea.create({
       data: {
         ...data,
         createdBy: userId,
         updatedBy: userId,
       },
     });
+
+    const { invalidateAreaListCache } = await import('@/lib/cache');
+    await invalidateAreaListCache();
+
+    return area;
   }
 
   /**
@@ -61,13 +66,19 @@ export class CollectionAreaService {
       throw new Error('Collection area not found');
     }
 
-    return await prisma.collectionArea.update({
+    const updated = await prisma.collectionArea.update({
       where: { id },
       data: {
         ...data,
         updatedBy: userId,
       },
     });
+
+    const { invalidateAreaListCache, invalidateAreaDetail } = await import('@/lib/cache');
+    await invalidateAreaListCache();
+    await invalidateAreaDetail(id);
+
+    return updated;
   }
 
   /**
@@ -77,6 +88,7 @@ export class CollectionAreaService {
     status?: 'ACTIVE' | 'INACTIVE';
     city?: string;
     region?: string;
+    search?: string;
     limit?: number;
     offset?: number;
   }) {
@@ -91,11 +103,24 @@ export class CollectionAreaService {
     if (filters?.region) {
       where.region = filters.region;
     }
+    if (filters?.search) {
+      const term = filters.search.trim();
+      if (term) {
+        where.OR = [
+          { code: { contains: term, mode: 'insensitive' } },
+          { name: { contains: term, mode: 'insensitive' } },
+          { city: { contains: term, mode: 'insensitive' } },
+          { region: { contains: term, mode: 'insensitive' } },
+          { description: { contains: term, mode: 'insensitive' } },
+        ];
+      }
+    }
 
     const cacheParams = {
       status: filters?.status,
       city: filters?.city,
       region: filters?.region,
+      search: filters?.search?.trim() || undefined,
       limit: capLimit(filters?.limit),
       offset: filters?.offset ?? 0,
     };

@@ -372,7 +372,7 @@ export default function PendingAccountsList() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('pages.validation.approveAccount')}</DialogTitle>
-            <DialogDescription>{t('pages.validation.approveConfirm')}</DialogDescription>
+            <DialogDescription>{t('pages.validation.approveAccountConfirm')}</DialogDescription>
           </DialogHeader>
           {selectedItem && (
             <div className="py-2">
@@ -410,7 +410,7 @@ export default function PendingAccountsList() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('pages.validation.rejectAccount')}</DialogTitle>
-            <DialogDescription>{t('pages.validation.rejectConfirm')}</DialogDescription>
+            <DialogDescription>{t('pages.validation.rejectAccountConfirm')}</DialogDescription>
           </DialogHeader>
           {selectedItem && (
             <div className="py-2">

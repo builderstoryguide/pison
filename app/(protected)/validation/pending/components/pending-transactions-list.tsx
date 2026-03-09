@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
-import { transactionKeys } from '@/hooks/queries/query-keys';
+import { transactionKeys, loanKeys } from '@/hooks/queries/query-keys';
 import { useTranslation } from '@/hooks/useTranslation';
-import { formatCurrency, formatDateTime } from '@/lib/helpers';
+import { formatCurrency, formatDateTime, formatDate } from '@/lib/helpers';
+import { hasPermission } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +33,7 @@ import {
   ArrowUp,
   Users,
   Calendar,
+  Banknote,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -65,14 +68,43 @@ interface Transaction {
   };
 }
 
+interface PendingLoan {
+  id: string;
+  loanNumber: string;
+  principalAmount: string;
+  totalAmount: string;
+  remainingBalance: string;
+  status: string;
+  maturityDate?: string | null;
+  createdAt: string;
+  client?: {
+    fullName: string;
+    clientNumber: string;
+  };
+  account?: {
+    accountNumber: string;
+  };
+  creator?: {
+    name: string;
+  };
+}
+
 export default function PendingTransactionsList() {
   const { t } = useTranslation();
+  const { data: session } = useSession();
   const queryClient = useQueryClient();
+  const canApproveLoans = hasPermission(session, 'loans.approve');
+
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [approveNotes, setApproveNotes] = useState('');
   const [rejectReason, setRejectReason] = useState('');
+
+  const [loanApproveDialogOpen, setLoanApproveDialogOpen] = useState(false);
+  const [loanRejectDialogOpen, setLoanRejectDialogOpen] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState<PendingLoan | null>(null);
+  const [loanRejectReason, setLoanRejectReason] = useState('');
 
   // Fetch pending transactions
   const { data: transactions, isLoading } = useQuery({
@@ -87,6 +119,23 @@ export default function PendingTransactionsList() {
     },
     refetchInterval: 30000, // Refetch every 30 seconds
   });
+
+  // Fetch pending loans (only if user can approve loans)
+  const { data: loansResponse, isLoading: loansLoading } = useQuery({
+    queryKey: loanKeys.pending(),
+    queryFn: async () => {
+      const response = await apiFetch('/api/loans?status=PENDING&limit=50');
+      if (!response.ok) {
+        throw new Error(t('pages.validation.fetchPendingFailed'));
+      }
+      const result = await response.json();
+      return result.data || [];
+    },
+    enabled: canApproveLoans,
+    refetchInterval: 30000,
+  });
+
+  const pendingLoans: PendingLoan[] = loansResponse || [];
 
   // Approve mutation
   const approveMutation = useMutation({
@@ -150,6 +199,62 @@ export default function PendingTransactionsList() {
     },
   });
 
+  // Loan approve mutation
+  const loanApproveMutation = useMutation({
+    mutationFn: async (loanId: string) => {
+      const response = await apiFetch(`/api/loans/${loanId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || t('pages.validation.approveLoanFailed'));
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: loanKeys.all });
+      queryClient.invalidateQueries({ queryKey: loanKeys.pending() });
+      queryClient.invalidateQueries({ queryKey: transactionKeys.pending() });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      toast.success(t('pages.validation.loanApprovedSuccess'));
+      setLoanApproveDialogOpen(false);
+      setSelectedLoan(null);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || t('pages.validation.approveLoanFailed'));
+    },
+  });
+
+  // Loan reject mutation
+  const loanRejectMutation = useMutation({
+    mutationFn: async (data: { id: string; reason?: string }) => {
+      const response = await apiFetch(`/api/loans/${data.id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: data.reason }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || t('pages.validation.rejectLoanFailed'));
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: loanKeys.all });
+      queryClient.invalidateQueries({ queryKey: loanKeys.pending() });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      toast.success(t('pages.validation.loanRejected'));
+      setLoanRejectDialogOpen(false);
+      setSelectedLoan(null);
+      setLoanRejectReason('');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || t('pages.validation.rejectLoanFailed'));
+    },
+  });
+
   const handleApprove = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
     setApproveDialogOpen(true);
@@ -180,6 +285,31 @@ export default function PendingTransactionsList() {
     }
   };
 
+  const handleLoanApprove = (loan: PendingLoan) => {
+    setSelectedLoan(loan);
+    setLoanApproveDialogOpen(true);
+  };
+
+  const handleLoanReject = (loan: PendingLoan) => {
+    setSelectedLoan(loan);
+    setLoanRejectDialogOpen(true);
+  };
+
+  const handleLoanApproveConfirm = () => {
+    if (selectedLoan) {
+      loanApproveMutation.mutate(selectedLoan.id);
+    }
+  };
+
+  const handleLoanRejectConfirm = () => {
+    if (selectedLoan) {
+      loanRejectMutation.mutate({
+        id: selectedLoan.id,
+        reason: loanRejectReason.trim() || undefined,
+      });
+    }
+  };
+
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'COLLECTION':
@@ -201,7 +331,9 @@ export default function PendingTransactionsList() {
     return type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
-  if (isLoading) {
+  const isInitialLoading = isLoading || (canApproveLoans && loansLoading);
+
+  if (isInitialLoading) {
     return (
       <Card>
         <CardContent className="space-y-4 py-8">
@@ -226,13 +358,15 @@ export default function PendingTransactionsList() {
     return true;
   });
 
-  if (displayTransactions.length === 0) {
+  const hasAnyPending = displayTransactions.length > 0 || pendingLoans.length > 0;
+
+  if (!hasAnyPending) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
           <CheckCircle2 className="size-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">
-            {t('pages.validation.noPendingTransactions')}
+            {t('pages.validation.noPendingTransactionsOrLoans')}
           </h3>
           <p className="text-muted-foreground">
             {t('pages.validation.allTransactionsProcessed')}
@@ -244,7 +378,138 @@ export default function PendingTransactionsList() {
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-6">
+        {/* Pending Loans Section */}
+        {canApproveLoans && pendingLoans.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Banknote className="size-5" />
+              {t('pages.validation.pendingLoans', { count: pendingLoans.length })}
+            </h2>
+            <div className="space-y-4">
+              {pendingLoans.map((loan) => (
+                <Card key={loan.id}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-4">
+                        <DollarSign className="size-5 text-primary" />
+                        <div>
+                          <CardTitle className="text-lg">
+                            {loan.loanNumber}
+                          </CardTitle>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {loan.client?.fullName} · {loan.client?.clientNumber}
+                          </div>
+                        </div>
+                      </div>
+                      <Badge variant="warning">{t('pages.validation.pendingApproval')}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        {loan.client && (
+                          <div className="flex items-center gap-2">
+                            <Users className="size-4 text-muted-foreground" />
+                            <div>
+                              <div className="text-sm text-muted-foreground">
+                                {t('common.labels.client')}
+                              </div>
+                              <div className="font-medium">{loan.client.fullName}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {loan.client.clientNumber}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {loan.account && (
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="size-4 text-muted-foreground" />
+                            <div>
+                              <div className="text-sm text-muted-foreground">
+                                {t('common.labels.account')}
+                              </div>
+                              <div className="font-medium">{loan.account.accountNumber}</div>
+                            </div>
+                          </div>
+                        )}
+                        {loan.creator && (
+                          <div className="flex items-center gap-2">
+                            <Users className="size-4 text-muted-foreground" />
+                            <div>
+                              <div className="text-sm text-muted-foreground">
+                                {t('pages.validation.createdBy')}
+                              </div>
+                              <div className="font-medium">{loan.creator.name}</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <div className="text-sm text-muted-foreground">
+                            {t('pages.loans.principalAmount', 'Principal Amount')}
+                          </div>
+                          <div className="text-2xl font-bold text-primary">
+                            {formatCurrency(loan.principalAmount)}
+                          </div>
+                        </div>
+                        {loan.maturityDate && (
+                          <div>
+                            <div className="text-sm text-muted-foreground">
+                              {t('pages.loans.maturityDate', 'Maturity Date')}
+                            </div>
+                            <div className="text-sm">
+                              {formatDate(new Date(loan.maturityDate))}
+                            </div>
+                          </div>
+                        )}
+                        <div>
+                          <div className="text-sm text-muted-foreground">
+                            {t('pages.clients.columnCreated')}
+                          </div>
+                          <div className="text-sm">
+                            {formatDateTime(new Date(loan.createdAt))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6 pt-4 border-t">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleLoanReject(loan)}
+                        disabled={
+                          loanApproveMutation.isPending || loanRejectMutation.isPending
+                        }
+                      >
+                        <XCircle className="mr-2 size-4" />
+                        {t('pages.validation.reject')}
+                      </Button>
+                      <Button
+                        onClick={() => handleLoanApprove(loan)}
+                        disabled={
+                          loanApproveMutation.isPending || loanRejectMutation.isPending
+                        }
+                      >
+                        <CheckCircle2 className="mr-2 size-4" />
+                        {t('pages.validation.approve')}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Pending Transactions Section */}
+        {displayTransactions.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Receipt className="size-5" />
+              {t('pages.validation.pendingTransactions')} ({displayTransactions.length})
+            </h2>
+            <div className="space-y-4">
         {displayTransactions.map((transaction) => {
           const amount = parseFloat(transaction.amount);
           const isCredit = ['COLLECTION', 'DEPOSIT', 'LOAN_REPAYMENT'].includes(
@@ -402,6 +667,9 @@ export default function PendingTransactionsList() {
             </Card>
           );
         })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Approve Dialog */}
@@ -495,6 +763,102 @@ export default function PendingTransactionsList() {
               disabled={rejectMutation.isPending || !rejectReason.trim()}
             >
               {rejectMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  {t('pages.validation.rejecting')}
+                </>
+              ) : (
+                <>
+                  <XCircle className="mr-2 size-4" />
+                  {t('pages.validation.reject')}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Loan Approve Dialog */}
+      <Dialog open={loanApproveDialogOpen} onOpenChange={setLoanApproveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('pages.validation.approveLoan')}</DialogTitle>
+            <DialogDescription>
+              {t('pages.validation.approveLoanConfirm')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setLoanApproveDialogOpen(false);
+                setSelectedLoan(null);
+              }}
+              disabled={loanApproveMutation.isPending}
+            >
+              {t('common.buttons.cancel')}
+            </Button>
+            <Button
+              onClick={handleLoanApproveConfirm}
+              disabled={loanApproveMutation.isPending}
+            >
+              {loanApproveMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  {t('pages.validation.approving')}
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="mr-2 size-4" />
+                  {t('pages.validation.approve')}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Loan Reject Dialog */}
+      <Dialog open={loanRejectDialogOpen} onOpenChange={setLoanRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('pages.validation.rejectLoan')}</DialogTitle>
+            <DialogDescription>
+              {t('pages.validation.rejectLoanConfirm')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="loan-reject-reason">
+                {t('pages.validation.reasonRequiredLabel')}
+              </Label>
+              <Textarea
+                id="loan-reject-reason"
+                placeholder={t('pages.validation.reasonPlaceholder')}
+                value={loanRejectReason}
+                onChange={(e) => setLoanRejectReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setLoanRejectDialogOpen(false);
+                setSelectedLoan(null);
+                setLoanRejectReason('');
+              }}
+              disabled={loanRejectMutation.isPending}
+            >
+              {t('common.buttons.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleLoanRejectConfirm}
+              disabled={loanRejectMutation.isPending}
+            >
+              {loanRejectMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
                   {t('pages.validation.rejecting')}

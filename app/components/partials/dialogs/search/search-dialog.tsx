@@ -12,7 +12,6 @@ import {
   IdCard,
   Search,
   Settings,
-  SquareCode,
   UserRoundPen,
   UserRoundPlus,
 } from 'lucide-react';
@@ -48,9 +47,8 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
   const [searchInput, setSearchInput] = useState('');
 
   const mixedSettingsItems: SearchSettingsItem[] = [
-    { icon: IdCard, info: 'Public Profile' },
-    { icon: Settings, info: 'My Account' },
-    { icon: SquareCode, info: 'Devs Forum' },
+    { icon: IdCard, info: t('pages.dialogs.search.shortcuts.publicProfile') },
+    { icon: Settings, info: t('pages.dialogs.search.shortcuts.myAccount') },
   ];
 
   const mixedUsersItems: SearchUsersItem[] = [
@@ -58,14 +56,14 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
       avatar: '300-3.png',
       name: 'Tyler Hero',
       email: 'tyler.hero@gmail.com',
-      label: 'In Office',
+      label: t('pages.dialogs.search.labels.inOffice'),
       color: 'success',
     },
     {
       avatar: '300-1.png',
       name: 'Esther Howard',
       email: 'esther.howard@gmail.com',
-      label: 'On Leave',
+      label: t('pages.dialogs.search.labels.onLeave'),
       color: 'destructive',
     },
   ];
@@ -74,7 +72,7 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
     {
       logo: 'jira.svg',
       name: 'Jira',
-      description: 'Project management',
+      description: t('pages.topbar.apps.items.jira'),
       team: [
         { filename: '300-4.png', variant: 'size-6' },
         { filename: '300-1.png', variant: 'size-6' },
@@ -88,7 +86,7 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
     {
       logo: 'inferno.svg',
       name: 'Inferno',
-      description: 'Real-time photo sharing app',
+      description: t('pages.topbar.apps.items.inferno'),
       team: [
         { filename: '300-14.png', variant: 'size-6' },
         { filename: '300-12.png', variant: 'size-6' },
@@ -130,20 +128,19 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
     {
       title: t('pages.dialogs.search.groups.shortcuts'),
       children: [
-        { icon: Home, info: 'Go to Dashboard' },
-        { icon: Badge, info: 'Public Profile' },
-        { icon: CircleUserRound, info: 'My Profile' },
-        { icon: Settings, info: 'My Account' },
-        { icon: SquareCode, info: 'Devs Forum' },
+        { icon: Home, info: t('pages.dialogs.search.shortcuts.goToDashboard') },
+        { icon: Badge, info: t('pages.dialogs.search.shortcuts.publicProfile') },
+        { icon: CircleUserRound, info: t('pages.dialogs.search.shortcuts.myProfile') },
+        { icon: Settings, info: t('pages.dialogs.search.shortcuts.myAccount') },
       ],
     },
     {
       title: t('pages.dialogs.search.groups.actions'),
       children: [
-        { icon: UserRoundPlus, info: 'Create User' },
-        { icon: UserRoundPen, info: 'Create Team' },
-        { icon: Captions, info: 'Change Plan' },
-        { icon: Bolt, info: 'Setup Branding' },
+        { icon: UserRoundPlus, info: t('pages.dialogs.search.actions.createUser') },
+        { icon: UserRoundPen, info: t('pages.dialogs.search.actions.createTeam') },
+        { icon: Captions, info: t('pages.dialogs.search.actions.changePlan') },
+        { icon: Bolt, info: t('pages.dialogs.search.actions.setupBranding') },
       ],
     },
   ];
@@ -152,7 +149,7 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
     {
       logo: 'jira.svg',
       name: 'Jira',
-      description: 'Project management',
+      description: t('pages.topbar.apps.items.jira'),
       team: [
         { filename: '300-4.png', variant: 'size-6' },
         { filename: '300-1.png', variant: 'size-6' },
@@ -166,7 +163,7 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
     {
       logo: 'inferno.svg',
       name: 'Inferno',
-      description: 'Real-time photo sharing app',
+      description: t('pages.topbar.apps.items.inferno'),
       team: [
         { filename: '300-14.png', variant: 'size-6' },
         { filename: '300-12.png', variant: 'size-6' },
@@ -176,7 +173,7 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
     {
       logo: 'evernote.svg',
       name: 'Evernote',
-      description: 'Notes management app',
+      description: t('pages.topbar.apps.items.evernote'),
       team: [
         { filename: '300-6.png', variant: 'size-6' },
         { filename: '300-3.png', variant: 'size-6' },
@@ -187,7 +184,7 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
     {
       logo: 'gitlab.svg',
       name: 'Gitlab',
-      description: 'Version control and CI/CD platform',
+      description: t('pages.topbar.apps.items.gitlab'),
       team: [
         { filename: '300-18.png', variant: 'size-6' },
         { filename: '300-17.png', variant: 'size-6' },
@@ -196,7 +193,7 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
     {
       logo: 'google-webdev.svg',
       name: 'Google Webdev',
-      description: 'Building web experiences',
+      description: t('pages.topbar.apps.items.googleWebdev'),
       team: [
         { filename: '300-14.png', variant: 'size-6' },
         { filename: '300-20.png', variant: 'size-6' },
@@ -210,35 +207,35 @@ export function SearchDialog({ trigger }: { trigger: ReactNode }) {
       avatar: '300-3.png',
       name: 'Tyler Hero',
       email: 'tyler.hero@gmail.com',
-      label: 'In Office',
+      label: t('pages.dialogs.search.labels.inOffice'),
       color: 'success',
     },
     {
       avatar: '300-1.png',
       name: 'Esther Howard',
       email: 'esther.howard@gmail.com',
-      label: 'On Leave',
+      label: t('pages.dialogs.search.labels.onLeave'),
       color: 'destructive',
     },
     {
       avatar: '300-11.png',
       name: 'Jacob Jones',
       email: 'jacob.jones@gmail.com',
-      label: 'Remote',
+      label: t('pages.dialogs.search.labels.remote'),
       color: 'primary',
     },
     {
       avatar: '300-5.png',
       name: 'Leslie Alexander',
       email: 'leslie.alexander@gmail.com',
-      label: 'In Office',
+      label: t('pages.dialogs.search.labels.inOffice'),
       color: 'success',
     },
     {
       avatar: '300-2.png',
       name: 'Cody Fisher',
       email: 'cody.fisher@gmail.com',
-      label: 'Remote',
+      label: t('pages.dialogs.search.labels.remote'),
       color: 'primary',
     },
   ];

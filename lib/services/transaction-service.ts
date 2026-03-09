@@ -199,9 +199,9 @@ export class TransactionService {
     // Calculate balance after
     let balanceAfter = account.balance;
     if (data.type === 'DEPOSIT' || data.type === 'COLLECTION' || data.type === 'LOAN_DISBURSEMENT') {
-      balanceAfter = (account.balance instanceof Prisma.Decimal ? account.balance.toNumber() : Number(account.balance)) + data.amount;
+      balanceAfter = new Prisma.Decimal((account.balance instanceof Prisma.Decimal ? account.balance.toNumber() : Number(account.balance)) + data.amount);
     } else if (data.type === 'WITHDRAWAL' || data.type === 'LOAN_REPAYMENT' || data.type === 'TRANSFER' || data.type === 'COMMISSION') {
-      balanceAfter = (account.balance instanceof Prisma.Decimal ? account.balance.toNumber() : Number(account.balance)) - data.amount;
+      balanceAfter = new Prisma.Decimal((account.balance instanceof Prisma.Decimal ? account.balance.toNumber() : Number(account.balance)) - data.amount);
     }
 
     const transactionNumber = await this.generateTransactionNumber(tx);
@@ -290,14 +290,13 @@ export class TransactionService {
       throw new Error('Agent account must be approved before performing collections');
     }
 
-    // Validate all clients belong to the area, are approved, and are assigned to this agent
+    // Validate all clients belong to the area and are approved
     const clients = await prisma.client.findMany({
       where: {
         id: {
           in: data.entries.map((e) => e.clientId),
         },
         areaId: data.areaId,
-        agentId: data.agentId,
         status: 'ACTIVE',
         approvalStatus: 'APPROVED',
       },
@@ -308,7 +307,7 @@ export class TransactionService {
 
     if (clients.length !== data.entries.length) {
       throw new Error(
-        'Some clients were not found, do not belong to this area, or are not assigned to you.'
+        'Some clients were not found or do not belong to this area.'
       );
     }
 
@@ -328,6 +327,7 @@ export class TransactionService {
           data: {
             transactionNumber,
             accountId: client.accountId,
+            clientId: client.id,
             type: 'COLLECTION',
             amount: entry.amount,
             balanceBefore: client.account.balance,
@@ -363,7 +363,7 @@ export class TransactionService {
       },
     });
 
-    const accountIds = [...new Set(transactions.map((t) => t.accountId))];
+    const accountIds = Array.from(new Set(transactions.map((t) => t.accountId)));
     const collOps: Promise<unknown>[] = [
       ...accountIds.map((id) => invalidateRecentTransactionsForAccount(id)),
       invalidateRecentTransactionsForAgent(data.agentId),
@@ -507,6 +507,20 @@ export class TransactionService {
       throw new Error('Transaction not found');
     }
 
+    // Idempotent: if already approved/completed, return existing transaction (handles double-clicks, stale UI, transfer pairs)
+    if (transaction.status === 'COMPLETED' || transaction.status === 'APPROVED') {
+      const existing = await db.transaction.findUnique({
+        where: { id: transactionId },
+        include: {
+          account: true,
+          approver: {
+            select: { id: true, name: true, email: true },
+          },
+        },
+      });
+      return existing!;
+    }
+
     if (transaction.status !== 'PENDING_APPROVAL') {
       throw new Error(`Transaction is not pending approval. Current status: ${transaction.status}`);
     }
@@ -589,7 +603,7 @@ export class TransactionService {
                 approvedAt: new Date(),
               },
             });
-            finalBalance = balAfterFee;
+            finalBalance = new Prisma.Decimal(balAfterFee);
             newAvailableBalance -= feeAmount;
           }
         }
@@ -754,6 +768,7 @@ export class TransactionService {
     accountId?: string;
     areaId?: string;
     agentId?: string;
+    createdById?: string;
     search?: string;
     sort?: string;
     dir?: 'asc' | 'desc';
@@ -780,6 +795,9 @@ export class TransactionService {
     }
     if (filters?.agentId) {
       where.agentId = filters.agentId;
+    }
+    if (filters?.createdById) {
+      where.createdBy = filters.createdById;
     }
     if (filters?.search?.trim()) {
       const term = filters.search.trim();
@@ -842,6 +860,7 @@ export class TransactionService {
       accountId: filters?.accountId,
       areaId: filters?.areaId,
       agentId: filters?.agentId,
+      createdById: filters?.createdById,
       search: filters?.search?.trim() || undefined,
       startDate: filters?.startDate?.toISOString(),
       endDate: filters?.endDate?.toISOString(),
@@ -872,6 +891,13 @@ export class TransactionService {
           },
         },
       },
+      creator: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
     };
 
     const TXN_SORT_FIELDS = ['createdAt', 'amount', 'type', 'status', 'transactionNumber'];
@@ -885,6 +911,7 @@ export class TransactionService {
       accountId: filters?.accountId,
       areaId: filters?.areaId,
       agentId: filters?.agentId,
+      createdById: filters?.createdById,
       search: filters?.search?.trim() || undefined,
       sort: sortField,
       dir: sortDir,

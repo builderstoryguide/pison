@@ -11,7 +11,7 @@ import {
   ToolbarTitle,
 } from '@/components/common/toolbar';
 import { useTranslation } from '@/hooks/useTranslation';
-import { hasPermission } from '@/lib/auth-client';
+import { hasPermission, isAgentOrCollectorRole } from '@/lib/auth-client';
 
 type NavItem = {
   key: string;
@@ -50,6 +50,13 @@ export default function SettingsLayout({
   }, [status, router]);
 
   useEffect(() => {
+    if (status !== 'authenticated') return;
+    if (isAgentOrCollectorRole(session?.user?.roleName)) {
+      router.replace('/');
+    }
+  }, [router, session?.user?.roleName, status]);
+
+  useEffect(() => {
     if (status !== 'authenticated' || !session) {
       setNavItems([]);
       return;
@@ -74,7 +81,12 @@ export default function SettingsLayout({
     router.push(path);
   };
 
-  if (status === 'loading' || status === 'unauthenticated') {
+  if (
+    status === 'loading' ||
+    status === 'unauthenticated' ||
+    (status === 'authenticated' &&
+      isAgentOrCollectorRole(session?.user?.roleName))
+  ) {
     return null;
   }
 
