@@ -177,7 +177,7 @@ export default function LinkAgentForm() {
             <FormField
               control={form.control}
               name="userId"
-              render={({ field }) => (
+              render={({ field: _ }) => (
                 <FormItem>
                   <FormLabel>{t('pages.agents.selectExistingUser')} *</FormLabel>
                   <Popover open={pickerOpen} onOpenChange={setPickerOpen}>

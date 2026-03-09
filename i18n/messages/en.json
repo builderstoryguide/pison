@@ -766,6 +766,9 @@
     },
     "collections": {
       "dailyCollections": "Daily Collections",
+      "collectionRecords": "Collection Records",
+      "collectionRecordsDesc": "View and search daily collection transactions performed by agents.",
+      "allAgents": "All agents",
       "selectArea": "Select a collection area",
       "selectCollectionArea": "Select Collection Area",
       "selectCollectionAreaDesc": "Choose the area where you collected money today",
@@ -891,6 +894,8 @@
     "dashboard": "Dashboard",
     "operations": "Operations",
     "dailyCollections": "Daily Collections",
+    "enterCollection": "Enter Collection",
+    "collectionRecords": "Collection Records",
     "transactions": "Transactions",
     "allTransactions": "All Transactions",
     "pendingValidation": "Pending Validation",

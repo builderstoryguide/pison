@@ -766,6 +766,9 @@
     },
     "collections": {
       "dailyCollections": "Collectes quotidiennes",
+      "collectionRecords": "Historique des encaissements",
+      "collectionRecordsDesc": "Consulter et rechercher les transactions de collecte quotidienne effectuées par les agents.",
+      "allAgents": "Tous les agents",
       "selectArea": "Sélectionner une zone de collecte",
       "selectCollectionArea": "Sélectionner la zone de collecte",
       "selectCollectionAreaDesc": "Choisissez la zone où vous avez collecté de l'argent aujourd'hui",
@@ -891,6 +894,8 @@
     "dashboard": "Tableau de bord",
     "operations": "Opérations",
     "dailyCollections": "Collectes quotidiennes",
+    "enterCollection": "Saisir les encaissements",
+    "collectionRecords": "Historique des encaissements",
     "transactions": "Transactions",
     "allTransactions": "Toutes les transactions",
     "pendingValidation": "Validation en attente",

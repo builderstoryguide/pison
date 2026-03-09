@@ -75,6 +75,7 @@
 | [x] | Amounts recorded against accounts | `POST /api/collections/daily` |
 | [x] | Confirmation receipt (print/forward) | VentilationReceiptDialog – print/download after submit (`app/(protected)/collections/daily/components/ventilation-receipt-dialog.tsx`) |
 | [x] | Ventilation restricted to agent's assigned clients | Backend: `createCollectionEntries` validates area access; GET /api/clients filters by agent's areas; COLLECTION tx sets `clientId`; session indicator and improved empty state on form | `lib/services/transaction-service.ts`, `app/api/clients/route.ts`, `app/(protected)/collections/daily/components/daily-collection-form.tsx` |
+| [x] | Manager views collection records | Collection Records page under Daily Collections; search, filters (date, agent, area, status); server-side pagination; agent/area in tx API | `app/(protected)/collections/records/`, `config/menu.config.tsx`, `lib/services/transaction-service.ts` |
 
 ### 4.2 Management of Clients and Agents
 

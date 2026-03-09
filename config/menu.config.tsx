@@ -31,7 +31,19 @@ import { type MenuConfig } from './types';
 export const MENU_SIDEBAR: MenuConfig = [
   { title: 'menu.dashboard', icon: LayoutGrid, path: '/', permission: 'dashboard.view' },
   { heading: 'menu.operations' },
-  { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily', permission: 'collections.create' },
+  {
+    title: 'menu.dailyCollections',
+    icon: Receipt,
+    children: [
+      { title: 'menu.enterCollection', path: '/collections/daily', permission: 'collections.create' },
+      {
+        title: 'menu.collectionRecords',
+        path: '/collections/records',
+        permission: 'transactions.view',
+        hiddenForRoles: ['agent', 'collector'],
+      },
+    ],
+  },
   {
     title: 'menu.transactions',
     icon: CreditCard,
@@ -177,7 +189,8 @@ export const MENU_SIDEBAR: MenuConfig = [
 // Compact menu for mobile/smaller screens
 export const MENU_SIDEBAR_COMPACT: MenuConfig = [
   { title: 'menu.dashboard', icon: LayoutGrid, path: '/' },
-  { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily' },
+  { title: 'menu.enterCollection', icon: Receipt, path: '/collections/daily' },
+  { title: 'menu.collectionRecords', icon: Receipt, path: '/collections/records' },
   { title: 'menu.transactions', icon: CreditCard, path: '/transactions' },
   { title: 'menu.clients', icon: Users, path: '/clients' },
   { title: 'menu.reports', icon: ReportIcon, path: '/reports' },
@@ -187,7 +200,7 @@ export const MENU_SIDEBAR_COMPACT: MenuConfig = [
 // Custom menu (can be used for specific contexts)
 export const MENU_SIDEBAR_CUSTOM: MenuConfig = [
   { title: 'menu.dashboard', icon: LayoutGrid, path: '/' },
-  { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily' },
+  { title: 'menu.enterCollection', icon: Receipt, path: '/collections/daily' },
   { title: 'menu.myClients', icon: Users, path: '/clients' },
 ];
 
@@ -199,7 +212,8 @@ export const MENU_MEGA: MenuConfig = [
     children: [
       {
         children: [
-          { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily', permission: 'collections.create' },
+          { title: 'menu.enterCollection', icon: Receipt, path: '/collections/daily', permission: 'collections.create' },
+          { title: 'menu.collectionRecords', icon: Receipt, path: '/collections/records', permission: 'transactions.view', hiddenForRoles: ['agent', 'collector'] },
           {
             title: 'menu.allTransactions',
             icon: CreditCard,
@@ -325,7 +339,8 @@ export const MENU_MEGA_MOBILE: MenuConfig = [
   {
     title: 'menu.operations',
     children: [
-      { title: 'menu.dailyCollections', icon: Receipt, path: '/collections/daily', permission: 'collections.create' },
+      { title: 'menu.enterCollection', icon: Receipt, path: '/collections/daily', permission: 'collections.create' },
+      { title: 'menu.collectionRecords', icon: Receipt, path: '/collections/records', permission: 'transactions.view', hiddenForRoles: ['agent', 'collector'] },
       {
         title: 'menu.allTransactions',
         icon: CreditCard,

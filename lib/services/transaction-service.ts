@@ -820,6 +820,14 @@ export class TransactionService {
             ],
           },
         },
+        {
+          agent: {
+            OR: [
+              { fullName: { contains: term, mode: 'insensitive' } },
+              { agentCode: { contains: term, mode: 'insensitive' } },
+            ],
+          },
+        },
       ];
     }
     if (filters?.startDate || filters?.endDate) {
@@ -897,6 +905,12 @@ export class TransactionService {
           name: true,
           email: true,
         },
+      },
+      agent: {
+        select: { id: true, agentCode: true, fullName: true },
+      },
+      area: {
+        select: { id: true, code: true, name: true },
       },
     };
 
