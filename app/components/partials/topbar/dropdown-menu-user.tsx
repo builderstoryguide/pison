@@ -6,12 +6,11 @@ import {
   BetweenHorizontalStart,
   Coffee,
   CreditCard,
-  FileText,
   Globe,
+  KeyRound,
   Moon,
   Settings,
   Shield,
-  User,
   UserCircle,
   Users,
 } from 'lucide-react';
@@ -91,15 +90,6 @@ export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
             {t('pages.topbar.userMenu.publicProfile')}
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link
-            href="/account/home/user-profile"
-            className="flex items-center gap-2"
-          >
-            <User />
-            {t('pages.topbar.userMenu.myProfile')}
-          </Link>
-        </DropdownMenuItem>
 
         {/* My Account Submenu */}
         <DropdownMenuSub>
@@ -115,15 +105,6 @@ export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
               >
                 <Coffee />
                 {t('pages.topbar.userMenu.getStarted')}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link
-                href="/account/home/user-profile"
-                className="flex items-center gap-2"
-              >
-                <FileText />
-                {t('pages.topbar.userMenu.myProfile')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -160,6 +141,24 @@ export function DropdownMenuUser({ trigger }: { trigger: ReactNode }) {
               >
                 <BetweenHorizontalStart />
                 {t('pages.topbar.userMenu.integrations')}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link
+                href="/account/password"
+                className="flex items-center gap-2"
+              >
+                <KeyRound />
+                {t('menu.changePassword')}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link
+                href="/account/username"
+                className="flex items-center gap-2"
+              >
+                <UserCircle />
+                {t('menu.changeUsername')}
               </Link>
             </DropdownMenuItem>
           </DropdownMenuSubContent>

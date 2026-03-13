@@ -54,7 +54,7 @@ export default function LoanForm({ loanId }: LoanFormProps) {
   const { data: clientsData } = useQuery({
     queryKey: ['clients-active'],
     queryFn: async () => {
-      const response = await apiFetch('/api/clients?status=ACTIVE');
+      const response = await apiFetch('/api/clients?status=ACTIVE&limit=100');
       if (!response.ok) return [];
       const result = await response.json();
       return result.data || [];
@@ -203,7 +203,10 @@ export default function LoanForm({ loanId }: LoanFormProps) {
   }
 
   const isLoading = createMutation.isPending || updateMutation.isPending;
-  const clients = clientsData || [];
+  const clients = (clientsData || []).filter(
+    (c: { account?: { id: string; status?: string } }) =>
+      c.account?.id && c.account.status === 'ACTIVE'
+  );
 
   return (
     <Card>

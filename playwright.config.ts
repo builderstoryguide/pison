@@ -18,7 +18,7 @@ export default defineConfig({
   reporter: 'html',
   globalSetup: require.resolve('./e2e/config/global-setup'),
   use: {
-    baseURL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+    baseURL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001',
     trace: 'on-first-retry',
     // Only set storageState if the auth file exists to avoid ENOENT on first run
     ...(fs.existsSync(authFile) ? { storageState: authFile } : {}),
@@ -41,7 +41,7 @@ export default defineConfig({
 
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:3000',
+    url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },

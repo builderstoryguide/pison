@@ -94,8 +94,12 @@ export default function CreateAgentForm() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to create agent');
+        const err = await response.json();
+        const e = new Error(err.error?.message || 'Failed to create agent') as Error & {
+          code?: string;
+        };
+        e.code = err.error?.code;
+        throw e;
       }
 
       return response.json() as Promise<CreateAgentResponse>;
@@ -134,8 +138,12 @@ export default function CreateAgentForm() {
       }
       router.push('/agents');
     },
-    onError: (error: Error) => {
-      toast.error(error.message || t('pages.agents.createFailed'));
+    onError: (error: Error & { code?: string }) => {
+      const msg =
+        error.code === 'AGENT_ALREADY_EXISTS'
+          ? t('pages.agents.agentAlreadyExists')
+          : (error.message || t('pages.agents.createFailed'));
+      toast.error(msg);
     },
   });
 
@@ -145,6 +153,10 @@ export default function CreateAgentForm() {
 
   const isLoading = createMutation.isPending;
   const areas = areasData || [];
+  const availableAreas = areas.filter(
+    (a: { id: string; name: string; code: string; _count?: { agentAssignments?: number } }) =>
+      (a._count?.agentAssignments ?? 0) === 0
+  );
 
   return (
     <Card>
@@ -290,7 +302,7 @@ export default function CreateAgentForm() {
                   </div>
                   <ScrollArea className="h-48 rounded-md border p-4">
                     <div className="space-y-4">
-                      {areas.map((area: { id: string; name: string; code: string }) => (
+                      {availableAreas.map((area: { id: string; name: string; code: string }) => (
                         <FormField
                           key={area.id}
                           control={form.control}
@@ -321,6 +333,11 @@ export default function CreateAgentForm() {
                       {areas.length === 0 && (
                         <div className="text-muted-foreground text-sm text-center py-4">
                           {t('pages.agents.noActiveAreas')}
+                        </div>
+                      )}
+                      {areas.length > 0 && availableAreas.length === 0 && (
+                        <div className="text-muted-foreground text-sm text-center py-4">
+                          {t('pages.agents.allAreasAssigned')}
                         </div>
                       )}
                     </div>

@@ -39,13 +39,6 @@ export function Footer() {
               FAQ
             </a>
             <a
-              href={generalSettings.devsLink}
-              target="_blank"
-              className="hover:text-primary"
-            >
-              Support
-            </a>
-            <a
               href={generalSettings.licenseLink}
               target="_blank"
               className="hover:text-primary"

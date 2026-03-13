@@ -126,11 +126,12 @@ async function main() {
       });
     }
 
-    // Accountant: clients, agents, collections, transactions, reports, commissions (no loans by default; Manager grants via Roles)
+    // Accountant: clients, agents, collections, transactions, loans (request on behalf of clients), reports, commissions
     const accountantPermSlugs = [
       'dashboard.view', 'clients.view', 'clients.create', 'clients.edit',
       'agents.view', 'agents.create', 'agents.edit', 'collection_areas.view',
       'collections.create', 'transactions.view', 'transactions.create',
+      'loans.view', 'loans.create',
       'reports.view', 'reports.export', 'reports.surplus_shortage', 'commissions.calculate',
     ];
     for (const slug of accountantPermSlugs) {

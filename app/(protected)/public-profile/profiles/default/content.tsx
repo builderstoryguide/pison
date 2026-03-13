@@ -1,5 +1,10 @@
 'use client';
 
+import { useTranslation } from '@/hooks/useTranslation';
+import {
+  BasicSettings,
+  PersonalInfo,
+} from '@/app/(protected)/account/home/user-profile/components';
 import {
   About,
   CommunityBadges,
@@ -14,28 +19,36 @@ import {
 } from './components';
 
 export function ProfileDefaultContent() {
+  const { t } = useTranslation();
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 lg:gap-7.5">
-      <div className="col-span-1">
-        <div className="grid gap-5 lg:gap-7.5">
-          <CommunityBadges title="Community Badges" />
-          <About />
-          <WorkExperience />
-          <Tags title="Skills" />
-          <RecentUploads title="Recent Uploads" />
-        </div>
+    <div className="flex flex-col gap-5 lg:gap-7.5">
+      {/* Personal Info and Basic Settings - prominent at top */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 lg:gap-7.5">
+        <PersonalInfo />
+        <BasicSettings title={t('pages.profile.basicSettings')} />
       </div>
-      <div className="col-span-2">
-        <div className="flex flex-col gap-5 lg:gap-7.5">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 lg:gap-7.5">
+        <div className="col-span-1">
+          <div className="grid gap-5 lg:gap-7.5">
+            <CommunityBadges title="Community Badges" />
+            <About />
+            <WorkExperience />
+            <Tags title="Skills" />
+            <RecentUploads title="Recent Uploads" />
+          </div>
+        </div>
+        <div className="col-span-2">
           <div className="flex flex-col gap-5 lg:gap-7.5">
-            <UnlockPartnerships />
-            <MediaUploads />
+            <div className="flex flex-col gap-5 lg:gap-7.5">
+              <UnlockPartnerships />
+              <MediaUploads />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-7.5">
+              <Contributors />
+              <Contributions title="Assistance" />
+            </div>
+            <Projects />
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-7.5">
-            <Contributors />
-            <Contributions title="Assistance" />
-          </div>
-          <Projects />
         </div>
       </div>
     </div>

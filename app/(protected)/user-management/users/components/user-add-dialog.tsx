@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { RiCheckboxCircleFill, RiErrorWarningFill } from '@remixicon/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Eye, EyeOff, LoaderCircleIcon } from 'lucide-react';
+import { LoaderCircleIcon } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { apiFetch } from '@/lib/api';
@@ -22,7 +22,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -39,10 +38,11 @@ import {
 } from '@/components/ui/select';
 import { UserRole } from '@/app/models/user';
 import { useRoleSelectQuery } from '../../roles/hooks/use-role-select-query';
-import { UserAddSchema, UserAddSchemaType } from '../forms/user-add-schema';
+import { AccountantAddSchema, AccountantAddSchemaType } from '@/app/(protected)/accountants/forms/user-add-schema';
 
 type AddUserResponse = {
   message: string;
+  generatedPassword?: string;
   user?: {
     id: string;
     name: string;
@@ -61,8 +61,6 @@ const UserAddDialog = ({
 }) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [passwordVisible, setPasswordVisible] = useState(false);
-  const [confirmVisible, setConfirmVisible] = useState(false);
 
   // Fetch available roles
   const { data: roleList } = useRoleSelectQuery();
@@ -76,14 +74,11 @@ const UserAddDialog = ({
     );
   }, [roleList]);
 
-  const form = useForm<UserAddSchemaType>({
-    resolver: zodResolver(UserAddSchema),
+  const form = useForm<AccountantAddSchemaType>({
+    resolver: zodResolver(AccountantAddSchema),
     defaultValues: {
       name: '',
       email: '',
-      username: '',
-      password: '',
-      passwordConfirmation: '',
       roleId: '',
     },
     mode: 'onSubmit',
@@ -92,13 +87,11 @@ const UserAddDialog = ({
   useEffect(() => {
     if (open) {
       form.reset();
-      setPasswordVisible(false);
-      setConfirmVisible(false);
     }
   }, [open, form]);
 
   const mutation = useMutation({
-    mutationFn: async (values: UserAddSchemaType) => {
+    mutationFn: async (values: AccountantAddSchemaType) => {
       const response = await apiFetch('/api/user-management/users', {
         method: 'POST',
         headers: {
@@ -107,8 +100,6 @@ const UserAddDialog = ({
         body: JSON.stringify({
           name: values.name,
           email: values.email,
-          username: values.username?.trim() || undefined,
-          password: values.password,
           roleId: values.roleId,
         }),
       });
@@ -125,13 +116,14 @@ const UserAddDialog = ({
       const user = result?.user;
       if (user) {
         const username = user.username || variables.name;
+        const password = result.generatedPassword ?? '(not available)';
         const content = [
           'DCMS User Account Credentials',
           '------------------------------',
           `Name: ${user.name}`,
           `Username: ${username}`,
           `Email: ${user.email}`,
-          `Password: ${variables.password}`,
+          `Password: ${password}`,
           '',
           'You can login with either your username or email and your password.',
           'Important: Change this password after first login.',
@@ -183,7 +175,7 @@ const UserAddDialog = ({
 
   const isProcessing = mutation.status === 'pending';
 
-  const handleSubmit = (values: UserAddSchemaType) => {
+  const handleSubmit = (values: AccountantAddSchemaType) => {
     mutation.mutate(values);
   };
 
@@ -224,96 +216,6 @@ const UserAddDialog = ({
               />
               <FormField
                 control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('common.labels.username')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="e.g. john_doe123 (optional)"
-                        {...field}
-                        value={field.value ?? ''}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Leave blank to auto-generate from name. Used for login alongside email.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('common.labels.password')}</FormLabel>
-                    <div className="relative">
-                      <Input
-                        placeholder={t('common.placeholders.setPassword')}
-                        type={passwordVisible ? 'text' : 'password'}
-                        {...field}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        mode="icon"
-                        size="sm"
-                        onClick={() => setPasswordVisible(!passwordVisible)}
-                        className="absolute end-0 top-1/2 -translate-y-1/2 h-7 w-7 me-1.5 bg-transparent!"
-                        aria-label={
-                          passwordVisible ? 'Hide password' : 'Show password'
-                        }
-                      >
-                        {passwordVisible ? (
-                          <EyeOff className="text-muted-foreground" />
-                        ) : (
-                          <Eye className="text-muted-foreground" />
-                        )}
-                      </Button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="passwordConfirmation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('common.labels.confirmPassword')}</FormLabel>
-                    <div className="relative">
-                      <Input
-                        placeholder={t('common.placeholders.confirmPassword')}
-                        type={confirmVisible ? 'text' : 'password'}
-                        {...field}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        mode="icon"
-                        size="sm"
-                        onClick={() => setConfirmVisible(!confirmVisible)}
-                        className="absolute end-0 top-1/2 -translate-y-1/2 h-7 w-7 me-1.5 bg-transparent!"
-                        aria-label={
-                          confirmVisible
-                            ? 'Hide password confirmation'
-                            : 'Show password confirmation'
-                        }
-                      >
-                        {confirmVisible ? (
-                          <EyeOff className="text-muted-foreground" />
-                        ) : (
-                          <Eye className="text-muted-foreground" />
-                        )}
-                      </Button>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
                 name="roleId"
                 render={({ field }) => (
                   <FormItem>
@@ -341,6 +243,9 @@ const UserAddDialog = ({
                   </FormItem>
                 )}
               />
+              <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-4 text-sm text-muted-foreground">
+                {t('pages.userManagement.credentialsAutoGenerated')}
+              </div>
             </DialogBody>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog}>

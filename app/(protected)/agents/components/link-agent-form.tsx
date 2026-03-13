@@ -139,8 +139,12 @@ export default function LinkAgentForm() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to link agent');
+        const err = await response.json();
+        const e = new Error(err.error?.message || 'Failed to link agent') as Error & {
+          code?: string;
+        };
+        e.code = err.error?.code;
+        throw e;
       }
 
       return response.json();
@@ -151,8 +155,12 @@ export default function LinkAgentForm() {
       toast.success(t('pages.agents.agentLinkedSuccess'));
       router.push('/agents');
     },
-    onError: (error: Error) => {
-      toast.error(error.message || t('pages.agents.createFailed'));
+    onError: (error: Error & { code?: string }) => {
+      const msg =
+        error.code === 'AGENT_ALREADY_EXISTS'
+          ? t('pages.agents.agentAlreadyExists')
+          : (error.message || t('pages.agents.createFailed'));
+      toast.error(msg);
     },
   });
 
@@ -162,6 +170,10 @@ export default function LinkAgentForm() {
 
   const isLoading = createMutation.isPending;
   const areas = areasData || [];
+  const availableAreas = areas.filter(
+    (a: { id: string; name: string; code: string; _count?: { agentAssignments?: number } }) =>
+      (a._count?.agentAssignments ?? 0) === 0
+  );
 
   return (
     <Card>
@@ -177,7 +189,8 @@ export default function LinkAgentForm() {
             <FormField
               control={form.control}
               name="userId"
-              render={({ field: _ }) => (
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars -- field required by FormField render signature but not used for custom combobox
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t('pages.agents.selectExistingUser')} *</FormLabel>
                   <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
@@ -376,7 +389,7 @@ export default function LinkAgentForm() {
                       </div>
                       <ScrollArea className="h-48 rounded-md border p-4">
                         <div className="space-y-4">
-                          {areas.map((area: { id: string; name: string; code: string }) => (
+                          {availableAreas.map((area: { id: string; name: string; code: string }) => (
                             <FormField
                               key={area.id}
                               control={form.control}
@@ -407,6 +420,11 @@ export default function LinkAgentForm() {
                           {areas.length === 0 && (
                             <div className="text-muted-foreground text-sm text-center py-4">
                               {t('pages.agents.noActiveAreas')}
+                            </div>
+                          )}
+                          {areas.length > 0 && availableAreas.length === 0 && (
+                            <div className="text-muted-foreground text-sm text-center py-4">
+                              {t('pages.agents.allAreasAssigned')}
                             </div>
                           )}
                         </div>

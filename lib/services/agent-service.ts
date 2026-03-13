@@ -396,6 +396,17 @@ export class AgentService {
             username = await this.generateUniqueUsername(tx, data.fullName);
           }
 
+          const existingUserByEmail = await tx.user.findUnique({
+            where: { email: emailInput },
+            select: { id: true, agent: { select: { id: true } } },
+          });
+          if (existingUserByEmail) {
+            if (existingUserByEmail.agent) {
+              throw new Error('Agent already exists');
+            }
+            throw new Error('Email is already registered');
+          }
+
           const agentCode = await this.generateAgentCode(tx);
           const accountId = await this.createAgentAccount(tx);
 
@@ -843,6 +854,13 @@ export class AgentService {
   async refillAgentAccount(agentId: string, amount: number, userId: string) {
     if (amount <= 0) {
       throw new Error('Amount must be positive');
+    }
+
+    // Check session is open (PRD: no transactions when session closed)
+    const { sessionService } = await import('./session-service');
+    const sessionOpen = await sessionService.isSessionOpen();
+    if (!sessionOpen) {
+      throw new Error('Daily session is closed. No transactions allowed.');
     }
 
     const agent = await prisma.agent.findUnique({

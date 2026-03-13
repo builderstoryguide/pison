@@ -47,6 +47,20 @@ export async function POST(
       );
     }
 
+    if (error instanceof Error && error.message?.includes('Daily session is closed')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'SESSION_CLOSED',
+            message:
+              'Daily session is closed. Open the session from Operations > Session Status before refilling agent accounts.',
+          },
+        },
+        { status: 422 }
+      );
+    }
+
     console.error('Error refilling agent account:', error);
     return NextResponse.json(
       {

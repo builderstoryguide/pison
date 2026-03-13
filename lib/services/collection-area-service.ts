@@ -83,12 +83,14 @@ export class CollectionAreaService {
 
   /**
    * Get all collection areas with optional filters
+   * @param filters.areaIds - When provided (e.g. for agents), only return areas with id in this list
    */
   async getAllAreas(filters?: {
     status?: 'ACTIVE' | 'INACTIVE';
     city?: string;
     region?: string;
     search?: string;
+    areaIds?: string[];
     limit?: number;
     offset?: number;
   }) {
@@ -102,6 +104,9 @@ export class CollectionAreaService {
     }
     if (filters?.region) {
       where.region = filters.region;
+    }
+    if (filters?.areaIds && filters.areaIds.length > 0) {
+      where.id = { in: filters.areaIds };
     }
     if (filters?.search) {
       const term = filters.search.trim();
@@ -121,6 +126,7 @@ export class CollectionAreaService {
       city: filters?.city,
       region: filters?.region,
       search: filters?.search?.trim() || undefined,
+      areaIds: filters?.areaIds?.slice().sort().join(',') || undefined,
       limit: capLimit(filters?.limit),
       offset: filters?.offset ?? 0,
     };

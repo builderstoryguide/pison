@@ -136,7 +136,7 @@ const AuthSingleSingOn = () => {
                   <div className="flex items-center">
                     <Input
                       type="text"
-                      placeholder="https://devs.INNOVATE CREDIT.com/rl/AirMikeStudios"
+                      placeholder="https://your-domain.com/oauth/callback"
                       className="rounded-r-none border-r-0 focus:ring-0 focus:ring-offset-0"
                     />
                     <Button className="rounded-l-none border-l-0">Copy</Button>

@@ -182,6 +182,7 @@ export const MENU_SIDEBAR: MenuConfig = [
       { title: 'menu.accountStatus', path: '/account/status' },
       { title: 'menu.transactionHistory', path: '/account/transactions' },
       { title: 'menu.changePassword', path: '/account/password' },
+      { title: 'menu.changeUsername', path: '/account/username' },
     ],
   },
 ];

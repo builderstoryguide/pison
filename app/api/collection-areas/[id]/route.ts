@@ -36,6 +36,19 @@ export async function GET(
       return NextResponse.json({ error: 'Collection area not found' }, { status: 404 });
     }
 
+    const roleName = (session?.user?.roleName || '').toLowerCase();
+    if (roleName.includes('agent') || roleName.includes('collector')) {
+      const { agentService } = await import('@/lib/services/agent-service');
+      const agent = await agentService.getAgentByUserId(session?.user?.id || '');
+      if (!agent) {
+        return NextResponse.json({ error: 'Agent record not found' }, { status: 403 });
+      }
+      const hasAccess = await agentService.validateAgentAreaAccess(agent.id, params.id);
+      if (!hasAccess) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: area,

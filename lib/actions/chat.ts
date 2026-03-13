@@ -110,7 +110,17 @@ export async function getMessages(conversationId: string) {
     }
 }
 
-export async function sendMessage(conversationId: string, content: string) {
+export type ChatAttachment = {
+    path: string;
+    filename: string;
+    mimeType?: string;
+};
+
+export async function sendMessage(
+    conversationId: string,
+    content: string,
+    attachments?: ChatAttachment[]
+) {
     try {
         const userId = await getCurrentUserId();
         if (!userId) throw new Error('Unauthorized');
@@ -132,6 +142,7 @@ export async function sendMessage(conversationId: string, content: string) {
                 content,
                 conversationId,
                 senderId: userId,
+                attachments: attachments && attachments.length > 0 ? attachments : undefined,
             },
             include: {
                 sender: {

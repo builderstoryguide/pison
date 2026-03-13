@@ -182,8 +182,8 @@ export async function POST(request: NextRequest) {
       }
       if (user.agent) {
         return NextResponse.json(
-          { success: false, error: { code: 'VALIDATION_ERROR', message: 'User already has an agent record' } },
-          { status: 400 }
+          { success: false, error: { code: 'AGENT_ALREADY_EXISTS', message: 'Agent already exists' } },
+          { status: 409 }
         );
       }
       if (user.role?.slug?.toLowerCase() !== 'agent') {
@@ -259,6 +259,32 @@ export async function POST(request: NextRequest) {
             code: 'AREA_ALREADY_ASSIGNED',
             message: error.message,
             details: error.details,
+          },
+        },
+        { status: 409 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Agent already exists') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'AGENT_ALREADY_EXISTS',
+            message: 'Agent already exists',
+          },
+        },
+        { status: 409 }
+      );
+    }
+
+    if (error instanceof Error && error.message === 'Email is already registered') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'EMAIL_ALREADY_REGISTERED',
+            message: 'Email is already registered',
           },
         },
         { status: 409 }

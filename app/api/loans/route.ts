@@ -9,6 +9,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
 import { denyAgentAccess, requirePermission } from '@/lib/auth';
 import { loanService } from '@/lib/services';
+import { prisma } from '@/lib/prisma';
 import { parseFieldsParam } from '@/lib/utils/field-select';
 import { cachedJson } from '@/lib/api';
 import { z } from 'zod';
@@ -250,6 +251,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
         { status: 401 }
+      );
+    }
+
+    // Explicit client existence/status check (defense in depth)
+    const client = await prisma.client.findUnique({
+      where: { id: validatedData.clientId },
+      include: { account: true },
+    });
+    if (!client) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { code: 'CLIENT_NOT_FOUND', message: 'Client not found' },
+        },
+        { status: 404 }
+      );
+    }
+    if (client.status !== 'ACTIVE') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'CLIENT_INACTIVE',
+            message: `Client is ${client.status.toLowerCase()}`,
+          },
+        },
+        { status: 422 }
       );
     }
 

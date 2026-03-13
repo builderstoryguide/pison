@@ -31,11 +31,31 @@ export async function GET(request: NextRequest) {
     const region = searchParams.get('region');
     const search = searchParams.get('search');
 
+    let areaIdsFilter: string[] | undefined;
+    const roleName = (session?.user?.roleName || '').toLowerCase();
+    if (roleName.includes('agent') || roleName.includes('collector')) {
+      const { agentService } = await import('@/lib/services/agent-service');
+      const agent = await agentService.getAgentByUserId(session?.user?.id || '');
+      if (!agent) {
+        return NextResponse.json(
+          { success: true, data: [] },
+          { status: 200 }
+        );
+      }
+      const assignedAreas = await agentService.getAgentAreas(agent.id);
+      const agentAreaIds = assignedAreas.map((a) => a.id);
+      if (agentAreaIds.length === 0) {
+        return NextResponse.json({ success: true, data: [] }, { status: 200 });
+      }
+      areaIdsFilter = agentAreaIds;
+    }
+
     const areas = await collectionAreaService.getAllAreas({
       status: status || undefined,
       city: city || undefined,
       region: region || undefined,
       search: search || undefined,
+      areaIds: areaIdsFilter,
     });
 
     return NextResponse.json({

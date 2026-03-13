@@ -9,13 +9,12 @@ import {
   BetweenHorizontalStart,
   Coffee,
   CreditCard,
-  FileText,
   Globe,
+  KeyRound,
   LogOut,
   Moon,
   Settings,
   Shield,
-  User,
   UserCircle,
   Users,
 } from 'lucide-react';
@@ -107,15 +106,6 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
             {t('menu.publicProfile')}
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link
-            href="/account/home/user-profile"
-            className="flex items-center gap-2"
-          >
-            <User />
-            {t('menu.myProfile')}
-          </Link>
-        </DropdownMenuItem>
 
         {/* My Account Submenu */}
         <DropdownMenuSub>
@@ -131,15 +121,6 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
               >
                 <Coffee />
                 {t('menu.getStarted')}
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link
-                href="/account/home/user-profile"
-                className="flex items-center gap-2"
-              >
-                <FileText />
-                {t('menu.myProfile')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -176,6 +157,24 @@ export function UserDropdownMenu({ trigger }: { trigger: ReactNode }) {
               >
                 <BetweenHorizontalStart />
                 {t('menu.integrations')}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link
+                href="/account/password"
+                className="flex items-center gap-2"
+              >
+                <KeyRound />
+                {t('menu.changePassword')}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link
+                href="/account/username"
+                className="flex items-center gap-2"
+              >
+                <UserCircle />
+                {t('menu.changeUsername')}
               </Link>
             </DropdownMenuItem>
           </DropdownMenuSubContent>

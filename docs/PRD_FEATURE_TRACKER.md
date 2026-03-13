@@ -3,7 +3,7 @@
 > **Purpose**: Single source of truth mapping [PRD.md](./PRD.md) requirements to implementation status.
 > **Workflow**: Before implementing a feature, check this tracker. Update it as features are completed.
 
-**Last Updated**: 2026-03-09 (Agent daily collection: clientId on tx, session indicator, empty state, E2E session/open)
+**Last Updated**: 2026-03-10 (Accountant loan request: loans.view/loans.create by default; Manager validates at validation/pending)
 
 ---
 
@@ -96,9 +96,10 @@
 
 | Status | Step | Implementation |
 |--------|------|----------------|
-| [x] | Client requests loan | Loan creation by Accountant/Admin |
+| [x] | Accountant requests loan on behalf of client | Accountant has `loans.view` and `loans.create` by default; creates loan request (status PENDING) | `app/(protected)/loans/`, `app/api/loans/route.ts`, `prisma/seed-microfinance.ts` |
+| [x] | Manager validates (approve or reject) | Manager has `loans.approve`; approves or rejects at `/validation/pending` | `app/(protected)/validation/pending/`, `app/api/loans/[id]/approve/`, `app/api/loans/[id]/reject/` |
+| [x] | Grant/revoke Accountant loan permissions | User Management > Roles > Edit Accountant > add/remove `loans.view`, `loans.create` | `app/(protected)/user-management/roles/` |
 | [x] | System checks eligibility | `loanService.checkEligibility()` |
-| [x] | Manager approves loan | `POST /api/loans/[id]/approve` |
 | [x] | Loan recorded as negative balance | `LOAN_DISBURSEMENT` transaction |
 | [x] | Repayments update loan balance | `POST /api/loans/[id]/repayments` |
 
@@ -139,6 +140,7 @@
 
 | Status | Use Case | Implementation |
 |--------|----------|----------------|
+| [x] | Request loans on behalf of clients | Loans menu, create loan form; Manager validates at `/validation/pending` |
 | [x] | Consult agent transactions | Transaction list, reports |
 | [x] | Deposit/withdrawal for office clients | Deposit/withdrawal dialogs on client detail |
 | [x] | Create client account | Client creation form |
@@ -150,6 +152,7 @@
 | Status | Use Case | Implementation | Location |
 |--------|----------|----------------|----------|
 | [x] | Validate transactions | Pending validation page | |
+| [x] | Validate loan requests | Approve or reject pending loans at `/validation/pending`; `loans.approve` permission | `app/(protected)/validation/pending/`, `app/api/loans/[id]/approve/`, `app/api/loans/[id]/reject/` |
 | [x] | Validate accounts created by Accountant | Accountant creates → PENDING_APPROVAL; Manager approves/rejects via `/validation/pending-accounts` | `app/(protected)/validation/pending-accounts/`, `app/api/accounts/pending/`, `app/api/clients/[id]/approve`, `app/api/agents/[id]/approve` |
 | [x] | Create client/agent/accountant | User management, client/agent forms | |
 | [x] | Add/modify/remove users and permissions | User management, roles, permissions | `app/(protected)/user-management/`, `app/(protected)/settings/` |
@@ -167,7 +170,7 @@
 | [x] | Hosted on local server | Next.js app, configurable |
 | [x] | Multi-language (French, English) | i18n |
 | [x] | Daily session management | `DailySession`, open/close |
-| [~] | Session closed = no access | Session check on transactions; full lockout to verify |
+| [x] | Session closed = no access | Session check on transactions, loans, agent refill; SessionEnforcer blocks Agent/Accountant; managers bypass to open next session | `lib/services/transaction-service.ts`, `lib/services/loan-service.ts`, `lib/services/agent-service.ts`, `app/(protected)/components/session-enforcer.tsx` |
 
 ### Security Requirements
 
@@ -261,5 +264,5 @@
 
 **Phase 4 – Automation**
 10. [x] Commission calculation cron/scheduler
-11. [ ] Session closure enforcement (block all operations)
+11. [x] Session closure enforcement (block all operations)
 12. [x] Analytics module placeholder pages

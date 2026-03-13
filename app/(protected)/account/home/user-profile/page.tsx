@@ -33,8 +33,8 @@ export default function AccountUserProfilePage() {
               </ToolbarDescription>
             </ToolbarHeading>
             <ToolbarActions>
-              <Button variant="outline">
-                <Link href="#">{t('menu.publicProfile')}</Link>
+              <Button variant="outline" asChild>
+                <Link href="/public-profile/profiles/default">{t('menu.publicProfile')}</Link>
               </Button>
               <Button>
                 <Link href="#">{t('pages.account.title')}</Link>

@@ -25,3 +25,6 @@ e2e/.auth/
 # TypeScript incremental build artifacts
 *.tsbuildinfo
 # Use .env.example as template; copy to .env.local for local config (npm run dev loads .env.local)
+
+# Chat file uploads (local filesystem)
+uploads/
