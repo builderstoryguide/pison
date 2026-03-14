@@ -767,6 +767,7 @@
       "allEntityTypes": "Tous les types",
       "allUsers": "Tous les utilisateurs",
       "noLogs": "Aucun journal d'audit trouvé",
+      "noLogsForUser": "Aucune activité enregistrée pour cet utilisateur",
       "actionCreate": "Création",
       "actionApprove": "Approbation",
       "actionReject": "Rejet",

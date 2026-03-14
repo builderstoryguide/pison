@@ -85,7 +85,7 @@ export default function UserLayout({
       const response = await apiFetch(`/api/user-management/users/${id}`);
 
       if (response.status == 404) {
-        router.push('/user-management/users');
+        router.push('/accountants');
       }
 
       if (!response.ok) {
@@ -122,19 +122,15 @@ export default function UserLayout({
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>User Management</BreadcrumbPage>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink href="/user/users">Users</BreadcrumbLink>
+                  <BreadcrumbLink href="/accountants">Accountants</BreadcrumbLink>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </ToolbarHeading>
           <ToolbarActions>
             <Button asChild variant="outline">
-              <Link href="/user-management/users">
-                <MoveLeft /> Back to users
+              <Link href="/accountants">
+                <MoveLeft /> Back to accountants
               </Link>
             </Button>
           </ToolbarActions>

@@ -55,7 +55,15 @@ export interface AuditLogsResponse {
   };
 }
 
-export function useAuditLogs(filters: AuditLogFilters = {}) {
+export interface UseAuditLogsOptions {
+  enabled?: boolean;
+}
+
+export function useAuditLogs(
+  filters: AuditLogFilters = {},
+  options: UseAuditLogsOptions = {}
+) {
+  const { enabled = true } = options;
   const params = new URLSearchParams();
   if (filters.page) params.set('page', String(filters.page));
   if (filters.pageSize) params.set('pageSize', String(filters.pageSize));
@@ -71,6 +79,7 @@ export function useAuditLogs(filters: AuditLogFilters = {}) {
 
   return useQuery({
     queryKey: auditLogKeys.list(filters),
+    enabled,
     queryFn: async ({ signal }) => {
       const res = await apiFetch(url, { signal });
       if (!res.ok) {

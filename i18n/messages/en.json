@@ -767,6 +767,7 @@
       "allEntityTypes": "All entity types",
       "allUsers": "All users",
       "noLogs": "No audit logs found",
+      "noLogsForUser": "No activity logs for this user",
       "actionCreate": "Create",
       "actionApprove": "Approve",
       "actionReject": "Reject",
