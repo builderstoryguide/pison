@@ -18,10 +18,16 @@ function SkeletonWithPattern({
   patternOpacity = 0.3,
   ...props
 }: SkeletonWithPatternProps) {
+  const [mounted, setMounted] = React.useState(false);
   const { resolvedTheme } = useTheme();
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const resolvedPatternColor =
     patternColor ??
-    (resolvedTheme === 'dark' ? DARK_PATTERN_COLOR : LIGHT_PATTERN_COLOR);
+    (mounted && resolvedTheme === 'dark' ? DARK_PATTERN_COLOR : LIGHT_PATTERN_COLOR);
   const svgPattern = `
     <svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
       <defs>
