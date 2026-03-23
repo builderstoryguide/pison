@@ -37,6 +37,7 @@ export interface SubjectGrade {
 
 export interface StudentInfo {
   id: string
+  /** Form "Unique Identifier Number" (matricule_number); empty string if not set — not the auto-generated student_id */
   studentId: string
   name: string
   firstName?: string

@@ -165,19 +165,33 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
         margin: [0, 0, 0, 0] as [number, number, number, number],
         filename: filename,
         image: { 
-          type: 'jpeg' as const, 
+          type: 'png' as const, 
           quality: 1.0 
         },
         html2canvas: { 
-          scale: 2, 
+          scale: 2,
           useCORS: true, 
           logging: false,
           backgroundColor: '#ffffff',
           letterRendering: true, 
           allowTaint: false, 
           scrollY: 0,
+          scrollX: 0,
           windowWidth: element.scrollWidth,
-          windowHeight: element.scrollHeight
+          windowHeight: element.scrollHeight,
+          onclone: (clonedDoc: Document) => {
+            const source = document.getElementById('annual-report-card-pdf-styles')
+            if (source?.textContent) {
+              const s = clonedDoc.createElement('style')
+              s.textContent = source.textContent
+              ;(clonedDoc.head ?? clonedDoc.documentElement).appendChild(s)
+            }
+            const root = clonedDoc.querySelector('.pdf-report-card') as HTMLElement | null
+            root?.classList.add('pdf-capture-mode')
+            root?.style.removeProperty('transform')
+            root?.style.removeProperty('transform-origin')
+            root?.style.removeProperty('width')
+          }
         },
         jsPDF: { 
           unit: 'mm', 
@@ -325,6 +339,8 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
   // Generate QR Code data with report card information
   const qrCodeData = useMemo(() => {
     const reportCardInfo = {
+      recordId: data.student.id,
+      // studentId = form matricule (unique identifier); empty if not provided at enrollment/edit
       studentId: data.student.studentId,
       studentName: data.student.name,
       orderNo: data.academic.orderNo,
@@ -340,7 +356,7 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
   return (
     <>
       {/* Embedded styles for PDF generation - ensures styles are preserved */}
-      <style dangerouslySetInnerHTML={{
+      <style id="annual-report-card-pdf-styles" dangerouslySetInnerHTML={{
         __html: `
           @media print, screen {
             .pdf-report-card,
@@ -408,10 +424,88 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
 
              /* Print-specific overrides */
             @media print {
-              .pdf-report-card .print\\\\:text-\\[6pt\\] { font-size: 6pt !important; }
-              .pdf-report-card .print\\\\:text-\\[7pt\\] { font-size: 7pt !important; }
-              .pdf-report-card .print\\\\:p-0\\.5 { padding: 0.125rem !important; }
+              .pdf-report-card .print\\:text-\\[6pt\\] { font-size: 6pt !important; }
+              .pdf-report-card .print\\:text-\\[7pt\\] { font-size: 7pt !important; }
+              .pdf-report-card .print\\:p-0\\.5 { padding: 0.125rem !important; }
             }
+
+            .pdf-report-card.pdf-capture-mode {
+              font-size: 8pt !important;
+              box-shadow: none !important;
+            }
+            .pdf-report-card.pdf-capture-mode div.border.border-black:has(> table.w-full:first-child) {
+              border: none !important;
+            }
+            .pdf-report-card.pdf-capture-mode table {
+              border-collapse: collapse !important;
+              border-spacing: 0 !important;
+              border-top: 1px solid #000 !important;
+              border-left: 1px solid #000 !important;
+            }
+            .pdf-report-card.pdf-capture-mode table td,
+            .pdf-report-card.pdf-capture-mode table th {
+              border: none !important;
+              border-right: 1px solid #000 !important;
+              border-bottom: 1px solid #000 !important;
+            }
+            .pdf-report-card.pdf-capture-mode .grid.grid-cols-12.border-black.font-mono {
+              border: none !important;
+              border-top: 1px solid #000 !important;
+              border-left: 1px solid #000 !important;
+            }
+            .pdf-report-card.pdf-capture-mode .grid.grid-cols-12.border-black.font-mono > div {
+              border: none !important;
+              border-right: 1px solid #000 !important;
+              border-bottom: 1px solid #000 !important;
+            }
+            .pdf-report-card.pdf-capture-mode .border-2 {
+              border-width: 1px !important;
+            }
+            .pdf-report-card.pdf-capture-mode .border-b-2 {
+              border-bottom-width: 1px !important;
+            }
+            @media (min-width: 768px) {
+              .pdf-report-card.pdf-capture-mode .grid.grid-cols-12.border-black.font-mono > div.md\\:border-b-0 {
+                border-bottom: none !important;
+              }
+            }
+            .pdf-report-card.pdf-capture-mode .print\\:p-0 { padding: 0 !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:p-0\\.5 { padding: 0.125rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:p-1 { padding: 0.25rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:px-3 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:pt-2 { padding-top: 0.5rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:pb-2 { padding-bottom: 0.5rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:mb-0 { margin-bottom: 0 !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:mb-0\\.5 { margin-bottom: 0.125rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:mb-1 { margin-bottom: 0.25rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:mt-0\\.5 { margin-top: 0.125rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:gap-1 { gap: 0.25rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:space-y-0 > * + * { margin-top: 0 !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:text-\\[6pt\\] { font-size: 6pt !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:text-\\[7pt\\] { font-size: 7pt !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:text-\\[8pt\\] { font-size: 8pt !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:text-2xl { font-size: 1.5rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:text-lg { font-size: 1.125rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:text-xl { font-size: 1.25rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-1 { width: 0.25rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-3 { width: 0.75rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-4 { width: 1rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-8 { width: 2rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-10 { width: 2.5rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-12 { width: 3rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:h-1 { height: 0.25rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:h-0\\.5 { height: 0.125rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:hidden { display: none !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:block { display: block !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:shadow-none { box-shadow: none !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-full { width: 100% !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:max-w-full { max-width: 100% !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:h-\\[297mm\\] { min-height: 297mm !important; height: auto !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:border { border-width: 1px !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:leading-\\[1\\.1\\] { line-height: 1.1 !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:left-1 { left: 0.25rem !important; }
+            .pdf-report-card.pdf-capture-mode [class*="cursor-pointer"] { cursor: default !important; }
+            .pdf-report-card.pdf-capture-mode [class*="hover:"] { background-color: transparent !important; }
           }
         `
       }} />

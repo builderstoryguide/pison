@@ -1918,7 +1918,8 @@ export async function GET(req: NextRequest) {
         student: {
             // Mapping to strictly match matching fields
             id: student.id, // DB primary key (UUID)
-            studentId: student.matricule_number || student.student_id || '', // Matricule number for display
+            // Form field matricule_number only (no fallback to auto-generated student_id)
+            studentId: String(student.matricule_number ?? '').trim(),
             name: [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(' '),
             firstName: student.first_name,
             lastName: student.last_name,

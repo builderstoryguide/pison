@@ -252,11 +252,11 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
         margin: [0, 0, 0, 0], // No margins
         filename: filename,
         image: { 
-          type: 'jpeg', 
+          type: 'png', 
           quality: 1.0 
         },
         html2canvas: { 
-          scale: 2, // High DPI
+          scale: 2,
           useCORS: true, 
           logging: false,
           backgroundColor: '#ffffff',
@@ -267,7 +267,21 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
           windowWidth: element.scrollWidth,
           windowHeight: element.scrollHeight,
           x: 0,
-          y: 0
+          y: 0,
+          onclone: (clonedDoc: Document) => {
+            const source = document.getElementById('term-report-card-pdf-styles')
+            if (source?.textContent) {
+              const s = clonedDoc.createElement('style')
+              s.textContent = source.textContent
+              ;(clonedDoc.head ?? clonedDoc.documentElement).appendChild(s)
+            }
+            const root = clonedDoc.querySelector('.pdf-report-card') as HTMLElement | null
+            root?.classList.add('pdf-capture-mode')
+            // CSS transform: scale() on the live node blurs strokes when rasterized; clone is captured at 1:1
+            root?.style.removeProperty('transform')
+            root?.style.removeProperty('transform-origin')
+            root?.style.removeProperty('width')
+          }
         },
         jsPDF: { 
           unit: 'mm', 
@@ -576,6 +590,8 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
   // Generate QR Code data with report card information
   const qrCodeData = useMemo(() => {
     const reportCardInfo = {
+      recordId: data.student.id,
+      // studentId = form matricule (unique identifier); empty if not provided at enrollment/edit
       studentId: data.student.studentId,
       studentName: data.student.name,
       orderNo: data.academic.orderNo,
@@ -592,7 +608,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
   return (
     <>
       {/* Embedded styles for PDF generation - ensures styles are preserved */}
-      <style dangerouslySetInnerHTML={{
+      <style id="term-report-card-pdf-styles" dangerouslySetInnerHTML={{
         __html: `
           @media print, screen {
             .pdf-report-card,
@@ -643,6 +659,15 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             }
             .pdf-report-card .justify-end {
               justify-content: flex-end !important;
+            }
+            .pdf-report-card .flex-1 {
+              flex: 1 1 0% !important;
+            }
+            .pdf-report-card .flex-shrink-0 {
+              flex-shrink: 0 !important;
+            }
+            .pdf-report-card .min-w-0 {
+              min-width: 0 !important;
             }
             
             /* Text Alignment */
@@ -931,6 +956,95 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
               .pdf-report-card [class*="cursor-pointer"] { cursor: default !important; }
               .pdf-report-card [class*="hover:"] { background-color: transparent !important; }
             }
+
+            /*
+             * html2canvas does not apply @media print or Tailwind print: variants.
+             * onclone adds .pdf-report-card.pdf-capture-mode so these mirror print output.
+             */
+            .pdf-report-card.pdf-capture-mode {
+              font-size: 8pt !important;
+              box-shadow: none !important;
+            }
+            /*
+             * html2canvas paints each element's border; adjacent cells with border:1px on all sides
+             * stack into visually thick/dark lines. Use one stroke per internal edge (table top/left + cell right/bottom).
+             */
+            .pdf-report-card.pdf-capture-mode div.border.border-black:has(> table.w-full:first-child) {
+              border: none !important;
+            }
+            .pdf-report-card.pdf-capture-mode table {
+              border-collapse: collapse !important;
+              border-spacing: 0 !important;
+              border-top: 1px solid #000 !important;
+              border-left: 1px solid #000 !important;
+            }
+            .pdf-report-card.pdf-capture-mode table td,
+            .pdf-report-card.pdf-capture-mode table th {
+              border: none !important;
+              border-right: 1px solid #000 !important;
+              border-bottom: 1px solid #000 !important;
+            }
+            .pdf-report-card.pdf-capture-mode .grid.grid-cols-12.border-black.font-mono {
+              border: none !important;
+              border-top: 1px solid #000 !important;
+              border-left: 1px solid #000 !important;
+            }
+            .pdf-report-card.pdf-capture-mode .grid.grid-cols-12.border-black.font-mono > div {
+              border: none !important;
+              border-right: 1px solid #000 !important;
+              border-bottom: 1px solid #000 !important;
+            }
+            .pdf-report-card.pdf-capture-mode .border-2 {
+              border-width: 1px !important;
+            }
+            .pdf-report-card.pdf-capture-mode .border-b-2 {
+              border-bottom-width: 1px !important;
+            }
+            .pdf-report-card.pdf-capture-mode .print\\:p-0 { padding: 0 !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:p-0\\.5 { padding: 0.125rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:p-1 { padding: 0.25rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:px-3 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:pt-2 { padding-top: 0.5rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:pt-6 { padding-top: 1.5rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:pb-2 { padding-bottom: 0.5rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:mb-0 { margin-bottom: 0 !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:mb-0\\.5 { margin-bottom: 0.125rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:mb-1 { margin-bottom: 0.25rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:mt-0\\.5 { margin-top: 0.125rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:gap-1 { gap: 0.25rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:gap-0\\.5 { gap: 0.125rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:space-y-0 > * + * { margin-top: 0 !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:text-\\[6pt\\] { font-size: 6pt !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:text-\\[7pt\\] { font-size: 7pt !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:text-\\[8pt\\] { font-size: 8pt !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:text-2xl { font-size: 1.5rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:text-lg { font-size: 1.125rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:text-base { font-size: 1rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:text-xl { font-size: 1.25rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:text-xs { font-size: 0.75rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-1 { width: 0.25rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-4 { width: 1rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-8 { width: 2rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-10 { width: 2.5rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-14 { width: 3.5rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-20 { width: 5rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-24 { width: 6rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:h-1 { height: 0.25rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:h-3 { height: 0.75rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:h-4 { height: 1rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:hidden { display: none !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:block { display: block !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:shadow-none { box-shadow: none !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:w-full { width: 100% !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:max-w-full { max-width: 100% !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:h-\\[297mm\\] { min-height: 297mm !important; height: auto !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:border { border-width: 1px !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:leading-\\[1\\.1\\] { line-height: 1.1 !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:space-y-2 > * + * { margin-top: 0.5rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:pb-0\\.5 { padding-bottom: 0.125rem !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:cursor-default { cursor: default !important; }
+            .pdf-report-card.pdf-capture-mode [class*="cursor-pointer"] { cursor: default !important; }
+            .pdf-report-card.pdf-capture-mode [class*="hover:"] { background-color: transparent !important; }
             
             /* Responsive - Medium screens and up */
             @media (min-width: 768px) {
@@ -945,6 +1059,9 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
               }
               .pdf-report-card .md\\:border-b-0 {
                 border-bottom-width: 0 !important;
+              }
+              .pdf-report-card.pdf-capture-mode .grid.grid-cols-12.border-black.font-mono > div.md\\:border-b-0 {
+                border-bottom: none !important;
               }
               .pdf-report-card .md\\:flex-row {
                 flex-direction: row !important;
@@ -1042,34 +1159,36 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             </div>
             
             <div className="border-2 print:border border-black p-2 print:p-1 relative overflow-hidden group">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-100 to-transparent opacity-30"></div>
-              
-              {/* QR Code */}
-              <div className="absolute left-2 print:left-1 top-1/2 -translate-y-1/2 flex flex-col items-center opacity-80 z-20" style={{ transform: 'translateY(-50%)' }}>
-                <div className="bg-white p-0.5 print:p-0.5 border border-black shadow-sm">
-                  <QRCode
-                    value={qrCodeData}
-                    size={64}
-                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                    viewBox={`0 0 64 64`}
-                  />
-                </div>
+              <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-100 to-transparent opacity-30" />
               </div>
 
-              {/* Center Text */}
-              <div className="flex flex-col items-center justify-center relative z-10 mx-auto max-w-[60%]">
-                <h2 className="font-black text-xl print:text-2xl uppercase tracking-tighter leading-none mb-0.5 print:mb-0.5 text-left">
-                  <span className="text-black/80">{termName.ordinal}</span> <span className="relative inline-block">TERM</span>
-                </h2>
-                <p className="font-black text-base print:text-lg uppercase tracking-[0.2em] leading-none mb-1 print:mb-0.5 text-left">
-                  REPORT CARD
-                </p>
-                <div className="flex items-center gap-1 w-full justify-center">
-                  <div className="h-0.5 w-6 bg-black/30"></div>
-                  <p className="text-[0.5rem] print:text-[6pt] font-bold tracking-widest text-black/60 uppercase whitespace-nowrap flex items-center gap-0.5">
-                    <Star size={8} className="text-black/60 fill-black/60 print:w-1 print:h-1" /> Bulletin du {termName.fr} <Star size={8} className="text-black/60 fill-black/60 print:w-1 print:h-1" />
+              <div className="relative z-10 flex flex-row items-center gap-2 print:gap-1">
+                <div className="flex-shrink-0 flex flex-col items-center opacity-80">
+                  <div className="bg-white p-0.5 print:p-0.5 border border-black shadow-sm">
+                    <QRCode
+                      value={qrCodeData}
+                      size={64}
+                      style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                      viewBox={`0 0 64 64`}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex-1 flex flex-col items-center justify-center min-w-0 mx-auto max-w-[60%]">
+                  <h2 className="font-black text-xl print:text-2xl uppercase tracking-tighter leading-none mb-0.5 print:mb-0.5 text-left">
+                    <span className="text-black/80">{termName.ordinal}</span> <span className="relative inline-block">TERM</span>
+                  </h2>
+                  <p className="font-black text-base print:text-lg uppercase tracking-[0.2em] leading-none mb-1 print:mb-0.5 text-left">
+                    REPORT CARD
                   </p>
-                  <div className="h-0.5 w-6 bg-black/30"></div>
+                  <div className="flex items-center gap-1 w-full justify-center">
+                    <div className="h-0.5 w-6 bg-black/30"></div>
+                    <p className="text-[0.5rem] print:text-[6pt] font-bold tracking-widest text-black/60 uppercase whitespace-nowrap flex items-center gap-0.5">
+                      <Star size={8} className="text-black/60 fill-black/60 print:w-1 print:h-1" /> Bulletin du {termName.fr} <Star size={8} className="text-black/60 fill-black/60 print:w-1 print:h-1" />
+                    </p>
+                    <div className="h-0.5 w-6 bg-black/30"></div>
+                  </div>
                 </div>
               </div>
 
@@ -1374,9 +1493,6 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
           
 
         </div>
-        
-        {/* Bottom Border */}
-        <div className="h-1 print:h-0.5 w-full bg-black print:block text-white" />
         </div>
       </div>
 
@@ -1466,34 +1582,36 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                   </div>
                   
                   <div className="border-2 print:border border-black p-2 print:p-1 relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-100 to-transparent opacity-30"></div>
-                    
-                    {/* QR Code */}
-                    <div className="absolute left-2 print:left-1 top-1/2 -translate-y-1/2 hidden md:flex flex-col items-center opacity-80 z-20">
-                      <div className="bg-white p-0.5 print:p-0.5 border border-black shadow-sm">
-                        <QRCode
-                          value={qrCodeData}
-                          size={64}
-                          style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                          viewBox={`0 0 64 64`}
-                        />
-                      </div>
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-100 to-transparent opacity-30" />
                     </div>
 
-                    {/* Center Text */}
-                    <div className="flex flex-col items-center justify-center relative z-10 mx-auto max-w-[60%]">
-                      <h2 className="font-black text-xl print:text-2xl uppercase tracking-tighter leading-none mb-0.5 print:mb-0.5 text-left">
-                        <span className="text-black/80">{termName.ordinal}</span> <span className="relative inline-block">TERM</span>
-                      </h2>
-                      <p className="font-black text-base print:text-lg uppercase tracking-[0.2em] leading-none mb-1 print:mb-0.5 text-left">
-                        REPORT CARD
-                      </p>
-                      <div className="flex items-center gap-1 w-full justify-center">
-                        <div className="h-0.5 w-6 bg-black/30"></div>
-                        <p className="text-[0.5rem] print:text-[6pt] font-bold tracking-widest text-black/60 uppercase whitespace-nowrap flex items-center gap-0.5">
-                          <Star size={8} className="text-black/60 fill-black/60 print:w-1 print:h-1" /> Bulletin du {termName.fr} <Star size={8} className="text-black/60 fill-black/60 print:w-1 print:h-1" />
+                    <div className="relative z-10 flex flex-row items-center gap-2 print:gap-1">
+                      <div className="flex-shrink-0 flex flex-col items-center opacity-80">
+                        <div className="bg-white p-0.5 print:p-0.5 border border-black shadow-sm">
+                          <QRCode
+                            value={qrCodeData}
+                            size={64}
+                            style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                            viewBox={`0 0 64 64`}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex-1 flex flex-col items-center justify-center min-w-0 mx-auto max-w-[60%]">
+                        <h2 className="font-black text-xl print:text-2xl uppercase tracking-tighter leading-none mb-0.5 print:mb-0.5 text-left">
+                          <span className="text-black/80">{termName.ordinal}</span> <span className="relative inline-block">TERM</span>
+                        </h2>
+                        <p className="font-black text-base print:text-lg uppercase tracking-[0.2em] leading-none mb-1 print:mb-0.5 text-left">
+                          REPORT CARD
                         </p>
-                        <div className="h-0.5 w-6 bg-black/30"></div>
+                        <div className="flex items-center gap-1 w-full justify-center">
+                          <div className="h-0.5 w-6 bg-black/30"></div>
+                          <p className="text-[0.5rem] print:text-[6pt] font-bold tracking-widest text-black/60 uppercase whitespace-nowrap flex items-center gap-0.5">
+                            <Star size={8} className="text-black/60 fill-black/60 print:w-1 print:h-1" /> Bulletin du {termName.fr} <Star size={8} className="text-black/60 fill-black/60 print:w-1 print:h-1" />
+                          </p>
+                          <div className="h-0.5 w-6 bg-black/30"></div>
+                        </div>
                       </div>
                     </div>
 
@@ -1768,9 +1886,6 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                 
 
               </div>
-              
-              {/* Bottom Border */}
-              <div className="h-1 print:h-0.5 w-full bg-black print:block" />
             </div>
           </div>
 
