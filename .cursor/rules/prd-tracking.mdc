@@ -1,0 +1,17 @@
+---
+description: When implementing PRD features, update docs/PRD_FEATURE_TRACKER.md
+alwaysApply: false
+---
+# PRD Feature Tracking
+
+When implementing features from [docs/PRD.md](docs/PRD.md):
+
+1. **Before starting**: Check [docs/PRD_FEATURE_TRACKER.md](docs/PRD_FEATURE_TRACKER.md) for current status and dependencies.
+2. **While implementing**: Update the tracker as each sub-feature is completed. Change `[ ]` to `[x]` or `[~]` as appropriate.
+3. **After merging**: Ensure the tracker reflects the new state; update the "Last Updated" date for affected sections.
+4. **Periodic review**: Cross-check PRD vs. tracker periodically (e.g., quarterly).
+
+The tracker uses:
+- `[x]` Done – Fully implemented
+- `[~]` Partial – Partially implemented or has gaps
+- `[ ]` Not started

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
@@ -30,3 +31,35 @@ docker-compose.override.yml
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+=======
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+
+.next
+
+# Test results
+playwright-report/
+test-results/
+e2e/.auth/
+
+# Environment (never commit secrets)
+.env
+.env.local
+.env.*.local
+# TypeScript incremental build artifacts
+*.tsbuildinfo
+# Use .env.example as template; copy to .env.local for local config (npm run dev loads .env.local)
+
+# Chat file uploads (local filesystem)
+uploads/
+>>>>>>> c10aaa83c3737af90b384d046150aef9f7900c99

@@ -1,4 +1,5 @@
 # Dependencies
+<<<<<<< HEAD
 node_modules
 npm-debug.log*
 yarn-debug.log*
@@ -9,10 +10,16 @@ pnpm-debug.log*
 coverage
 .nyc_output
 playwright-report
+=======
+node_modules/
+npm-debug.log
+yarn-error.log
+>>>>>>> c10aaa83c3737af90b384d046150aef9f7900c99
 
 # Next.js
 .next/
 out/
+<<<<<<< HEAD
 build
 dist
 
@@ -47,10 +54,47 @@ next-env.d.ts
 *.swp
 *.swo
 *~
+=======
+build/
+
+# Environment
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor
+
+# Testing
+.playwright/
+e2e/
+
+# Prisma
+prisma/data/
+*.db
+*.db-journal
+
+# Documentation
+documentation.html
+docs/
+>>>>>>> c10aaa83c3737af90b384d046150aef9f7900c99
 
 # Git
 .git
 .gitignore
+<<<<<<< HEAD
 .gitattributes
 
 # Documentation (optional - remove if you want docs in container)
@@ -62,3 +106,17 @@ next-env.d.ts
 
 # OS
 Thumbs.db
+=======
+
+# CI/CD
+.github/
+
+# Dev files (keep tsconfig.json and postcss.config.mjs for build)
+.prettierignore
+.prettierrc
+eslint.config.mjs
+tsconfig.tsbuildinfo
+playwright.config.ts
+*.md
+AGENTS.md
+>>>>>>> c10aaa83c3737af90b384d046150aef9f7900c99

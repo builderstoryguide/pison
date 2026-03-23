@@ -1,0 +1,320 @@
+'use client';
+
+import { ReactNode, useState } from 'react';
+import { DropdownMenu4 } from '@/partials/dropdown-menu/dropdown-menu-4';
+import { useTranslation } from '@/hooks/useTranslation';
+import {
+  Badge,
+  Bolt,
+  Captions,
+  CircleUserRound,
+  Home,
+  IdCard,
+  Search,
+  Settings,
+  UserRoundPen,
+  UserRoundPlus,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  SearchDocs,
+  SearchDocsItem,
+  SearchEmpty,
+  SearchIntegrations,
+  SearchIntegrationsItem,
+  SearchMixed,
+  SearchNoResults,
+  SearchSettings,
+  SearchSettingsItem,
+  SearchUsers,
+  SearchUsersItem,
+} from './';
+
+export function SearchDialog({ trigger }: { trigger: ReactNode }) {
+  const { t } = useTranslation();
+  const [searchInput, setSearchInput] = useState('');
+
+  const mixedSettingsItems: SearchSettingsItem[] = [
+    { icon: IdCard, info: t('pages.dialogs.search.shortcuts.publicProfile') },
+    { icon: Settings, info: t('pages.dialogs.search.shortcuts.myAccount') },
+  ];
+
+  const mixedUsersItems: SearchUsersItem[] = [
+    {
+      avatar: '300-3.png',
+      name: 'Tyler Hero',
+      email: 'tyler.hero@gmail.com',
+      label: t('pages.dialogs.search.labels.inOffice'),
+      color: 'success',
+    },
+    {
+      avatar: '300-1.png',
+      name: 'Esther Howard',
+      email: 'esther.howard@gmail.com',
+      label: t('pages.dialogs.search.labels.onLeave'),
+      color: 'destructive',
+    },
+  ];
+
+  const mixedIntegrationsItems: SearchIntegrationsItem[] = [
+    {
+      logo: 'jira.svg',
+      name: 'Jira',
+      description: t('pages.topbar.apps.items.jira'),
+      team: [
+        { filename: '300-4.png', variant: 'size-6' },
+        { filename: '300-1.png', variant: 'size-6' },
+        { filename: '300-2.png', variant: 'size-6' },
+        {
+          fallback: '+3',
+          variant: 'text-white rounded-full size-6 ring-background bg-green-500',
+        },
+      ],
+    },
+    {
+      logo: 'inferno.svg',
+      name: 'Inferno',
+      description: t('pages.topbar.apps.items.inferno'),
+      team: [
+        { filename: '300-14.png', variant: 'size-6' },
+        { filename: '300-12.png', variant: 'size-6' },
+        { filename: '300-9.png', variant: 'size-6' },
+
+      ],
+    },
+  ];
+
+  const docsItems: SearchDocsItem[] = [
+    {
+      image: 'pdf.svg',
+      desc: 'Project-pitch.pdf',
+      date: '4.7 MB 26 Sep 2024 3:20 PM',
+    },
+    {
+      image: 'doc.svg',
+      desc: 'Report-v1.docx',
+      date: '2.3 MB 1 Oct 2024 12:00 PM',
+    },
+    {
+      image: 'javascript.svg',
+      desc: 'Framework-App.js',
+      date: '0.8 MB 17 Oct 2024 6:46 PM',
+    },
+    {
+      image: 'ai.svg',
+      desc: 'Framework-App.js',
+      date: '0.8 MB 17 Oct 2024 6:46 PM',
+    },
+    {
+      image: 'php.svg',
+      desc: 'appController.js',
+      date: '0.1 MB 21 Nov 2024 3:20 PM',
+    },
+  ];
+
+  const settingsItems = [
+    {
+      title: t('pages.dialogs.search.groups.shortcuts'),
+      children: [
+        { icon: Home, info: t('pages.dialogs.search.shortcuts.goToDashboard') },
+        { icon: Badge, info: t('pages.dialogs.search.shortcuts.publicProfile') },
+        { icon: CircleUserRound, info: t('pages.dialogs.search.shortcuts.myProfile') },
+        { icon: Settings, info: t('pages.dialogs.search.shortcuts.myAccount') },
+      ],
+    },
+    {
+      title: t('pages.dialogs.search.groups.actions'),
+      children: [
+        { icon: UserRoundPlus, info: t('pages.dialogs.search.actions.createUser') },
+        { icon: UserRoundPen, info: t('pages.dialogs.search.actions.createTeam') },
+        { icon: Captions, info: t('pages.dialogs.search.actions.changePlan') },
+        { icon: Bolt, info: t('pages.dialogs.search.actions.setupBranding') },
+      ],
+    },
+  ];
+
+  const integrationsItems = [
+    {
+      logo: 'jira.svg',
+      name: 'Jira',
+      description: t('pages.topbar.apps.items.jira'),
+      team: [
+        { filename: '300-4.png', variant: 'size-6' },
+        { filename: '300-1.png', variant: 'size-6' },
+        { filename: '300-2.png', variant: 'size-6' },
+        {
+          fallback: '+3',
+          variant: 'text-white size-6 ring-background bg-green-500',
+        },
+      ],
+    },
+    {
+      logo: 'inferno.svg',
+      name: 'Inferno',
+      description: t('pages.topbar.apps.items.inferno'),
+      team: [
+        { filename: '300-14.png', variant: 'size-6' },
+        { filename: '300-12.png', variant: 'size-6' },
+        { filename: '300-9.png', variant: 'size-6' },
+      ],
+    },
+    {
+      logo: 'evernote.svg',
+      name: 'Evernote',
+      description: t('pages.topbar.apps.items.evernote'),
+      team: [
+        { filename: '300-6.png', variant: 'size-6' },
+        { filename: '300-3.png', variant: 'size-6' },
+        { filename: '300-1.png', variant: 'size-6' },
+        { filename: '300-8.png', variant: 'size-6' },
+      ],
+    },
+    {
+      logo: 'gitlab.svg',
+      name: 'Gitlab',
+      description: t('pages.topbar.apps.items.gitlab'),
+      team: [
+        { filename: '300-18.png', variant: 'size-6' },
+        { filename: '300-17.png', variant: 'size-6' },
+      ],
+    },
+    {
+      logo: 'google-webdev.svg',
+      name: 'Google Webdev',
+      description: t('pages.topbar.apps.items.googleWebdev'),
+      team: [
+        { filename: '300-14.png', variant: 'size-6' },
+        { filename: '300-20.png', variant: 'size-6' },
+        { filename: '300-21.png', variant: 'size-6' },
+      ],
+    },
+  ];
+
+  const usersItems: SearchUsersItem[] = [
+    {
+      avatar: '300-3.png',
+      name: 'Tyler Hero',
+      email: 'tyler.hero@gmail.com',
+      label: t('pages.dialogs.search.labels.inOffice'),
+      color: 'success',
+    },
+    {
+      avatar: '300-1.png',
+      name: 'Esther Howard',
+      email: 'esther.howard@gmail.com',
+      label: t('pages.dialogs.search.labels.onLeave'),
+      color: 'destructive',
+    },
+    {
+      avatar: '300-11.png',
+      name: 'Jacob Jones',
+      email: 'jacob.jones@gmail.com',
+      label: t('pages.dialogs.search.labels.remote'),
+      color: 'primary',
+    },
+    {
+      avatar: '300-5.png',
+      name: 'Leslie Alexander',
+      email: 'leslie.alexander@gmail.com',
+      label: t('pages.dialogs.search.labels.inOffice'),
+      color: 'success',
+    },
+    {
+      avatar: '300-2.png',
+      name: 'Cody Fisher',
+      email: 'cody.fisher@gmail.com',
+      label: t('pages.dialogs.search.labels.remote'),
+      color: 'primary',
+    },
+  ];
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="lg:max-w-[600px] lg:top-[15%] lg:translate-y-0 p-0 [&_[data-slot=dialog-close]]:top-5.5 [&_[data-slot=dialog-close]]:end-5.5">
+        <DialogHeader className="px-4 py-1 mb-1">
+          <DialogTitle></DialogTitle>
+          <DialogDescription></DialogDescription>
+          <div className="relative">
+            <Search className="absolute top-1/2 -translate-y-1/2 size-4" />
+            <Input
+              type="text"
+              name="query"
+              value={searchInput}
+              className="ps-6 outline-none! ring-0! shadow-none! border-0"
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder={t('pages.dialogs.search.placeholder')}
+            />
+          </div>
+        </DialogHeader>
+        <DialogBody className="p-0 pb-5">
+          <Tabs defaultValue="1">
+            <TabsList className="justify-between px-5 mb-2.5" variant="line">
+              <div className="flex items-center gap-5">
+                <TabsTrigger value="1">{t('pages.dialogs.search.tabs.mixed')}</TabsTrigger>
+                <TabsTrigger value="2">{t('pages.dialogs.search.tabs.settings')}</TabsTrigger>
+                <TabsTrigger value="3">{t('pages.dialogs.search.tabs.integrations')}</TabsTrigger>
+                <TabsTrigger value="4">{t('pages.dialogs.search.tabs.users')}</TabsTrigger>
+                <TabsTrigger value="5">{t('pages.dialogs.search.tabs.docs')}</TabsTrigger>
+                <TabsTrigger value="6">{t('pages.dialogs.search.tabs.empty')}</TabsTrigger>
+                <TabsTrigger value="7">{t('pages.dialogs.search.tabs.noResults')}</TabsTrigger>
+              </div>
+
+              <DropdownMenu4
+                trigger={
+                  <Button
+                    variant="ghost"
+                    mode="icon"
+                    size="sm"
+                    className="mb-1.5 -me-2"
+                  >
+                    <Settings />
+                  </Button>
+                }
+              />
+            </TabsList>
+            <ScrollArea className="h-[480px]">
+              <TabsContent value="1">
+                <SearchMixed
+                  settings={mixedSettingsItems}
+                  integrations={mixedIntegrationsItems}
+                  users={mixedUsersItems}
+                />
+              </TabsContent>
+              <TabsContent value="2">
+                <SearchSettings items={settingsItems} />
+              </TabsContent>
+              <TabsContent value="3">
+                <SearchIntegrations items={integrationsItems} more={true} />
+              </TabsContent>
+              <TabsContent value="4">
+                <SearchUsers items={usersItems} more={true} />
+              </TabsContent>
+              <TabsContent value="5">
+                <SearchDocs items={docsItems} />
+              </TabsContent>
+              <TabsContent value="6">
+                <SearchEmpty />
+              </TabsContent>
+              <TabsContent value="7">
+                <SearchNoResults />
+              </TabsContent>
+            </ScrollArea>
+          </Tabs>
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
+  );
+}

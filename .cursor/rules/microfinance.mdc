@@ -1,0 +1,603 @@
+---
+description: 
+alwaysApply: true
+---
+
+# Microfinance Management System - Cursor Rules
+
+## Project Overview
+This is a Daily Collection Management System (DCMS) for a microfinance company. It manages daily collections, client accounts, agent operations, loan processing, and financial reporting with strict security and compliance requirements.
+
+## Core Principles
+
+### 1. Security First
+- NEVER store sensitive data (passwords, PINs, account numbers) in plain text
+- Always use encryption for data at rest and in transit
+- Implement proper authentication and authorization for all endpoints
+- Follow the principle of least privilege for all user roles
+- Implement audit logging for ALL financial transactions
+- Use parameterized queries to prevent SQL injection
+- Validate and sanitize ALL user inputs
+- Implement rate limiting on authentication endpoints
+- Use secure session management with proper timeouts
+- Never expose sensitive information in error messages or logs
+
+### 2. Financial Compliance
+- All monetary values must use DECIMAL types (never FLOAT or DOUBLE)
+- Implement double-entry bookkeeping principles
+- Every transaction must be atomic (ACID properties)
+- Implement idempotency for all financial operations
+- Maintain complete audit trails with timestamps and user identification
+- Implement the four-eye principle (dual authorization) for critical operations
+- All amounts must be validated before processing
+- Implement transaction rollback mechanisms
+- Use database transactions for all financial operations
+- Never allow negative balances unless explicitly authorized (loan scenarios)
+
+### 3. Data Integrity
+- Use database constraints for data validation
+- Implement soft deletes (never hard delete financial records)
+- Maintain historical records of all changes
+- Implement versioning for critical entities
+- Use checksums or hash verification for transaction integrity
+- Implement data backup and recovery mechanisms
+- Validate all foreign key relationships
+- Use appropriate data types for all fields
+
+## Technical Stack Guidelines
+
+### Backend Development
+- Use a robust framework (Node.js/Express, Python/Django/Flask, Java/Spring Boot, or .NET)
+- Implement RESTful API design principles
+- Use proper HTTP status codes and error handling
+- Implement comprehensive input validation using libraries like Joi, Yup, or class-validator
+- Use dependency injection for better testability
+- Implement proper logging with different levels (ERROR, WARN, INFO, DEBUG)
+- Use environment variables for configuration (never hardcode credentials)
+- Implement proper error handling with custom error classes
+- Use middleware for authentication, authorization, and logging
+
+### Database Design
+- Use a relational database (PostgreSQL, MySQL, or SQL Server)
+- Normalize data appropriately (at least 3NF for financial data)
+- Create proper indexes for frequently queried fields
+- Implement database migrations with version control
+- Use stored procedures for complex financial calculations
+- Implement database-level constraints (NOT NULL, UNIQUE, CHECK, FOREIGN KEY)
+- Use appropriate data types:
+  - DECIMAL(19,4) for monetary amounts
+  - TIMESTAMP WITH TIME ZONE for all datetime fields
+  - UUID or BIGINT for primary keys
+  - ENUM or CHECK constraints for status fields
+
+### Frontend Development
+- Use a modern framework (React, Vue, or Angular)
+- Implement responsive design (mobile-first approach)
+- Use proper state management (Redux, Vuex, or Context API)
+- Implement client-side validation (but always validate on server too)
+- Use proper form handling with libraries like Formik or React Hook Form
+- Implement loading states and error handling in UI
+- Use internationalization (i18n) for multi-language support (French & English)
+- Implement proper accessibility (WCAG 2.1 AA compliance)
+- Use secure HTTP-only cookies for session management
+- Never store sensitive data in localStorage or sessionStorage
+
+## Architecture Patterns
+
+### 1. Layered Architecture
+```
+├── Presentation Layer (Controllers/Routes)
+├── Business Logic Layer (Services)
+├── Data Access Layer (Repositories)
+└── Database Layer
+```
+
+### 2. Authentication & Authorization
+- Implement JWT or session-based authentication
+- Use bcrypt or Argon2 for password hashing (minimum cost factor: 12)
+- Implement role-based access control (RBAC):
+  - Administrator: Full system access
+  - Accountant: Financial operations, client management
+  - Agent: Limited to assigned collection areas
+  - Client: Read-only access to own account
+- Implement permission-based authorization for granular control
+- Use refresh tokens for extended sessions
+- Implement account lockout after failed login attempts (e.g., 5 attempts)
+- Require strong passwords (minimum 8 characters, mix of uppercase, lowercase, numbers, symbols)
+
+### 3. Transaction Management Pattern
+```typescript
+// Example pattern for financial transactions
+async function executeTransaction(transactionData) {
+  const dbTransaction = await db.beginTransaction();
+  try {
+    // 1. Validate transaction
+    await validateTransaction(transactionData);
+    
+    // 2. Check balances and limits
+    await checkBusinessRules(transactionData);
+    
+    // 3. Create audit log entry (pending)
+    const auditId = await createAuditLog(transactionData, 'PENDING');
+    
+    // 4. Execute the transaction
+    const result = await performTransaction(transactionData, dbTransaction);
+    
+    // 5. Update audit log (completed)
+    await updateAuditLog(auditId, 'COMPLETED', result);
+    
+    // 6. Commit transaction
+    await dbTransaction.commit();
+    
+    return result;
+  } catch (error) {
+    // Rollback on any error
+    await dbTransaction.rollback();
+    await updateAuditLog(auditId, 'FAILED', error);
+    throw error;
+  }
+}
+```
+
+## Coding Standards
+
+### General Guidelines
+- Follow the language-specific style guide (Airbnb for JavaScript, PEP 8 for Python, etc.)
+- Use meaningful variable and function names
+- Keep functions small and focused (single responsibility principle)
+- Write self-documenting code with clear naming
+- Add comments only for complex business logic
+- Avoid deep nesting (max 3 levels)
+- Use early returns to reduce complexity
+- Follow DRY (Don't Repeat Yourself) principle
+- Use constants for magic numbers and strings
+- Implement proper error handling (try-catch blocks)
+
+### Naming Conventions
+- Use camelCase for variables and functions (JavaScript/TypeScript)
+- Use PascalCase for classes and components
+- Use UPPER_SNAKE_CASE for constants
+- Use snake_case for database columns
+- Prefix boolean variables with is/has/should/can
+- Use descriptive names for database tables (plural nouns)
+- Use descriptive names for API endpoints (RESTful conventions)
+
+### Code Organization
+```
+project/
+├── src/
+│   ├── controllers/      # Request handlers
+│   ├── services/         # Business logic
+│   ├── repositories/     # Data access
+│   ├── models/           # Data models/entities
+│   ├── middleware/       # Custom middleware
+│   ├── validators/       # Input validation schemas
+│   ├── utils/            # Utility functions
+│   ├── config/           # Configuration files
+│   └── types/            # TypeScript type definitions
+├── tests/
+│   ├── unit/             # Unit tests
+│   ├── integration/      # Integration tests
+│   └── e2e/              # End-to-end tests
+├── migrations/           # Database migrations
+└── docs/                 # Documentation
+```
+
+## Testing Requirements
+
+### Test Coverage
+- Maintain minimum 80% code coverage
+- Write unit tests for all business logic
+- Write integration tests for API endpoints
+- Write E2E tests for critical user flows
+- Test all edge cases and error scenarios
+- Test transaction rollback scenarios
+- Test authorization and authentication flows
+- Test financial calculation accuracy
+
+### Testing Patterns
+- Use AAA pattern (Arrange, Act, Assert)
+- Mock external dependencies
+- Use test databases (never test on production)
+- Clean up test data after each test
+- Use factories or fixtures for test data
+- Test both positive and negative scenarios
+- Test boundary conditions
+
+## API Design Guidelines
+
+### RESTful Conventions
+```
+GET    /api/clients              - List all clients
+GET    /api/clients/:id          - Get specific client
+POST   /api/clients              - Create new client
+PUT    /api/clients/:id          - Update client
+DELETE /api/clients/:id          - Delete client (soft delete)
+
+GET    /api/transactions         - List transactions
+POST   /api/transactions         - Create transaction
+GET    /api/transactions/:id     - Get transaction details
+
+POST   /api/auth/login           - User login
+POST   /api/auth/logout          - User logout
+POST   /api/auth/refresh         - Refresh token
+```
+
+### Request/Response Format
+- Use JSON for all requests and responses
+- Include proper HTTP status codes
+- Return consistent error format:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid input data",
+    "details": [
+      {
+        "field": "amount",
+        "message": "Amount must be positive"
+      }
+    ]
+  }
+}
+```
+
+### Response Pagination
+```json
+{
+  "success": true,
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "totalPages": 5,
+    "totalCount": 100
+  }
+}
+```
+
+## Security Implementation Checklist
+
+- [ ] Implement HTTPS/TLS for all communications
+- [ ] Use Content Security Policy (CSP) headers
+- [ ] Implement CORS properly
+- [ ] Use helmet.js or equivalent for security headers
+- [ ] Implement CSRF protection
+- [ ] Use secure cookie flags (HttpOnly, Secure, SameSite)
+- [ ] Implement SQL injection prevention
+- [ ] Implement XSS prevention
+- [ ] Implement input sanitization
+- [ ] Implement rate limiting
+- [ ] Log all security events
+- [ ] Implement session timeout
+- [ ] Encrypt sensitive data at rest
+- [ ] Use secure random number generation for tokens
+- [ ] Implement two-factor authentication (optional enhancement)
+
+## Financial Operations Standards
+
+### Transaction Processing
+- Always use database transactions for financial operations
+- Implement optimistic locking to prevent concurrent modifications
+- Validate account balances before debiting
+- Implement idempotency keys for transaction deduplication
+- Log every step of transaction processing
+- Implement transaction status tracking (PENDING, COMPLETED, FAILED, REVERSED)
+- Never allow partial transaction commits
+- Implement transaction reversal mechanisms
+
+### Amount Handling
+```javascript
+// CORRECT: Use decimal libraries
+const Decimal = require('decimal.js');
+const amount = new Decimal('100.50');
+const tax = amount.mul('0.15');
+
+// WRONG: Never use floating point for money
+const amount = 100.50; // DON'T DO THIS
+const tax = amount * 0.15; // Precision loss!
+```
+
+### Commission Calculation
+- Calculate commissions using consistent rounding rules
+- Store commission rates in configuration (not hardcoded)
+- Implement commission exemption rules
+- Track commission transactions separately
+- Provide detailed commission reports
+
+## Reporting Requirements
+
+### Report Types to Implement
+1. Daily Collections Report
+2. Monthly Balance Sheet (by client, by area, overall)
+3. Account Statement
+4. Collection Journal
+5. Statistics by Collection Area
+6. Commission Report
+7. Surplus/Shortage Report
+8. Transaction Audit Log
+
+### Report Guidelines
+- Generate reports asynchronously for large datasets
+- Implement caching for frequently accessed reports
+- Support multiple export formats (PDF, Excel, CSV)
+- Include filters (date range, area, agent, client)
+- Implement proper data aggregation
+- Show summary statistics
+- Include timestamp and user who generated report
+
+## Four-Eye Principle Implementation
+
+### Transaction Approval Workflow
+1. Agent/Accountant initiates transaction
+2. Transaction saved with status: PENDING_APPROVAL
+3. Notification sent to Administrator
+4. Administrator reviews transaction details
+5. Administrator approves or rejects
+6. If approved: status changes to COMPLETED
+7. If rejected: status changes to REJECTED with reason
+8. Audit log records all actions
+
+### Implementation Example
+```javascript
+// Transaction approval system
+const transactionStates = {
+  DRAFT: 'DRAFT',
+  PENDING_APPROVAL: 'PENDING_APPROVAL',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  COMPLETED: 'COMPLETED'
+};
+
+// Only administrator can approve
+async function approveTransaction(transactionId, approverId) {
+  // Verify approver is administrator
+  const approver = await getUser(approverId);
+  if (approver.role !== 'ADMINISTRATOR') {
+    throw new UnauthorizedError('Only administrators can approve transactions');
+  }
+  
+  // Update transaction status
+  await updateTransaction(transactionId, {
+    status: transactionStates.APPROVED,
+    approvedBy: approverId,
+    approvedAt: new Date()
+  });
+}
+```
+
+## Daily Operations Flow
+
+### System Startup
+1. System starts when server is powered on
+2. Initialize database connections
+3. Load system configuration
+4. Start audit logging
+5. Enable user authentication
+
+### Daily Collection Process
+1. Agent collects cash from clients
+2. Agent logs into system
+3. Agent enters collected amounts (Ventilation)
+4. System validates entries
+5. Transactions marked as PENDING_APPROVAL
+6. Administrator reviews and approves at end of day
+7. System updates account balances
+8. Generate daily collection report
+
+### Day Closure
+1. Administrator reviews all pending transactions
+2. Administrator approves/rejects transactions
+3. System calculates daily totals
+4. System checks for surpluses/shortages
+5. Generate end-of-day reports
+6. Close accounting day (no further transactions allowed)
+7. Backup database
+
+## Localization (i18n) Requirements
+
+### Implementation Guidelines
+- Support French and English languages
+- Store all user-facing text in translation files
+- Use language codes: 'fr' for French, 'en' for English
+- Format dates according to locale
+- Format currency properly (CFA Franc or other applicable currency)
+- Translate error messages
+- Translate report labels and headers
+- Allow users to switch language in settings
+
+### Example Structure
+```
+locales/
+├── en/
+│   ├── common.json
+│   ├── errors.json
+│   ├── reports.json
+│   └── transactions.json
+└── fr/
+    ├── common.json
+    ├── errors.json
+    ├── reports.json
+    └── transactions.json
+```
+
+## Performance Optimization
+
+- Use database connection pooling
+- Implement caching for frequently accessed data (Redis or similar)
+- Use pagination for large datasets
+- Implement lazy loading for UI components
+- Optimize database queries with proper indexes
+- Use asynchronous processing for heavy operations
+- Implement CDN for static assets
+- Compress API responses
+- Use database query optimization tools
+- Monitor and optimize slow queries
+
+## Monitoring and Logging
+
+### Logging Requirements
+- Log all authentication attempts
+- Log all financial transactions
+- Log all administrative actions
+- Log all errors and exceptions
+- Log all API requests (with sensitive data masked)
+- Use structured logging (JSON format)
+- Implement log rotation
+- Store logs securely with restricted access
+
+### Monitoring
+- Monitor system uptime
+- Monitor database performance
+- Monitor API response times
+- Track failed transactions
+- Monitor security events
+- Set up alerts for critical errors
+- Track user activity metrics
+
+## Documentation Requirements
+
+### Code Documentation
+- Write JSDoc or equivalent for all public functions
+- Document complex algorithms
+- Maintain API documentation (Swagger/OpenAPI)
+- Keep README files updated
+- Document environment variables
+- Document deployment procedures
+- Create architecture diagrams
+
+### User Documentation
+- Administrator manual
+- Accountant user guide
+- Agent user guide
+- Client user guide
+- API documentation for integrations
+- Troubleshooting guide
+- FAQ document
+
+## Deployment Guidelines
+
+- Use environment-specific configurations (dev, staging, production)
+- Never commit secrets to version control (use .env files or secret managers)
+- Implement CI/CD pipeline
+- Use automated testing in deployment pipeline
+- Implement database migration strategy
+- Create rollback procedures
+- Use blue-green or canary deployment strategies
+- Implement health check endpoints
+- Monitor application after deployment
+
+## Error Handling Standards
+
+### Error Categories
+1. Validation Errors (400 Bad Request)
+2. Authentication Errors (401 Unauthorized)
+3. Authorization Errors (403 Forbidden)
+4. Not Found Errors (404 Not Found)
+5. Business Logic Errors (422 Unprocessable Entity)
+6. Server Errors (500 Internal Server Error)
+
+### Error Response Format
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message",
+    "timestamp": "2024-02-07T10:30:00Z",
+    "requestId": "uuid-here",
+    "details": {}
+  }
+}
+```
+
+## Database Schema Considerations
+
+### Essential Tables
+1. users (id, username, password_hash, role, email, status, created_at, updated_at)
+2. clients (id, user_id, full_name, contact_info, area_id, status, created_at)
+3. agents (id, user_id, full_name, assigned_areas, status, created_at)
+4. collection_areas (id, name, description, status, created_at)
+5. accounts (id, client_id, account_number, balance, status, created_at)
+6. transactions (id, account_id, type, amount, balance_before, balance_after, status, created_by, approved_by, created_at, approved_at)
+7. loans (id, account_id, amount, interest_rate, status, disbursed_at, created_at)
+8. audit_logs (id, user_id, action, entity_type, entity_id, changes, ip_address, created_at)
+9. commissions (id, transaction_id, amount, calculation_method, created_at)
+10. daily_closures (id, closure_date, total_collections, total_withdrawals, surplus_shortage, closed_by, created_at)
+
+### Audit Trail Requirements
+- Track WHO made the change (user_id)
+- Track WHAT changed (before/after values)
+- Track WHEN it changed (timestamp)
+- Track WHY it changed (reason/comment field)
+- Track WHERE it was changed (IP address, device info)
+- Never delete audit logs
+- Implement tamper-proof audit logging
+
+## Compliance and Regulatory Considerations
+
+- Ensure data retention policies comply with local regulations
+- Implement data privacy controls (GDPR-like principles)
+- Provide data export functionality for clients
+- Implement right to be forgotten (where applicable)
+- Maintain transaction history for regulatory audits
+- Ensure proper tax calculation and reporting
+- Implement anti-money laundering (AML) checks if required
+- Know Your Customer (KYC) compliance
+
+## Code Review Checklist
+
+Before committing code, ensure:
+- [ ] All tests pass
+- [ ] Code follows style guide
+- [ ] No sensitive data in code
+- [ ] Proper error handling implemented
+- [ ] Security vulnerabilities checked
+- [ ] Performance considerations addressed
+- [ ] Documentation updated
+- [ ] Logging implemented appropriately
+- [ ] Input validation present
+- [ ] Database queries optimized
+- [ ] Transaction handling correct
+- [ ] Authorization checks in place
+
+## AI Assistant Instructions
+
+When generating code for this project:
+1. Always prioritize security and data integrity
+2. Use proper TypeScript/JavaScript typing
+3. Implement comprehensive error handling
+4. Add appropriate logging statements
+5. Include input validation
+6. Write clean, maintainable code
+7. Follow the established patterns
+8. Add comments for complex logic
+9. Consider edge cases
+10. Think about transaction safety
+11. Implement proper authorization checks
+12. Use async/await properly
+13. Handle promise rejections
+14. Implement proper database transactions
+15. Never expose sensitive information
+
+## Version Control Guidelines
+
+- Use meaningful commit messages (Conventional Commits format)
+- Create feature branches (never commit directly to main)
+- Use pull requests for code review
+- Tag releases with semantic versioning
+- Maintain a CHANGELOG.md file
+- Use .gitignore to exclude sensitive files
+- Never commit environment files (.env)
+- Never commit node_modules or vendor directories
+
+## Additional Notes
+
+- This is a critical financial system handling real money
+- Accuracy and security are paramount
+- Every line of code should be written with these priorities in mind
+- When in doubt, choose the more secure, more auditable option
+- Test thoroughly before deploying
+- Plan for disaster recovery
+- Implement proper backup strategies

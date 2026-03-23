@@ -1,0 +1,52 @@
+import { type LucideIcon } from 'lucide-react';
+
+export interface MenuItem {
+  title?: string;
+  icon?: LucideIcon;
+  path?: string;
+  rootPath?: string;
+  childrenIndex?: number;
+  heading?: string;
+  children?: MenuConfig;
+  disabled?: boolean;
+  collapse?: boolean;
+  collapseTitle?: string;
+  expandTitle?: string;
+  badge?: string;
+  separator?: boolean;
+  /** Permission slug required to see this item. Omit to show to all authenticated users. */
+  permission?: string;
+  /** Hide this item when roleName matches any provided lowercase substring (e.g. 'agent'). */
+  hiddenForRoles?: string[];
+  /** Show only when user role matches any of these (e.g. ['manager']). Role slug or roleName substring. */
+  requiredRoles?: string[];
+}
+
+export type MenuConfig = MenuItem[];
+
+export interface Settings {
+  container: 'fixed' | 'fluid';
+  layout: string;
+  layouts: {
+    demo1: {
+      sidebarCollapse: boolean;
+      sidebarTheme: 'light' | 'dark';
+    };
+    demo2: {
+      headerSticky: boolean;
+      headerStickyOffset: number;
+    };
+    demo5: {
+      headerSticky: boolean;
+      headerStickyOffset: number;
+    };
+    demo7: {
+      headerSticky: boolean;
+      headerStickyOffset: number;
+    };
+    demo9: {
+      headerSticky: boolean;
+      headerStickyOffset: number;
+    };
+  };
+}

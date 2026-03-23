@@ -1,0 +1,63 @@
+import type { MenuConfig, MenuItem } from '@/config/types';
+import { hasPermission, isAgentOrCollectorRole } from '@/lib/auth-client';
+
+export type SessionForMenu = {
+  user?: { permissions?: string[]; roleName?: string; roleSlug?: string | null };
+} | null | undefined;
+
+/**
+ * Recursively filter menu items by user permissions.
+ * Items without a permission are shown to all authenticated users.
+ * Parent items are hidden when all children are filtered out.
+ * Headings with no visible items below them (until the next heading) are removed.
+ * When session is unknown (undefined) or loading (null), returns empty menu (least privilege).
+ */
+export function filterMenuByPermission(
+  items: MenuConfig,
+  session: SessionForMenu
+): MenuConfig {
+  // Session unknown/loading (undefined) or unauthenticated (null): return empty menu (least privilege)
+  if (session === undefined || session === null || !session?.user) return [];
+  const roleName = session.user.roleName ?? '';
+  const roleSlug = (session.user.roleSlug ?? '').toLowerCase();
+  const isAgentRole = isAgentOrCollectorRole(roleName);
+  const filtered = items
+    .map((item) => {
+      if (item.heading) return item;
+      if (
+        item.hiddenForRoles?.some((roleToken) => {
+          const normalizedRoleToken = roleToken.toLowerCase();
+          return isAgentRole
+            ? normalizedRoleToken === 'agent' || normalizedRoleToken === 'collector'
+            : roleName.toLowerCase().includes(normalizedRoleToken);
+        })
+      ) {
+        return null;
+      }
+      if (item.requiredRoles?.length) {
+        const matches = item.requiredRoles.some((r) => {
+          const token = r.toLowerCase();
+          return roleSlug === token || roleName.toLowerCase().includes(token);
+        });
+        if (!matches) return null;
+      }
+      if (item.permission && !hasPermission(session, item.permission)) return null;
+      if (item.children) {
+        const filteredChildren = filterMenuByPermission(item.children, session);
+        if (filteredChildren.length === 0) return null;
+        return { ...item, children: filteredChildren };
+      }
+      return item;
+    })
+    .filter((item): item is MenuItem => item !== null);
+
+  // Remove orphan headings: headings with no visible items between them and the next heading
+  return filtered.filter((item, index) => {
+    if (!item.heading) return true;
+    for (let i = index + 1; i < filtered.length; i++) {
+      if (filtered[i].heading) return false; // Next heading reached with no items between
+      return true; // Found a non-heading item before the next heading
+    }
+    return false; // End of array reached with no items after this heading
+  });
+}

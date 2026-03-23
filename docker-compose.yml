@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 version: '3.8'
 
 services:
@@ -52,10 +53,15 @@ services:
   # ================================
   # Next.js Application (Development)
   # ================================
+=======
+services:
+  # Next.js Application
+>>>>>>> c10aaa83c3737af90b384d046150aef9f7900c99
   app:
     build:
       context: .
       dockerfile: Dockerfile
+<<<<<<< HEAD
       target: development
     container_name: pison-app
     restart: unless-stopped
@@ -127,4 +133,110 @@ volumes:
 # ================================
 networks:
   pison-network:
+=======
+      args:
+        NEXT_PUBLIC_SHOW_DEV_CREDENTIALS: ${NEXT_PUBLIC_SHOW_DEV_CREDENTIALS:-1}
+    container_name: dcm-app
+    env_file:
+      - .env.docker
+    ports:
+      - "3001:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/dcm_db
+      DIRECT_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/dcm_db
+      REDIS_URL: redis://redis:6379
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3001}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}
+      NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH:-/}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      STORAGE_TYPE: ${STORAGE_TYPE}
+      STORAGE_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID}
+      STORAGE_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY}
+      STORAGE_REGION: ${STORAGE_REGION}
+      STORAGE_BUCKET: ${STORAGE_BUCKET}
+      STORAGE_ENDPOINT: ${STORAGE_ENDPOINT}
+      STORAGE_FORCE_PATH_STYLE: ${STORAGE_FORCE_PATH_STYLE}
+      STORAGE_CDN_URL: ${STORAGE_CDN_URL}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_SENDER: ${SMTP_SENDER:-INNOVATE CREDIT}
+      SMTP_FROM: ${SMTP_FROM}
+      NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ${NEXT_PUBLIC_RECAPTCHA_SITE_KEY}
+      RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY}
+      BASE_URL: ${BASE_URL:-/}
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      ENABLE_COMMISSION_CRON: ${ENABLE_COMMISSION_CRON:-0}
+      CRON_SECRET: ${CRON_SECRET}
+      NEXT_PUBLIC_SHOW_DEV_CREDENTIALS: ${NEXT_PUBLIC_SHOW_DEV_CREDENTIALS:-0}
+      PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - dcm-network
+
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: dcm-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: dcm_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dcm_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - dcm-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: dcm-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - dcm-network
+    command: redis-server --appendonly yes
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  dcm-network:
+>>>>>>> c10aaa83c3737af90b384d046150aef9f7900c99
     driver: bridge

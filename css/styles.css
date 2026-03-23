@@ -1,0 +1,70 @@
+/* Tailwind Core */
+@import 'tailwindcss';
+
+/* ReUI Configs */
+@import './config.reui.css';
+
+/** Global Styles **/
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  *:focus-visible {
+    @apply outline-ring rounded-xs shadow-none outline-2 outline-offset-3 transition-none!;
+  }
+}
+
+/* INNOVATE CREDIT Components  */
+@import './components/image-input.css';
+@import './components/apexcharts.css';
+@import './components/leaflet.css';
+@import './components/rating.css';
+@import './components/image-input.css';
+@import './components/scrollable.css';
+
+/* Demos */
+@import './demos/demo1.css';
+
+/** Dark/Light Theme Variant **/
+@custom-variant dark (&:is(.dark *));
+@custom-variant light (&:not(.dark *));
+
+/** Auth Layout Backgrounds **/
+.branded-bg {
+  background-image:
+    linear-gradient(
+      140deg,
+      color-mix(in oklab, var(--brand-green) 88%, transparent),
+      color-mix(in oklab, var(--brand-orange) 38%, transparent)
+    ),
+    url('/media/images/2600x1600/1.png');
+}
+.dark .branded-bg {
+  background-image:
+    linear-gradient(
+      140deg,
+      color-mix(in oklab, var(--brand-green-strong) 92%, transparent),
+      color-mix(in oklab, var(--brand-orange-strong) 42%, transparent)
+    ),
+    url('/media/images/2600x1600/1-dark.png');
+}
+
+.page-bg {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--brand-white) 78%, transparent),
+      color-mix(in oklab, var(--brand-green-soft) 60%, transparent)
+    ),
+    url('/media/images/2600x1200/bg-10.png');
+}
+.dark .page-bg {
+  background-image:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--brand-green-strong) 86%, transparent),
+      color-mix(in oklab, var(--brand-green) 66%, transparent)
+    ),
+    url('/media/images/2600x1200/bg-10-dark.png');
+}
