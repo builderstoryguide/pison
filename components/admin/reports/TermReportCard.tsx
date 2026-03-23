@@ -1,34 +1,31 @@
 "use client"
 
-import React, { useRef, useMemo, useState, useEffect } from 'react'
+import React, { useRef, useMemo, useState } from 'react'
 import { 
   Download, 
   School,
   Star,
   Award,
   BookOpen,
-  X,
   Pencil,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
-import { useAuth } from '@/lib/auth-context'
+import { useOptionalAuth } from '@/lib/auth-context'
 import { getSequenceName, hasGceSubjectCode } from '@/lib/report-card-utils'
 import { EditMarkDialog } from './EditMarkDialog'
-// html2pdf.js will be dynamically imported to avoid SSR issues
 
 import { SubjectGrade } from './report-card-types'
+import {
+  buildReportCardPdfFilename,
+  fetchReportCardPdfBlob,
+  savePdfBlobToDownloads,
+} from '@/lib/report-card-pdf-download'
 
 interface TermReportCardProps {
+  /** When set, hides download chrome and tightens layout for server-side Puppeteer PDF */
+  variant?: 'default' | 'pdfRender'
   data: {
     student: {
       id: string
@@ -180,16 +177,13 @@ function getSpecialityFromClass(className: string | undefined, speciality: strin
   return ''
 }
 
-export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps) {
+export function TermReportCard({ data, classId, onRefresh, variant = 'default' }: TermReportCardProps) {
   const printRef = useRef<HTMLDivElement>(null)
-  const previewRef = useRef<HTMLDivElement>(null)
   const [logoError, setLogoError] = React.useState(false)
-  const [showPreview, setShowPreview] = useState(false)
-  const [previewScale, setPreviewScale] = useState(0.75)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
   const { toast } = useToast()
-  const { user } = useAuth()
-  
+  const auth = useOptionalAuth()
+
   // Edit mark/coefficient dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingSubject, setEditingSubject] = useState<{
@@ -201,164 +195,40 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
     currentCoefficient?: number
     editType: 'mark' | 'coefficient' | 'both'
   } | null>(null)
-  
-  const isAdmin = user?.role === 'admin'
+
+  const isAdmin =
+    variant === 'default' && auth?.user?.role === 'admin'
 
   const handleDownloadPDF = async () => {
-    if (!printRef.current) return
-
     setIsGeneratingPDF(true)
+    const termParam = String(data.academic.term)
+    const filename = buildReportCardPdfFilename({
+      studentName: data.student.name,
+      year: data.academic.year,
+      term: termParam,
+    })
     try {
-      // Dynamically import html2pdf.js to avoid SSR issues
-      const html2pdf = (await import('html2pdf.js')).default
-      
-      // Get the report card element
-      const element = printRef.current
-      
-      // Generate filename
-      const studentName = data.student.name.replace(/[^a-zA-Z0-9]/g, '_')
-      const filename = `ReportCard_${studentName}_${data.academic.year}_Term${data.academic.term}.pdf`
-      
-      // A4 format dimensions in mm
-      // const a4Width = 210 // in mm used for calculation
-      // const a4Height = 297 // unused but kept for reference
-      
-      // Add a small delay to ensure all styles and images are fully loaded
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      // Calculate scaling to fit on single page
-      const originalStyle = element.getAttribute('style') || ''
-      const a4WidthPx = 794  // 210mm at 96 DPI
-      const a4HeightPx = 1122 // 297mm at 96 DPI
-      const contentHeight = element.scrollHeight
-      const contentWidth = element.scrollWidth
-      
-      let scale = 1
-      // Calculate scale based on both width and height to ensure fit
-      const scaleWidth = a4WidthPx / contentWidth
-      const scaleHeight = a4HeightPx / contentHeight
-      
-      if (contentHeight > a4HeightPx || contentWidth > a4WidthPx) {
-        // Use the smaller scale to ensure content fits in both dimensions
-        scale = Math.min(scaleWidth, scaleHeight, 1)
-        element.style.transform = `scale(${scale})`
-        element.style.transformOrigin = 'top center'
-        element.style.width = `${100 / scale}%`
-      }
+      const blob = await fetchReportCardPdfBlob({
+        studentId: data.student.id,
+        term: termParam,
+        classId: classId || undefined,
+      })
+      savePdfBlobToDownloads(blob, filename)
 
-
-      // Configure PDF options with optimized settings for high-quality output
-      const opt = {
-        margin: [0, 0, 0, 0], // No margins
-        filename: filename,
-        image: { 
-          type: 'png', 
-          quality: 1.0 
-        },
-        html2canvas: { 
-          scale: 2,
-          useCORS: true, 
-          logging: false,
-          backgroundColor: '#ffffff',
-          letterRendering: true,
-          allowTaint: false,
-          scrollY: 0,
-          scrollX: 0,
-          windowWidth: element.scrollWidth,
-          windowHeight: element.scrollHeight,
-          x: 0,
-          y: 0,
-          onclone: (clonedDoc: Document) => {
-            const source = document.getElementById('term-report-card-pdf-styles')
-            if (source?.textContent) {
-              const s = clonedDoc.createElement('style')
-              s.textContent = source.textContent
-              ;(clonedDoc.head ?? clonedDoc.documentElement).appendChild(s)
-            }
-            const root = clonedDoc.querySelector('.pdf-report-card') as HTMLElement | null
-            root?.classList.add('pdf-capture-mode')
-            // CSS transform: scale() on the live node blurs strokes when rasterized; clone is captured at 1:1
-            root?.style.removeProperty('transform')
-            root?.style.removeProperty('transform-origin')
-            root?.style.removeProperty('width')
-          }
-        },
-        jsPDF: { 
-          unit: 'mm', 
-          format: 'a4',
-          orientation: 'portrait',
-          compress: true,
-          precision: 16
-        },
-        pagebreak: { mode: 'avoid-all' }
-      }
-
-      // Generate and download PDF
-      // @ts-ignore - html2pdf types are loose
-      await html2pdf().set(opt).from(element).save()
-      
-      // Revert styles
-      element.setAttribute('style', originalStyle)
-      
       toast.success('PDF downloaded successfully', {
-        description: `Report card saved as ${filename}`
+        description: `Report card saved as ${filename}`,
       })
     } catch (error) {
-      // Revert styles in case of error (if element still exists)
-      if (printRef.current) {
-        printRef.current.style.transform = ''
-        printRef.current.style.width = ''
-        printRef.current.style.transformOrigin = ''
-      }
-      
       // eslint-disable-next-line no-console
       console.error('Error generating PDF:', error)
-      // const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-      toast.error('PDF generation failed', {
-        description: 'Opening print dialog as fallback option'
+      const msg = error instanceof Error ? error.message : 'Please try again.'
+      toast.error('PDF download failed', {
+        description: msg,
       })
-      // Fallback to print dialog if PDF generation fails
-      setTimeout(() => {
-        window.print()
-      }, 1000)
     } finally {
       setIsGeneratingPDF(false)
     }
   }
-
-  const handlePrintFromPreview = () => {
-    setShowPreview(false)
-    // Small delay to ensure dialog is closed before printing
-    setTimeout(() => {
-      window.print()
-    }, 200)
-  }
-
-  const calculatePreviewScale = React.useCallback(() => {
-    if (typeof window !== 'undefined') {
-      const maxWidth = window.innerWidth * 0.85
-      const a4Width = 794 // 210mm in pixels at 96dpi
-      const calculatedScale = Math.min(0.8, Math.max(0.5, maxWidth / a4Width))
-      setPreviewScale(calculatedScale)
-    }
-  }, [])
-
-  // const handleShowPreview = () => {
-  //   setShowPreview(true)
-  //   calculatePreviewScale()
-  // }
-
-  // Update scale on window resize when preview is open
-  useEffect(() => {
-    if (!showPreview) return
-
-    const handleResize = () => {
-      calculatePreviewScale()
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [showPreview, calculatePreviewScale])
 
   const term = data.academic.term
   const termName = TERM_NAMES[term]
@@ -820,9 +690,9 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             /* Background Colors */
             .pdf-report-card .bg-white { background-color: #ffffff !important; }
             .pdf-report-card .bg-gray-50 { background-color: #f9fafb !important; }
-            .pdf-report-card .bg-gray-100 { background-color: #f3f4f6 !important; }
-            .pdf-report-card .bg-gray-200 { background-color: #e5e7eb !important; }
-            .pdf-report-card .bg-gray-300 { background-color: #d1d5db !important; }
+            .pdf-report-card .bg-gray-100 { background-color: #e0e0e0 !important; }
+            .pdf-report-card .bg-gray-200 { background-color: #e0e0e0 !important; }
+            .pdf-report-card .bg-gray-300 { background-color: #cccccc !important; }
             .pdf-report-card .bg-black { background-color: #000000 !important; }
             
             /* Background with Opacity */
@@ -840,7 +710,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             .pdf-report-card .text-red-600 { color: #dc2626 !important; }
             .pdf-report-card .text-green-600 { color: #16a34a !important; }
             .pdf-report-card .text-green-700 { color: #15803d !important; }
-            .pdf-report-card .text-blue-800 { color: #1e40af !important; }
+            .pdf-report-card .text-blue-800 { color: #2b4593 !important; }
             
             /* Text Colors with Opacity */
             .pdf-report-card .text-black/80 { color: rgba(0, 0, 0, 0.8) !important; }
@@ -1093,18 +963,27 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
         `
       }} />
       
-      <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans text-gray-900 print:p-0">
-        
-        {/* Control Bar */}
-        <div className="print:hidden max-w-[210mm] mx-auto mb-4 flex justify-end gap-2">
-          <Button onClick={handleDownloadPDF} variant="default" size="sm" disabled={isGeneratingPDF}>
-            <Download className="h-4 w-4 mr-2" />
-            {isGeneratingPDF ? 'Generating PDF...' : 'Download PDF'}
-          </Button>
-        </div>
+      <div
+        className={
+          variant === 'pdfRender'
+            ? 'min-h-0 bg-white p-0 font-sans text-gray-900'
+            : 'min-h-screen bg-gray-100 p-4 md:p-8 font-sans text-gray-900 print:p-0'
+        }
+      >
+        {variant !== 'pdfRender' ? (
+          <div className="print:hidden max-w-[210mm] mx-auto mb-4 flex justify-end gap-2">
+            <Button onClick={handleDownloadPDF} variant="default" size="sm" disabled={isGeneratingPDF}>
+              <Download className="h-4 w-4 mr-2" />
+              {isGeneratingPDF ? 'Generating PDF...' : 'Download PDF'}
+            </Button>
+          </div>
+        ) : null}
 
         {/* Main Report Card Sheet */}
-        <div className="pdf-report-card max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none print:w-full print:max-w-full text-xs print:text-[8pt] relative overflow-hidden print:h-[297mm]" ref={printRef}>
+        <div
+          className={`pdf-report-card max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none print:w-full print:max-w-full text-xs print:text-[8pt] relative overflow-hidden ${variant === 'pdfRender' ? 'shadow-none print:min-h-[297mm] print:h-auto print:overflow-visible' : 'print:h-auto print:min-h-0 print:overflow-visible'}`}
+          ref={printRef}
+        >
         
         <div className="px-8 print:px-3 pt-0 print:pt-6 pb-0 print:pb-2 flex flex-col gap-0 relative" style={{ color: 'rgba(26, 26, 26, 1)' }}>
           
@@ -1125,7 +1004,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
               <p className="print:leading-[1.15]">Paix - Travail - Patrie</p>
               <p className="print:leading-[1.15]">Ministère des Enseignements Secondaires</p>
               <p className="print:leading-[1.15]">Délégation Régional de Littoral</p>
-              <p className="font-bold text-black print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
+              <p className="font-bold text-[#2B4593] print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
             </div>
 
             <div className="flex flex-col items-center justify-center gap-1.5 print:gap-1 min-h-[6.5rem] md:min-h-[7.25rem]">
@@ -1145,7 +1024,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
               </div>
               <div className="text-[0.5rem] print:text-[6pt] font-mono w-full max-w-[15rem] mx-auto text-center leading-snug px-1">
                 ORDER Nº:{' '}
-                <span className="text-red-600 font-bold break-words">
+                <span className="text-[#A52A2A] font-bold break-words">
                   714/24/MINESEC/SG/DESTP/SSEPTP OF 31 DECEMBER 2024
                 </span>
               </div>
@@ -1156,8 +1035,8 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
               <p className="print:leading-[1.15]">Peace - Work - Fatherland</p>
               <p className="print:leading-[1.15]">Ministry of Secondary Education</p>
               <p className="print:leading-[1.15]">Regional Delegation of Littoral</p>
-              <p className="font-bold text-blue-800 print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
-              <p className="normal-case text-red-600 text-[0.5rem] print:text-[6pt] print:leading-[1.15]">PO Box 58 Edea Tel: 676521570</p>
+              <p className="font-bold text-[#2B4593] print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
+              <p className="normal-case text-[#A52A2A] text-[0.5rem] print:text-[6pt] print:leading-[1.15]">PO Box 58 Edea Tel: 676521570</p>
             </div>
           </header>
 
@@ -1258,7 +1137,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
           {/* Grades Table */}
           <div className="border border-black mb-1 print:mb-0.5 overflow-hidden relative z-10 bg-white/90" style={{ border: '1px solid #000' }}>
             <table className="w-full text-left border-collapse" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-              <thead className="bg-gray-100 text-[0.55rem] print:text-[7pt] uppercase font-bold border-b border-black" style={{ backgroundColor: '#f3f4f6' }}>
+              <thead className="bg-gray-100 text-[0.55rem] print:text-[7pt] uppercase font-bold border-b border-black" style={{ backgroundColor: '#E0E0E0' }}>
                 <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                   <th className="p-1 print:p-0.5 border-r border-black w-12 print:w-10" style={{ fontSize: '7pt', width: '8%', border: '1px solid #000', padding: '4px 6px' }}></th>
                   <th className="p-1 print:p-0.5 border-r border-black w-1/3 text-left" style={{ fontSize: '7pt', width: '25%', border: '1px solid #000', padding: '4px 6px' }}>Subjects</th>
@@ -1309,7 +1188,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                                 className="border-r border-black bg-gray-200 text-center font-bold text-[0.55rem] print:text-[6pt] p-0 print:p-0 uppercase whitespace-nowrap relative"
                                 style={{ 
                                   border: '1px solid #000',
-                                  backgroundColor: '#e5e7eb',
+                                  backgroundColor: '#E0E0E0',
                                   width: '30px',
                                   minWidth: '30px'
                                 }}
@@ -1384,7 +1263,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                         className="bg-gray-300 font-bold border-b border-black"
                         style={{ 
                           '--print-order': printOrder,
-                          backgroundColor: '#d1d5db',
+                          backgroundColor: '#CCCCCC',
                           pageBreakInside: 'avoid',
                           breakInside: 'avoid',
                           borderBottom: '1px solid #000'
@@ -1418,7 +1297,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                   <td colSpan={2} className="p-1 print:p-0.5 border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '4px 6px' }}></td>
                   <td className="p-1 print:p-0.5 text-center border-r border-gray-600 font-bold" style={{ border: '1px solid #4b5563', padding: '4px 6px' }}>{data.totals.average.toFixed(2)}</td>
                   <td className="p-1 print:p-0.5 text-center border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '4px 6px' }}>{data.totals.totalScore.toFixed(0)}</td>
-                  <td colSpan={2} className="bg-gray-100" style={{ backgroundColor: '#f3f4f6', padding: '4px 6px' }}></td>
+                  <td colSpan={2} className="bg-gray-100" style={{ backgroundColor: '#CCCCCC', padding: '4px 6px' }}></td>
                 </tr>
               </tbody>
             </table>
@@ -1507,418 +1386,6 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
         </div>
       </div>
 
-      {/* Print Preview Dialog */}
-      <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] w-full p-0" showCloseButton={true}>
-          <DialogHeader className="px-6 pt-6 pb-4 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-            <DialogTitle className="flex items-center gap-2">
-              <Download className="h-5 w-5" />
-              Print Preview
-            </DialogTitle>
-            <DialogDescription>
-              Review how your report card will look when printed. Click &quot;Print&quot; to open the print dialog.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="overflow-auto max-h-[calc(95vh-180px)] bg-gradient-to-br from-gray-50 to-gray-100 p-6 flex items-start justify-center">
-            <div 
-              ref={previewRef}
-              className="bg-white shadow-2xl overflow-hidden text-xs print:text-[8pt] relative border-4 border-gray-300"
-              style={{ 
-                width: '210mm',
-                minHeight: '297mm',
-                transform: `scale(${previewScale})`,
-                transformOrigin: 'top center',
-                marginBottom: `calc(-297mm * ${1 - previewScale})` // Compensate for scale
-              }}
-            >
-              <div className="px-8 print:px-3 pt-0 print:pt-2 pb-0 print:pb-2 flex flex-col gap-0 relative" style={{ color: 'rgba(26, 26, 26, 1)' }}>
-                
-                {/* Watermark */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-                  <img 
-                    src="/pison.png" 
-                    alt="Watermark" 
-                    className="w-[90%] h-auto opacity-[0.06] transform -rotate-6 grayscale"
-                    style={{ filter: 'grayscale(100%) contrast(1.5) brightness(1.5)' }}
-                  />
-                </div>
-
-                {/* Header */}
-                <header className="grid grid-cols-1 md:grid-cols-3 gap-2 print:gap-1 mb-2 print:mb-1 border-b-2 border-black pb-1 print:pb-0.5 relative z-10">
-                  <div className="text-center md:text-left text-[0.55rem] print:text-[7pt] uppercase font-medium space-y-0 print:space-y-0 leading-tight mt-0 mb-0 w-fit h-[119px] pt-2 pb-2 flex flex-col gap-2">
-                    <p className="print:leading-[1.1]">République du Cameroun</p>
-                    <p className="print:leading-[1.1]">Paix - Travail - Patrie</p>
-                    <p className="print:leading-[1.1]">Ministère des Enseignements Secondaires</p>
-                    <p className="print:leading-[1.1]">Délégation Régional de Littoral</p>
-                    <p className="font-bold text-black print:leading-[1.1]">PISON ACADEMY OF EXCELLENCE</p>
-                  </div>
-                  
-                  <div className="flex flex-col items-center justify-center">
-                    <div className="w-24 print:w-24 h-24 print:h-24 mb-1 print:mb-0.5 relative overflow-hidden flex items-center justify-center">
-                      {logoError ? (
-                        <div className="w-full h-full flex items-center justify-center border-2 border-dashed border-gray-300 rounded-full">
-                          <School size={24} className="text-gray-400 print:w-4 print:h-4" />
-                        </div>
-                      ) : (
-                        <img 
-                          src="/pison.png" 
-                          alt="Pison Academy Logo" 
-                          className="max-w-full max-h-full object-contain grayscale" 
-                          onError={() => setLogoError(true)}
-                        />
-                      )}
-                    </div>
-                    <div className="text-[0.5rem] print:text-[6pt] font-mono text-left">
-                      ORDER Nº: <span className="text-red-600 font-bold">714/24/MINESEC/SG/DESTP/SSEPTP OF 31 DECEMBER 2024</span>
-                    </div>
-                  </div>
-
-                  <div className="text-right text-[0.55rem] print:text-[7pt] uppercase font-medium space-y-2 print:space-y-2 leading-tight pt-2 pb-2">
-                    <p className="print:leading-[1.1]">Republic of Cameroon</p>
-                    <p className="print:leading-[1.1]">Peace - Work - Fatherland</p>
-                    <p className="print:leading-[1.1]">Ministry of Secondary Education</p>
-                    <p className="print:leading-[1.1]">Regional Delegation of Littoral</p>
-                    <p className="font-bold text-blue-800 print:leading-[1.1]">PISON ACADEMY OF EXCELLENCE</p>
-                    <p className="normal-case text-red-600 text-[0.5rem] print:text-[6pt] print:leading-[1.1]">PO Box 58 Edea Tel: 676521570</p>
-                  </div>
-                </header>
-
-                {/* Title Banner */}
-                <div className="mb-1 print:mb-0.5 relative z-10">
-                  <div className="flex flex-col md:flex-row items-center justify-between bg-black text-white p-0.5 print:p-0.5 mb-0.5 print:mb-0.5">
-                    <span className="font-mono text-[0.5rem] print:text-[6pt] uppercase tracking-widest px-1">Academic Year {data.academic.year}</span>
-                    <div className="flex-1 mx-2 h-px bg-white/50 hidden md:block"></div>
-                    <span className="font-mono text-[0.5rem] print:text-[6pt] uppercase tracking-widest px-1">Année Scolaire {data.academic.year}</span>
-                  </div>
-                  
-                  <div className="border-2 print:border border-black p-2 print:p-1 relative overflow-hidden group">
-                    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-100 to-transparent opacity-30" />
-                    </div>
-
-                    <div className="relative z-10 flex flex-row items-center gap-3 print:gap-2">
-                      <div className="flex-shrink-0 flex flex-col items-center opacity-80">
-                        <div className="bg-white p-0.5 print:p-0.5 border border-black shadow-sm">
-                          <QRCode
-                            value={qrCodeData}
-                            size={64}
-                            style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                            viewBox={`0 0 64 64`}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex-1 flex flex-col items-center justify-center min-w-0 mx-auto max-w-[60%]">
-                        <h2 className="font-black text-xl print:text-2xl uppercase tracking-tighter leading-none mb-0.5 print:mb-0.5 text-left">
-                          <span className="text-black/80">{termName.ordinal}</span> <span className="relative inline-block">TERM</span>
-                        </h2>
-                        <p className="font-black text-base print:text-lg uppercase tracking-[0.2em] leading-none mb-1 print:mb-0.5 text-left">
-                          REPORT CARD
-                        </p>
-                        <div className="flex items-center gap-1 w-full justify-center">
-                          <div className="h-0.5 w-6 bg-black/30"></div>
-                          <p className="text-[0.5rem] print:text-[6pt] font-bold tracking-widest text-black/60 uppercase whitespace-nowrap flex items-center gap-0.5">
-                            <Star size={8} className="text-black/60 fill-black/60 print:w-1 print:h-1" /> Bulletin du {termName.fr} <Star size={8} className="text-black/60 fill-black/60 print:w-1 print:h-1" />
-                          </p>
-                          <div className="h-0.5 w-6 bg-black/30"></div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Decorative Icons - Hidden in print */}
-                    <Award size={80} className="absolute -right-8 -top-8 text-black/5 transform rotate-12 pointer-events-none print:hidden" />
-                    <BookOpen size={80} className="absolute -left-8 -bottom-8 text-black/5 transform -rotate-12 pointer-events-none print:hidden" />
-                  </div>
-                </div>
-
-                {/* Student Info Grid */}
-                <div className="border border-black grid grid-cols-12 mb-1 print:mb-0.5 font-mono text-[0.65rem] print:text-[7pt] relative z-10 bg-white/90">
-                  <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black">
-                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">First Name / Prénom</span>
-                    <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.name.split(' ')[0]}</span>
-                  </div>
-                  <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black">
-                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Last Name / Nom</span>
-                    <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.name.split(' ').slice(1).join(' ')}</span>
-                  </div>
-                  <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b border-black">
-                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Unique Identifier No / Matricule</span>
-                    <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.studentId}</span>
-                  </div>
-
-                  <div className="col-span-2 p-1 print:p-0.5 border-b border-r border-black">
-                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Sex</span>
-                    <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.sex}</span>
-                  </div>
-                  <div className="col-span-4 p-1 print:p-0.5 border-b border-r border-black">
-                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Date of Birth / Né le</span>
-                    <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.dob}</span>
-                  </div>
-                  <div className="col-span-4 p-1 print:p-0.5 border-b border-r border-black">
-                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Place of Birth / Né à</span>
-                    <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.pob}</span>
-                  </div>
-                  <div className="col-span-2 p-1 print:p-0.5 border-b border-black">
-                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Repeater / Redoublant</span>
-                    <span className="font-bold text-[0.65rem] print:text-[7pt]">NO / NON</span>
-                  </div>
-
-                  <div className="col-span-5 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black">
-                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Speciality</span>
-                    <span className="font-bold text-[0.65rem] print:text-[7pt]">{getSpecialityFromClass(data.student.className, data.student.speciality)}</span>
-                  </div>
-                  <div className="col-span-4 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black">
-                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Class</span>
-                    <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.className}</span>
-                  </div>
-                  <div className="col-span-3 p-1 print:p-0.5 border-b md:border-b-0 border-black">
-                    <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Master</span>
-                    <span className="font-bold text-[0.6rem] print:text-[6pt]">{data.student.classMaster || '-'}</span>
-                  </div>
-                </div>
-
-                {/* Grades Table */}
-                <div className="border border-black mb-1 print:mb-0.5 overflow-hidden relative z-10 bg-white/90">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="bg-gray-100 text-[0.55rem] print:text-[7pt] uppercase font-bold border-b border-black">
-                      <tr>
-                        <th className="p-1 print:p-0.5 border-r border-black w-12 print:w-10" style={{ fontSize: '7pt' }}></th>
-                        <th className="p-1 print:p-0.5 border-r border-black w-1/3 text-left" style={{ fontSize: '7pt' }}>Subjects</th>
-                        <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt' }}>Coef</th>
-                        <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt' }}>{seqLabels.seq1}</th>
-                        <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt' }}>{seqLabels.seq2}</th>
-                        <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt' }}>Average</th>
-                        <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt' }}>TOTAL</th>
-                        <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt' }}>Grade</th>
-                        <th className="p-1 print:p-0.5 text-left" style={{ fontSize: '7pt' }}>Remarks</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-[0.6rem] print:text-[7pt] font-mono report-card-subjects-tbody">
-                      {groupedSubjects.map((group, groupIdx) => {
-                        const summary = calculateCategorySummary(group.subjects, group.category)
-                        const categoryLabel = getCategoryLabel(group.category)
-                        // Calculate reverse order for print (last item gets order 1, first gets highest order)
-                        const printOrder = groupedSubjects.length - groupIdx
-                        
-                        return (
-                          <React.Fragment key={group.category}>
-                            {group.subjects.map((subject, idx) => {
-                              const seqs = getSequenceValues(subject)
-                              const avg = subject.termAverage ?? 
-                                (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
-                                  ? (seqs.seq1 + seqs.seq2) / 2 
-                                  : seqs.seq1 ?? seqs.seq2 ?? 0)
-                              // Only calculate totalScore if coefficient > 0 (subject has marks)
-                              const totalScore = subject.coefficient > 0 ? avg * subject.coefficient : 0
-                              const grade = subject.grade || calculateGrade(avg)
-                              const remarks = subject.remarks || calculateRemarks(grade)
-
-                              return (
-                                <tr 
-                                  key={`${group.category}-${idx}`} 
-                                  className="border-b border-gray-200 hover:bg-gray-50 print:hover:bg-transparent"
-                                  style={{ '--print-order': printOrder } as React.CSSProperties}
-                                >
-                                  {/* Category Label - Only on first row of section */}
-                                  {idx === 0 && (
-                                    <td 
-                                      rowSpan={group.subjects.length + 1} 
-                                      className="border-r border-black bg-gray-200 text-center font-bold text-[0.55rem] print:text-[6pt] p-0.5 print:p-0.5 uppercase whitespace-nowrap"
-                                      style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-                                    >
-                                      {categoryLabel}
-                                    </td>
-                                  )}
-                                  <td className="p-1 print:p-0.5 border-r border-gray-300 font-medium">{subject.subjectName}</td>
-                                  <td 
-                                    className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
-                                    onClick={() => {
-                                      if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
-                                        handleCoefficientClick(subject)
-                                      }
-                                    }}
-                                  >
-                                    {coefficientCellDisplay(subject)}
-                                    {isAdmin && classId && (
-                                      <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
-                                    )}
-                                  </td>
-                                  <td 
-                                    className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
-                                    onClick={() => {
-                                      if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
-                                        handleSequenceClick(subject, 1)
-                                      }
-                                    }}
-                                  >
-                                    {seqs.seq1?.toFixed(1) ?? '-'}
-                                    {isAdmin && classId && (
-                                      <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
-                                    )}
-                                  </td>
-                                  <td 
-                                    className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
-                                    onClick={() => {
-                                      if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
-                                        handleSequenceClick(subject, 2)
-                                      }
-                                    }}
-                                  >
-                                    {seqs.seq2?.toFixed(1) ?? '-'}
-                                    {isAdmin && classId && (
-                                      <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
-                                    )}
-                                  </td>
-                                  <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{avg > 0 ? avg.toFixed(1) : '-'}</td>
-                                  <td className="p-1 print:p-0.5 border-r border-gray-300 text-center">{totalScore > 0 ? totalScore.toFixed(0) : '-'}</td>
-                                  <td className={`p-1 print:p-0.5 border-r border-gray-300 text-center font-bold ${grade === 'F' || grade === 'E' || grade === 'U' ? 'text-red-600' : ''}`}>
-                                    {grade}
-                                  </td>
-                                  <td className={`p-1 print:p-0.5 ${remarks.includes('Fail') || remarks.includes('Weak') || remarks.includes('Very weak') ? 'text-red-600' : 'text-green-700'}`}>
-                                    {remarks}
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                            {/* Category Summary Row */}
-                            <tr 
-                              className="bg-gray-300 font-bold border-b border-black"
-                              style={{ '--print-order': printOrder } as React.CSSProperties}
-                            >
-                              <td className="p-1 print:p-0.5 border-r border-black uppercase text-[0.55rem] print:text-[6pt] text-left">{getCategoryFullLabel(group.category)} Summary</td>
-                              <td className="p-1 print:p-0.5 border-r border-black text-center">{summary.coef}</td>
-                              <td colSpan={2} className="p-1 print:p-0.5 border-r border-black text-center text-gray-400">/</td>
-                              <td className="p-1 print:p-0.5 border-r border-black text-center whitespace-nowrap text-[0.55rem] print:text-[6pt]">AV: {summary.avg.toFixed(2)}</td>
-                              <td className="p-1 print:p-0.5 border-r border-black text-center">{summary.totalScore.toFixed(0)}</td>
-                              <td className="p-1 print:p-0.5 border-r border-black text-center">{summary.rank > 0 ? summary.rank : '-'}</td>
-                              <td className="p-1 print:p-0.5 uppercase text-[0.55rem] print:text-[6pt] text-left">{summary.remark}</td>
-                            </tr>
-                          </React.Fragment>
-                        )
-                      })}
-                      
-                      {/* Total Summary Row */}
-                      <tr 
-                        className="bg-black text-white font-bold text-[0.65rem] print:text-[7pt]"
-                        style={{ '--print-order': 0 } as React.CSSProperties}
-                      >
-                        <td colSpan={2} className="p-1 print:p-0.5 text-left uppercase border-r border-gray-600">Total Summary / Bilan Totale</td>
-                        <td className="p-1 print:p-0.5 text-center border-r border-gray-600">{data.totals.coefficient}</td>
-                        <td colSpan={2} className="p-1 print:p-0.5 border-r border-gray-600"></td>
-                        <td className="p-1 print:p-0.5 text-center border-r border-gray-600 font-bold">{data.totals.average.toFixed(2)}</td>
-                        <td className="p-1 print:p-0.5 text-center border-r border-gray-600">{data.totals.totalScore.toFixed(0)}</td>
-                        <td colSpan={2} className="bg-gray-100"></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Footer Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-2 print:gap-1 mb-2 print:mb-1 relative z-10">
-                  
-                  {/* Left Column: Term History & Discipline */}
-                  <div className="col-span-12 md:col-span-6 flex flex-col gap-0">
-                    <div className="border border-black bg-white/90">
-                      <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
-                        Student&apos;s Evaluation Results
-                      </div>
-                      <table className="w-full text-[0.6rem] print:text-[7pt]">
-                        <thead>
-                          <tr className="border-b border-gray-300">
-                            <th className="p-0.5 print:p-0.5 border-r border-gray-300 text-left">TERM</th>
-                            <th className="p-0.5 print:p-0.5 text-left">{data.academic.term}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                            <tr className="border-b border-gray-300 font-mono">
-                              <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">AVERAGE</td>
-                              <td className="p-0.5 print:p-0.5 font-bold">
-                                {data.totals.average.toFixed(1)}
-                              </td>
-                            </tr>
-                          <tr className="font-mono">
-                            <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">RANK</td>
-                            <td className="p-0.5 print:p-0.5">{data.history?.rank ?? '-'}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="border border-black bg-white/90">
-                      <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
-                        Discipline And Conduct
-                      </div>
-                      <div className="text-[0.6rem] print:text-[7pt] p-1 print:p-0.5 space-y-1">
-                        <div className="flex justify-between border-b border-gray-200 pb-0.5">
-                          <span>Unjustified Absences</span>
-                          <span className="font-mono font-bold"></span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Suspensions / Warnings</span>
-                          <span className="font-mono font-bold"></span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Column: GCE Section */}
-                  <div className="col-span-12 md:col-span-6">
-                    <div className="border border-black bg-white/90">
-                      <div className="border-b border-gray-300 p-1 print:p-0.5">
-                        <h4 className="font-bold text-[0.6rem] print:text-[7pt] text-left">GCE SECTION</h4>
-                      </div>
-                      <div className="space-y-0.5 font-mono text-[0.6rem] print:text-[7pt] p-1 print:p-0.5">
-                        <div className="flex justify-between"><span>Trade Subjects:</span> <span>{gceCounts.tradeSubjects.toString().padStart(2, '0')}</span></div>
-                        <div className="flex justify-between"><span>Related Trade:</span> <span>{gceCounts.relatedTrade.toFixed(1)}</span></div>
-                        <div className="flex justify-between"><span>Other Subjects:</span> <span>{gceCounts.otherSubjects.toFixed(1)}</span></div>
-                        <div className="flex justify-between font-bold pt-1 border-t border-gray-300 mt-1">
-                          <span>GCE SUBJECTS PASSED:</span> <span>{gceCounts.passed.toString().padStart(2, '0')}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Signatures */}
-                <div className="flex justify-center items-start gap-2 print:gap-1 mt-auto relative z-10 w-full">
-                  <div className="border border-black p-1.5 print:p-1 text-[0.6rem] print:text-[7pt] flex flex-col justify-between bg-white/90 flex-1" style={{ height: '60px' }}>
-                    <h4 className="font-bold text-left underline">The Class Master</h4>
-                    <div className="text-left font-script text-sm print:text-xs opacity-70">{data.student.classMaster || ''}</div>
-                    <div className="text-[0.5rem] print:text-[6pt] text-left text-gray-400 mt-0.5 italic">Signature</div>
-                  </div>
-
-                    <div className="border border-black p-1.5 print:p-1 text-[0.6rem] print:text-[7pt] flex flex-col justify-between bg-white/90 flex-1" style={{ height: '60px' }}>
-                      <h4 className="font-bold text-left underline">The Principal</h4>
-                      <div className="text-left font-script text-sm print:text-xs opacity-70"></div>
-                      <div className="text-[0.5rem] print:text-[6pt] text-left text-gray-400 mt-0.5 italic">Stamp & Signature</div>
-                    </div>
-                </div>
-                
-
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="px-6 pb-6 pt-4 border-t bg-gray-50">
-            <div className="flex items-center justify-between w-full">
-              <p className="text-sm text-muted-foreground">
-                Review the preview above, then click Print to open the print dialog
-              </p>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setShowPreview(false)}>
-                  <X className="h-4 w-4 mr-2" />
-                  Cancel
-                </Button>
-                <Button onClick={handlePrintFromPreview} className="bg-blue-600 hover:bg-blue-700">
-                  <Download className="h-4 w-4 mr-2" />
-                  Print Report Card
-                </Button>
-              </div>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Mark/Coefficient Dialog */}
       {editingSubject && (

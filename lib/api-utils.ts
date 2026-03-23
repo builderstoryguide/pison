@@ -8,6 +8,7 @@ interface ApiCallOptions {
   headers?: Record<string, string>;
   body?: any;
   timeout?: number;
+  credentials?: RequestCredentials;
 }
 
 interface ApiResponse<T = any> {
@@ -46,7 +47,7 @@ function getUserIdFromStorage(): string | null {
  * Automatically adds X-User-Id header when user is logged in
  */
 export async function safeFetch<T = any>(options: ApiCallOptions): Promise<ApiResponse<T>> {
-  const { url, method = 'GET', headers = {}, body } = options;
+  const { url, method = 'GET', headers = {}, body, credentials } = options;
   // Increase timeout for login endpoint to 60 seconds
   const timeout = options.timeout || (url.includes('/api/auth/login') ? 60000 : 30000);
   
@@ -74,6 +75,7 @@ export async function safeFetch<T = any>(options: ApiCallOptions): Promise<ApiRe
       headers: requestHeaders,
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
+      ...(credentials !== undefined ? { credentials } : {}),
     });
     
     clearTimeout(timeoutId);
@@ -198,8 +200,13 @@ export async function apiGet<T = any>(url: string, headers?: Record<string, stri
 /**
  * Helper function for POST requests
  */
-export async function apiPost<T = any>(url: string, body?: any, headers?: Record<string, string>): Promise<ApiResponse<T>> {
-  return safeFetch<T>({ url, method: 'POST', body, headers });
+export async function apiPost<T = any>(
+  url: string,
+  body?: any,
+  headers?: Record<string, string>,
+  credentials?: RequestCredentials
+): Promise<ApiResponse<T>> {
+  return safeFetch<T>({ url, method: 'POST', body, headers, credentials });
 }
 
 /**

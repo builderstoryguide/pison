@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import bcrypt from 'bcryptjs';
+import {
+  createSessionToken,
+  SESSION_COOKIE_NAME,
+  sessionCookieBaseOptions,
+} from '@/lib/auth/session-cookie';
 
 export const runtime = 'nodejs'
 
@@ -269,11 +274,15 @@ export async function POST(request: NextRequest) {
       console.error('🔐 [LOGIN] Failed to log activity:', logError);
       // Continue with successful login even if activity logging fails
     }
-    return NextResponse.json({
+    const sessionMaxAgeSec = 60 * 60 * 24 * 7;
+    const sessionToken = createSessionToken(user.id, sessionMaxAgeSec);
+    const res = NextResponse.json({
       success: true,
       user: userResponse,
-      message: 'Login successful'
+      message: 'Login successful',
     });
+    res.cookies.set(SESSION_COOKIE_NAME, sessionToken, sessionCookieBaseOptions(sessionMaxAgeSec));
+    return res;
 
   } catch (error) {
     // eslint-disable-next-line no-console

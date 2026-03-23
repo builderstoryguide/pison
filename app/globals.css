@@ -140,21 +140,40 @@
     color-adjust: exact !important;
   }
   
-  /* Remove any page breaks within report cards */
-  [class*="max-w"] {
+  /* Opt-in: add class "print-keep-together" on small widgets that must not split */
+  .print-keep-together {
     page-break-inside: avoid;
     break-inside: avoid;
   }
-  
-  /* Optimize table rows - prevent breaking */
+
+  /* Report card sheet may span multiple pages when printed from the dashboard */
+  .pdf-report-card {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  /* Dashboard shell: hide sidebar chrome so print starts with main content */
+  [data-slot="sidebar"],
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-rail"] {
+    display: none !important;
+  }
+
+  [data-slot="sidebar-inset"] {
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Optimize table rows — allow body rows to break across pages */
   table {
     border-collapse: collapse !important;
     width: 100% !important;
   }
-  
-  table tr {
-    page-break-inside: avoid;
-    break-inside: avoid;
+
+  .pdf-report-card table tbody tr {
+    break-inside: auto;
+    page-break-inside: auto;
   }
   
   /* Keep table headers on each page */

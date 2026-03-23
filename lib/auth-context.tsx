@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       // Use the safer API utility
-      const result = await apiPost('/api/auth/login', credentials)
+      const result = await apiPost('/api/auth/login', credentials, undefined, 'include')
       
       if (!result.success) {
         console.warn('🚫 Login failed:', result.error)
@@ -151,6 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const logout = () => {
+    void fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
     setUser(null)
     localStorage.removeItem("school_user")
   }
@@ -214,4 +215,10 @@ export function useAuth() {
     throw new Error("useAuth must be used within an AuthProvider")
   }
   return context
+}
+
+/** Same as useAuth when inside AuthProvider; returns null when no provider (e.g. isolated PDF shell). */
+export function useOptionalAuth(): AuthContextType | null {
+  const context = useContext(AuthContext)
+  return context ?? null
 }

@@ -113,6 +113,7 @@ For full functionality with database support:
 1. Create a Supabase project at [supabase.com](https://supabase.com)
 2. Run the SQL script in `scripts/create-tables.sql` in your Supabase SQL Editor
 3. Add your Supabase credentials to `.env.local`
+4. Set **`AUTH_SESSION_SECRET`** (at least 32 random characters) for signing the httpOnly session cookie used by report-card APIs (`GET /api/report-cards/[studentId]`, `GET /api/report-cards/pdf`). **`SUPABASE_SERVICE_ROLE_KEY`** must be available on the server so those routes can verify users and enforce student/parent access. In development, a built-in placeholder secret is used if `AUTH_SESSION_SECRET` is unset (not allowed in production).
 
 See `scripts/setup-database.md` for detailed setup instructions.
 
@@ -161,6 +162,19 @@ school-management-app/
 - **State Management**: React Context API
 - **Form Handling**: React Hook Form
 - **Validation**: Zod schema validation
+
+### PDF generation (report cards)
+
+Report card **Download PDF** uses Puppeteer and Chromium’s native print-to-PDF (`GET /api/report-cards/pdf`) so the file matches the on-screen layout. Class list PDFs use the same stack (`lib/class-list-pdf-generator.ts`).
+
+**Deployment requirements**
+
+- A **Chrome/Chromium** binary must be usable on the host running the Next.js server. Puppeteer normally downloads a compatible Chromium; on minimal Linux or custom Docker images you may need system libraries or a packaged browser.
+- Optional: set **`PUPPETEER_EXECUTABLE_PATH`** to the full path of `chrome` or `chromium` if you are not using Puppeteer’s bundled browser.
+- Set **`NEXT_PUBLIC_APP_URL`** in production to your public site origin (for example `https://app.example.com`) so the PDF worker can open `/pdf/report-card?...`. If unset, the handler falls back to the incoming request’s host headers.
+- **Serverless** platforms often cannot run full Puppeteer + Chromium as-is. Options: run PDF generation on a Node/Docker service with Chrome installed, or use a serverless-oriented Chromium build (for example **`@sparticuz/chromium`** with **`puppeteer-core`**) and wire `executablePath` / `PUPPETEER_EXECUTABLE_PATH` accordingly.
+
+If server-side PDF generation fails, the UI shows an error toast so you can retry or investigate (for example Puppeteer logs in development).
 
 ## Contributing
 

@@ -2,7 +2,6 @@
 
 import React, { useRef, useMemo, useState } from 'react'
 import { 
-  Printer, 
   Download,
   School,
   User,
@@ -16,8 +15,15 @@ import { useToast } from '@/hooks/use-toast'
 
 import { hasGceSubjectCode } from '@/lib/report-card-utils'
 import { SubjectGrade } from './report-card-types'
+import {
+  buildReportCardPdfFilename,
+  fetchReportCardPdfBlob,
+  savePdfBlobToDownloads,
+} from '@/lib/report-card-pdf-download'
 
 interface AnnualReportCardProps {
+  /** When set, hides download chrome and tightens layout for server-side Puppeteer PDF */
+  variant?: 'default' | 'pdfRender'
   onRefresh?: () => void
   data: {
     student: {
@@ -112,127 +118,35 @@ function getCategoryFullLabel(category: string | undefined): string {
   }
 }
 
-export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCardProps) {
+export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'default' }: AnnualReportCardProps) {
   const printRef = useRef<HTMLDivElement>(null)
   const [logoError, setLogoError] = React.useState(false)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
   const { toast } = useToast()
 
-  const handlePrint = () => {
-    window.print()
-  }
-
   const handleDownloadPDF = async () => {
-    if (!printRef.current) return
-
     setIsGeneratingPDF(true)
+    const filename = buildReportCardPdfFilename({
+      studentName: data.student.name,
+      year: data.academic.year,
+      term: 'annual',
+    })
     try {
-      // Dynamically import html2pdf.js to avoid SSR issues
-      const html2pdf = (await import('html2pdf.js')).default
-      
-      // Get the report card element
-      const element = printRef.current
-      
-      // Generate filename
-      const studentName = data.student.name.replace(/[^a-zA-Z0-9]/g, '_')
-      const filename = `ReportCard_${studentName}_${data.academic.year}_Annual.pdf`
-      
-      // A4 format dimensions in mm
-      // const a4Width = 210
-      // const a4Height = 297
-      
-      // Add a small delay to ensure all styles and images are fully loaded
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      // Calculate scaling to fit on single page (width + height, aligned with TermReportCard)
-      const originalStyle = element.getAttribute('style') || ''
-      const a4WidthPx = 794
-      const a4HeightPx = 1122
-      const contentHeight = element.scrollHeight
-      const contentWidth = element.scrollWidth
-
-      let scale = 1
-      const scaleWidth = a4WidthPx / contentWidth
-      const scaleHeight = a4HeightPx / contentHeight
-      if (contentHeight > a4HeightPx || contentWidth > a4WidthPx) {
-        scale = Math.min(scaleWidth, scaleHeight, 1)
-        element.style.transform = `scale(${scale})`
-        element.style.transformOrigin = 'top center'
-        element.style.width = `${100 / scale}%`
-      }
-
-      // Configure PDF options with optimized settings for high-quality output
-      const opt = {
-        margin: [0, 0, 0, 0] as [number, number, number, number],
-        filename: filename,
-        image: { 
-          type: 'png' as const, 
-          quality: 1.0 
-        },
-        html2canvas: { 
-          scale: 2,
-          useCORS: true, 
-          logging: false,
-          backgroundColor: '#ffffff',
-          letterRendering: true, 
-          allowTaint: false, 
-          scrollY: 0,
-          scrollX: 0,
-          windowWidth: element.scrollWidth,
-          windowHeight: element.scrollHeight,
-          x: 0,
-          y: 0,
-          onclone: (clonedDoc: Document) => {
-            const source = document.getElementById('annual-report-card-pdf-styles')
-            if (source?.textContent) {
-              const s = clonedDoc.createElement('style')
-              s.textContent = source.textContent
-              ;(clonedDoc.head ?? clonedDoc.documentElement).appendChild(s)
-            }
-            const root = clonedDoc.querySelector('.pdf-report-card') as HTMLElement | null
-            root?.classList.add('pdf-capture-mode')
-            root?.style.removeProperty('transform')
-            root?.style.removeProperty('transform-origin')
-            root?.style.removeProperty('width')
-          }
-        },
-        jsPDF: { 
-          unit: 'mm', 
-          format: 'a4',
-          orientation: 'portrait' as const,
-          compress: true,
-          precision: 16
-        },
-        pagebreak: { mode: 'avoid-all' as const }
-      }
-
-      // Generate and download PDF
-      // @ts-ignore - html2pdf types are loose
-      await html2pdf().set(opt).from(element).save()
-
-      // Revert styles
-      element.setAttribute('style', originalStyle)
-      
+      const blob = await fetchReportCardPdfBlob({
+        studentId: data.student.id,
+        term: 'annual',
+      })
+      savePdfBlobToDownloads(blob, filename)
       toast.success('PDF downloaded successfully', {
-        description: `Report card saved as ${filename}`
+        description: `Report card saved as ${filename}`,
       })
     } catch (error) {
-      if (printRef.current) {
-         const element = printRef.current;
-         element.style.transform = '';
-         element.style.width = '';
-         element.style.transformOrigin = '';
-      }
       // eslint-disable-next-line no-console
       console.error('Error generating PDF:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-      toast.error('PDF generation failed', {
-        description: `${errorMessage}. Opening print dialog as fallback.`
+      const msg = error instanceof Error ? error.message : 'Please try again.'
+      toast.error('PDF download failed', {
+        description: msg,
       })
-      // Fallback to print dialog if PDF generation fails
-      setTimeout(() => {
-        window.print()
-      }, 1000)
     } finally {
       setIsGeneratingPDF(false)
     }
@@ -392,6 +306,9 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
               vertical-align: middle !important; /* Fix for bottom alignment */
               text-align: left; /* Default to left alignment */
             }
+            .pdf-report-card .bg-gray-200 { background-color: #e0e0e0 !important; }
+            .pdf-report-card .bg-gray-300 { background-color: #cccccc !important; }
+            .pdf-report-card .bg-gray-100 { background-color: #e0e0e0 !important; }
 
             .pdf-report-card .rc-student-grid > div {
               padding: 5px 8px !important;
@@ -521,22 +438,27 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
         `
       }} />
 
-    <div className="min-h-screen bg-gray-100 p-4 md:p-8 font-sans text-gray-900 print:p-0">
-      
-      {/* Control Bar */}
-      <div className="print:hidden max-w-[210mm] mx-auto mb-4 flex justify-end gap-2">
-        <Button onClick={handleDownloadPDF} variant="default" size="sm" disabled={isGeneratingPDF}>
-          <Download className="h-4 w-4 mr-2" />
-          {isGeneratingPDF ? 'Generating PDF...' : 'Download PDF'}
-        </Button>
-        <Button onClick={handlePrint} variant="outline" size="sm">
-          <Printer className="h-4 w-4 mr-2" />
-          Print
-        </Button>
-      </div>
+    <div
+      className={
+        variant === 'pdfRender'
+          ? 'min-h-0 bg-white p-0 font-sans text-gray-900'
+          : 'min-h-screen bg-gray-100 p-4 md:p-8 font-sans text-gray-900 print:p-0'
+      }
+    >
+      {variant !== 'pdfRender' ? (
+        <div className="print:hidden max-w-[210mm] mx-auto mb-4 flex justify-end gap-2">
+          <Button onClick={handleDownloadPDF} variant="default" size="sm" disabled={isGeneratingPDF}>
+            <Download className="h-4 w-4 mr-2" />
+            {isGeneratingPDF ? 'Generating PDF...' : 'Download PDF'}
+          </Button>
+        </div>
+      ) : null}
 
       {/* Main Report Card Sheet */}
-      <div className="pdf-report-card max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none print:w-full print:max-w-full overflow-hidden text-xs print:text-[8pt] relative print:h-[297mm]" ref={printRef}>
+      <div
+        className={`pdf-report-card max-w-[210mm] mx-auto bg-white shadow-xl print:shadow-none print:w-full print:max-w-full overflow-hidden text-xs print:text-[8pt] relative ${variant === 'pdfRender' ? 'shadow-none print:min-h-[297mm] print:h-auto print:overflow-visible' : 'print:h-auto print:min-h-0 print:overflow-visible'}`}
+        ref={printRef}
+      >
         
         {/* Top Border */}
         <div className="h-1 print:h-0.5 w-full bg-black print:block" style={{ color: 'rgba(17, 24, 39, 1)' }} />
@@ -560,7 +482,7 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
               <p className="print:leading-[1.15]">Paix - Travail - Patrie</p>
               <p className="print:leading-[1.15]">Ministère des Enseignements Secondaires</p>
               <p className="print:leading-[1.15]">Délégation Régional de Littoral</p>
-              <p className="font-bold text-black print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
+              <p className="font-bold text-[#2B4593] print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
             </div>
 
             <div className="flex flex-col items-center justify-center gap-1.5 print:gap-1 min-h-[6.5rem] md:min-h-[7.25rem]">
@@ -579,7 +501,7 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
                 )}
               </div>
               <div className="text-[0.5rem] print:text-[6pt] font-mono w-full max-w-[15rem] mx-auto text-center leading-snug px-1">
-                ORDER Nº: <span className="text-red-600 font-bold break-words">{data.academic.orderNo}</span>
+                ORDER Nº: <span className="text-[#A52A2A] font-bold break-words">{data.academic.orderNo}</span>
               </div>
             </div>
 
@@ -588,8 +510,8 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
               <p className="print:leading-[1.15]">Peace - Work - Fatherland</p>
               <p className="print:leading-[1.15]">Ministry of Secondary Education</p>
               <p className="print:leading-[1.15]">Regional Delegation of Littoral</p>
-              <p className="font-bold text-blue-800 print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
-              <p className="normal-case text-red-600 text-[0.5rem] print:text-[6pt] print:leading-[1.15]">PO Box 58 Edea Tel: 676521570</p>
+              <p className="font-bold text-[#2B4593] print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
+              <p className="normal-case text-[#A52A2A] text-[0.5rem] print:text-[6pt] print:leading-[1.15]">PO Box 58 Edea Tel: 676521570</p>
             </div>
           </header>
 
@@ -693,7 +615,7 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
           {/* Grades Table */}
           <div className="border border-black mb-1 print:mb-0.5 overflow-hidden relative z-10 bg-white/90">
             <table className="w-full text-left border-collapse">
-              <thead className="bg-gray-100 text-[0.55rem] print:text-[7pt] uppercase font-bold border-b border-black">
+              <thead className="bg-gray-100 text-[0.55rem] print:text-[7pt] uppercase font-bold border-b border-black" style={{ backgroundColor: '#E0E0E0' }}>
                 <tr>
                   <th className="p-1 print:p-0.5 border-r border-black w-12 print:w-10" style={{ fontSize: '7pt' }}></th>
                   <th className="p-1 print:p-0.5 border-r border-black w-1/3 text-left" style={{ fontSize: '7pt' }}>Subjects</th>
@@ -734,7 +656,8 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
                                 className="border-r border-black bg-gray-200 text-center font-bold text-[0.55rem] print:text-[6pt] p-0 print:p-0 uppercase whitespace-nowrap relative"
                                 style={{ 
                                   width: '30px',
-                                  minWidth: '30px'
+                                  minWidth: '30px',
+                                  backgroundColor: '#E0E0E0',
                                 }}
                               >
                                 <div className="absolute inset-0 flex items-center justify-center">
@@ -765,7 +688,7 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
                       {/* Category Summary Row */}
                       <tr 
                         className="bg-gray-300 font-bold border-b border-black"
-                        style={{ '--print-order': printOrder } as React.CSSProperties}
+                        style={{ '--print-order': printOrder, backgroundColor: '#CCCCCC' } as React.CSSProperties}
                       >
                         <td className="p-1 print:p-0.5 border-r border-black uppercase text-[0.55rem] print:text-[6pt] text-left">{getCategoryFullLabel(group.category)} Summary</td>
                         <td className="p-1 print:p-0.5 border-r border-black text-center text-gray-400">/</td>
@@ -788,7 +711,7 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
                   <td className="p-1 print:p-0.5 text-center border-r border-gray-600">/</td>
                   <td className="p-1 print:p-0.5 text-center border-r border-gray-600">{data.totals.coefficient}</td>
                   <td className="p-1 print:p-0.5 text-center border-r border-gray-600">{data.totals.totalScore.toFixed(0)}</td>
-                  <td colSpan={2} className="bg-gray-100"></td>
+                  <td colSpan={2} className="bg-gray-100" style={{ backgroundColor: '#CCCCCC' }}></td>
                 </tr>
               </tbody>
             </table>

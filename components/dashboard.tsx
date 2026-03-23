@@ -219,7 +219,7 @@ function DashboardHeader({
   onLogout: () => void
 }) {
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 fixed top-0 right-0 left-[var(--sidebar-width)] z-40">
+    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 fixed top-0 right-0 left-[var(--sidebar-width)] z-40 print:hidden">
       <div className="flex items-center gap-2 px-4">
         <Badge variant="outline" className="capitalize">
           {user.role}
@@ -599,7 +599,7 @@ export function Dashboard() {
                 onProfileClick={() => setParentCurrentView("profile")} 
                 onLogout={handleLogout}
               />
-              <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderParentContent()}</div>
+              <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4 print:ml-0 print:p-2 print:gap-2">{renderParentContent()}</div>
             </SidebarInset>
           </SidebarProvider>
         </AlertsProvider>
@@ -721,7 +721,7 @@ export function Dashboard() {
               onProfileClick={() => setStudentCurrentView("profile")} 
               onLogout={handleLogout}
             />
-            <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4">{renderStudentContent()}</div>
+            <div className="flex flex-1 flex-col gap-4 p-6 pt-0 ml-4 print:ml-0 print:p-2 print:gap-2">{renderStudentContent()}</div>
           </SidebarInset>
         </SidebarProvider>
       </ProfileProvider>
@@ -1033,7 +1033,7 @@ export function Dashboard() {
                             onProfileClick={() => setAdminCurrentView("profile")}
                             onLogout={handleLogout}
                           />
-                          <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderAdminContent()}</div>
+                          <div className="flex flex-1 flex-col gap-4 p-6 pt-20 print:ml-0 print:pt-0 print:p-2 print:gap-2">{renderAdminContent()}</div>
                         </SidebarInset>
                       </SidebarProvider>
                       </AlertsProvider>
@@ -1195,7 +1195,7 @@ export function Dashboard() {
                 onProfileClick={() => setTeacherCurrentView("profile")}
                 onLogout={handleLogout}
               />
-              <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderTeacherContent()}</div>
+              <div className="flex flex-1 flex-col gap-4 p-6 pt-20 print:ml-0 print:pt-0 print:p-2 print:gap-2">{renderTeacherContent()}</div>
             </SidebarInset>
           </SidebarProvider>
         </ProfileProvider>
@@ -1415,7 +1415,7 @@ export function Dashboard() {
                 onProfileClick={() => setBursarCurrentView("profile")} 
                 onLogout={handleLogout}
               />
-              <div className="flex flex-1 flex-col gap-4 p-6 pt-20">{renderBursarContent()}</div>
+              <div className="flex flex-1 flex-col gap-4 p-6 pt-20 print:ml-0 print:pt-0 print:p-2 print:gap-2">{renderBursarContent()}</div>
             </SidebarInset>
           </SidebarProvider>
         </ProfileProvider>

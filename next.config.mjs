@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Puppeteer ships native bits; bundling it into Route Handlers can break or crash at runtime (especially with Turbopack).
+  serverExternalPackages: ['puppeteer'],
+
   // Enable strict mode for better development experience
   reactStrictMode: true,
   

@@ -8,6 +8,7 @@ import {
   FileText,
   Users,
   Loader2,
+  Download,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +18,12 @@ import { Badge } from '@/components/ui/badge'
 import { TermReportCard } from './reports/TermReportCard'
 import { AnnualReportCard } from './reports/AnnualReportCard'
 import { ReportCardData } from './reports/report-card-types'
+import { useToast } from '@/hooks/use-toast'
+import {
+  buildReportCardPdfFilename,
+  fetchReportCardPdfBlob,
+  savePdfBlobToDownloads,
+} from '@/lib/report-card-pdf-download'
 
 interface Student {
   id: string
@@ -39,6 +46,7 @@ interface ClassData {
 type TermType = '1' | '2' | 'annual'
 
 export function ReportCardsWrapper() {
+  const { success: toastSuccess, error: toastError } = useToast()
   // State
   const [selectedTerm, setSelectedTerm] = useState<TermType>('annual')
   const [selectedClass, setSelectedClass] = useState<string>('')
@@ -53,6 +61,7 @@ export function ReportCardsWrapper() {
   const [loadingStudents, setLoadingStudents] = useState(false)
   const [loadingReport, setLoadingReport] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
 
   // Fetch classes on mount
   useEffect(() => {
@@ -163,6 +172,7 @@ export function ReportCardsWrapper() {
       
       const response = await fetch(url, {
         cache: 'no-store', // Ensure no caching
+        credentials: 'include',
         headers: {
           'Cache-Control': 'no-cache',
         },
@@ -212,6 +222,35 @@ export function ReportCardsWrapper() {
     setError(null)
   }
 
+  const handleDownloadPdfClick = async () => {
+    if (!selectedStudent || !reportData) return
+    const termParam = selectedTerm === 'annual' ? 'annual' : selectedTerm
+    const filename = buildReportCardPdfFilename({
+      studentName: reportData.student.name,
+      year: reportData.academic.year,
+      term: termParam,
+    })
+    setDownloadingPdf(true)
+    try {
+      const blob = await fetchReportCardPdfBlob({
+        studentId: selectedStudent.id,
+        term: termParam,
+        classId: selectedTerm === 'annual' ? undefined : selectedClass || undefined,
+      })
+      savePdfBlobToDownloads(blob, filename)
+      toastSuccess('PDF downloaded', { description: filename })
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[ReportCards] PDF download:', e)
+      toastError('PDF download failed', {
+        description:
+          e instanceof Error ? e.message : 'Try again or use Download PDF on the report below.',
+      })
+    } finally {
+      setDownloadingPdf(false)
+    }
+  }
+
   // Refresh report data after mark save
   const handleRefreshReport = async () => {
     if (selectedStudent) {
@@ -230,11 +269,19 @@ export function ReportCardsWrapper() {
   if (selectedStudent && reportData) {
     return (
       <div className="space-y-4">
-        {/* Back Button - Hidden on print */}
-        <div className="print:hidden">
+        {/* Toolbar — hidden on print */}
+        <div className="print:hidden flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={handleBack}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Student Selection
+          </Button>
+          <Button onClick={() => void handleDownloadPdfClick()} disabled={downloadingPdf}>
+            {downloadingPdf ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            {downloadingPdf ? 'Generating PDF…' : 'Download PDF'}
           </Button>
         </div>
 
@@ -253,7 +300,8 @@ export function ReportCardsWrapper() {
             classId={selectedClass}
             onRefresh={handleRefreshReport}
           />
-        )}      </div>
+        )}
+      </div>
     )
   }
 
