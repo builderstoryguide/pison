@@ -905,8 +905,14 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             .pdf-report-card table td,
             .pdf-report-card table th {
               border: 1px solid #000 !important;
-              padding: 2px 4px !important;
+              padding: 4px 6px !important;
               vertical-align: middle !important;
+            }
+
+            /* Student info grid: one padding system (avoids inline vs Tailwind drift) */
+            .pdf-report-card .rc-student-grid > div {
+              padding: 5px 8px !important;
+              vertical-align: top !important;
             }
             
             /* Image Styles */
@@ -983,6 +989,8 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
               border: none !important;
               border-right: 1px solid #000 !important;
               border-bottom: 1px solid #000 !important;
+              padding: 4px 6px !important;
+              vertical-align: middle !important;
             }
             .pdf-report-card.pdf-capture-mode .grid.grid-cols-12.border-black.font-mono {
               border: none !important;
@@ -1110,18 +1118,18 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             />
           </div>
 
-          {/* Header */}
-          <header className="grid grid-cols-1 md:grid-cols-3 gap-2 print:gap-1 mb-2 print:mb-1 border-b-2 border-black pb-1 print:pb-0.5 relative z-10">
-            <div className="text-center md:text-left text-[0.55rem] print:text-[7pt] uppercase font-medium space-y-0 print:space-y-0 leading-tight mt-0 mb-0 w-fit h-[119px] pt-2 pb-2 flex flex-col gap-2">
-              <p className="print:leading-[1.1]">République du Cameroun</p>
-              <p className="print:leading-[1.1]">Paix - Travail - Patrie</p>
-              <p className="print:leading-[1.1]">Ministère des Enseignements Secondaires</p>
-              <p className="print:leading-[1.1]">Délégation Régional de Littoral</p>
-              <p className="font-bold text-black print:leading-[1.1]">PISON ACADEMY OF EXCELLENCE</p>
+          {/* Header — aligned columns, balanced logo band, order line wraps cleanly */}
+          <header className="grid grid-cols-1 md:grid-cols-3 md:items-stretch gap-3 print:gap-2 mb-2 print:mb-1 border-b-2 border-black pb-2 print:pb-1 relative z-10">
+            <div className="flex flex-col justify-center text-center md:text-left text-[0.55rem] print:text-[7pt] uppercase font-medium leading-tight gap-1 print:gap-0.5 min-h-[6.5rem] md:min-h-[7.25rem] w-full">
+              <p className="print:leading-[1.15]">République du Cameroun</p>
+              <p className="print:leading-[1.15]">Paix - Travail - Patrie</p>
+              <p className="print:leading-[1.15]">Ministère des Enseignements Secondaires</p>
+              <p className="print:leading-[1.15]">Délégation Régional de Littoral</p>
+              <p className="font-bold text-black print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
             </div>
-            
-            <div className="flex flex-col items-center justify-center">
-              <div className="w-24 print:w-24 h-24 print:h-24 mb-1 print:mb-0.5 relative overflow-hidden flex items-center justify-center">
+
+            <div className="flex flex-col items-center justify-center gap-1.5 print:gap-1 min-h-[6.5rem] md:min-h-[7.25rem]">
+              <div className="w-24 print:w-24 h-24 print:h-24 shrink-0 relative overflow-hidden flex items-center justify-center">
                 {logoError ? (
                   <div className="w-full h-full flex items-center justify-center border-2 border-dashed border-gray-300 rounded-full">
                     <School size={24} className="text-gray-400 print:w-4 print:h-4" />
@@ -1135,18 +1143,21 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                   />
                 )}
               </div>
-              <div className="text-[0.5rem] print:text-[6pt] font-mono text-left">
-                ORDER Nº: <span className="text-red-600 font-bold">714/24/MINESEC/SG/DESTP/SSEPTP OF 31 DECEMBER 2024</span>
+              <div className="text-[0.5rem] print:text-[6pt] font-mono w-full max-w-[15rem] mx-auto text-center leading-snug px-1">
+                ORDER Nº:{' '}
+                <span className="text-red-600 font-bold break-words">
+                  714/24/MINESEC/SG/DESTP/SSEPTP OF 31 DECEMBER 2024
+                </span>
               </div>
             </div>
 
-            <div className="text-right text-[0.55rem] print:text-[7pt] uppercase font-medium space-y-2 print:space-y-2 leading-tight pt-2 pb-2">
-              <p className="print:leading-[1.1]">Republic of Cameroon</p>
-              <p className="print:leading-[1.1]">Peace - Work - Fatherland</p>
-              <p className="print:leading-[1.1]">Ministry of Secondary Education</p>
-              <p className="print:leading-[1.1]">Regional Delegation of Littoral</p>
-              <p className="font-bold text-blue-800 print:leading-[1.1]">PISON ACADEMY OF EXCELLENCE</p>
-              <p className="normal-case text-red-600 text-[0.5rem] print:text-[6pt] print:leading-[1.1]">PO Box 58 Edea Tel: 676521570</p>
+            <div className="flex flex-col justify-center text-right text-[0.55rem] print:text-[7pt] uppercase font-medium leading-tight gap-1 print:gap-0.5 min-h-[6.5rem] md:min-h-[7.25rem]">
+              <p className="print:leading-[1.15]">Republic of Cameroon</p>
+              <p className="print:leading-[1.15]">Peace - Work - Fatherland</p>
+              <p className="print:leading-[1.15]">Ministry of Secondary Education</p>
+              <p className="print:leading-[1.15]">Regional Delegation of Littoral</p>
+              <p className="font-bold text-blue-800 print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
+              <p className="normal-case text-red-600 text-[0.5rem] print:text-[6pt] print:leading-[1.15]">PO Box 58 Edea Tel: 676521570</p>
             </div>
           </header>
 
@@ -1163,7 +1174,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-100 to-transparent opacity-30" />
               </div>
 
-              <div className="relative z-10 flex flex-row items-center gap-2 print:gap-1">
+              <div className="relative z-10 flex flex-row items-center gap-3 print:gap-2">
                 <div className="flex-shrink-0 flex flex-col items-center opacity-80">
                   <div className="bg-white p-0.5 print:p-0.5 border border-black shadow-sm">
                     <QRCode
@@ -1199,46 +1210,46 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
           </div>
 
           {/* Student Info Grid */}
-          <div className="border border-black grid grid-cols-12 mb-1 print:mb-0.5 font-mono text-[0.65rem] print:text-[7pt] relative z-10 bg-white/90" style={{ border: '1px solid #000', backgroundColor: 'rgba(255, 255, 255, 0.9)' }}>
-            <div className="col-span-4 p-1 print:p-0.5 border-b border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
+          <div className="rc-student-grid border border-black grid grid-cols-12 mb-1 print:mb-0.5 font-mono text-[0.65rem] print:text-[7pt] relative z-10 bg-white/90">
+            <div className="col-span-4 border-b border-r border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">First Name / Prénom</span>
               <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.name.split(' ')[0]}</span>
             </div>
-            <div className="col-span-4 p-1 print:p-0.5 border-b border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
+            <div className="col-span-4 border-b border-r border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Last Name / Nom</span>
               <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.name.split(' ').slice(1).join(' ')}</span>
             </div>
-            <div className="col-span-4 p-1 print:p-0.5 border-b border-black" style={{ borderBottom: '1px solid #000', padding: '2px 4px' }}>
+            <div className="col-span-4 border-b border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Unique Identifier No / Matricule</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.studentId}</span>
             </div>
 
-            <div className="col-span-2 p-1 print:p-0.5 border-b border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
+            <div className="col-span-2 border-b border-r border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Sex</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.sex}</span>
             </div>
-            <div className="col-span-4 p-1 print:p-0.5 border-b border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
+            <div className="col-span-4 border-b border-r border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Date of Birth / Né le</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.dob}</span>
             </div>
-            <div className="col-span-4 p-1 print:p-0.5 border-b border-r border-black" style={{ borderBottom: '1px solid #000', borderRight: '1px solid #000', padding: '2px 4px' }}>
+            <div className="col-span-4 border-b border-r border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Place of Birth / Né à</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.pob}</span>
             </div>
-            <div className="col-span-2 p-1 print:p-0.5 border-b border-black" style={{ borderBottom: '1px solid #000', padding: '2px 4px' }}>
+            <div className="col-span-2 border-b border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Repeater / Redoublant</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">NO / NON</span>
             </div>
 
-            <div className="col-span-5 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black" style={{ borderRight: '1px solid #000', padding: '2px 4px' }}>
+            <div className="col-span-5 border-b md:border-b-0 border-r border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Speciality</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{getSpecialityFromClass(data.student.className, data.student.speciality)}</span>
             </div>
-            <div className="col-span-4 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black" style={{ borderRight: '1px solid #000', padding: '2px 4px' }}>
+            <div className="col-span-4 border-b md:border-b-0 border-r border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Class</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.className}</span>
             </div>
-            <div className="col-span-3 p-1 print:p-0.5 border-b md:border-b-0 border-black" style={{ borderBottom: '1px solid #000', padding: '2px 4px' }}>
+            <div className="col-span-3 border-b md:border-b-0 border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Master</span>
               <span className="font-bold text-[0.6rem] print:text-[6pt]">{data.student.classMaster || '-'}</span>
             </div>
@@ -1249,15 +1260,15 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
             <table className="w-full text-left border-collapse" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <thead className="bg-gray-100 text-[0.55rem] print:text-[7pt] uppercase font-bold border-b border-black" style={{ backgroundColor: '#f3f4f6' }}>
                 <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                  <th className="p-1 print:p-0.5 border-r border-black w-12 print:w-10" style={{ fontSize: '7pt', width: '8%', border: '1px solid #000', padding: '2px 4px' }}></th>
-                  <th className="p-1 print:p-0.5 border-r border-black w-1/3 text-left" style={{ fontSize: '7pt', width: '25%', border: '1px solid #000', padding: '2px 4px' }}>Subjects</th>
-                  <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '6%', border: '1px solid #000', padding: '2px 4px' }}>Coef</th>
-                  <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '7%', border: '1px solid #000', padding: '2px 4px' }}>{seqLabels.seq1}</th>
-                  <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '7%', border: '1px solid #000', padding: '2px 4px' }}>{seqLabels.seq2}</th>
-                  <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '8%', border: '1px solid #000', padding: '2px 4px' }}>Average</th>
-                  <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '8%', border: '1px solid #000', padding: '2px 4px' }}>TOTAL</th>
-                  <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '7%', border: '1px solid #000', padding: '2px 4px' }}>Grade</th>
-                  <th className="p-1 print:p-0.5 text-left" style={{ fontSize: '7pt', width: '24%', border: '1px solid #000', padding: '2px 4px' }}>Remarks</th>
+                  <th className="p-1 print:p-0.5 border-r border-black w-12 print:w-10" style={{ fontSize: '7pt', width: '8%', border: '1px solid #000', padding: '4px 6px' }}></th>
+                  <th className="p-1 print:p-0.5 border-r border-black w-1/3 text-left" style={{ fontSize: '7pt', width: '25%', border: '1px solid #000', padding: '4px 6px' }}>Subjects</th>
+                  <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '6%', border: '1px solid #000', padding: '4px 6px' }}>Coef</th>
+                  <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '7%', border: '1px solid #000', padding: '4px 6px' }}>{seqLabels.seq1}</th>
+                  <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '7%', border: '1px solid #000', padding: '4px 6px' }}>{seqLabels.seq2}</th>
+                  <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '8%', border: '1px solid #000', padding: '4px 6px' }}>Average</th>
+                  <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '8%', border: '1px solid #000', padding: '4px 6px' }}>TOTAL</th>
+                  <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '7%', border: '1px solid #000', padding: '4px 6px' }}>Grade</th>
+                  <th className="p-1 print:p-0.5 text-left" style={{ fontSize: '7pt', width: '24%', border: '1px solid #000', padding: '4px 6px' }}>Remarks</th>
                 </tr>
               </thead>
               <tbody className="text-[0.6rem] print:text-[7pt] font-mono report-card-subjects-tbody">
@@ -1314,10 +1325,10 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                                 </div>
                               </td>
                             )}
-                            <td className="p-1 print:p-0.5 border-r border-gray-300 font-medium" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{subject.subjectName}</td>
+                            <td className="p-1 print:p-0.5 border-r border-gray-300 font-medium" style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}>{subject.subjectName}</td>
                             <td 
                               className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
-                              style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}
+                              style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}
                               onClick={() => {
                                 if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
                                   handleCoefficientClick(subject)
@@ -1331,7 +1342,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                             </td>
                             <td 
                               className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
-                              style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}
+                              style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}
                               onClick={() => {
                                 if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
                                   handleSequenceClick(subject, 1)
@@ -1345,7 +1356,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                             </td>
                             <td 
                               className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
-                              style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}
+                              style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}
                               onClick={() => {
                                 if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
                                   handleSequenceClick(subject, 2)
@@ -1357,12 +1368,12 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                                 <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
                               )}
                             </td>
-                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{avg > 0 ? avg.toFixed(1) : '-'}</td>
-                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '2px 4px' }}>{totalScore > 0 ? totalScore.toFixed(0) : '-'}</td>
-                            <td className={`p-1 print:p-0.5 border-r border-gray-300 text-center font-bold ${grade === 'F' || grade === 'E' || grade === 'U' ? 'text-red-600' : ''}`} style={{ border: '1px solid #d1d5db', padding: '2px 4px', color: (grade === 'F' || grade === 'E' || grade === 'U') ? '#dc2626' : 'inherit' }}>
+                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}>{avg > 0 ? avg.toFixed(1) : '-'}</td>
+                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}>{totalScore > 0 ? totalScore.toFixed(0) : '-'}</td>
+                            <td className={`p-1 print:p-0.5 border-r border-gray-300 text-center font-bold ${grade === 'F' || grade === 'E' || grade === 'U' ? 'text-red-600' : ''}`} style={{ border: '1px solid #d1d5db', padding: '4px 6px', color: (grade === 'F' || grade === 'E' || grade === 'U') ? '#dc2626' : 'inherit' }}>
                               {grade}
                             </td>
-                            <td className={`p-1 print:p-0.5 ${remarks.includes('Fail') || remarks.includes('Weak') || remarks.includes('Very weak') ? 'text-red-600' : 'text-green-700'}`} style={{ padding: '2px 4px', color: (remarks.includes('Fail') || remarks.includes('Weak') || remarks.includes('Very weak')) ? '#dc2626' : '#15803d' }}>
+                            <td className={`p-1 print:p-0.5 ${remarks.includes('Fail') || remarks.includes('Weak') || remarks.includes('Very weak') ? 'text-red-600' : 'text-green-700'}`} style={{ padding: '4px 6px', color: (remarks.includes('Fail') || remarks.includes('Weak') || remarks.includes('Very weak')) ? '#dc2626' : '#15803d' }}>
                               {remarks}
                             </td>
                           </tr>
@@ -1379,13 +1390,13 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                           borderBottom: '1px solid #000'
                         } as React.CSSProperties}
                       >
-                        <td className="p-1 print:p-0.5 border-r border-black uppercase text-[0.55rem] print:text-[6pt] text-left" style={{ border: '1px solid #000', padding: '2px 4px' }}>{getCategoryFullLabel(group.category)} Summary</td>
-                        <td className="p-1 print:p-0.5 border-r border-black text-center" style={{ border: '1px solid #000', padding: '2px 4px' }}>{summary.coef}</td>
-                        <td colSpan={2} className="p-1 print:p-0.5 border-r border-black text-center text-gray-400" style={{ border: '1px solid #000', padding: '2px 4px', color: '#9ca3af' }}>/</td>
-                        <td className="p-1 print:p-0.5 border-r border-black text-center whitespace-nowrap text-[0.55rem] print:text-[6pt]" style={{ border: '1px solid #000', padding: '2px 4px' }}>AV: {summary.avg.toFixed(2)}</td>
-                        <td className="p-1 print:p-0.5 border-r border-black text-center" style={{ border: '1px solid #000', padding: '2px 4px' }}>{summary.totalScore.toFixed(0)}</td>
-                        <td className="p-1 print:p-0.5 border-r border-black text-center" style={{ border: '1px solid #000', padding: '2px 4px' }}>{summary.rank > 0 ? summary.rank : '-'}</td>
-                        <td className="p-1 print:p-0.5 uppercase text-[0.55rem] print:text-[6pt] text-left" style={{ padding: '2px 4px' }}>{summary.remark}</td>
+                        <td className="p-1 print:p-0.5 border-r border-black uppercase text-[0.55rem] print:text-[6pt] text-left" style={{ border: '1px solid #000', padding: '4px 6px' }}>{getCategoryFullLabel(group.category)} Summary</td>
+                        <td className="p-1 print:p-0.5 border-r border-black text-center" style={{ border: '1px solid #000', padding: '4px 6px' }}>{summary.coef}</td>
+                        <td colSpan={2} className="p-1 print:p-0.5 border-r border-black text-center text-gray-400" style={{ border: '1px solid #000', padding: '4px 6px', color: '#9ca3af' }}>/</td>
+                        <td className="p-1 print:p-0.5 border-r border-black text-center whitespace-nowrap text-[0.55rem] print:text-[6pt]" style={{ border: '1px solid #000', padding: '4px 6px' }}>AV: {summary.avg.toFixed(2)}</td>
+                        <td className="p-1 print:p-0.5 border-r border-black text-center" style={{ border: '1px solid #000', padding: '4px 6px' }}>{summary.totalScore.toFixed(0)}</td>
+                        <td className="p-1 print:p-0.5 border-r border-black text-center" style={{ border: '1px solid #000', padding: '4px 6px' }}>{summary.rank > 0 ? summary.rank : '-'}</td>
+                        <td className="p-1 print:p-0.5 uppercase text-[0.55rem] print:text-[6pt] text-left" style={{ padding: '4px 6px' }}>{summary.remark}</td>
                       </tr>
                     </React.Fragment>
                   )
@@ -1402,12 +1413,12 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                     breakInside: 'avoid'
                   } as React.CSSProperties}
                 >
-                  <td colSpan={2} className="p-1 print:p-0.5 text-left uppercase border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '2px 4px' }}>Total Summary / Bilan Totale</td>
-                  <td className="p-1 print:p-0.5 text-center border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '2px 4px' }}>{data.totals.coefficient}</td>
-                  <td colSpan={2} className="p-1 print:p-0.5 border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '2px 4px' }}></td>
-                  <td className="p-1 print:p-0.5 text-center border-r border-gray-600 font-bold" style={{ border: '1px solid #4b5563', padding: '2px 4px' }}>{data.totals.average.toFixed(2)}</td>
-                  <td className="p-1 print:p-0.5 text-center border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '2px 4px' }}>{data.totals.totalScore.toFixed(0)}</td>
-                  <td colSpan={2} className="bg-gray-100" style={{ backgroundColor: '#f3f4f6', padding: '2px 4px' }}></td>
+                  <td colSpan={2} className="p-1 print:p-0.5 text-left uppercase border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '4px 6px' }}>Total Summary / Bilan Totale</td>
+                  <td className="p-1 print:p-0.5 text-center border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '4px 6px' }}>{data.totals.coefficient}</td>
+                  <td colSpan={2} className="p-1 print:p-0.5 border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '4px 6px' }}></td>
+                  <td className="p-1 print:p-0.5 text-center border-r border-gray-600 font-bold" style={{ border: '1px solid #4b5563', padding: '4px 6px' }}>{data.totals.average.toFixed(2)}</td>
+                  <td className="p-1 print:p-0.5 text-center border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '4px 6px' }}>{data.totals.totalScore.toFixed(0)}</td>
+                  <td colSpan={2} className="bg-gray-100" style={{ backgroundColor: '#f3f4f6', padding: '4px 6px' }}></td>
                 </tr>
               </tbody>
             </table>
@@ -1586,7 +1597,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-100 to-transparent opacity-30" />
                     </div>
 
-                    <div className="relative z-10 flex flex-row items-center gap-2 print:gap-1">
+                    <div className="relative z-10 flex flex-row items-center gap-3 print:gap-2">
                       <div className="flex-shrink-0 flex flex-col items-center opacity-80">
                         <div className="bg-white p-0.5 print:p-0.5 border border-black shadow-sm">
                           <QRCode

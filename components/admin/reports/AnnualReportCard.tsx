@@ -144,22 +144,23 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
       // Add a small delay to ensure all styles and images are fully loaded
       await new Promise(resolve => setTimeout(resolve, 100))
       
-      // Calculate scaling to fit on single page
+      // Calculate scaling to fit on single page (width + height, aligned with TermReportCard)
       const originalStyle = element.getAttribute('style') || ''
-      const a4HeightPx = 1122 // Approx 297mm at 96 DPI
+      const a4WidthPx = 794
+      const a4HeightPx = 1122
       const contentHeight = element.scrollHeight
-      
+      const contentWidth = element.scrollWidth
+
       let scale = 1
-      if (contentHeight > a4HeightPx) {
-        scale = (a4HeightPx - 20) / contentHeight 
+      const scaleWidth = a4WidthPx / contentWidth
+      const scaleHeight = a4HeightPx / contentHeight
+      if (contentHeight > a4HeightPx || contentWidth > a4WidthPx) {
+        scale = Math.min(scaleWidth, scaleHeight, 1)
+        element.style.transform = `scale(${scale})`
+        element.style.transformOrigin = 'top center'
+        element.style.width = `${100 / scale}%`
       }
 
-      if (scale < 1) {
-        element.style.transform = `scale(${scale})`
-        element.style.transformOrigin = 'top left'
-        element.style.width = `${210 / scale}mm` 
-      }
-      
       // Configure PDF options with optimized settings for high-quality output
       const opt = {
         margin: [0, 0, 0, 0] as [number, number, number, number],
@@ -179,6 +180,8 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
           scrollX: 0,
           windowWidth: element.scrollWidth,
           windowHeight: element.scrollHeight,
+          x: 0,
+          y: 0,
           onclone: (clonedDoc: Document) => {
             const source = document.getElementById('annual-report-card-pdf-styles')
             if (source?.textContent) {
@@ -199,7 +202,8 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
           orientation: 'portrait' as const,
           compress: true,
           precision: 16
-        }
+        },
+        pagebreak: { mode: 'avoid-all' as const }
       }
 
       // Generate and download PDF
@@ -384,9 +388,14 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
             .pdf-report-card table td,
             .pdf-report-card table th {
               border: 1px solid #000 !important;
-              padding: 2px 4px !important;
+              padding: 4px 6px !important;
               vertical-align: middle !important; /* Fix for bottom alignment */
               text-align: left; /* Default to left alignment */
+            }
+
+            .pdf-report-card .rc-student-grid > div {
+              padding: 5px 8px !important;
+              vertical-align: top !important;
             }
             
             /* Alignment Overrides */
@@ -447,6 +456,8 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
               border: none !important;
               border-right: 1px solid #000 !important;
               border-bottom: 1px solid #000 !important;
+              padding: 4px 6px !important;
+              vertical-align: middle !important;
             }
             .pdf-report-card.pdf-capture-mode .grid.grid-cols-12.border-black.font-mono {
               border: none !important;
@@ -542,18 +553,18 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
             />
           </div>
 
-          {/* Header */}
-          <header className="grid grid-cols-1 md:grid-cols-3 gap-2 print:gap-1 mb-2 print:mb-1 border-b-2 border-black pb-1 print:pb-0.5 relative z-10">
-            <div className="text-center md:text-left text-[0.55rem] print:text-[7pt] uppercase font-medium space-y-0 print:space-y-0 leading-tight">
-              <p className="print:leading-[1.1]">République du Cameroun</p>
-              <p className="print:leading-[1.1]">Paix - Travail - Patrie</p>
-              <p className="print:leading-[1.1]">Ministère des Enseignements Secondaires</p>
-              <p className="print:leading-[1.1]">Délégation Régional de Littoral</p>
-              <p className="font-bold text-black print:leading-[1.1]">PISON ACADEMY OF EXCELLENCE</p>
+          {/* Header — same structure as term card for consistent export */}
+          <header className="grid grid-cols-1 md:grid-cols-3 md:items-stretch gap-3 print:gap-2 mb-2 print:mb-1 border-b-2 border-black pb-2 print:pb-1 relative z-10">
+            <div className="flex flex-col justify-center text-center md:text-left text-[0.55rem] print:text-[7pt] uppercase font-medium leading-tight gap-1 print:gap-0.5 min-h-[6.5rem] md:min-h-[7.25rem] w-full">
+              <p className="print:leading-[1.15]">République du Cameroun</p>
+              <p className="print:leading-[1.15]">Paix - Travail - Patrie</p>
+              <p className="print:leading-[1.15]">Ministère des Enseignements Secondaires</p>
+              <p className="print:leading-[1.15]">Délégation Régional de Littoral</p>
+              <p className="font-bold text-black print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
             </div>
-            
-            <div className="flex flex-col items-center justify-center">
-              <div className="w-16 print:w-12 h-16 print:h-12 mb-1 print:mb-0.5 relative overflow-hidden flex items-center justify-center">
+
+            <div className="flex flex-col items-center justify-center gap-1.5 print:gap-1 min-h-[6.5rem] md:min-h-[7.25rem]">
+              <div className="w-24 print:w-24 h-24 print:h-24 shrink-0 relative overflow-hidden flex items-center justify-center">
                 {logoError ? (
                   <div className="w-full h-full flex items-center justify-center border-2 border-dashed border-gray-300 rounded-full">
                     <School size={24} className="text-gray-400 print:w-4 print:h-4" />
@@ -567,18 +578,18 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
                   />
                 )}
               </div>
-              <div className="text-[0.5rem] print:text-[6pt] font-mono text-left">
-                ORDER Nº: <span className="text-red-600 font-bold">{data.academic.orderNo}</span>
+              <div className="text-[0.5rem] print:text-[6pt] font-mono w-full max-w-[15rem] mx-auto text-center leading-snug px-1">
+                ORDER Nº: <span className="text-red-600 font-bold break-words">{data.academic.orderNo}</span>
               </div>
             </div>
 
-            <div className="text-left text-[0.55rem] print:text-[7pt] uppercase font-medium space-y-0 print:space-y-0 leading-tight">
-              <p className="print:leading-[1.1]">Republic of Cameroon</p>
-              <p className="print:leading-[1.1]">Peace - Work - Fatherland</p>
-              <p className="print:leading-[1.1]">Ministry of Secondary Education</p>
-              <p className="print:leading-[1.1]">Regional Delegation of Littoral</p>
-              <p className="font-bold text-blue-800 print:leading-[1.1]">PISON ACADEMY OF EXCELLENCE</p>
-              <p className="normal-case text-red-600 text-[0.5rem] print:text-[6pt] print:leading-[1.1]">PO Box 58 Edea Tel: 676521570</p>
+            <div className="flex flex-col justify-center text-right text-[0.55rem] print:text-[7pt] uppercase font-medium leading-tight gap-1 print:gap-0.5 min-h-[6.5rem] md:min-h-[7.25rem]">
+              <p className="print:leading-[1.15]">Republic of Cameroon</p>
+              <p className="print:leading-[1.15]">Peace - Work - Fatherland</p>
+              <p className="print:leading-[1.15]">Ministry of Secondary Education</p>
+              <p className="print:leading-[1.15]">Regional Delegation of Littoral</p>
+              <p className="font-bold text-blue-800 print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
+              <p className="normal-case text-red-600 text-[0.5rem] print:text-[6pt] print:leading-[1.15]">PO Box 58 Edea Tel: 676521570</p>
             </div>
           </header>
 
@@ -626,25 +637,25 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
           </div>
 
           {/* Student Info Grid */}
-          <div className="border border-black grid grid-cols-12 mb-1 print:mb-0.5 font-mono text-[0.65rem] print:text-[7pt] relative z-10 bg-white/90">
-            <div className="col-span-12 md:col-span-4 p-1 print:p-0.5 border-b md:border-r border-black">
+          <div className="rc-student-grid border border-black grid grid-cols-12 mb-1 print:mb-0.5 font-mono text-[0.65rem] print:text-[7pt] relative z-10 bg-white/90">
+            <div className="col-span-12 md:col-span-4 border-b md:border-r border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Unique Identifier No / Matricule</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.studentId}</span>
             </div>
-            <div className="col-span-12 md:col-span-6 p-1 print:p-0.5 border-b md:border-r border-black">
+            <div className="col-span-12 md:col-span-6 border-b md:border-r border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Name & Surname / Noms et Prénoms</span>
               <span className="font-bold text-[0.7rem] print:text-[7pt]">{data.student.name}</span>
             </div>
-            <div className="col-span-12 md:col-span-2 p-1 print:p-0.5 border-b border-black">
+            <div className="col-span-12 md:col-span-2 border-b border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Repeater / Redoublant</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">NO / NON</span>
             </div>
 
-            <div className="col-span-2 p-1 print:p-0.5 border-b border-r border-black">
+            <div className="col-span-2 border-b border-r border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Sex</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.sex}</span>
             </div>
-            <div className="col-span-7 p-1 print:p-0.5 border-b border-r border-black">
+            <div className="col-span-7 border-b border-r border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Date & Place of Birth / Né le - à</span>
               <div className="flex gap-1 text-[0.65rem] print:text-[7pt]">
                 <span className="font-bold">{data.student.dob}</span>
@@ -654,7 +665,7 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
             </div>
             
             {/* Photo Area */}
-            <div className="col-span-3 row-span-2 border-b border-black flex flex-col items-center justify-center p-1 print:p-0.5 bg-gray-50">
+            <div className="col-span-3 row-span-2 border-b border-black flex flex-col items-center justify-center bg-gray-50 min-h-[4rem]">
               {data.student.photoUrl ? (
                 <img src={data.student.photoUrl} alt="Student" className="w-full h-full object-cover" />
               ) : (
@@ -665,15 +676,15 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
               )}
             </div>
 
-            <div className="col-span-5 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black">
+            <div className="col-span-5 border-b md:border-b-0 border-r border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Speciality</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.speciality || 'General'}</span>
             </div>
-            <div className="col-span-2 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black">
+            <div className="col-span-2 border-b md:border-b-0 border-r border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Class</span>
               <span className="font-bold text-[0.65rem] print:text-[7pt]">{data.student.className}</span>
             </div>
-            <div className="col-span-2 p-1 print:p-0.5 border-b md:border-b-0 border-r border-black">
+            <div className="col-span-2 border-b md:border-b-0 border-r border-black">
               <span className="block text-[0.5rem] print:text-[6pt] text-gray-500 uppercase leading-tight">Master</span>
               <span className="font-bold text-[0.6rem] print:text-[6pt]">{data.student.classMaster || '-'}</span>
             </div>
