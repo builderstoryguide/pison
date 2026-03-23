@@ -34,6 +34,11 @@ export function getSequenceNumberFromKey(sequenceKey: string): number | null {
   return null
 }
 
+/** True when the subject carries a non-empty GCE / exam code (matches server isGceSubject). */
+export function hasGceSubjectCode(code?: string): boolean {
+  return typeof code === 'string' && code.trim().length > 0
+}
+
 /**
  * Checks if a subject has branches
  * @param supabase - Supabase client
@@ -69,7 +74,8 @@ export async function isBranchSubject(
     const hasOldBranches = oldBranches.data && oldBranches.data.length > 0
     const hasNewBranches = newBranches.data && newBranches.data.length > 0
 
-    return hasOldBranches || hasNewBranches  } catch (_error) {
+    return hasOldBranches || hasNewBranches
+  } catch (_error) {
     // console.error('Error checking if subject has branches:', error)
     return false
   }

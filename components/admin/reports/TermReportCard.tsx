@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/lib/auth-context'
-import { getSequenceName } from '@/lib/report-card-utils'
+import { getSequenceName, hasGceSubjectCode } from '@/lib/report-card-utils'
 import { EditMarkDialog } from './EditMarkDialog'
 // html2pdf.js will be dynamically imported to avoid SSR issues
 
@@ -133,6 +133,19 @@ function getCategoryFullLabel(category: string | undefined): string {
     case 'others': return 'OTHER SUBJECTS'
     default: return 'OTHER SUBJECTS'
   }
+}
+
+/** Weighted coefficient for totals; falls back to planned class coefficient for dialog defaults */
+function effectiveCoefficient(subject: SubjectGrade): number {
+  if (subject.coefficient > 0) return subject.coefficient
+  if (subject.plannedCoefficient != null && subject.plannedCoefficient > 0) return subject.plannedCoefficient
+  return 1
+}
+
+function coefficientCellDisplay(subject: SubjectGrade): string | number {
+  if (subject.coefficient > 0) return subject.coefficient
+  if (subject.plannedCoefficient != null && subject.plannedCoefficient > 0) return subject.plannedCoefficient
+  return '-'
 }
 
 function getSpecialityFromClass(className: string | undefined, speciality: string | undefined): string {
@@ -373,7 +386,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
       sequenceNumber: globalSeqNum,
       sequenceName,
       currentMark,
-      currentCoefficient: subject.coefficient,
+      currentCoefficient: effectiveCoefficient(subject),
       editType: 'mark',
     })
     setEditDialogOpen(true)
@@ -423,7 +436,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
     setEditingSubject({
       subjectId: resolvedSubjectId,
       subjectName: subject.subjectName,
-      currentCoefficient: subject.coefficient,
+      currentCoefficient: effectiveCoefficient(subject),
       editType: 'coefficient',
     })
     setEditDialogOpen(true)
@@ -522,10 +535,8 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
     return { coef, totalScore, avg, rank, passed, remark }
   }
 
-  // Calculate GCE section counts
-  // Count subjects that are PASSED (termAverage >= 10) from each category
+  // Calculate GCE section counts — only subjects with GCE codes that passed (avg >= 10)
   const gceCounts = React.useMemo(() => {
-    // Helper to check if a subject passed (termAverage >= 10)
     const isPassed = (s: SubjectGrade) => {
       const seqs = getSequenceValues(s)
       const avg = s.termAverage ?? 
@@ -534,23 +545,31 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
           : seqs.seq1 ?? seqs.seq2 ?? 0)
       return avg >= 10
     }
+
+    const isGcePassed = (s: SubjectGrade) =>
+      s.coefficient > 0 && hasGceSubjectCode(s.code) && isPassed(s)
     
-    const tradePassed = groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.filter(isPassed).length || 0
-    const relatedPassed = groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.filter(isPassed).length || 0
+    const tradePassed = groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.filter(isGcePassed).length || 0
+    const relatedPassed = groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.filter(isGcePassed).length || 0
     
-    const generalPassed = groupedSubjects.find(g => g.category === 'general')?.subjects.filter(isPassed).length || 0
-    const sciencePassed = groupedSubjects.find(g => g.category === 'science')?.subjects.filter(isPassed).length || 0
-    const artsPassed = groupedSubjects.find(g => g.category === 'arts')?.subjects.filter(isPassed).length || 0
-    const languagesPassed = groupedSubjects.find(g => g.category === 'languages')?.subjects.filter(isPassed).length || 0
-    const otherSubjectsPassed = groupedSubjects.find(g => g.category === 'other_subjects')?.subjects.filter(isPassed).length || 0
+    const generalPassed = groupedSubjects.find(g => g.category === 'general')?.subjects.filter(isGcePassed).length || 0
+    const sciencePassed = groupedSubjects.find(g => g.category === 'science')?.subjects.filter(isGcePassed).length || 0
+    const artsPassed = groupedSubjects.find(g => g.category === 'arts')?.subjects.filter(isGcePassed).length || 0
+    const languagesPassed = groupedSubjects.find(g => g.category === 'languages')?.subjects.filter(isGcePassed).length || 0
+    const otherSubjectsPassed = groupedSubjects.find(g => g.category === 'other_subjects')?.subjects.filter(isGcePassed).length || 0
 
     const otherPassed = generalPassed + sciencePassed + artsPassed + languagesPassed + otherSubjectsPassed
+
+    const passed = groupedSubjects.reduce(
+      (sum, group) => sum + group.subjects.filter(isGcePassed).length,
+      0
+    )
     
     return { 
       tradeSubjects: tradePassed, 
       relatedTrade: relatedPassed, 
       otherSubjects: otherPassed, 
-      passed: tradePassed + relatedPassed + otherPassed
+      passed
     }
   }, [groupedSubjects, getSequenceValues])
 
@@ -1186,7 +1205,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                                 }
                               }}
                             >
-                              {subject.coefficient > 0 ? subject.coefficient : '-'}
+                              {coefficientCellDisplay(subject)}
                               {isAdmin && classId && (
                                 <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
                               )}
@@ -1591,7 +1610,7 @@ export function TermReportCard({ data, classId, onRefresh }: TermReportCardProps
                                       }
                                     }}
                                   >
-                                    {subject.coefficient > 0 ? subject.coefficient : '-'}
+                                    {coefficientCellDisplay(subject)}
                                     {isAdmin && classId && (
                                       <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
                                     )}

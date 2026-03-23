@@ -201,10 +201,19 @@ export async function GET(
           const itemCategory = item.category || 'others';
           const category = validCategories.includes(itemCategory) ? itemCategory : 'others';
           
+          const rawCode = item.code
+          const code =
+            typeof rawCode === 'string' && rawCode.trim().length > 0
+              ? rawCode.trim()
+              : undefined
+
           return {
             subjectName: item.name,
             subjectId: item.subjectId, // Include subjectId for editing functionality
+            code,
             coefficient: item.coef,
+            plannedCoefficient:
+              typeof item.plannedCoef === 'number' ? item.plannedCoef : undefined,
             // Include individual sequence marks
             seq1: typeof item.seq1 === 'number' ? item.seq1 : undefined,
             seq2: typeof item.seq2 === 'number' ? item.seq2 : undefined,

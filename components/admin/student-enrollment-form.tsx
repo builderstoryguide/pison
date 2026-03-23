@@ -33,6 +33,7 @@ import { useStudentEnrollment, StudentEnrollmentData } from '@/lib/student-enrol
 import { formatPhoneNumber, isValidPhoneFormat } from '@/lib/phone-utils'
 import { useFormPersistence } from '@/hooks/use-form-persistence'
 import { useClassManagement } from '@/lib/class-management-context'
+import { useToast } from '@/hooks/use-toast'
 
 const cameroonRegions = [
   'Adamawa', 'Centre', 'East', 'Far North', 'Littoral', 
@@ -77,7 +78,8 @@ interface StudentEnrollmentFormProps {
 }
 
 export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollmentFormProps) {
-  const { enrollStudent, isLoading } = useStudentEnrollment()
+  const { enrollStudent, isLoading, error: enrollmentError } = useStudentEnrollment()
+  const { error: showErrorToast } = useToast()
   const { classes: allClasses, isLoading: classesLoading, error: classesError } = useClassManagement()
   const [currentStep, setCurrentStep] = useState(1)
   const { data: formData, setData: setFormData, clearSavedData } = useFormPersistence<StudentEnrollmentData>("student-enrollment-form", {
@@ -183,7 +185,19 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
         className: formData.class
       })
       clearSavedData()
+      return
     }
+    if (result.success && (!result.studentId || !result.parentCode)) {
+      showErrorToast("Enrollment incomplete", {
+        description:
+          "The student was processed but required identifiers are missing. Please contact support or try again.",
+      })
+      return
+    }
+    const message =
+      result.error ??
+      "Enrollment could not be completed. Check the details below or try again."
+    showErrorToast("Enrollment failed", { description: message })
   }
 
   const isStepValid = (step: number): boolean => {
@@ -929,6 +943,13 @@ export function StudentEnrollmentForm({ onSuccess, onCancel }: StudentEnrollment
             )}
           </CardContent>
         </Card>
+
+        {enrollmentError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{enrollmentError}</AlertDescription>
+          </Alert>
+        )}
 
         {/* Navigation Buttons */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">

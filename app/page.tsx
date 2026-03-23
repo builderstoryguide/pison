@@ -2,7 +2,6 @@
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { AppConfigurationProvider } from '@/lib/app-configuration-context-v2'
 import { UserManagementProvider } from "@/lib/user-management-context"
-import { StudentEnrollmentProvider } from "@/lib/student-enrollment-context"
 import { StudentManagementProvider } from "@/lib/student-management-context"
 import { TeacherManagementProvider } from "@/lib/teacher-management-context"
 import { ClassManagementProvider } from "@/lib/class-management-context"
@@ -33,7 +32,6 @@ function AppContent() {
       <AppConfigurationProvider>
         <NotificationProvider>
           <UserManagementProvider>
-          <StudentEnrollmentProvider>
             <StudentManagementProvider>
               <TeacherManagementProvider>
                 <ClassManagementProvider>
@@ -49,8 +47,7 @@ function AppContent() {
                 </ClassManagementProvider>
               </TeacherManagementProvider>
             </StudentManagementProvider>
-          </StudentEnrollmentProvider>
-        </UserManagementProvider>
+          </UserManagementProvider>
       </NotificationProvider>
       </AppConfigurationProvider>
     </ReactQueryProvider>

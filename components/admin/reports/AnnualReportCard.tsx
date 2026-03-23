@@ -14,6 +14,7 @@ import QRCode from 'react-qr-code'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 
+import { hasGceSubjectCode } from '@/lib/report-card-utils'
 import { SubjectGrade } from './report-card-types'
 
 interface AnnualReportCardProps {
@@ -56,6 +57,11 @@ interface AnnualReportCardProps {
       passed: number
       passPercent: number
       classAvg: number
+      gceTradeSubjects?: number
+      gceRelatedTrade?: number
+      gceLanguageSubjects?: number
+      gceOtherSubjects?: number
+      gceSubjectsPassed?: number
     }
     discipline: {
       absences: number
@@ -272,49 +278,49 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh }: AnnualReportCa
     return { coef, totalScore, avg, rank, passed, remark }
   }
 
-  // Calculate GCE section counts
-  // Use API-provided GCE counts (only subjects with codes) if available, otherwise calculate from grouped subjects
+  // GCE counts: subject rows with non-empty code and annual avg >= 10 (coef > 0), aligned with category summaries
   const gceCounts = React.useMemo(() => {
-    // Check if API provides GCE counts (from stats)
-    if (data.stats && 
-        'gceTradeSubjects' in data.stats && 
-        'gceRelatedTrade' in data.stats && 
-        'gceOtherSubjects' in data.stats && 
-        'gceSubjectsPassed' in data.stats) {
+    const anyGceCodeOnSubjects = data.subjects.some(s => hasGceSubjectCode(s.code))
+
+    if (
+      !anyGceCodeOnSubjects &&
+      data.stats &&
+      'gceTradeSubjects' in data.stats &&
+      'gceRelatedTrade' in data.stats &&
+      'gceOtherSubjects' in data.stats &&
+      'gceSubjectsPassed' in data.stats
+    ) {
+      const lang = data.stats.gceLanguageSubjects ?? 0
+      const other = data.stats.gceOtherSubjects ?? 0
       return {
         tradeSubjects: data.stats.gceTradeSubjects ?? 0,
         relatedTrade: data.stats.gceRelatedTrade ?? 0,
-        otherSubjects: data.stats.gceOtherSubjects ?? 0,
+        otherSubjects: lang + other,
         passed: data.stats.gceSubjectsPassed ?? 0
       }
     }
-    
-    // Fallback: Calculate from grouped subjects, but only count subjects with codes (GCE subjects) that are PASSED (marks >= 10)
-    const tradeSubjects = groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.filter(s => {
-      if (!s.code) return false
+
+    const isGceAnnualPassed = (s: SubjectGrade) => {
+      if (s.coefficient === 0) return false
+      if (!hasGceSubjectCode(s.code)) return false
       return (s.annualAverage ?? 0) >= 10
-    }).length || 0
-    
-    const relatedTrade = groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.filter(s => {
-      if (!s.code) return false
-      return (s.annualAverage ?? 0) >= 10
-    }).length || 0
-    
-    const otherSubjects = groupedSubjects.find(g => g.category === 'others')?.subjects.filter(s => {
-      if (!s.code) return false
-      return (s.annualAverage ?? 0) >= 10
-    }).length || 0
-    
-    const passed = groupedSubjects.reduce((sum, group) => {
-      return sum + group.subjects.filter(s => {
-        // Only count subjects with codes (GCE subjects) that are PASSED
-        if (!s.code) return false
-        return (s.annualAverage ?? 0) >= 10
-      }).length
-    }, 0)
-    
+    }
+
+    const tradeSubjects =
+      groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.filter(isGceAnnualPassed).length || 0
+    const relatedTrade =
+      groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.filter(isGceAnnualPassed).length ||
+      0
+    const otherSubjects =
+      groupedSubjects.find(g => g.category === 'others')?.subjects.filter(isGceAnnualPassed).length || 0
+
+    const passed = groupedSubjects.reduce(
+      (sum, group) => sum + group.subjects.filter(isGceAnnualPassed).length,
+      0
+    )
+
     return { tradeSubjects, relatedTrade, otherSubjects, passed }
-  }, [groupedSubjects, data.stats])
+  }, [groupedSubjects, data.stats, data.subjects])
 
   // Generate QR Code data with report card information
   const qrCodeData = useMemo(() => {

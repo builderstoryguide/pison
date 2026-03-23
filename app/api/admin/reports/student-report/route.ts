@@ -613,51 +613,66 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Helper to determine term from assessment title using sequence number
-    const getTermFromTitle = (title: string | null): number | null => {
-        if (!title) return null;
-        const globalSeqNum = extractGlobalSequenceNumber(title);
-        if (globalSeqNum === null) return null;
-        
-        // Map global sequence to term:
-        // Sequences 1-2 → Term 1
-        // Sequences 3-4 → Term 2
-        // Sequences 5-6 → Term 3
-        if (globalSeqNum >= 1 && globalSeqNum <= 2) return 1;
-        if (globalSeqNum >= 3 && globalSeqNum <= 4) return 2;
-        if (globalSeqNum >= 5 && globalSeqNum <= 6) return 3;
+    const termMode = parseAcademicTermMode(academicTermId);
+
+    // Helper to determine term from assessment title / UUID map / optional DB term string
+    const getTermFromAssessment = (
+        title: string | null,
+        termStr: string | null
+    ): number | null => {
+        const g = resolveGlobalSequenceFromTitle(title, sequenceIdToNumberMap);
+        if (g !== null) {
+            return globalSequenceToTerm(g);
+        }
+        if (termStr) {
+            const normalizedDb = termStr.toLowerCase();
+            if (normalizedDb.includes('1st') || normalizedDb.includes('first')) return 1;
+            if (normalizedDb.includes('2nd') || normalizedDb.includes('second')) return 2;
+            if (normalizedDb.includes('3rd') || normalizedDb.includes('third')) return 3;
+        }
         return null;
     };
 
-    // Helper to normalize term matching
-    const isTargetTerm = (termStr: string | null, title?: string | null) => {
-        // First try to determine term from title if provided
-        if (title) {
-            const termFromTitle = getTermFromTitle(title);
-            if (termFromTitle !== null) {
-                const requestedTerm = getTermNumber(academicTermId);
-                return termFromTitle === requestedTerm;
-            }
+    // Helper to normalize term matching (strict for per-term reports; loose for annual)
+    const isTargetTerm = (
+        termStr: string | null,
+        title: string | null | undefined,
+        assessSubject?: string | null
+    ) => {
+        if (termMode.mode === 'annual') {
+            return true;
         }
-        
-        // Fallback to string matching if termStr is provided
+        const requestedTerm = termMode.term;
+
+        const termFromData = getTermFromAssessment(title ?? null, termStr);
+        if (termFromData !== null) {
+            return termFromData === requestedTerm;
+        }
+
         if (termStr) {
             const normalizedInput = academicTermId.toLowerCase();
             const normalizedDb = termStr.toLowerCase();
-            
+
             if (normalizedInput === normalizedDb) return true;
-            
+
             if (normalizedInput.includes('first') && (normalizedDb.includes('1st') || normalizedDb.includes('first'))) return true;
             if (normalizedInput.includes('second') && (normalizedDb.includes('2nd') || normalizedDb.includes('second'))) return true;
             if (normalizedInput.includes('third') && (normalizedDb.includes('3rd') || normalizedDb.includes('third'))) return true;
             if (normalizedDb.includes(normalizedInput)) return true;
         }
-        
-        // If we can't determine term from title or termStr, include the grade anyway
-        // This handles legacy data or assessments with UUID titles
-        // The grade will be processed and included using the fallback mechanism
-        console.warn(`[Report Card] Could not determine term for assessment (title: "${title}", term: "${termStr}"). Including grade anyway.`);
-        return true;
+
+        const subj = assessSubject ? normalizeSubjectName(assessSubject) : '';
+        if (subj.includes('office practice')) {
+            console.warn(
+                `[Report Card] Office Practice: could not determine term (title: "${title}", term: "${termStr}"). Including for backward compatibility.`
+            );
+            return true;
+        }
+
+        console.warn(
+            `[Report Card] Excluding grade: could not determine term (title: "${title}", term: "${termStr}", subject: "${assessSubject ?? ''}").`
+        );
+        return false;
     };
 
     // Process Subjects
@@ -929,6 +944,7 @@ export async function GET(req: NextRequest) {
         
         // Mark this subject as processed
         processedSubjectNames.add(normalizedSubjectName);
+        let computedSequenceMarksForSubject: Record<string, number | undefined> | null = null;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const hasSubBranchesFlag = (subject as any).has_sub_branches;
         
@@ -1001,7 +1017,7 @@ export async function GET(req: NextRequest) {
                 if (cpbBranchGrades.length > 0) {
                   const termFiltered = cpbBranchGrades.filter((bg: any) => {
                     const assessment = bg.assessment as any;
-                    return isTargetTerm(assessment?.term || null, assessment?.title || null);
+                    return isTargetTerm(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
                   });
                   console.log(`[CPB DIAGNOSTIC] Branch grades for target term: ${termFiltered.length}`);
                 }
@@ -1017,7 +1033,7 @@ export async function GET(req: NextRequest) {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const assessment = bg.assessment as any;
                         return bg.branch_id === branch.id && 
-                            isTargetTerm(assessment?.term || null, assessment?.title || null);
+                            isTargetTerm(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
                     }) || [];
 
                     if (bGrades.length > 0) {
@@ -1068,7 +1084,7 @@ export async function GET(req: NextRequest) {
                     const assessment = g.assessment as any;
                     const assessSubject = assessment?.subject || '';
                     return subjectNamesMatch(assessSubject, subjectName) && 
-                        isTargetTerm(assessment?.term || null, assessment?.title || null);
+                        isTargetTerm(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
                 }) || [];
 
                 if (sGrades.length > 0) {
@@ -1132,7 +1148,7 @@ export async function GET(req: NextRequest) {
                 }
                 
                 return matches && 
-                    isTargetTerm(assessment?.term || null, assessment?.title || null);
+                    isTargetTerm(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
             }) || [];
             
             // BC/EPS/AC/HEC AND FORM 1 EPS SUBJECTS: Log grades found
@@ -1180,34 +1196,25 @@ export async function GET(req: NextRequest) {
                 }
             }
 
-            // Determine term number for mapping in-term sequences to global sequences
-            const currentTermNumber = getTermNumber(academicTermId);
+            // Map grades to global sequence slots (1–6). Annual reports use global titles/UUIDs directly.
+            const perTermNum = termMode.mode === 'per_term' ? termMode.term : null;
 
             // Group grades by GLOBAL sequence number (1-6)
             const gradesBySequence: Record<number, number[]> = {};
-            
-            // Helper to check if a string is a UUID
-            const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
             
             for (const grade of sGrades) {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const assessmentTitle = (grade.assessment as any).title || '';
                 let globalSeqNum: number | null = null;
-                
-                // First, try to extract sequence number from title text (e.g., "First Sequence", "Seq 1")
-                const inTermSeqNum = extractInTermSequenceNumber(assessmentTitle, currentTermNumber);
-                
-                if (inTermSeqNum !== null) {
-                    // Map to global sequence number based on term
-                    // Term 1: Seq 1 → seq1, Seq 2 → seq2
-                    // Term 2: Seq 1 → seq3, Seq 2 → seq4
-                    // Term 3: Seq 1 → seq5, Seq 2 → seq6
-                    globalSeqNum = mapToGlobalSequence(inTermSeqNum, currentTermNumber);
-                } else if (isUUID(assessmentTitle) && sequenceIdToNumberMap.has(assessmentTitle)) {
-                    // If title is a UUID, look it up in the sequence map
-                    globalSeqNum = sequenceIdToNumberMap.get(assessmentTitle) || null;
-                    if (globalSeqNum !== null) {
-                        console.log(`[Report Card] Resolved UUID title "${assessmentTitle}" to sequence ${globalSeqNum} for subject "${subjectName}"`);
+
+                if (termMode.mode === 'annual') {
+                    globalSeqNum = resolveGlobalSequenceFromTitle(assessmentTitle, sequenceIdToNumberMap);
+                } else if (perTermNum !== null) {
+                    const inTermSeqNum = extractInTermSequenceNumber(assessmentTitle, perTermNum);
+                    if (inTermSeqNum !== null) {
+                        globalSeqNum = mapToGlobalSequence(inTermSeqNum, perTermNum);
+                    } else {
+                        globalSeqNum = resolveGlobalSequenceFromTitle(assessmentTitle, sequenceIdToNumberMap);
                     }
                 }
                 
@@ -1216,6 +1223,9 @@ export async function GET(req: NextRequest) {
                         gradesBySequence[globalSeqNum] = [];
                     }
                     gradesBySequence[globalSeqNum].push(grade.marks_obtained);
+                    if (isUuidString(assessmentTitle.trim())) {
+                        console.log(`[Report Card] Resolved UUID title "${assessmentTitle}" to sequence ${globalSeqNum} for subject "${subjectName}"`);
+                    }
                 } else {
                     // Fallback: if no sequence number found
                     // For legacy data without sequence in title
@@ -1252,12 +1262,13 @@ export async function GET(req: NextRequest) {
             // This handles cases where assessment titles are UUIDs or otherwise unrecognizable
             if (gradesBySequence[0] && gradesBySequence[0].length > 0) {
                 const unknownGrades = gradesBySequence[0];
-                const currentTermNumber = getTermNumber(academicTermId);
+                const termForDistribution =
+                    termMode.mode === 'per_term' ? termMode.term : 1;
                 
                 // Calculate which global sequences to use based on term
-                // Term 1: seq1, seq2 | Term 2: seq3, seq4 | Term 3: seq5, seq6
-                const seq1ForTerm = (currentTermNumber - 1) * 2 + 1; // 1, 3, or 5
-                const seq2ForTerm = (currentTermNumber - 1) * 2 + 2; // 2, 4, or 6
+                // Term 1: seq1, seq2 | Term 2: seq3, seq4 | Term 3: seq5, seq6 (annual → term 1 slots)
+                const seq1ForTerm = (termForDistribution - 1) * 2 + 1; // 1, 3, or 5
+                const seq2ForTerm = (termForDistribution - 1) * 2 + 2; // 2, 4, or 6
                 
                 if (unknownGrades.length === 2) {
                     // Exactly 2 grades - distribute to seq1 and seq2 for the current term
@@ -1296,13 +1307,22 @@ export async function GET(req: NextRequest) {
                 }
             }
             
-            // Calculate term average from available sequence marks
-            const availableSeqMarks = Object.values(sequenceMarks).filter((m): m is number => m !== undefined);
-            
-            if (availableSeqMarks.length > 0) {
-                finalMark = availableSeqMarks.reduce((a, b) => a + b, 0) / availableSeqMarks.length;
+            // Calculate term average from sequence marks for this report only (not all six slots on a term bulletin)
+            let marksForTermAverage: number[] = [];
+            if (termMode.mode === 'annual') {
+                marksForTermAverage = Object.values(sequenceMarks).filter((m): m is number => m !== undefined);
+            } else if (perTermNum !== null) {
+                const [slotA, slotB] = getGlobalSequenceSlotsForTerm(perTermNum);
+                const a = sequenceMarks[`seq${slotA}`];
+                const b = sequenceMarks[`seq${slotB}`];
+                if (a !== undefined) marksForTermAverage.push(a);
+                if (b !== undefined) marksForTermAverage.push(b);
+            }
+
+            if (marksForTermAverage.length > 0) {
+                finalMark = marksForTermAverage.reduce((acc, m) => acc + m, 0) / marksForTermAverage.length;
                 hasMark = true;
-                console.log(`[Report Card] Subject "${subjectName}": Found ${availableSeqMarks.length} sequence marks, average: ${finalMark.toFixed(2)}`);
+                console.log(`[Report Card] Subject "${subjectName}": Found ${marksForTermAverage.length} sequence mark(s) for this report, average: ${finalMark.toFixed(2)}`);
                 
                 // #region agent log - CPB final mark calculation
                 const normSubjForLog = normalizeSubjectName(subjectName);
@@ -1316,8 +1336,8 @@ export async function GET(req: NextRequest) {
                     console.log(`[${subjectName.toUpperCase()} SUCCESS] Marks calculated successfully:`, {
                         subjectName,
                         finalMark: finalMark.toFixed(2),
-                        sequenceMarks: availableSeqMarks,
-                        sequenceCount: availableSeqMarks.length
+                        sequenceMarks: marksForTermAverage,
+                        sequenceCount: marksForTermAverage.length
                     });
                 }
             } else if (gradesBySequence[0] && gradesBySequence[0].length > 0) {
@@ -1325,6 +1345,10 @@ export async function GET(req: NextRequest) {
                 finalMark = gradesBySequence[0].reduce((a, b) => a + b, 0) / gradesBySequence[0].length;
                 hasMark = true;
                 console.log(`[Report Card] Subject "${subjectName}": Using legacy grades (${gradesBySequence[0].length} grades with unknown sequences), average: ${finalMark.toFixed(2)}`);
+                if (termMode.mode === 'per_term' && perTermNum !== null) {
+                    const [slotA] = getGlobalSequenceSlotsForTerm(perTermNum);
+                    sequenceMarks[`seq${slotA}`] = parseFloat(finalMark.toFixed(2));
+                }
                 
                 // Log legacy marks for target subjects
                 if (isTargetSubject) {
@@ -1358,6 +1382,7 @@ export async function GET(req: NextRequest) {
                     });
                 }
             }
+            computedSequenceMarksForSubject = { ...sequenceMarks };
         }
 
         if (hasMark) {
@@ -1389,66 +1414,59 @@ export async function GET(req: NextRequest) {
             // Get sequence marks for this subject (for normal subjects only)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const subjectSequenceMarks: any = {};
-            if (!hasSubBranches) {
-                // Use validGradesData which has been filtered by teacher assignments
+            if (!hasSubBranches && computedSequenceMarksForSubject) {
+                for (let i = 1; i <= 6; i++) {
+                    const v = computedSequenceMarksForSubject[`seq${i}`];
+                    if (v !== undefined) {
+                        subjectSequenceMarks[`seq${i}`] = v;
+                    }
+                }
+            } else if (!hasSubBranches) {
+                // Branch subject that fell back to standard grades never ran the normal-subject block
                 const sGradesForOutput = validGradesData?.filter(g => {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const assessment = g.assessment as any;
                     const assessSubject = assessment?.subject || '';
-                    // Use normalized comparison to handle case sensitivity and whitespace
-                    return subjectNamesMatch(assessSubject, subjectName) && 
-                        isTargetTerm(assessment?.term || null, assessment?.title || null);
+                    return subjectNamesMatch(assessSubject, subjectName) &&
+                        isTargetTerm(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
                 }) || [];
-                
-                // Recalculate sequence marks for output using proper term-based mapping
-                const currentTermNumber = getTermNumber(academicTermId);
+                const perTermOut = termMode.mode === 'per_term' ? termMode.term : null;
                 const gradesBySeq: Record<number, number[]> = {};
                 const unknownSeqGrades: number[] = [];
-                
-                // Helper to check if a string is a UUID
-                const isUUIDStr = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
-                
                 for (const grade of sGradesForOutput) {
                     const assessmentTitle = grade.assessment?.title || '';
                     let globalSeqNum: number | null = null;
-                    
-                    // First try to extract from title text
-                    const inTermSeqNum = extractInTermSequenceNumber(assessmentTitle, currentTermNumber);
-                    if (inTermSeqNum !== null) {
-                        globalSeqNum = mapToGlobalSequence(inTermSeqNum, currentTermNumber);
-                    } else if (isUUIDStr(assessmentTitle) && sequenceIdToNumberMap.has(assessmentTitle)) {
-                        // If title is a UUID, look it up in the sequence map
-                        globalSeqNum = sequenceIdToNumberMap.get(assessmentTitle) || null;
+                    if (termMode.mode === 'annual') {
+                        globalSeqNum = resolveGlobalSequenceFromTitle(assessmentTitle, sequenceIdToNumberMap);
+                    } else if (perTermOut !== null) {
+                        const inTermSeqNum = extractInTermSequenceNumber(assessmentTitle, perTermOut);
+                        if (inTermSeqNum !== null) {
+                            globalSeqNum = mapToGlobalSequence(inTermSeqNum, perTermOut);
+                        } else {
+                            globalSeqNum = resolveGlobalSequenceFromTitle(assessmentTitle, sequenceIdToNumberMap);
+                        }
                     }
-                    
                     if (globalSeqNum !== null && globalSeqNum >= 1 && globalSeqNum <= 6) {
                         if (!gradesBySeq[globalSeqNum]) gradesBySeq[globalSeqNum] = [];
                         gradesBySeq[globalSeqNum].push(grade.marks_obtained);
                     } else {
-                        // Track unknown grades for fallback distribution
                         unknownSeqGrades.push(grade.marks_obtained);
                     }
                 }
-                
-                // FALLBACK: Distribute unknown grades to sequences based on count
                 if (unknownSeqGrades.length > 0) {
-                    const seq1ForTerm = (currentTermNumber - 1) * 2 + 1;
-                    const seq2ForTerm = (currentTermNumber - 1) * 2 + 2;
-                    
+                    const termForDist = termMode.mode === 'per_term' ? termMode.term : 1;
+                    const seq1ForTerm = (termForDist - 1) * 2 + 1;
+                    const seq2ForTerm = (termForDist - 1) * 2 + 2;
                     if (unknownSeqGrades.length === 2) {
-                        // Exactly 2 grades - distribute to seq1 and seq2
                         if (!gradesBySeq[seq1ForTerm]) gradesBySeq[seq1ForTerm] = [];
                         if (!gradesBySeq[seq2ForTerm]) gradesBySeq[seq2ForTerm] = [];
                         gradesBySeq[seq1ForTerm].push(unknownSeqGrades[0]);
                         gradesBySeq[seq2ForTerm].push(unknownSeqGrades[1]);
                     } else if (unknownSeqGrades.length === 1) {
-                        // Only 1 grade - assign to seq1
                         if (!gradesBySeq[seq1ForTerm]) gradesBySeq[seq1ForTerm] = [];
                         gradesBySeq[seq1ForTerm].push(unknownSeqGrades[0]);
                     }
-                    // For more than 2, we can't reliably distribute, so they're not included in sequence marks
                 }
-                
                 for (let i = 1; i <= 6; i++) {
                     if (gradesBySeq[i] && gradesBySeq[i].length > 0) {
                         const avg = gradesBySeq[i].reduce((a, b) => a + b, 0) / gradesBySeq[i].length;
@@ -1483,6 +1501,7 @@ export async function GET(req: NextRequest) {
                 code: subjectCode || undefined, // Include subject code for GCE identification
                 eval: '-',
                 coef: 0, // Set to 0 when no marks - excluded from calculations
+                plannedCoef: subjectCoef, // Nominal coefficient from class_subjects (display only)
                 total: '-',
                 grade: '-',
                 rank: '-',
@@ -1542,8 +1561,24 @@ export async function GET(req: NextRequest) {
             
             // Calculate subject-level rankings
             // OPTIMIZATION: Fetch all grades for all students in the class at once instead of per-student queries
-            const currentTermNumber = getTermNumber(academicTermId);
             const allStudentIds = allClassStudents.map(s => s.id);
+
+            const gradeMatchesReportTermForRanking = (
+                title: string | null | undefined,
+                assessSubject: string | null | undefined
+            ): boolean => {
+                if (termMode.mode === 'annual') return true;
+                const g = resolveGlobalSequenceFromTitle(title ?? null, sequenceIdToNumberMap);
+                const termFromData = g !== null ? globalSequenceToTerm(g) : null;
+                if (termFromData !== null) {
+                    return termFromData === termMode.term;
+                }
+                if (assessSubject) {
+                    const subj = normalizeSubjectName(assessSubject);
+                    if (subj.includes('office practice')) return true;
+                }
+                return false;
+            };
             
             // Batch fetch all grades for all students in the class
             interface RankingAssessment {
@@ -1609,15 +1644,7 @@ export async function GET(req: NextRequest) {
                         // Check if this grade is for the current subject
                         if (!subjectNamesMatch(assessSubject, subjectName)) continue;
                         
-                        // Filter for current term
-                        const globalSeqNum = extractGlobalSequenceNumber(assessment?.title || '');
-                        let termFromTitle: number | null = null;
-                        if (globalSeqNum !== null) {
-                            if (globalSeqNum >= 1 && globalSeqNum <= 2) termFromTitle = 1;
-                            else if (globalSeqNum >= 3 && globalSeqNum <= 4) termFromTitle = 2;
-                            else if (globalSeqNum >= 5 && globalSeqNum <= 6) termFromTitle = 3;
-                        }
-                        if (termFromTitle !== currentTermNumber) continue;
+                        if (!gradeMatchesReportTermForRanking(assessment?.title, assessSubject)) continue;
                         
                         // Skip current student (already added above)
                         if (grade.student_id === studentId) continue;
@@ -1689,14 +1716,10 @@ export async function GET(req: NextRequest) {
                     const termGrades = studentGrades.filter(grade => {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const assessment = grade.assessment as any;
-                        const globalSeqNum = extractGlobalSequenceNumber(assessment?.title || '');
-                        let termFromTitle: number | null = null;
-                        if (globalSeqNum !== null) {
-                            if (globalSeqNum >= 1 && globalSeqNum <= 2) termFromTitle = 1;
-                            else if (globalSeqNum >= 3 && globalSeqNum <= 4) termFromTitle = 2;
-                            else if (globalSeqNum >= 5 && globalSeqNum <= 6) termFromTitle = 3;
-                        }
-                        return termFromTitle === currentTermNumber;
+                        return gradeMatchesReportTermForRanking(
+                            assessment?.title,
+                            assessment?.subject ?? null
+                        );
                     });
                     
                     if (termGrades.length > 0) {
@@ -2087,6 +2110,48 @@ function getTermNumber(termStr: string): number {
     if (lower.includes('second') || lower.includes('2nd') || lower === '2') return 2;
     if (lower.includes('third') || lower.includes('3rd') || lower === '3') return 3;
     return 1; // Default to term 1
+}
+
+function isUuidString(str: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
+}
+
+type AcademicReportTermMode =
+    | { mode: 'per_term'; term: 1 | 2 | 3 }
+    | { mode: 'annual' };
+
+function parseAcademicTermMode(academicTermId: string): AcademicReportTermMode {
+    const lower = academicTermId.toLowerCase();
+    if (lower === 'annual' || lower.includes('annual')) {
+        return { mode: 'annual' };
+    }
+    return { mode: 'per_term', term: getTermNumber(academicTermId) as 1 | 2 | 3 };
+}
+
+function globalSequenceToTerm(globalSeq: number): 1 | 2 | 3 | null {
+    if (globalSeq >= 1 && globalSeq <= 2) return 1;
+    if (globalSeq >= 3 && globalSeq <= 4) return 2;
+    if (globalSeq >= 5 && globalSeq <= 6) return 3;
+    return null;
+}
+
+function getGlobalSequenceSlotsForTerm(term: 1 | 2 | 3): [number, number] {
+    const base = (term - 1) * 2 + 1;
+    return [base, base + 1];
+}
+
+/** Global sequence 1–6 from title text or academic_sequences UUID / name map */
+function resolveGlobalSequenceFromTitle(
+    title: string | null | undefined,
+    sequenceIdToNumberMap: Map<string, number>
+): number | null {
+    if (!title) return null;
+    const t = title.trim();
+    if (isUuidString(t) && sequenceIdToNumberMap.has(t)) {
+        const n = sequenceIdToNumberMap.get(t);
+        if (n !== undefined && n >= 1 && n <= 6) return n;
+    }
+    return extractGlobalSequenceNumber(t);
 }
 
 /**

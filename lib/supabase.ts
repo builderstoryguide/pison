@@ -5,6 +5,35 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null
 
+/** Default ceiling for a single Supabase HTTP round-trip (client has no built-in timeout). */
+export const SUPABASE_REQUEST_TIMEOUT_MS = 30_000
+
+const DEFAULT_TIMEOUT_MESSAGE =
+  "The database request timed out. Check your network connection and try again."
+
+/**
+ * Rejects if `promise` does not settle within `ms`. The underlying fetch may still run in the background.
+ * Accepts `PromiseLike` so Supabase query builders work without an extra wrapper.
+ */
+export async function withTimeout<T>(
+  promise: PromiseLike<T>,
+  ms: number,
+  timeoutMessage: string = DEFAULT_TIMEOUT_MESSAGE,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const id = setTimeout(() => reject(new Error(timeoutMessage)), ms)
+    Promise.resolve(promise)
+      .then((value) => {
+        clearTimeout(id)
+        resolve(value)
+      })
+      .catch((err) => {
+        clearTimeout(id)
+        reject(err)
+      })
+  })
+}
+
 export const isSupabaseAvailable = (): boolean => {
   return !!(supabaseUrl && supabaseAnonKey && supabase)
 }
@@ -20,7 +49,11 @@ export const testConnection = async (): Promise<boolean> => {
 
   try {
     // Test with a simple query to check if the connection works
-    const { error } = await supabase.from("users").select("count", { count: "exact", head: true })
+    const { error } = await withTimeout(
+      supabase.from("users").select("count", { count: "exact", head: true }),
+      SUPABASE_REQUEST_TIMEOUT_MS,
+      DEFAULT_TIMEOUT_MESSAGE,
+    )
     
     if (error) {
       // Use console.warn instead of console.error to avoid triggering Next.js error boundaries

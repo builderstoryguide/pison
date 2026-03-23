@@ -5,6 +5,8 @@ export interface SubjectGrade {
   subjectId?: string
   code?: string
   coefficient: number
+  /** From class_subjects when there are no marks yet (display only; totals use coefficient) */
+  plannedCoefficient?: number
   category?: 'languages' | 'related_trade_subjects' | 'trade_subjects' | 'others'
   sequences?: {
     seq1?: number

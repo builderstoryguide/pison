@@ -1,12 +1,23 @@
 "use client"
 
 import { createContext, useContext, useState, type ReactNode } from "react"
-import { supabase, testConnection } from "./supabase"
+import { supabase, testConnection, withTimeout, SUPABASE_REQUEST_TIMEOUT_MS } from "./supabase"
 import { useNotifications } from "./notification-context"
 import { activityLogger } from "./activity-logger"
 import { generateDefaultPassword } from "./password-utils"
 import bcrypt from "bcryptjs"
 import { useGlobalAcademicYear } from "./app-configuration-context-v2"
+
+const ENROLL_DB_TIMEOUT_SUFFIX =
+  "The database request timed out. Check your network connection and try again."
+
+function enrollDbTimeout<T>(promise: PromiseLike<T>, step: string): Promise<T> {
+  return withTimeout(
+    promise,
+    SUPABASE_REQUEST_TIMEOUT_MS,
+    `${step}: ${ENROLL_DB_TIMEOUT_SUFFIX}`,
+  )
+}
 
 // Helper function to generate initials from name
 function generateInitials(name: string): string {
@@ -133,12 +144,15 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
       }
       
       // Get existing student IDs for this year from database
-      const { data } = await supabase
-        .from("students")
-        .select("student_id")
-        .like("student_id", `STU${year}%`)
-        .order("student_id", { ascending: false })
-        .limit(1)
+      const { data } = await enrollDbTimeout(
+        supabase
+          .from("students")
+          .select("student_id")
+          .like("student_id", `STU${year}%`)
+          .order("student_id", { ascending: false })
+          .limit(1),
+        "Look up student ID sequence",
+      )
 
       if (data && data.length > 0) {
         const lastId = data[0].student_id
@@ -147,6 +161,9 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
       }
     } catch (error) {
       console.error("Error generating student ID from database:", error)
+      if (error instanceof Error && error.message.includes("timed out")) {
+        throw error
+      }
       throw new Error("Failed to generate student ID from database")
     }
 
@@ -163,12 +180,15 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
       }
       
       // Get existing parent codes for this year from database
-      const { data } = await supabase
-        .from("parents")
-        .select("parent_code")
-        .like("parent_code", `PAR${year}%`)
-        .order("parent_code", { ascending: false })
-        .limit(1)
+      const { data } = await enrollDbTimeout(
+        supabase
+          .from("parents")
+          .select("parent_code")
+          .like("parent_code", `PAR${year}%`)
+          .order("parent_code", { ascending: false })
+          .limit(1),
+        "Look up parent code sequence",
+      )
 
       if (data && data.length > 0) {
         const lastCode = data[0].parent_code
@@ -177,6 +197,9 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
       }
     } catch (error) {
       console.error("Error generating parent code from database:", error)
+      if (error instanceof Error && error.message.includes("timed out")) {
+        throw error
+      }
       throw new Error("Failed to generate parent code from database")
     }
 
@@ -230,10 +253,10 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
       }
       
       // First, let's check if the students table exists and is accessible
-      const { data: _tableCheckData, error: tableCheckError } = await supabase
-        .from("students")
-        .select("student_id")
-        .limit(1)
+      const { data: _tableCheckData, error: tableCheckError } = await enrollDbTimeout(
+        supabase.from("students").select("student_id").limit(1),
+        "Verify students table",
+      )
       
       if (tableCheckError) {
         console.error("Table check error:", tableCheckError)
@@ -244,11 +267,14 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
       
       // Check if matricule number already exists (if provided)
       if (studentData.matriculeNumber) {
-        const { data: existingMatricule } = await supabase
-          .from("students")
-          .select("id")
-          .eq("matricule_number", studentData.matriculeNumber)
-          .maybeSingle()
+        const { data: existingMatricule } = await enrollDbTimeout(
+          supabase
+            .from("students")
+            .select("id")
+            .eq("matricule_number", studentData.matriculeNumber)
+            .maybeSingle(),
+          "Check matricule number",
+        )
 
         if (existingMatricule) {
           throw new Error("Matricule Number already exists. Please use a different matricule number.")
@@ -267,40 +293,43 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
       })
 
       // Insert student into database
-      const { data: student, error: studentError } = await supabase
-        .from("students")
-        .insert({
-          student_id: studentId,
-          first_name: studentData.firstName,
-          last_name: studentData.lastName,
-          middle_name: studentData.middleName,
-          matricule_number: studentData.matriculeNumber,
-          email: normalizedStudentEmail,
-          phone: studentData.phone,
-          date_of_birth: studentData.dateOfBirth,
-          gender: studentData.gender,
-          place_of_birth: studentData.placeOfBirth,
-          nationality: studentData.nationality || "Cameroonian",
-          religion: studentData.religion,
-          address: studentData.address,
-          city: studentData.city,
-          region: studentData.region,
-          subsystem: studentData.subsystem,
-          branch: studentData.branch,
-          class: studentData.class,
-          previous_school: studentData.previousSchool,
-          previous_class: studentData.previousClass,
-          is_new_student: true,
-          total_fees: 0,
-          paid_fees: 0,
-          fees_status: "pending",
-          enrollment_status: "pending",
-          academic_year: globalAcademicYear,
-          status: "active",
-          enrollment_date: new Date().toISOString().split('T')[0],
-        })
-        .select()
-        .single()
+      const { data: student, error: studentError } = await enrollDbTimeout(
+        supabase
+          .from("students")
+          .insert({
+            student_id: studentId,
+            first_name: studentData.firstName,
+            last_name: studentData.lastName,
+            middle_name: studentData.middleName,
+            matricule_number: studentData.matriculeNumber,
+            email: normalizedStudentEmail,
+            phone: studentData.phone,
+            date_of_birth: studentData.dateOfBirth,
+            gender: studentData.gender,
+            place_of_birth: studentData.placeOfBirth,
+            nationality: studentData.nationality || "Cameroonian",
+            religion: studentData.religion,
+            address: studentData.address,
+            city: studentData.city,
+            region: studentData.region,
+            subsystem: studentData.subsystem,
+            branch: studentData.branch,
+            class: studentData.class,
+            previous_school: studentData.previousSchool,
+            previous_class: studentData.previousClass,
+            is_new_student: true,
+            total_fees: 0,
+            paid_fees: 0,
+            fees_status: "pending",
+            enrollment_status: "pending",
+            academic_year: globalAcademicYear,
+            status: "active",
+            enrollment_date: new Date().toISOString().split('T')[0],
+          })
+          .select()
+          .single(),
+        "Create student record",
+      )
 
       if (studentError) {
         console.error("Student creation error:", studentError)
@@ -330,16 +359,19 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
       }
 
       // Insert parent
-      const { error: parentError } = await supabase.from("parents").insert({
-        parent_code: parentCode,
-        name: studentData.parentName,
-        email: normalizedParentEmail,
-        phone: studentData.parentPhone,
-        address: studentData.parentAddress,
-        occupation: studentData.parentOccupation,
-        relationship: studentData.relationship,
-        student_id: studentId, // Link to the student ID, not the database row ID
-      })
+      const { error: parentError } = await enrollDbTimeout(
+        supabase.from("parents").insert({
+          parent_code: parentCode,
+          name: studentData.parentName,
+          email: normalizedParentEmail,
+          phone: studentData.parentPhone,
+          address: studentData.parentAddress,
+          occupation: studentData.parentOccupation,
+          relationship: studentData.relationship,
+          student_id: studentId, // Link to the student ID, not the database row ID
+        }),
+        "Create parent record",
+      )
 
       if (parentError) {
         console.warn("Failed to create parent:", parentError.message)
@@ -358,23 +390,26 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
         const studentName = `${studentData.firstName} ${studentData.lastName}`
         const studentInitials = generateInitials(studentName)
         
-        const { data: studentUserData, error: studentUserError } = await supabase
-          .from('users')
-          .insert({
-            email: studentEmail,
-            password_hash: await bcrypt.hash(studentPassword, 12),
-            name: studentName,
-            role: 'student',
-            status: 'active',
-            avatar_url: `initials:${studentInitials}`, // Store initials as avatar URL
-            phone: studentData.phone,
-            has_default_password: true,
-            password_last_changed: new Date().toISOString(),
-            password_expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-            permissions: ['view_own_progress', 'view_own_schedule', 'view_own_fees', 'communicate_teachers'],
-          })
-          .select()
-          .single()
+        const { data: studentUserData, error: studentUserError } = await enrollDbTimeout(
+          supabase
+            .from('users')
+            .insert({
+              email: studentEmail,
+              password_hash: await bcrypt.hash(studentPassword, 12),
+              name: studentName,
+              role: 'student',
+              status: 'active',
+              avatar_url: `initials:${studentInitials}`, // Store initials as avatar URL
+              phone: studentData.phone,
+              has_default_password: true,
+              password_last_changed: new Date().toISOString(),
+              password_expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+              permissions: ['view_own_progress', 'view_own_schedule', 'view_own_fees', 'communicate_teachers'],
+            })
+            .select()
+            .single(),
+          "Create student user account",
+        )
 
         if (studentUserError) {
           console.warn("Failed to create student user account:", studentUserError.message)
@@ -383,9 +418,8 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
           
           // Create user profile for student to link with student_id
           if (studentUser) {
-            const { error: profileError } = await supabase
-              .from('user_profiles')
-              .insert({
+            const { error: profileError } = await enrollDbTimeout(
+              supabase.from('user_profiles').insert({
                 user_id: studentUser.id,
                 role_specific_id: studentId, // Link to student_id
                 subsystem: studentData.subsystem,
@@ -397,7 +431,9 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
                 blood_group: studentData.bloodGroup,
                 allergies: studentData.allergies,
                 medical_conditions: studentData.medicalConditions,
-              })
+              }),
+              "Create student user profile",
+            )
             
             if (profileError) {
               console.warn("Failed to create student user profile:", profileError.message)
@@ -411,23 +447,26 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
       if (parentEmail) {
         const parentInitials = generateInitials(studentData.parentName)
         
-        const { data: parentUserData, error: parentUserError } = await supabase
-          .from('users')
-          .insert({
-            email: parentEmail,
-            password_hash: await bcrypt.hash(parentPassword, 12),
-            name: studentData.parentName,
-            role: 'parent',
-            status: 'active',
-            avatar_url: `initials:${parentInitials}`, // Store initials as avatar URL
-            phone: studentData.parentPhone,
-            has_default_password: true,
-            password_last_changed: new Date().toISOString(),
-            password_expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-            permissions: ['view_child_progress', 'view_child_schedule', 'view_child_fees', 'communicate_teachers'],
-          })
-          .select()
-          .single()
+        const { data: parentUserData, error: parentUserError } = await enrollDbTimeout(
+          supabase
+            .from('users')
+            .insert({
+              email: parentEmail,
+              password_hash: await bcrypt.hash(parentPassword, 12),
+              name: studentData.parentName,
+              role: 'parent',
+              status: 'active',
+              avatar_url: `initials:${parentInitials}`, // Store initials as avatar URL
+              phone: studentData.parentPhone,
+              has_default_password: true,
+              password_last_changed: new Date().toISOString(),
+              password_expiry_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+              permissions: ['view_child_progress', 'view_child_schedule', 'view_child_fees', 'communicate_teachers'],
+            })
+            .select()
+            .single(),
+          "Create parent user account",
+        )
 
         if (parentUserError) {
           console.warn("Failed to create parent user account:", parentUserError.message)
@@ -436,9 +475,8 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
           
           // Create user profile for parent to link with parent_code
           if (parentUser) {
-            const { error: profileError } = await supabase
-              .from('user_profiles')
-              .insert({
+            const { error: profileError } = await enrollDbTimeout(
+              supabase.from('user_profiles').insert({
                 user_id: parentUser.id,
                 role_specific_id: parentCode, // Link to parent_code
                 relationship: studentData.relationship,
@@ -446,7 +484,9 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
                 emergency_contact_name: studentData.emergencyContactName,
                 emergency_contact_phone: studentData.emergencyContactPhone,
                 emergency_contact_relationship: studentData.emergencyContactRelationship,
-              })
+              }),
+              "Create parent user profile",
+            )
             
             if (profileError) {
               console.warn("Failed to create parent user profile:", profileError.message)
@@ -459,12 +499,15 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
 
       // Insert emergency contact
       if (studentData.emergencyContactName && studentData.emergencyContactPhone) {
-        const { error: emergencyError } = await supabase.from("emergency_contacts").insert({
-          student_id: student.id,
-          name: studentData.emergencyContactName,
-          phone: studentData.emergencyContactPhone,
-          relationship: studentData.emergencyContactRelationship,
-        })
+        const { error: emergencyError } = await enrollDbTimeout(
+          supabase.from("emergency_contacts").insert({
+            student_id: student.id,
+            name: studentData.emergencyContactName,
+            phone: studentData.emergencyContactPhone,
+            relationship: studentData.emergencyContactRelationship,
+          }),
+          "Create emergency contact",
+        )
 
         if (emergencyError) {
           console.warn("Failed to create emergency contact:", emergencyError.message)
@@ -487,12 +530,15 @@ export function StudentEnrollmentProvider({ children }: { children: ReactNode })
 
       // Insert medical info
       if (studentData.bloodGroup || studentData.allergies || studentData.medicalConditions) {
-        const { error: medicalError } = await supabase.from("medical_info").insert({
-          student_id: student.id,
-          blood_group: studentData.bloodGroup,
-          allergies: studentData.allergies,
-          medical_conditions: studentData.medicalConditions,
-        })
+        const { error: medicalError } = await enrollDbTimeout(
+          supabase.from("medical_info").insert({
+            student_id: student.id,
+            blood_group: studentData.bloodGroup,
+            allergies: studentData.allergies,
+            medical_conditions: studentData.medicalConditions,
+          }),
+          "Create medical info",
+        )
 
         if (medicalError) {
           console.warn("Failed to create medical info:", medicalError.message)
