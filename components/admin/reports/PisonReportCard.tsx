@@ -121,7 +121,7 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
               <p>Paix - Travail - Patrie</p>
               <p>Ministère des Enseignements Secondaires</p>
               <p>Délégation Régional de Littoral</p>
-              <p className="font-bold text-black mt-1">PISON ACADEMY OF EXCELLENCE</p>
+              <p className="text-black mt-1">PISON ACADEMY OF EXCELLENCE</p>
             </div>
             
             <div className="flex flex-col items-center justify-center">
@@ -141,8 +141,8 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
                   />
                 )}
               </div>
-              <p className="text-xs font-mono">
-                ORDER Nº: <span className="text-red-600 font-bold">{data.academic.orderNo?.split('OF')[0] ?? data.academic.orderNo}</span>
+              <p className="uppercase text-black text-[0.6rem] text-center">
+                PO Box 58 Edea Tel: 676521570
               </p>
             </div>
 
@@ -151,8 +151,7 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
               <p>Peace - Work - Fatherland</p>
               <p>Ministry of Secondary Education</p>
               <p>Regional Delegation of Littoral</p>
-              <p className="font-bold text-black mt-1 text-blue-800">PISON ACADEMY OF EXCELLENCE</p>
-              <p className="normal-case text-red-600 text-[0.6rem]">PO Box 58 Edea Tel: 676521570</p>
+              <p className="text-black mt-1">PISON ACADEMY OF EXCELLENCE</p>
             </div>
           </header>
 

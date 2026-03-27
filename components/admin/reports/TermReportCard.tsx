@@ -60,6 +60,7 @@ interface TermReportCardProps {
       classAvg: number
       gceTradeSubjects?: number
       gceRelatedTrade?: number
+      gceLanguageSubjects?: number
       gceOtherSubjects?: number
       gceSubjectsPassed?: number
     }
@@ -421,6 +422,26 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
 
   // Calculate GCE section counts — only subjects with GCE codes that passed (avg >= 10)
   const gceCounts = React.useMemo(() => {
+    const anyGceCodeOnSubjects = data.subjects.some(s => hasGceSubjectCode(s.code))
+
+    if (
+      !anyGceCodeOnSubjects &&
+      data.stats &&
+      'gceTradeSubjects' in data.stats &&
+      'gceRelatedTrade' in data.stats &&
+      'gceOtherSubjects' in data.stats &&
+      'gceSubjectsPassed' in data.stats
+    ) {
+      const language = data.stats.gceLanguageSubjects ?? 0
+      const other = data.stats.gceOtherSubjects ?? 0
+      return {
+        tradeSubjects: data.stats.gceTradeSubjects ?? 0,
+        relatedTrade: data.stats.gceRelatedTrade ?? 0,
+        otherSubjects: language + other,
+        passed: data.stats.gceSubjectsPassed ?? 0,
+      }
+    }
+
     const isPassed = (s: SubjectGrade) => {
       const seqs = getSequenceValues(s)
       const avg = s.termAverage ?? 
@@ -444,10 +465,7 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
 
     const otherPassed = generalPassed + sciencePassed + artsPassed + languagesPassed + otherSubjectsPassed
 
-    const passed = groupedSubjects.reduce(
-      (sum, group) => sum + group.subjects.filter(isGcePassed).length,
-      0
-    )
+    const passed = groupedSubjects.reduce((sum, group) => sum + group.subjects.filter(isGcePassed).length, 0)
     
     return { 
       tradeSubjects: tradePassed, 
@@ -455,7 +473,12 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
       otherSubjects: otherPassed, 
       passed
     }
-  }, [groupedSubjects, getSequenceValues])
+  }, [groupedSubjects, getSequenceValues, data.stats, data.subjects])
+
+  const formatGceCount = React.useCallback((value: number) => {
+    const safeInt = Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0
+    return safeInt.toString().padStart(2, '0')
+  }, [])
 
   // Generate QR Code data with report card information
   const qrCodeData = useMemo(() => {
@@ -1004,7 +1027,7 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
               <p className="print:leading-[1.15]">Paix - Travail - Patrie</p>
               <p className="print:leading-[1.15]">Ministère des Enseignements Secondaires</p>
               <p className="print:leading-[1.15]">Délégation Régional de Littoral</p>
-              <p className="font-bold text-[#2B4593] print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
+              <p className="text-black print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
             </div>
 
             <div className="flex flex-col items-center justify-center gap-1.5 print:gap-1 min-h-[6.5rem] md:min-h-[7.25rem]">
@@ -1022,11 +1045,8 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
                   />
                 )}
               </div>
-              <div className="text-[0.5rem] print:text-[6pt] font-mono w-full max-w-[15rem] mx-auto text-center leading-snug px-1">
-                ORDER Nº:{' '}
-                <span className="text-[#A52A2A] font-bold break-words">
-                  714/24/MINESEC/SG/DESTP/SSEPTP OF 31 DECEMBER 2024
-                </span>
+              <div className="uppercase text-black text-[0.5rem] print:text-[6pt] print:leading-[1.15] text-center">
+                PO Box 58 Edea Tel: 676521570
               </div>
             </div>
 
@@ -1035,8 +1055,7 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
               <p className="print:leading-[1.15]">Peace - Work - Fatherland</p>
               <p className="print:leading-[1.15]">Ministry of Secondary Education</p>
               <p className="print:leading-[1.15]">Regional Delegation of Littoral</p>
-              <p className="font-bold text-[#2B4593] print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
-              <p className="normal-case text-[#A52A2A] text-[0.5rem] print:text-[6pt] print:leading-[1.15]">PO Box 58 Edea Tel: 676521570</p>
+              <p className="text-black print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
             </div>
           </header>
 
@@ -1356,11 +1375,11 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
                 <h4 className="font-bold text-[0.6rem] print:text-[7pt] text-left uppercase">GCE SECTION</h4>
               </div>
               <div className="space-y-0.5 font-mono text-[0.6rem] print:text-[7pt] p-1 print:p-0.5">
-                <div className="flex justify-between"><span>Trade Subjects:</span> <span>{gceCounts.tradeSubjects.toString().padStart(2, '0')}</span></div>
-                <div className="flex justify-between"><span>Related Trade:</span> <span>{gceCounts.relatedTrade.toFixed(1)}</span></div>
-                <div className="flex justify-between"><span>Other Subjects:</span> <span>{gceCounts.otherSubjects.toFixed(1)}</span></div>
+                <div className="flex justify-between"><span>Trade Subjects:</span> <span>{formatGceCount(gceCounts.tradeSubjects)}</span></div>
+                <div className="flex justify-between"><span>Related Trade:</span> <span>{formatGceCount(gceCounts.relatedTrade)}</span></div>
+                <div className="flex justify-between"><span>Other Subjects:</span> <span>{formatGceCount(gceCounts.otherSubjects)}</span></div>
                 <div className="flex justify-between font-bold pt-1 border-t border-gray-300 mt-1">
-                  <span>GCE SUBJECTS PASSED:</span> <span>{gceCounts.passed.toString().padStart(2, '0')}</span>
+                  <span>GCE SUBJECTS PASSED:</span> <span>{formatGceCount(gceCounts.passed)}</span>
                 </div>
               </div>
             </div>

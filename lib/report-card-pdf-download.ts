@@ -51,6 +51,9 @@ export async function fetchReportCardPdfBlob(options: {
   }
 
   if (!res.ok) {
+    if (res.status === 401) {
+      throw new Error('Your session has expired. Please log in again to download report cards.')
+    }
     let detail = `HTTP ${res.status}`
     try {
       const j = (await res.json()) as { error?: string }

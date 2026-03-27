@@ -1,9 +1,30 @@
-import type { NextRequest } from 'next/server'
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { readSessionTokenFromRequest, verifySessionToken } from '@/lib/auth/session-cookie'
 
 export type ReportCardErrorFormat = 'json' | 'pdf'
+
+type DenyReason =
+  | 'missing_session_cookie'
+  | 'invalid_or_expired_session_token'
+  | 'missing_or_inactive_user'
+  | 'missing_parent_profile_code'
+  | 'unknown_role'
+
+function logAccessDenied(
+  reason: DenyReason,
+  context: { studentUuid: string; format: ReportCardErrorFormat; userId?: string; role?: string }
+) {
+  // Log lightweight auth diagnostics only; never include cookie/token values.
+  // eslint-disable-next-line no-console
+  console.warn('[report-card-access] denied', {
+    reason,
+    studentUuid: context.studentUuid,
+    format: context.format,
+    userId: context.userId ?? null,
+    role: context.role ?? null,
+  })
+}
 
 function unauthorized(format: ReportCardErrorFormat) {
   return format === 'pdf'
@@ -40,10 +61,16 @@ export async function guardReportCardAccess(
   format: ReportCardErrorFormat = 'json'
 ): Promise<NextResponse | null> {
   const token = readSessionTokenFromRequest(request)
-  if (!token) return unauthorized(format)
+  if (!token) {
+    logAccessDenied('missing_session_cookie', { studentUuid, format })
+    return unauthorized(format)
+  }
 
   const payload = verifySessionToken(token)
-  if (!payload) return unauthorized(format)
+  if (!payload) {
+    logAccessDenied('invalid_or_expired_session_token', { studentUuid, format })
+    return unauthorized(format)
+  }
 
   let supabase
   try {
@@ -59,6 +86,7 @@ export async function guardReportCardAccess(
     .maybeSingle()
 
   if (userErr || !dbUser || dbUser.status !== 'active') {
+    logAccessDenied('missing_or_inactive_user', { studentUuid, format, userId: payload.sub })
     return unauthorized(format)
   }
 
@@ -105,7 +133,15 @@ export async function guardReportCardAccess(
       .eq('user_id', dbUser.id)
       .maybeSingle()
     const parentCode = (profile?.role_specific_id ?? '').trim()
-    if (!parentCode) return forbidden(format)
+    if (!parentCode) {
+      logAccessDenied('missing_parent_profile_code', {
+        studentUuid,
+        format,
+        userId: dbUser.id,
+        role,
+      })
+      return forbidden(format)
+    }
 
     const { data: link } = await supabase
       .from('parents')
@@ -118,5 +154,6 @@ export async function guardReportCardAccess(
     return forbidden(format)
   }
 
+  logAccessDenied('unknown_role', { studentUuid, format, userId: dbUser.id, role })
   return forbidden(format)
 }

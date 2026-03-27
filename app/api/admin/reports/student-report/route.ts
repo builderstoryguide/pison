@@ -1562,29 +1562,16 @@ export async function GET(req: NextRequest) {
             // Calculate subject-level rankings
             // OPTIMIZATION: Fetch all grades for all students in the class at once instead of per-student queries
             const allStudentIds = allClassStudents.map(s => s.id);
+            const rankingEpsilon = 1e-6;
+            const scoresAreEqual = (a: number, b: number) => Math.abs(a - b) <= rankingEpsilon;
 
-            const gradeMatchesReportTermForRanking = (
-                title: string | null | undefined,
-                assessSubject: string | null | undefined
-            ): boolean => {
-                if (termMode.mode === 'annual') return true;
-                const g = resolveGlobalSequenceFromTitle(title ?? null, sequenceIdToNumberMap);
-                const termFromData = g !== null ? globalSequenceToTerm(g) : null;
-                if (termFromData !== null) {
-                    return termFromData === termMode.term;
-                }
-                if (assessSubject) {
-                    const subj = normalizeSubjectName(assessSubject);
-                    if (subj.includes('office practice')) return true;
-                }
-                return false;
-            };
-            
-            // Batch fetch all grades for all students in the class
+            // Batch fetch all regular grades for all students in the class
             interface RankingAssessment {
                 subject: string | null;
                 class_id: string;
                 title: string;
+                term: string | null;
+                academic_year: string | null;
             }
             interface RankingGradeRow {
                 marks_obtained: number;
@@ -1600,17 +1587,91 @@ export async function GET(req: NextRequest) {
                     assessment:assessments!inner (
                         subject,
                         class_id,
-                        title
+                        title,
+                        term,
+                        academic_year
                     )
                 `)
                 .in('student_id', allStudentIds)
-                .eq('assessment.class_id', classId);
+                .eq('assessment.class_id', classId)
+                .eq('assessment.academic_year', academicYear);
             
             const allClassGrades = (allClassGradesRaw as unknown as RankingGradeRow[]) || [];
             
             if (allGradesError) {
                 console.warn('[Report Card] Failed to fetch all class grades for ranking:', allGradesError);
             }
+
+            interface RankingBranchAssessment {
+                title: string | null;
+                term: string | null;
+                class_id: string;
+                academic_year: string | null;
+            }
+            interface RankingBranchGradeRow {
+                marks_obtained: number;
+                student_id: string;
+                branch_id: string;
+                assessment: RankingBranchAssessment | null;
+            }
+
+            const { data: allClassBranchGradesRaw, error: allBranchGradesError } = await supabase
+                .from('branch_grades')
+                .select(`
+                    marks_obtained,
+                    student_id,
+                    branch_id,
+                    assessment:branch_assessments!inner (
+                        title,
+                        term,
+                        class_id,
+                        academic_year
+                    )
+                `)
+                .in('student_id', allStudentIds)
+                .eq('assessment.class_id', classId)
+                .eq('assessment.academic_year', academicYear);
+
+            const allClassBranchGrades = (allClassBranchGradesRaw as unknown as RankingBranchGradeRow[]) || [];
+            if (allBranchGradesError && allBranchGradesError.code !== 'PGRST205') {
+                console.warn('[Report Card] Failed to fetch all class branch grades for ranking:', allBranchGradesError);
+            }
+
+            const subjectIdToName = new Map<string, string>();
+            for (const subject of subjectsList as DbSubject[]) {
+                subjectIdToName.set(subject.id, subject.name);
+            }
+
+            const branchIdsForRanking = [...new Set(allClassBranchGrades.map(bg => bg.branch_id).filter(Boolean))];
+            const branchIdToSubjectId = new Map<string, string>();
+            if (branchIdsForRanking.length > 0) {
+                const { data: rankingOldBranches } = await supabase
+                    .from('subject_sub_branches')
+                    .select('id, subject_id')
+                    .in('id', branchIdsForRanking);
+                if (rankingOldBranches) {
+                    for (const branch of rankingOldBranches) {
+                        branchIdToSubjectId.set(branch.id, branch.subject_id);
+                    }
+                }
+                const { data: rankingNewBranches } = await supabase
+                    .from('subject_branches')
+                    .select('id, subject_id')
+                    .in('id', branchIdsForRanking);
+                if (rankingNewBranches) {
+                    for (const branch of rankingNewBranches) {
+                        if (!branchIdToSubjectId.has(branch.id)) {
+                            branchIdToSubjectId.set(branch.id, branch.subject_id);
+                        }
+                    }
+                }
+            }
+
+            const isAssessmentInReportTerm = (
+                assessmentTerm: string | null | undefined,
+                assessmentTitle: string | null | undefined,
+                assessmentSubject: string | null | undefined
+            ) => isTargetTerm(assessmentTerm ?? null, assessmentTitle ?? null, assessmentSubject ?? null);
             
             // Process grades by subject for efficient ranking calculation
             for (const subject of subjectsList) {
@@ -1644,7 +1705,7 @@ export async function GET(req: NextRequest) {
                         // Check if this grade is for the current subject
                         if (!subjectNamesMatch(assessSubject, subjectName)) continue;
                         
-                        if (!gradeMatchesReportTermForRanking(assessment?.title, assessSubject)) continue;
+                        if (!isAssessmentInReportTerm(assessment?.term, assessment?.title, assessSubject)) continue;
                         
                         // Skip current student (already added above)
                         if (grade.student_id === studentId) continue;
@@ -1667,18 +1728,61 @@ export async function GET(req: NextRequest) {
                         }
                     }
                 }
+
+                if (allClassBranchGrades && allClassBranchGrades.length > 0) {
+                    const branchGradesByStudent = new Map<string, number[]>();
+                    for (const bg of allClassBranchGrades) {
+                        const subjectIdFromBranch = branchIdToSubjectId.get(bg.branch_id);
+                        if (!subjectIdFromBranch) continue;
+                        const subjectNameFromBranch = subjectIdToName.get(subjectIdFromBranch);
+                        if (!subjectNameFromBranch) continue;
+                        if (!subjectNamesMatch(subjectNameFromBranch, subjectName)) continue;
+
+                        if (!isAssessmentInReportTerm(bg.assessment?.term, bg.assessment?.title, subjectNameFromBranch)) {
+                            continue;
+                        }
+                        if (bg.student_id === studentId) continue;
+                        if (!branchGradesByStudent.has(bg.student_id)) {
+                            branchGradesByStudent.set(bg.student_id, []);
+                        }
+                        branchGradesByStudent.get(bg.student_id)!.push(bg.marks_obtained);
+                    }
+
+                    for (const [studentIdKey, marks] of branchGradesByStudent.entries()) {
+                        if (marks.length > 0) {
+                            const subjectAvg = marks.reduce((sum, m) => sum + m, 0) / marks.length;
+                            subjectStudentMarks.push({
+                                studentId: studentIdKey,
+                                mark: subjectAvg
+                            });
+                        }
+                    }
+                }
                 
+                const combinedSubjectMarks = new Map<string, number[]>();
+                for (const row of subjectStudentMarks) {
+                    if (!combinedSubjectMarks.has(row.studentId)) {
+                        combinedSubjectMarks.set(row.studentId, []);
+                    }
+                    combinedSubjectMarks.get(row.studentId)!.push(row.mark);
+                }
+
+                const rankedSubjectMarks = Array.from(combinedSubjectMarks.entries()).map(([rankStudentId, marks]) => ({
+                    studentId: rankStudentId,
+                    mark: marks.reduce((sum, m) => sum + m, 0) / marks.length
+                }));
+
                 // Sort by mark descending and calculate rank
-                subjectStudentMarks.sort((a, b) => b.mark - a.mark);
+                rankedSubjectMarks.sort((a, b) => b.mark - a.mark);
                 
                 // Find current student's rank in this subject
                 let subjectRank = 0;
                 let currentRank = 1;
-                for (let i = 0; i < subjectStudentMarks.length; i++) {
-                    if (i > 0 && subjectStudentMarks[i].mark < subjectStudentMarks[i - 1].mark) {
+                for (let i = 0; i < rankedSubjectMarks.length; i++) {
+                    if (i > 0 && !scoresAreEqual(rankedSubjectMarks[i].mark, rankedSubjectMarks[i - 1].mark)) {
                         currentRank = i + 1;
                     }
-                    if (subjectStudentMarks[i].studentId === studentId) {
+                    if (rankedSubjectMarks[i].studentId === studentId) {
                         subjectRank = currentRank;
                         break;
                     }
@@ -1698,72 +1802,64 @@ export async function GET(req: NextRequest) {
             });
             
             // Process all other students using the batch-fetched grades
-            if (allClassGrades && allClassGrades.length > 0) {
-                // Group grades by student_id
-                const gradesByStudent = new Map<string, any[]>();
-                for (const grade of allClassGrades) {
-                    if (grade.student_id === studentId) continue; // Skip current student (already added)
-                    
-                    if (!gradesByStudent.has(grade.student_id)) {
-                        gradesByStudent.set(grade.student_id, []);
-                    }
-                    gradesByStudent.get(grade.student_id)!.push(grade);
+            const gradesByStudentBySubject = new Map<string, Map<string, number[]>>();
+            for (const grade of allClassGrades) {
+                if (grade.student_id === studentId) continue;
+                const assessment = grade.assessment;
+                const assessSubject = assessment?.subject || '';
+                if (!assessSubject) continue;
+                if (!isAssessmentInReportTerm(assessment?.term, assessment?.title, assessSubject)) continue;
+                const normalized = normalizeSubjectName(assessSubject);
+                if (!gradesByStudentBySubject.has(grade.student_id)) {
+                    gradesByStudentBySubject.set(grade.student_id, new Map<string, number[]>());
                 }
-                
-                // Calculate average for each student
-                for (const [otherStudentId, studentGrades] of gradesByStudent.entries()) {
-                    // Filter grades for current term
-                    const termGrades = studentGrades.filter(grade => {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const assessment = grade.assessment as any;
-                        return gradeMatchesReportTermForRanking(
-                            assessment?.title,
-                            assessment?.subject ?? null
-                        );
-                    });
-                    
-                    if (termGrades.length > 0) {
-                        // Group grades by subject and calculate averages
-                        const subjectTotals: Record<string, { total: number, coef: number }> = {};
-                        
-                        for (const subject of subjectsList) {
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            const subjectName = (subject as any).name;
-                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            const coef = (subject as any).coefficient || 1;
-                            
-                            // Get all grades for this subject
-                            const subjectGrades = termGrades.filter(g => {
-                                const assessSubject = g.assessment?.subject || '';
-                                return subjectNamesMatch(assessSubject, subjectName);
-                            });
-                            
-                            if (subjectGrades.length > 0) {
-                                const subjectAvg = subjectGrades.reduce((sum, g) => sum + g.marks_obtained, 0) / subjectGrades.length;
-                                subjectTotals[subjectName] = { 
-                                    total: subjectAvg * coef, 
-                                    coef: coef 
-                                };
-                            }
-                        }
-                        
-                        // Calculate overall average
-                        const otherTotalScore = Object.values(subjectTotals).reduce((sum, s) => sum + s.total, 0);
-                        const otherTotalCoef = Object.values(subjectTotals).reduce((sum, s) => sum + s.coef, 0);
-                        const otherAverage = otherTotalCoef > 0 ? otherTotalScore / otherTotalCoef : 0;
-                        
-                        studentAverages.push({
-                            studentId: otherStudentId,
-                            average: otherAverage
-                        });
-                    } else {
-                        // Student has no grades for this term, add with 0 average
-                        studentAverages.push({
-                            studentId: otherStudentId,
-                            average: 0
-                        });
-                    }
+                const bySubject = gradesByStudentBySubject.get(grade.student_id)!;
+                if (!bySubject.has(normalized)) {
+                    bySubject.set(normalized, []);
                 }
+                bySubject.get(normalized)!.push(grade.marks_obtained);
+            }
+
+            for (const bg of allClassBranchGrades) {
+                if (bg.student_id === studentId) continue;
+                const subjectIdFromBranch = branchIdToSubjectId.get(bg.branch_id);
+                if (!subjectIdFromBranch) continue;
+                const subjectNameFromBranch = subjectIdToName.get(subjectIdFromBranch);
+                if (!subjectNameFromBranch) continue;
+                if (!isAssessmentInReportTerm(bg.assessment?.term, bg.assessment?.title, subjectNameFromBranch)) {
+                    continue;
+                }
+                const normalized = normalizeSubjectName(subjectNameFromBranch);
+                if (!gradesByStudentBySubject.has(bg.student_id)) {
+                    gradesByStudentBySubject.set(bg.student_id, new Map<string, number[]>());
+                }
+                const bySubject = gradesByStudentBySubject.get(bg.student_id)!;
+                if (!bySubject.has(normalized)) {
+                    bySubject.set(normalized, []);
+                }
+                bySubject.get(normalized)!.push(bg.marks_obtained);
+            }
+
+            for (const [otherStudentId, subjectMarks] of gradesByStudentBySubject.entries()) {
+                let otherTotalScore = 0;
+                let otherTotalCoef = 0;
+
+                for (const subject of subjectsList as DbSubject[]) {
+                    const subjectName = subject.name;
+                    const coef = subject.coefficient || 1;
+                    const normalized = normalizeSubjectName(subjectName);
+                    const marks = subjectMarks.get(normalized);
+                    if (!marks || marks.length === 0) continue;
+                    const subjectAvg = marks.reduce((sum, m) => sum + m, 0) / marks.length;
+                    otherTotalScore += subjectAvg * coef;
+                    otherTotalCoef += coef;
+                }
+
+                const otherAverage = otherTotalCoef > 0 ? otherTotalScore / otherTotalCoef : 0;
+                studentAverages.push({
+                    studentId: otherStudentId,
+                    average: otherAverage
+                });
             }
             
             // Add students with no grades at all
@@ -1786,7 +1882,7 @@ export async function GET(req: NextRequest) {
             let currentRank = 1;
             for (let i = 0; i < studentAverages.length; i++) {
                 // If this is not the first student and average is different from previous, update rank
-                if (i > 0 && studentAverages[i].average < studentAverages[i - 1].average) {
+                if (i > 0 && !scoresAreEqual(studentAverages[i].average, studentAverages[i - 1].average)) {
                     // Count how many students have the previous average (for tie handling)
                     // let tieCount = 1;
                     for (let j = i - 2; j >= 0 && studentAverages[j].average === studentAverages[i - 1].average; j--) {

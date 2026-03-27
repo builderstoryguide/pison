@@ -32,6 +32,8 @@ export async function generateReportCardPdfFromUrl(options: {
 
     const page = await browser.newPage()
     await page.setViewport({ width: 1200, height: 1600, deviceScaleFactor: 1 })
+    page.setDefaultNavigationTimeout(90_000)
+    page.setDefaultTimeout(100_000)
 
     await page.setExtraHTTPHeaders({
       Cookie: options.cookieHeader,
@@ -43,11 +45,11 @@ export async function generateReportCardPdfFromUrl(options: {
       await new Promise<void>((resolve) => setImmediate(resolve))
     }
 
-    // Avoid networkidle0: Next.js dev (Turbopack/HMR) keeps connections open, so "idle" may never occur.
-    // Use `load` only: dev (Turbopack/HMR) often never reaches networkidle*.
+    // Avoid `load`/`networkidle*` in dev: a slow image/script can keep navigation pending for minutes.
+    // `domcontentloaded` is enough because readiness is gated by [data-pdf-ready] below.
     await page.goto(options.targetUrl, {
-      waitUntil: 'load',
-      timeout: 120_000,
+      waitUntil: 'domcontentloaded',
+      timeout: 90_000,
     })
 
     // Brief yield so the client bundle can start (load fires before React paints).

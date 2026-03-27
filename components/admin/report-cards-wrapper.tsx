@@ -44,6 +44,7 @@ interface ClassData {
 }
 
 type TermType = '1' | '2' | 'annual'
+const SESSION_EXPIRED_MESSAGE = 'Your session has expired. Please log in again to generate report cards.'
 
 export function ReportCardsWrapper() {
   const { success: toastSuccess, error: toastError } = useToast()
@@ -192,6 +193,10 @@ export function ReportCardsWrapper() {
           setError(errorMessage)
         }
       } else {
+        if (response.status === 401) {
+          setError(SESSION_EXPIRED_MESSAGE)
+          return
+        }
         const errorText = await response.text()
         // console.error('[ReportCards] HTTP error:', response.status, errorText)
         let parsedError

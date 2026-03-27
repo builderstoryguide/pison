@@ -482,7 +482,7 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
               <p className="print:leading-[1.15]">Paix - Travail - Patrie</p>
               <p className="print:leading-[1.15]">Ministère des Enseignements Secondaires</p>
               <p className="print:leading-[1.15]">Délégation Régional de Littoral</p>
-              <p className="font-bold text-[#2B4593] print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
+              <p className="text-black print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
             </div>
 
             <div className="flex flex-col items-center justify-center gap-1.5 print:gap-1 min-h-[6.5rem] md:min-h-[7.25rem]">
@@ -500,8 +500,8 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
                   />
                 )}
               </div>
-              <div className="text-[0.5rem] print:text-[6pt] font-mono w-full max-w-[15rem] mx-auto text-center leading-snug px-1">
-                ORDER Nº: <span className="text-[#A52A2A] font-bold break-words">{data.academic.orderNo}</span>
+              <div className="uppercase text-black text-[0.5rem] print:text-[6pt] print:leading-[1.15] text-center">
+                PO Box 58 Edea Tel: 676521570
               </div>
             </div>
 
@@ -510,8 +510,7 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
               <p className="print:leading-[1.15]">Peace - Work - Fatherland</p>
               <p className="print:leading-[1.15]">Ministry of Secondary Education</p>
               <p className="print:leading-[1.15]">Regional Delegation of Littoral</p>
-              <p className="font-bold text-[#2B4593] print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
-              <p className="normal-case text-[#A52A2A] text-[0.5rem] print:text-[6pt] print:leading-[1.15]">PO Box 58 Edea Tel: 676521570</p>
+              <p className="text-black print:leading-[1.15]">PISON ACADEMY OF EXCELLENCE</p>
             </div>
           </header>
 
