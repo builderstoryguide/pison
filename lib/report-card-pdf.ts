@@ -1,4 +1,4 @@
-import type { Browser } from 'puppeteer'
+import type { Browser, LaunchOptions, PuppeteerNode } from 'puppeteer-core'
 
 const DEFAULT_LAUNCH_ARGS = [
   '--no-sandbox',
@@ -9,6 +9,39 @@ const DEFAULT_LAUNCH_ARGS = [
   '--no-zygote',
   '--disable-gpu',
 ] as const
+
+async function getPuppeteerLaunchConfig(): Promise<{
+  puppeteer: PuppeteerNode
+  launchOptions: LaunchOptions
+}> {
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim() || undefined
+  const isVercel = process.env.VERCEL === '1'
+
+  if (executablePath || isVercel) {
+    const [{ default: puppeteer }, { default: chromium }] = await Promise.all([
+      import('puppeteer-core'),
+      import('@sparticuz/chromium'),
+    ])
+    const resolvedExecutablePath = executablePath || (await chromium.executablePath())
+    return {
+      puppeteer,
+      launchOptions: {
+        headless: true,
+        executablePath: resolvedExecutablePath,
+        args: [...chromium.args, ...DEFAULT_LAUNCH_ARGS],
+      },
+    }
+  }
+
+  const { default: puppeteer } = await import('puppeteer')
+  return {
+    puppeteer: puppeteer as unknown as PuppeteerNode,
+    launchOptions: {
+      headless: true,
+      args: [...DEFAULT_LAUNCH_ARGS],
+    },
+  }
+}
 
 function parseCookieHeader(cookieHeader: string): Array<{ name: string; value: string }> {
   if (!cookieHeader.trim()) return []
@@ -34,17 +67,11 @@ export async function generateReportCardPdfFromUrl(options: {
   targetUrl: string
   cookieHeader: string
 }): Promise<Buffer> {
-  const puppeteer = await import('puppeteer')
-
-  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined
+  const { puppeteer, launchOptions } = await getPuppeteerLaunchConfig()
 
   let browser: Browser | null = null
   try {
-    browser = await puppeteer.default.launch({
-      headless: true,
-      executablePath: executablePath || undefined,
-      args: [...DEFAULT_LAUNCH_ARGS],
-    })
+    browser = await puppeteer.launch(launchOptions)
 
     const page = await browser.newPage()
     await page.setViewport({ width: 1200, height: 1600, deviceScaleFactor: 1 })

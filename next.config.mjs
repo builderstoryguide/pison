@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Puppeteer ships native bits; bundling it into Route Handlers can break or crash at runtime (especially with Turbopack).
-  serverExternalPackages: ['puppeteer'],
+  serverExternalPackages: ['puppeteer', 'puppeteer-core', '@sparticuz/chromium'],
   experimental: {
     // Dev tools can bounce between localhost and 127.0.0.1; allow both loopback origins.
     allowedDevOrigins: ['localhost', '127.0.0.1', '[::1]'],
