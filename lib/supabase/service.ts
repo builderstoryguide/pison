@@ -5,7 +5,11 @@ export function createServiceClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!url || !key) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+    const missing = [
+      !url ? 'NEXT_PUBLIC_SUPABASE_URL' : null,
+      !key ? 'SUPABASE_SERVICE_ROLE_KEY' : null,
+    ].filter(Boolean)
+    throw new Error(`Missing required Supabase service env vars: ${missing.join(', ')}`)
   }
 
   return supabaseClient(url, key, {

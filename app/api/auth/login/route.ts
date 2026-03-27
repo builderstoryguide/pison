@@ -9,14 +9,41 @@ import {
 
 export const runtime = 'nodejs'
 
-// Initialize Supabase client
-const supabase = createServiceClient();
+function getMissingLoginEnvVars(): string[] {
+  const missing: string[] = []
+  const sessionSecret = process.env.AUTH_SESSION_SECRET?.trim()
+  // Keep validation aligned with getSessionSecret(): only required in production.
+  if (process.env.NODE_ENV === 'production' && (!sessionSecret || sessionSecret.length < 32)) {
+    missing.push('AUTH_SESSION_SECRET (min 32 chars)')
+  }
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()) {
+    missing.push('NEXT_PUBLIC_SUPABASE_URL')
+  }
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    missing.push('SUPABASE_SERVICE_ROLE_KEY')
+  }
+  return missing
+}
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
   // console.log('🔐 [LOGIN] Request received at', new Date().toISOString());
   
   try {
+    const missingEnvVars = getMissingLoginEnvVars()
+    if (missingEnvVars.length > 0) {
+      // eslint-disable-next-line no-console
+      console.error('🔐 [LOGIN] Missing required runtime env vars:', {
+        missingEnvVars,
+        nodeEnv: process.env.NODE_ENV,
+      })
+      return NextResponse.json(
+        { error: 'Authentication service configuration error' },
+        { status: 500 }
+      )
+    }
+
+    const supabase = createServiceClient();
     const body = await request.json();
     // console.log('🔐 [LOGIN] Body parsed in', Date.now() - startTime, 'ms');
     const { identifier, password, role } = body;

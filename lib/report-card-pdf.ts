@@ -10,6 +10,22 @@ const DEFAULT_LAUNCH_ARGS = [
   '--disable-gpu',
 ] as const
 
+function parseCookieHeader(cookieHeader: string): Array<{ name: string; value: string }> {
+  if (!cookieHeader.trim()) return []
+  const out: Array<{ name: string; value: string }> = []
+  for (const segment of cookieHeader.split(';')) {
+    const part = segment.trim()
+    if (!part) continue
+    const eqIdx = part.indexOf('=')
+    if (eqIdx <= 0) continue
+    const name = part.slice(0, eqIdx).trim()
+    const value = part.slice(eqIdx + 1).trim()
+    if (!name || !value) continue
+    out.push({ name, value })
+  }
+  return out
+}
+
 /**
  * Renders a Next.js report-card PDF page with the caller's session cookies.
  * Uses Chromium print to PDF so output matches on-screen layout (hairline borders).
@@ -34,6 +50,19 @@ export async function generateReportCardPdfFromUrl(options: {
     await page.setViewport({ width: 1200, height: 1600, deviceScaleFactor: 1 })
     page.setDefaultNavigationTimeout(90_000)
     page.setDefaultTimeout(100_000)
+
+    // Set cookies directly in Chromium for reliable auth on top-level navigation.
+    // Some environments ignore or strip Cookie request headers during page.goto().
+    const cookies = parseCookieHeader(options.cookieHeader)
+    if (cookies.length > 0) {
+      await page.setCookie(
+        ...cookies.map((cookie) => ({
+          name: cookie.name,
+          value: cookie.value,
+          url: options.targetUrl,
+        }))
+      )
+    }
 
     await page.setExtraHTTPHeaders({
       Cookie: options.cookieHeader,
@@ -81,7 +110,7 @@ export async function generateReportCardPdfFromUrl(options: {
     return Buffer.isBuffer(pdfResult) ? pdfResult : Buffer.from(pdfResult)
   } finally {
     if (browser) {
-      await browser.close().catch(() => {})
+      await browser.close().catch(() => undefined)
     }
   }
 }

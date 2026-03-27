@@ -22,10 +22,10 @@ function isLoopbackHost(host: string): boolean {
 }
 
 function normalizeLoopbackHostForHeadless(host: string): string {
-  const mLocal = /^localhost(:\d+)?$/i.exec(host)
-  if (mLocal) return `127.0.0.1${mLocal[1] ?? ''}`
-  const mV6 = /^\[::1\](:\d+)?$/i.exec(host)
-  if (mV6) return `127.0.0.1${mV6[1] ?? ''}`
+  const localMatch = /^localhost(:\d+)?$/i.exec(host)
+  if (localMatch) return `127.0.0.1${localMatch[1] ?? ''}`
+  const v6Match = /^\[::1\](:\d+)?$/i.exec(host)
+  if (v6Match) return `127.0.0.1${v6Match[1] ?? ''}`
   return host
 }
 

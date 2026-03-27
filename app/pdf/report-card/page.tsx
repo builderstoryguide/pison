@@ -11,6 +11,14 @@ function parseTerm(raw: string): string {
   return 'annual'
 }
 
+function normalizeLoopbackHostForHeadless(host: string): string {
+  const localMatch = /^localhost(:\d+)?$/i.exec(host)
+  if (localMatch) return `127.0.0.1${localMatch[1] ?? ''}`
+  const v6Match = /^\[::1\](:\d+)?$/i.exec(host)
+  if (v6Match) return `127.0.0.1${v6Match[1] ?? ''}`
+  return host
+}
+
 function buildRequestOrigin(h: Headers): string {
   const hostRaw = h.get('x-forwarded-host') || h.get('host') || '127.0.0.1:3000'
   const forwardedProto = h.get('x-forwarded-proto')?.split(',')[0]?.trim()
@@ -28,11 +36,7 @@ function buildRequestOrigin(h: Headers): string {
     ) {
       proto = 'http'
     }
-    if (/^localhost(:\d+)?$/i.test(host)) {
-      host = host.replace(/^localhost/i, '127.0.0.1')
-    } else if (/^\[::1\](:\d+)?$/i.test(host)) {
-      host = host.replace(/^\[::1\]/i, '127.0.0.1')
-    }
+    host = normalizeLoopbackHostForHeadless(host)
   }
 
   return `${proto}://${host}`
