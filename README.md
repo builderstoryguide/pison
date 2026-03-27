@@ -113,7 +113,7 @@ For full functionality with database support:
 1. Create a Supabase project at [supabase.com](https://supabase.com)
 2. Run the SQL script in `scripts/create-tables.sql` in your Supabase SQL Editor
 3. Add your Supabase credentials to `.env.local`
-4. Set **`AUTH_SESSION_SECRET`** (at least 32 random characters) for signing the httpOnly session cookie used by report-card APIs (`GET /api/report-cards/[studentId]`, `GET /api/report-cards/pdf`). **`SUPABASE_SERVICE_ROLE_KEY`** must be available on the server so those routes can verify users and enforce student/parent access. In development, a built-in placeholder secret is used if `AUTH_SESSION_SECRET` is unset (not allowed in production).
+4. Set **`AUTH_SESSION_SECRET`** (at least 32 random characters, recommended) for signing the httpOnly session cookie used by report-card APIs (`GET /api/report-cards/[studentId]`, `GET /api/report-cards/pdf`). If it is unset, the server derives a deterministic fallback signing secret from **`SUPABASE_SERVICE_ROLE_KEY`** + **`NEXT_PUBLIC_SUPABASE_URL`** so production login does not fail from a single missing variable. **`SUPABASE_SERVICE_ROLE_KEY`** must be available on the server so those routes can verify users and enforce student/parent access. Rotating `SUPABASE_SERVICE_ROLE_KEY` also rotates that fallback secret and invalidates existing sessions.
 
 See `scripts/setup-database.md` for detailed setup instructions.
 

@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service';
 import bcrypt from 'bcryptjs';
 import {
   createSessionToken,
+  getSessionSecretDiagnostics,
   SESSION_COOKIE_NAME,
   sessionCookieBaseOptions,
 } from '@/lib/auth/session-cookie';
@@ -11,16 +12,17 @@ export const runtime = 'nodejs'
 
 function getMissingLoginEnvVars(): string[] {
   const missing: string[] = []
-  const sessionSecret = process.env.AUTH_SESSION_SECRET?.trim()
-  // Keep validation aligned with getSessionSecret(): only required in production.
-  if (process.env.NODE_ENV === 'production' && (!sessionSecret || sessionSecret.length < 32)) {
-    missing.push('AUTH_SESSION_SECRET (min 32 chars)')
-  }
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()) {
     missing.push('NEXT_PUBLIC_SUPABASE_URL')
   }
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
     missing.push('SUPABASE_SERVICE_ROLE_KEY')
+  }
+  const sessionSecret = getSessionSecretDiagnostics()
+  if (!sessionSecret.hasUsableSecret) {
+    missing.push(
+      'session secret unavailable (set AUTH_SESSION_SECRET >= 32 chars, or configure SUPABASE_SERVICE_ROLE_KEY + NEXT_PUBLIC_SUPABASE_URL)'
+    )
   }
   return missing
 }

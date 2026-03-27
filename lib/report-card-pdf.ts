@@ -10,6 +10,24 @@ const DEFAULT_LAUNCH_ARGS = [
   '--disable-gpu',
 ] as const
 
+function resolveChromiumLaunchArgs(chromium: unknown): string[] {
+  const chromiumRecord = chromium as Record<string, unknown>
+  const directArgs = chromiumRecord.args
+  if (Array.isArray(directArgs)) return directArgs.filter((arg): arg is string => typeof arg === 'string')
+
+  const defaultArgs = chromiumRecord.defaultArgs
+  if (Array.isArray(defaultArgs)) {
+    return defaultArgs.filter((arg): arg is string => typeof arg === 'string')
+  }
+  if (typeof defaultArgs === 'function') {
+    const fromFn = (defaultArgs as () => unknown)()
+    if (Array.isArray(fromFn)) {
+      return fromFn.filter((arg): arg is string => typeof arg === 'string')
+    }
+  }
+  return []
+}
+
 async function getPuppeteerLaunchConfig(): Promise<{
   puppeteer: PuppeteerNode
   launchOptions: LaunchOptions
@@ -22,13 +40,14 @@ async function getPuppeteerLaunchConfig(): Promise<{
       import('puppeteer-core'),
       import('@sparticuz/chromium'),
     ])
+    const chromiumArgs = resolveChromiumLaunchArgs(chromium)
     const resolvedExecutablePath = executablePath || (await chromium.executablePath())
     return {
       puppeteer,
       launchOptions: {
         headless: true,
         executablePath: resolvedExecutablePath,
-        args: [...chromium.args, ...DEFAULT_LAUNCH_ARGS],
+        args: [...chromiumArgs, ...DEFAULT_LAUNCH_ARGS],
       },
     }
   }

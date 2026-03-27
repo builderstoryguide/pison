@@ -10,13 +10,100 @@ type SessionPayload = {
   exp: number
 }
 
-function getSessionSecret(): string {
-  const s = process.env.AUTH_SESSION_SECRET?.trim()
-  if (s && s.length >= 32) return s
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('AUTH_SESSION_SECRET must be set (min 32 characters) in production')
+export type SessionSecretSource = 'explicit' | 'derived_fallback' | 'dev_fallback'
+
+type SessionSecretDiagnostics = {
+  hasUsableSecret: boolean
+  source: SessionSecretSource | 'missing'
+  missingInputs: string[]
+}
+
+type SessionSecretResolution = {
+  secret: string
+  source: SessionSecretSource
+}
+
+let cachedSessionSecret: SessionSecretResolution | null = null
+let warnedAboutFallback = false
+
+function resolveConfiguredSessionSecret(): string | null {
+  const configured = process.env.AUTH_SESSION_SECRET?.trim()
+  if (configured && configured.length >= 32) return configured
+  return null
+}
+
+function resolveDerivedFallbackSecret(): string | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  if (!url || !serviceRoleKey) return null
+
+  // Deterministic server-only fallback secret when AUTH_SESSION_SECRET is not configured.
+  return createHmac('sha256', 'pison-session-secret-fallback-v1')
+    .update(url)
+    .update('\n')
+    .update(serviceRoleKey)
+    .digest('hex')
+}
+
+export function getSessionSecretDiagnostics(): SessionSecretDiagnostics {
+  const explicitSecret = resolveConfiguredSessionSecret()
+  if (explicitSecret) {
+    return { hasUsableSecret: true, source: 'explicit', missingInputs: [] }
   }
-  return 'dev-insecure-session-secret-min-32-chars!!'
+
+  const fallbackSecret = resolveDerivedFallbackSecret()
+  if (fallbackSecret) {
+    return { hasUsableSecret: true, source: 'derived_fallback', missingInputs: [] }
+  }
+
+  const missingInputs: string[] = []
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()) missingInputs.push('NEXT_PUBLIC_SUPABASE_URL')
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) missingInputs.push('SUPABASE_SERVICE_ROLE_KEY')
+
+  // In non-production environments, a built-in development fallback secret is available.
+  if (process.env.NODE_ENV !== 'production') {
+    return { hasUsableSecret: true, source: 'dev_fallback', missingInputs: [] }
+  }
+
+  return { hasUsableSecret: false, source: 'missing', missingInputs }
+}
+
+function getSessionSecret(): string {
+  if (cachedSessionSecret) return cachedSessionSecret.secret
+
+  const explicitSecret = resolveConfiguredSessionSecret()
+  if (explicitSecret) {
+    cachedSessionSecret = { secret: explicitSecret, source: 'explicit' }
+    return explicitSecret
+  }
+
+  const fallbackSecret = resolveDerivedFallbackSecret()
+  if (fallbackSecret) {
+    cachedSessionSecret = { secret: fallbackSecret, source: 'derived_fallback' }
+    if (!warnedAboutFallback && process.env.NODE_ENV === 'production') {
+      warnedAboutFallback = true
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[auth] AUTH_SESSION_SECRET missing or too short; using derived fallback secret from server env.'
+      )
+    }
+    return fallbackSecret
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'Session signing secret is unavailable. Set AUTH_SESSION_SECRET (min 32 chars) or provide NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
+    )
+  }
+
+  const devSecret = 'dev-insecure-session-secret-min-32-chars!!'
+  cachedSessionSecret = { secret: devSecret, source: 'dev_fallback' }
+  if (!warnedAboutFallback) {
+    warnedAboutFallback = true
+    // eslint-disable-next-line no-console
+    console.warn('[auth] Using development fallback session secret.')
+  }
+  return devSecret
 }
 
 export function createSessionToken(userId: string, maxAgeSec: number = DEFAULT_MAX_AGE_SEC): string {
