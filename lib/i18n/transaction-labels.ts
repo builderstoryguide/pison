@@ -11,6 +11,7 @@ const TX_TYPE_KEYS: Record<string, string> = {
   COMMISSION: 'pages.transactions.typeCommission',
   ADJUSTMENT: 'pages.transactions.typeAdjustment',
   TREASURY_ISSUANCE: 'pages.transactions.typeTreasuryIssuance',
+  ACCOUNT_MAINTENANCE_FEE: 'pages.transactions.typeAccountMaintenanceFee',
 };
 
 export function getTransactionTypeLabel(

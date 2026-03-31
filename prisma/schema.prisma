@@ -199,6 +199,9 @@ model SystemSetting {
   notifySystemErrorRoleIds       String[]
   /// Default local time (HH:mm) for end-of-day closure alerts; combined with timezone and session date
   defaultDailyClosureTime        String   @default("18:00")
+  /// Calendar day (1–28) in `timezone` when monthly account maintenance fees run; use ≤28 to avoid month-length edge cases
+  maintenanceFeeBillingDay       Int      @default(1)
+  maintenanceFeeAutomationEnabled Boolean @default(false)
 }
 
 enum UserStatus {
@@ -545,6 +548,7 @@ enum TransactionType {
   COMMISSION
   ADJUSTMENT
   TREASURY_ISSUANCE
+  ACCOUNT_MAINTENANCE_FEE
 }
 
 enum TransactionStatus {

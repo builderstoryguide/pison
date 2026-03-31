@@ -17,3 +17,7 @@ export { commissionService, CommissionService } from './commission-service';
 export { sessionService, SessionService } from './session-service';
 export { reportService, ReportService } from './report-service';
 export { pushNotificationService, PushNotificationService } from './push-notification-service';
+export {
+  maintenanceFeeService,
+  MaintenanceFeeService,
+} from './maintenance-fee-service';

@@ -3,7 +3,7 @@
 > **Purpose**: Single source of truth mapping [PRD.md](./PRD.md) requirements to implementation status.
 > **Workflow**: Before implementing a feature, check this tracker. Update it as features are completed.
 
-**Last Updated**: 2026-03-30 (Notifications & validation: min-balance acknowledgment; closure schedule + countdown toasts; session-closed sign-in block + audit + manager push; loan maturity buckets + in-app + push; area assignment occupancy UX; client create multi-error; planned closure override on Operations session)
+**Last Updated**: 2026-03-31 (Monthly account maintenance: per–account-nature fees, manager billing day + automation settings, cron, report, `ACCOUNT_MAINTENANCE_FEE` ledger)
 
 ---
 
@@ -29,6 +29,7 @@
 | [x] | Client statement | Full statement with filters | `app/(protected)/reports/client-statement/`, `app/api/reports/client-statement/` |
 | [x] | Statistics by collection area | Deposits, withdrawals, metrics | `app/(protected)/reports/area-statistics/`, `app/api/reports/area-statistics/` |
 | [x] | Automatic monthly commission calculation | Manual trigger + cron (1st of month); `commissions.calculate` permission (Accountant/Manager); summary by client; Decimal precision; commission report route + export endpoint restored | `app/api/commissions/calculate/`, `lib/jobs/commission-calculation.ts`, `lib/services/commission-service.ts`, `app/(protected)/reports/commissions/`, `app/api/reports/commissions/export/route.ts` |
+| [x] | Monthly account maintenance fees | Amounts from `AccountNature` (`MONTHLY`); skip if `availableBalance` &lt; fee; idempotent `maint-fee:YYYY-MM:accountId`; manager sets billing day (1–28) + automation + timezone; daily cron `POST /api/cron/maintenance-fees`; report + transaction filter | `lib/services/maintenance-fee-service.ts`, `app/api/cron/maintenance-fees/`, `app/api/user-management/settings/maintenance-fee/`, `app/(protected)/commissions/components/maintenance-fee-settings-form.tsx`, `app/(protected)/reports/maintenance-fees/`, `app/api/reports/maintenance-fees/` |
 | [x] | Transaction validation (four-eye principle) | Pending approval, approve/reject by admin; pending loans appear in same list | `app/(protected)/validation/pending/`, `app/api/transactions/[id]/approve/`, `app/api/loans/[id]/approve/` |
 | [x] | Monitoring of surpluses and shortages | Report with physical vs system cash; `reports.surplus_shortage` permission (Accountant/Manager only); shortage alert banner; dashboard widget (last 30 days) | `app/(protected)/reports/surplus-shortage/`, `app/api/reports/surplus-shortage/`, `lib/services/dashboard-service.ts` |
 

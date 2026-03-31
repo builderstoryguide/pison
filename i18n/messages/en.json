@@ -381,6 +381,7 @@
       "typeLoanRepayment": "Loan Repayment",
       "typeLoanDisbursement": "Loan Disbursement",
       "typeCommission": "Commission",
+      "typeAccountMaintenanceFee": "Account maintenance fee",
       "typeAdjustment": "Adjustment",
       "statusCompleted": "Completed",
       "statusPending": "Pending",
@@ -759,6 +760,10 @@
           "title": "Commission Report",
           "description": "Commission charges on withdrawal transactions: amounts, rates, and totals per client or period."
         },
+        "maintenanceFees": {
+          "title": "Maintenance Fees",
+          "description": "Monthly account maintenance debits by period and account type, with links to full transaction history."
+        },
         "surplusShortage": {
           "title": "Surplus / Shortage",
           "description": "Daily reconciliation of physical cash versus system balance. Identifies discrepancies."
@@ -840,6 +845,24 @@
       "areaStatistics": "Area Statistics",
       "surplusShortage": "Surplus / Shortage",
       "commissions": "Commissions",
+      "maintenanceFees": "Maintenance Fees",
+      "maintenanceFeesReport": {
+        "filtersTitle": "Date range",
+        "from": "From",
+        "to": "To",
+        "apply": "Apply",
+        "summaryTitle": "Summary",
+        "totalTransactions": "Maintenance fee transactions",
+        "grandTotal": "Total deducted",
+        "byMonth": "By month (institution timezone)",
+        "byNature": "By account type (nature)",
+        "columnPeriod": "Month",
+        "columnNature": "Account type",
+        "columnCount": "Count",
+        "columnTotal": "Total",
+        "empty": "No maintenance fee transactions in this range.",
+        "historyHint": "Use All Transactions and filter by type “Account maintenance fee” to see individual ledger entries."
+      },
       "commissionReport": {
         "export": "Export",
         "calculate": "Calculate Commissions",
@@ -1368,6 +1391,16 @@
       "commissionRateUpdateSuccess": "Commission rate updated successfully",
       "commissionRateUpdateFailed": "Failed to update commission rate",
       "commissionRateInvalid": "Commission rate must be a number between 0 and 100",
+      "maintenanceFeeTitle": "Monthly account maintenance",
+      "maintenanceFeeAutomationLabel": "Automatic monthly billing",
+      "maintenanceFeeAutomationDesc": "When enabled, the system debits maintenance fees on the configured calendar day (per institution timezone). Requires a daily cron calling the maintenance-fees API.",
+      "maintenanceFeeBillingDayLabel": "Billing day of month",
+      "maintenanceFeeBillingDayDesc": "Day 1–28 in the institution timezone. Amounts come from each account type (account nature) where a monthly maintenance fee is set.",
+      "maintenanceFeeTimezoneHint": "Timezone is taken from General settings. Change it there if billing should follow a different region.",
+      "saveMaintenanceFeeSettings": "Save maintenance settings",
+      "maintenanceFeeBillingDayInvalid": "Billing day must be between 1 and 28",
+      "maintenanceFeeUpdateSuccess": "Maintenance fee settings updated",
+      "maintenanceFeeUpdateFailed": "Failed to update maintenance fee settings",
       "defaultDailyClosureTime": "Default daily closure time",
       "defaultDailyClosureTimeDesc": "Used for pre-closure reminders (30, 15, and 5 minutes before) together with the timezone above. Managers can override for today under Operations > Session."
     },
@@ -1498,8 +1531,9 @@
     "collectionJournal": "Collection Journal",
     "clientStatement": "Client Statement",
     "statisticsByArea": "Statistics by Area",
-    "commissionReport": "Commission Report",
-    "surplusShortage": "Surplus/Shortage",
+      "commissionReport": "Commission Report",
+      "maintenanceFeesReport": "Maintenance Fees",
+      "surplusShortage": "Surplus/Shortage",
     "analytics": "Analytics",
     "overview": "Overview",
     "financialSummary": "Financial Summary",

@@ -8,6 +8,7 @@ import {
   FileText,
   MapPin,
   TrendingUp,
+  Wallet,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -18,6 +19,7 @@ type ReportCardId =
   | 'clientStatement'
   | 'areaStatistics'
   | 'commissions'
+  | 'maintenanceFees'
   | 'surplusShortage';
 
 const reports: {
@@ -61,6 +63,13 @@ const reports: {
     icon: Calculator,
     color: 'text-rose-600',
     bg: 'bg-rose-50 dark:bg-rose-950/30',
+  },
+  {
+    id: 'maintenanceFees',
+    href: '/reports/maintenance-fees',
+    icon: Wallet,
+    color: 'text-sky-600',
+    bg: 'bg-sky-50 dark:bg-sky-950/30',
   },
   {
     id: 'surplusShortage',

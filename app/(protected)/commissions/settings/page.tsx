@@ -20,6 +20,7 @@ import { useSession } from 'next-auth/react';
 import { hasPermission, isManagerRole } from '@/lib/auth-client';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SystemCommissionRateForm } from '../components/system-commission-rate-form';
+import { MaintenanceFeeSettingsForm } from '../components/maintenance-fee-settings-form';
 
 export default function CommissionSettingsPage() {
   const { t } = useTranslation();
@@ -65,7 +66,12 @@ export default function CommissionSettingsPage() {
             <AlertDescription>{t('pages.commissions.forbidden')}</AlertDescription>
           </Alert>
         ) : null}
-        {allowed ? <SystemCommissionRateForm /> : null}
+        {allowed ? (
+          <div className="space-y-6">
+            <SystemCommissionRateForm />
+            <MaintenanceFeeSettingsForm />
+          </div>
+        ) : null}
       </Container>
     </>
   );

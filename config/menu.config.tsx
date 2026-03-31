@@ -130,6 +130,7 @@ export const MENU_SIDEBAR: MenuConfig = [
       { title: 'menu.clientStatement', path: '/reports/client-statement', permission: 'reports.view' },
       { title: 'menu.statisticsByArea', path: '/reports/area-statistics', permission: 'reports.view' },
       { title: 'menu.commissionReport', path: '/reports/commissions', permission: 'reports.view' },
+      { title: 'menu.maintenanceFeesReport', path: '/reports/maintenance-fees', permission: 'reports.view' },
       { title: 'menu.surplusShortage', path: '/reports/surplus-shortage', permission: 'reports.surplus_shortage' },
     ],
   },
@@ -340,6 +341,7 @@ export const MENU_MEGA: MenuConfig = [
       {
         children: [
           { title: 'menu.commissionReport', icon: Calculator, path: '/reports/commissions', permission: 'reports.view' },
+          { title: 'menu.maintenanceFeesReport', icon: Wallet, path: '/reports/maintenance-fees', permission: 'reports.view' },
           { title: 'menu.surplusShortage', icon: AlertTriangle, path: '/reports/surplus-shortage', permission: 'reports.surplus_shortage' },
           { title: 'menu.analytics', icon: BarChart3, path: '/analytics', permission: 'reports.view' },
         ],
@@ -409,6 +411,7 @@ export const MENU_MEGA_MOBILE: MenuConfig = [
       { title: 'menu.collectionJournal', icon: ReportIcon, path: '/reports/collection-journal', permission: 'reports.view' },
       { title: 'menu.clientStatement', icon: FileText, path: '/reports/client-statement', permission: 'reports.view' },
       { title: 'menu.commissionReport', icon: Calculator, path: '/reports/commissions', permission: 'reports.view' },
+      { title: 'menu.maintenanceFeesReport', icon: Wallet, path: '/reports/maintenance-fees', permission: 'reports.view' },
       { title: 'menu.surplusShortage', icon: AlertTriangle, path: '/reports/surplus-shortage', permission: 'reports.surplus_shortage' },
     ],
   },

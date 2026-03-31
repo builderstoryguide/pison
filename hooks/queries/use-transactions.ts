@@ -21,7 +21,9 @@ export interface Transaction {
     | 'LOAN_REPAYMENT'
     | 'TRANSFER'
     | 'COMMISSION'
-    | 'ADJUSTMENT';
+    | 'ADJUSTMENT'
+    | 'TREASURY_ISSUANCE'
+    | 'ACCOUNT_MAINTENANCE_FEE';
   amount: number;
   balanceBefore: number;
   balanceAfter: number;

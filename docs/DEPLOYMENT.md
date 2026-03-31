@@ -15,6 +15,22 @@ The job runs at **00:05 on the 1st of each month** and calculates commissions fo
 
 ---
 
+## Monthly account maintenance fees (Self-hosted / external cron)
+
+Fees are defined per **account nature** (`MONTHLY` maintenance fee). Managers set **automation enabled**, **billing day** (1–28 recommended), and **timezone** in system settings (see app UI).
+
+**To enable the daily scheduler** (`server.js`):
+
+1. Set `ENABLE_MAINTENANCE_FEE_CRON=1`.
+2. Set `CRON_SECRET` (same as other crons).
+3. Set `NEXTAUTH_URL` to the app base URL.
+
+The job runs **daily at 01:05** (server local time). The API only posts fees when **automation is enabled** and the current calendar date in **System timezone** matches the configured billing day (clamped to month length).
+
+**Serverless / Vercel:** Call `POST /api/cron/maintenance-fees` daily with header `X-Cron-Secret: <CRON_SECRET>` and body `{}`. For a **manual run** for a specific month: `{ "period": "YYYY-MM", "ignoreBillingDay": true }`. To run while automation is toggled off (recovery): add `"ignoreAutomationDisabled": true`.
+
+---
+
 ## Response Compression
 
 ### Self-hosted (custom server)

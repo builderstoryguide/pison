@@ -366,6 +366,9 @@ const TransactionList = ({ defaultType, accountId }: TransactionListProps) => {
             <SelectItem value="LOAN_REPAYMENT">{t('pages.transactions.typeLoanRepayment')}</SelectItem>
             <SelectItem value="COMMISSION">{t('pages.transactions.typeCommission')}</SelectItem>
             <SelectItem value="ADJUSTMENT">{t('pages.transactions.typeAdjustment')}</SelectItem>
+            <SelectItem value="ACCOUNT_MAINTENANCE_FEE">
+              {t('pages.transactions.typeAccountMaintenanceFee')}
+            </SelectItem>
           </SelectContent>
         </Select>
         <Select

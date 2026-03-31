@@ -381,6 +381,7 @@
       "typeLoanRepayment": "Remboursement de prêt",
       "typeLoanDisbursement": "Déblocage de prêt",
       "typeCommission": "Commission",
+      "typeAccountMaintenanceFee": "Frais d'entretien de compte",
       "typeAdjustment": "Ajustement",
       "statusCompleted": "Terminé",
       "statusPending": "En attente",
@@ -759,6 +760,10 @@
           "title": "Rapport des commissions",
           "description": "Commissions sur les retraits : montants, taux et totaux par client ou par période."
         },
+        "maintenanceFees": {
+          "title": "Frais d'entretien",
+          "description": "Prélèvements mensuels d'entretien par période et type de compte, avec accès à l'historique des transactions."
+        },
         "surplusShortage": {
           "title": "Excédent / Pénurie",
           "description": "Rapprochement quotidien des espèces physiques et du solde système. Met en évidence les écarts."
@@ -840,6 +845,24 @@
       "areaStatistics": "Statistiques par zone",
       "surplusShortage": "Excédent / Pénurie",
       "commissions": "Commissions",
+      "maintenanceFees": "Frais d'entretien",
+      "maintenanceFeesReport": {
+        "filtersTitle": "Plage de dates",
+        "from": "Du",
+        "to": "Au",
+        "apply": "Appliquer",
+        "summaryTitle": "Synthèse",
+        "totalTransactions": "Transactions de frais d'entretien",
+        "grandTotal": "Total prélevé",
+        "byMonth": "Par mois (fuseau de l'établissement)",
+        "byNature": "Par type de compte (nature)",
+        "columnPeriod": "Mois",
+        "columnNature": "Type de compte",
+        "columnCount": "Nombre",
+        "columnTotal": "Total",
+        "empty": "Aucune transaction de frais d'entretien sur cette période.",
+        "historyHint": "Utilisez Toutes les transactions et filtrez par type « Frais d'entretien de compte » pour voir chaque écriture."
+      },
       "commissionReport": {
         "export": "Exporter",
         "calculate": "Calculer les commissions",
@@ -1368,6 +1391,16 @@
       "commissionRateUpdateSuccess": "Taux de commission mis à jour avec succès",
       "commissionRateUpdateFailed": "Échec de la mise à jour du taux de commission",
       "commissionRateInvalid": "Le taux de commission doit être un nombre entre 0 et 100",
+      "maintenanceFeeTitle": "Entretien mensuel des comptes",
+      "maintenanceFeeAutomationLabel": "Prélèvement mensuel automatique",
+      "maintenanceFeeAutomationDesc": "Si activé, le système prélève les frais le jour calendaire configuré (fuseau de l'établissement). Nécessite un cron quotidien appelant l'API des frais d'entretien.",
+      "maintenanceFeeBillingDayLabel": "Jour de prélèvement dans le mois",
+      "maintenanceFeeBillingDayDesc": "Jour 1 à 28 dans le fuseau de l'établissement. Les montants proviennent de chaque type de compte (nature) où un frais mensuel est défini.",
+      "maintenanceFeeTimezoneHint": "Le fuseau horaire est celui des paramètres généraux. Modifiez-le là si le prélèvement doit suivre une autre région.",
+      "saveMaintenanceFeeSettings": "Enregistrer les paramètres d'entretien",
+      "maintenanceFeeBillingDayInvalid": "Le jour doit être entre 1 et 28",
+      "maintenanceFeeUpdateSuccess": "Paramètres d'entretien mis à jour",
+      "maintenanceFeeUpdateFailed": "Échec de la mise à jour des paramètres d'entretien",
       "defaultDailyClosureTime": "Heure de clôture quotidienne par défaut",
       "defaultDailyClosureTimeDesc": "Utilisée pour les rappels avant clôture (30, 15 et 5 minutes avant) avec le fuseau horaire ci-dessus. Les gestionnaires peuvent surcharger pour aujourd'hui sous Opérations > Session."
     },
@@ -1499,6 +1532,7 @@
     "clientStatement": "Relevé client",
     "statisticsByArea": "Statistiques par zone",
     "commissionReport": "Rapport des commissions",
+    "maintenanceFeesReport": "Frais d'entretien",
     "surplusShortage": "Excédent/Pénurie",
     "analytics": "Analytiques",
     "overview": "Aperçu",

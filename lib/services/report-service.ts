@@ -172,6 +172,7 @@ export class ReportService {
       let totalCommissions = 0;
       let totalLoanDisbursements = 0;
       let totalLoanRepayments = 0;
+      let totalMaintenanceFees = 0;
 
       for (const t of txns) {
         const amt = t.amount.toNumber();
@@ -195,6 +196,9 @@ export class ReportService {
           case 'LOAN_REPAYMENT':
             totalLoanRepayments += amt;
             break;
+          case 'ACCOUNT_MAINTENANCE_FEE':
+            totalMaintenanceFees += amt;
+            break;
         }
       }
 
@@ -202,12 +206,15 @@ export class ReportService {
       const closingBalance = client.account.balance.toNumber();
       // Net Activity = (Indices that increase balance) - (Indices that decrease balance)
       // Increases: DEPOSIT, COLLECTION, LOAN_DISBURSEMENT
-      // Decreases: WITHDRAWAL, TRANSFER, LOAN_REPAYMENT, COMMISSION
+      // Decreases: WITHDRAWAL, TRANSFER, LOAN_REPAYMENT, COMMISSION, ACCOUNT_MAINTENANCE_FEE
       const netActivity =
         totalDeposits +
         totalCollections +
         totalLoanDisbursements -
-        (totalWithdrawals + totalCommissions + totalLoanRepayments);
+        (totalWithdrawals +
+          totalCommissions +
+          totalLoanRepayments +
+          totalMaintenanceFees);
         
       const openingBalance = closingBalance - netActivity;
 

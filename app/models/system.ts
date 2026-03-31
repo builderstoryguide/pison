@@ -27,6 +27,8 @@ export interface SystemSetting {
   timezone: string;
   /** Local time HH:mm for default daily closure alerts */
   defaultDailyClosureTime?: string;
+  maintenanceFeeBillingDay?: number;
+  maintenanceFeeAutomationEnabled?: boolean;
   currency: string;
   currencyFormat: string;
   commissionRate: number | string;

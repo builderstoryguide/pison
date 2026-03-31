@@ -7,6 +7,8 @@
  * Scheduled jobs (self-hosted only):
  * - Commission calculation: runs at 00:05 on the 1st of each month for the previous month.
  *   Set ENABLE_COMMISSION_CRON=1 to enable. Disabled in development by default.
+ * - Monthly account maintenance fees: daily POST to /api/cron/maintenance-fees (billing day is enforced server-side).
+ *   Set ENABLE_MAINTENANCE_FEE_CRON=1 and CRON_SECRET to enable.
  */
 
 const { createServer } = require('http');
@@ -87,6 +89,45 @@ function scheduleLoanReminderCron() {
   console.log('[Cron] Loan maturity reminders scheduled (daily at 08:00)');
 }
 
+function scheduleMaintenanceFeeCron() {
+  const enabled =
+    process.env.ENABLE_MAINTENANCE_FEE_CRON === '1' ||
+    (!dev && !process.env.DISABLE_MAINTENANCE_FEE_CRON);
+  const secret = process.env.CRON_SECRET;
+  if (!enabled || !secret) {
+    if (enabled && !secret) {
+      console.warn('[Cron] ENABLE_MAINTENANCE_FEE_CRON=1 but CRON_SECRET not set. Maintenance fee cron disabled.');
+    }
+    return;
+  }
+
+  const baseUrl = process.env.NEXTAUTH_URL || `http://localhost:${port}`;
+  // Daily: server decides whether today is the configured billing day in institution timezone
+  cron.schedule('5 1 * * *', async () => {
+    try {
+      const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/cron/maintenance-fees`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Cron-Secret': secret },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const j = await res.json().catch(() => ({}));
+        if (j.skipped) {
+          console.log('[Cron] Maintenance fees skipped:', j.reason || j.message || 'skipped');
+        } else {
+          console.log('[Cron] Maintenance fees run completed:', j.data || j.message);
+        }
+      } else {
+        const text = await res.text();
+        console.error('[Cron] Maintenance fees failed:', res.status, text);
+      }
+    } catch (err) {
+      console.error('[Cron] Maintenance fees failed:', err);
+    }
+  });
+  console.log('[Cron] Maintenance fees scheduled (daily at 01:05 server local time)');
+}
+
 app.prepare().then(() => {
   const server = createServer((req, res) => {
     compress(req, res, () => {
@@ -105,5 +146,6 @@ app.prepare().then(() => {
     );
     scheduleCommissionCron();
     scheduleLoanReminderCron();
+    scheduleMaintenanceFeeCron();
   });
 });
