@@ -32,6 +32,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getAgentStatusPresentation } from '@/lib/status/presenters';
+import type { StatusBadgeVariant } from '@/lib/status/presenters';
 
 interface AgentAccountRow {
   id: string;
@@ -88,12 +90,6 @@ export default function AgentAccountsList() {
 
   const handleRowClick = (row: AgentAccountRow) => {
     router.push(`/agents/${row.id}`);
-  };
-
-  const statusColors: Record<string, 'success' | 'secondary' | 'warning'> = {
-    ACTIVE: 'success',
-    INACTIVE: 'secondary',
-    SUSPENDED: 'warning',
   };
 
   const columns = useMemo<ColumnDef<AgentAccountRow>[]>(
@@ -214,11 +210,11 @@ export default function AgentAccountsList() {
         ),
         cell: ({ row }) => {
           const status = row.original.status;
-          const variant = statusColors[status] || 'secondary';
+          const { labelKey, variant } = getAgentStatusPresentation(status);
           return (
-            <Badge variant={variant} appearance="ghost">
+            <Badge variant={variant as StatusBadgeVariant} appearance="ghost">
               <BadgeDot />
-              {status}
+              {t(labelKey)}
             </Badge>
           );
         },
@@ -285,10 +281,10 @@ export default function AgentAccountsList() {
               <SelectValue placeholder={t('common.labels.status')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t('common.labels.status')}: All</SelectItem>
-              <SelectItem value="ACTIVE">ACTIVE</SelectItem>
-              <SelectItem value="INACTIVE">INACTIVE</SelectItem>
-              <SelectItem value="SUSPENDED">SUSPENDED</SelectItem>
+              <SelectItem value="all">{t('pages.agents.allStatuses')}</SelectItem>
+              <SelectItem value="ACTIVE">{t('status.agent.ACTIVE')}</SelectItem>
+              <SelectItem value="INACTIVE">{t('status.agent.INACTIVE')}</SelectItem>
+              <SelectItem value="SUSPENDED">{t('status.agent.SUSPENDED')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -314,12 +310,12 @@ export default function AgentAccountsList() {
         {toolbarContent}
         <CardTable>
           <ScrollArea>
-            <DataGridTable table={table} />
+            <DataGridTable />
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </CardTable>
         <CardFooter className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 py-4">
-          <DataGridPagination table={table} />
+          <DataGridPagination />
         </CardFooter>
       </Card>
     </DataGrid>

@@ -15,6 +15,9 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatCurrency, formatDate } from '@/lib/helpers';
+import { getTransactionTypeLabel } from '@/lib/i18n/transaction-labels';
+import { getFinancialAccountStatusPresentation, getLoanStatusPresentation } from '@/lib/status/presenters';
+import type { StatusBadgeVariant } from '@/lib/status/presenters';
 import { Wallet, Activity, CreditCard, ArrowRightLeft } from 'lucide-react';
 
 interface AccountStatusContentProps {
@@ -30,6 +33,7 @@ interface AccountStatusContentProps {
     transactions: Array<{
       id: string;
       type: string;
+      reference?: string | null;
       transactionNumber: string;
       amount: string | number;
       description?: string | null;
@@ -48,15 +52,6 @@ interface AccountStatusContentProps {
   ownerType: string;
 }
 
-function getStatusVariant(status: string) {
-  switch (status) {
-    case 'ACTIVE': return 'success';
-    case 'FROZEN': return 'warning';
-    case 'CLOSED': return 'destructive';
-    default: return 'secondary';
-  }
-}
-
 export default function AccountStatusContent({
   account,
   ownerName,
@@ -65,6 +60,7 @@ export default function AccountStatusContent({
 }: AccountStatusContentProps & { breadcrumbs?: React.ReactNode }) {
   const { t } = useTranslation();
   const ownerTypeLabel = t(`pages.accounts.${ownerType}`);
+  const accountStatus = getFinancialAccountStatusPresentation(account.status);
 
   return (
     <>
@@ -73,7 +69,7 @@ export default function AccountStatusContent({
           <ToolbarHeading>
             <ToolbarTitle>{t('pages.accounts.accountStatus')}</ToolbarTitle>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Badge variant={getStatusVariant(account.status)}>{account.status}</Badge>
+              <Badge variant={accountStatus.variant as StatusBadgeVariant}>{t(accountStatus.labelKey)}</Badge>
               <span>{account.accountNumber}</span>
               <span>•</span>
               <span>{ownerName ? `${ownerName} (${ownerTypeLabel})` : ownerTypeLabel}</span>
@@ -164,7 +160,7 @@ export default function AccountStatusContent({
                     <div key={txn.id} className="flex justify-between items-center border-b pb-3 last:border-0 last:pb-0">
                       <div className="space-y-1">
                         <div className="font-medium flex items-center gap-2">
-                          {txn.type}
+                          {getTransactionTypeLabel(txn.type, t, { reference: txn.reference })}
                           <span className="text-xs text-muted-foreground font-normal">{txn.transactionNumber}</span>
                         </div>
                         <div className="text-sm text-muted-foreground">{formatDate(txn.createdAt)}</div>
@@ -219,7 +215,9 @@ export default function AccountStatusContent({
                     <div key={loan.id} className="p-3 border rounded-lg space-y-2">
                       <div className="flex justify-between font-medium">
                         <span>{loan.loanNumber}</span>
-                        <Badge variant="outline">{loan.status}</Badge>
+                        <Badge variant="outline">
+                          {t(getLoanStatusPresentation(loan.status).labelKey)}
+                        </Badge>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">{t('pages.loans.principal')}:</span>

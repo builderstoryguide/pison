@@ -12,6 +12,7 @@ import { clientService } from '@/lib/services';
 import { parseFieldsParam } from '@/lib/utils/field-select';
 import { cachedJson } from '@/lib/api';
 import { z } from 'zod';
+import { isClientCreationValidationError } from '@/lib/errors/client-validation-error';
 
 const CLIENT_FIELDS_ALLOWLIST = [
   'id',
@@ -268,6 +269,20 @@ export async function POST(request: NextRequest) {
           },
         },
         { status: 400 }
+      );
+    }
+
+    if (isClientCreationValidationError(error)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+          },
+        },
+        { status: 422 }
       );
     }
 

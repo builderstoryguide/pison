@@ -130,7 +130,7 @@ export function SidebarMenu() {
         </div>
         {item.disabled && (
           <Badge variant="secondary" size="sm" className="ms-auto me-[-10px]">
-            Soon
+            {t('common.badges.soon')}
           </Badge>
         )}
       </AccordionMenuItem>
@@ -230,7 +230,7 @@ export function SidebarMenu() {
         </div>
         {item.disabled && (
           <Badge variant="secondary" size="sm" className="ms-auto me-[-10px]">
-            Soon
+            {t('common.badges.soon')}
           </Badge>
         )}
       </AccordionMenuItem>

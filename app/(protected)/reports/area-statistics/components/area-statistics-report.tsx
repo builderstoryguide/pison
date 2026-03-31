@@ -83,6 +83,7 @@ export default function AreaStatisticsReport() {
       return json.data ?? [];
     },
     staleTime: 1000 * 60 * 10,
+    refetchInterval: false,
   });
 
   // Fetch report
@@ -100,6 +101,7 @@ export default function AreaStatisticsReport() {
     },
     enabled: !!startDate && !!endDate,
     staleTime: 1000 * 60 * 5,
+    refetchInterval: false,
   });
 
   const allRows = rows ?? [];
@@ -123,20 +125,31 @@ export default function AreaStatisticsReport() {
         accessorKey: 'areaCode',
         id: 'areaCode',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Code" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.areaStatisticsReport.columns.code')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm font-medium">{row.original.areaCode}</span>
         ),
         size: 90,
-        meta: { headerTitle: 'Code', skeleton: <Skeleton className="w-12 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.areaStatisticsReport.columns.code'),
+          skeleton: <Skeleton className="w-12 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'areaName',
         id: 'areaName',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Area" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.areaStatisticsReport.columns.area')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
@@ -145,40 +158,61 @@ export default function AreaStatisticsReport() {
           </div>
         ),
         size: 180,
-        meta: { headerTitle: 'Area', skeleton: <Skeleton className="w-28 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.areaStatisticsReport.columns.area'),
+          skeleton: <Skeleton className="w-28 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'clientCount',
         id: 'clientCount',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Clients" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.areaStatisticsReport.columns.clients')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="text-sm text-right block">{row.original.clientCount}</span>
         ),
         size: 80,
-        meta: { headerTitle: 'Clients', skeleton: <Skeleton className="w-8 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.areaStatisticsReport.columns.clients'),
+          skeleton: <Skeleton className="w-8 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'agentCount',
         id: 'agentCount',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Agents" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.areaStatisticsReport.columns.agents')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="text-sm text-right block">{row.original.agentCount}</span>
         ),
         size: 80,
-        meta: { headerTitle: 'Agents', skeleton: <Skeleton className="w-8 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.areaStatisticsReport.columns.agents'),
+          skeleton: <Skeleton className="w-8 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'totalCollections',
         id: 'totalCollections',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Collections" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.areaStatisticsReport.columns.collections')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-emerald-600 text-right block">
@@ -186,14 +220,21 @@ export default function AreaStatisticsReport() {
           </span>
         ),
         size: 140,
-        meta: { headerTitle: 'Collections', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.areaStatisticsReport.columns.collections'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'totalDeposits',
         id: 'totalDeposits',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Deposits" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.areaStatisticsReport.columns.deposits')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-green-600 text-right block">
@@ -201,14 +242,21 @@ export default function AreaStatisticsReport() {
           </span>
         ),
         size: 130,
-        meta: { headerTitle: 'Deposits', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.areaStatisticsReport.columns.deposits'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'totalWithdrawals',
         id: 'totalWithdrawals',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Withdrawals" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.areaStatisticsReport.columns.withdrawals')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-red-600 text-right block">
@@ -216,27 +264,41 @@ export default function AreaStatisticsReport() {
           </span>
         ),
         size: 130,
-        meta: { headerTitle: 'Withdrawals', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.areaStatisticsReport.columns.withdrawals'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'transactionCount',
         id: 'transactionCount',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Txns" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.areaStatisticsReport.columns.transactions')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="text-sm text-right block">{row.original.transactionCount}</span>
         ),
         size: 70,
-        meta: { headerTitle: 'Txns', skeleton: <Skeleton className="w-8 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.areaStatisticsReport.columns.transactions'),
+          skeleton: <Skeleton className="w-8 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'netBalance',
         id: 'netBalance',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Net Balance" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.areaStatisticsReport.columns.netBalance')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => {
           const net = row.original.netBalance;
@@ -251,11 +313,14 @@ export default function AreaStatisticsReport() {
           );
         },
         size: 140,
-        meta: { headerTitle: 'Net Balance', skeleton: <Skeleton className="w-24 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.areaStatisticsReport.columns.netBalance'),
+          skeleton: <Skeleton className="w-24 h-5" />,
+        },
         enableSorting: true,
       },
     ],
-    [],
+    [t],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -345,7 +410,9 @@ export default function AreaStatisticsReport() {
                   <SelectValue placeholder={t('pages.reports.allAreas')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All areas</SelectItem>
+                  <SelectItem value="all">
+                    {t('pages.collectionAreas.allAreas')}
+                  </SelectItem>
                   {areas?.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       {a.name}

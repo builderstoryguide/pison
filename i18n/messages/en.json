@@ -10,7 +10,28 @@
       "add": "Add",
       "remove": "Remove",
       "submit": "Submit",
-      "close": "Close"
+      "close": "Close",
+      "saveChanges": "Save Changes",
+      "copy": "Copy",
+      "resetPassword": "Reset Password",
+      "setup": "Setup",
+      "addNew": "Add New",
+      "invitePeople": "Invite People",
+      "selectCsvFile": "Select CSV File",
+      "addDevice": "Add Device",
+      "addIpAddress": "Add IP Address",
+      "managePayment": "Manage Payment",
+      "backToLoans": "Back to Loans",
+      "reCreate": "Re-create",
+      "tryAgain": "Try Again",
+      "signOut": "Sign Out",
+      "returnToDashboard": "Return to Dashboard",
+      "viewSessionStatus": "View Session Status",
+      "backToAccountants": "Back to accountants",
+      "backToUsers": "Back to users"
+    },
+    "actions": {
+      "export": "Export Report"
     },
     "labels": {
       "name": "Name",
@@ -66,7 +87,20 @@
       "enterName": "Enter name",
       "enterEmail": "Enter user email",
       "setPassword": "Set initial password",
-      "confirmPassword": "Confirm password"
+      "confirmPassword": "Confirm password",
+      "searchUsers": "Search users...",
+      "searchRoles": "Search roles...",
+      "searchPermissions": "Search permissions...",
+      "searchAccountants": "Search accountants...",
+      "searchLoans": "Search loans...",
+      "filterByRole": "Filter by role",
+      "enterUserName": "Enter user name",
+      "enterEmailConfirm": "Enter email address",
+      "enterRoleName": "Enter role name",
+      "reasonRejectionAccount": "Enter reason for rejection...",
+      "notesClosure": "Add any notes about the closure...",
+      "amountZero": "0",
+      "commandSearchPermissions": "Search permissions..."
     },
     "validation": {
       "amountPositive": "Amount must be positive",
@@ -84,6 +118,9 @@
       "southwest": "Southwest",
       "west": "West"
     },
+    "badges": {
+      "soon": "Soon"
+    },
     "aria": {
       "userAvatar": "User avatar"
     },
@@ -96,6 +133,27 @@
       "users": "Users",
       "roles": "Roles",
       "userManagement": "User Management"
+    },
+    "table": {
+      "rowsPerPage": "Rows per page",
+      "show": "Show",
+      "perPage": "per page",
+      "paginationRange": "{{from}} - {{to}} of {{count}}",
+      "noData": "No data available",
+      "selectRow": "Select row",
+      "selectAll": "Select all",
+      "goToPreviousPage": "Go to previous page",
+      "goToNextPage": "Go to next page"
+    },
+    "dataGrid": {
+      "sortAsc": "Ascending",
+      "sortDesc": "Descending",
+      "pinToLeft": "Pin to left",
+      "pinToRight": "Pin to right",
+      "moveLeft": "Move left",
+      "moveRight": "Move right",
+      "columnsMenu": "Columns",
+      "unpinColumn": "Unpin {{column}} column"
     }
   },
   "pages": {
@@ -113,6 +171,9 @@
       "currentPasswordPlaceholder": "Enter your current password",
       "updateUsername": "Update Username",
       "usernameUpdated": "Username updated successfully",
+      "emailUpdatedSuccess": "Email updated successfully",
+      "passwordUpdatedSuccess": "Password updated successfully",
+      "passwordUpdateFailed": "Failed to update password",
       "notifications": {
         "title": "Notifications",
         "description": "Manage your notification preferences",
@@ -165,6 +226,8 @@
       }
     },
     "profile": {
+      "toolbarDescription": "Manage your personal information and settings",
+      "photo": "Photo",
       "cardTitle": "Profile",
       "cardDescription": "Manage profile information",
       "avatarLabel": "Profile Avatar",
@@ -180,12 +243,20 @@
       "connections": "Connections",
       "publicProfile": "Public Profile",
       "jointLinks": "Joint Links",
-      "viewMore": "View {{count}} more"
+      "viewMore": "View {{count}} more",
+      "defaultUserRole": "User",
+      "userStatus": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "suspended": "Suspended",
+        "pending": "Pending"
+      }
     },
     "dashboard": {
       "adminTitle": "Manager Dashboard",
       "accountantTitle": "Accountant Dashboard",
       "agentTitle": "Agent Dashboard",
+      "overviewDescription": "Overview of system performance and activities",
       "home": "Home",
       "activeClients": "Active Clients",
       "totalRegisteredClients": "Total registered clients",
@@ -230,7 +301,11 @@
       "recentCollections": "Recent Collections",
       "noRecentCollections": "No recent collections",
       "startDailyCollection": "Start Daily Collection",
-      "viewClients": "View Clients"
+      "viewClients": "View Clients",
+      "pendingValidationsTitle": "Pending Validations",
+      "pendingValidationsEmpty": "No pending transactions",
+      "pendingValidationsViewAll": "View All ({{count}})",
+      "pendingValidationsAgent": "Agent: {{name}}"
     },
     "clients": {
       "title": "Clients",
@@ -272,6 +347,9 @@
       "agentDesc": "Optional agent assigned to collect from this client",
       "commissionExempt": "Commission Exempt",
       "commissionExemptDesc": "If enabled, this client will not be charged commissions on withdrawals",
+      "commissionRatePercent": "Client Commission Rate (%)",
+      "commissionRatePercentPlaceholder": "Leave empty to use system rate",
+      "commissionRatePercentDescription": "Set a client-specific commission rate. Leave blank to inherit the system-wide rate.",
       "columnClient": "Client",
       "columnArea": "Area",
       "columnBalance": "Balance",
@@ -302,13 +380,43 @@
       "typeCollection": "Collection",
       "typeLoanRepayment": "Loan Repayment",
       "typeLoanDisbursement": "Loan Disbursement",
+      "typeCommission": "Commission",
+      "typeAdjustment": "Adjustment",
       "statusCompleted": "Completed",
       "statusPending": "Pending",
       "statusApproved": "Approved",
       "statusRejected": "Rejected",
+      "statusReversed": "Reversed",
       "noClientsWithActiveAccounts": "No clients with active accounts",
       "sessionClosed": "Session closed",
-      "sessionClosedDesc": "No transactions can be created while the daily session is closed."
+      "sessionClosedDesc": "No transactions can be created while the daily session is closed.",
+      "notFound": "Transaction not found",
+      "balanceBeforeAfter": "Balance before / after",
+      "detailAmount": "Amount",
+      "transferPickSource": "Choose what debits the transfer.",
+      "transferFromOperating": "From my operating account",
+      "transferFromClient": "From a client account (same as before)",
+      "transferFromOperatingDesc": "Debit your staff operating wallet {{account}}. Manager can send to accountants or agents; accountant can send to agents.",
+      "noStaffDestinations": "No destination accounts available.",
+      "typeTreasuryIssuance": "Treasury issuance",
+      "minBalanceWarningTitle": "Below minimum balance",
+      "confirmMinBalanceProceed": "Proceed anyway"
+    },
+    "closureAlert": {
+      "minutes30": "Daily closure is in about 30 minutes ({{time}}).",
+      "minutes15": "Daily closure is in about 15 minutes ({{time}}).",
+      "minutes5": "Daily closure is in about 5 minutes ({{time}})."
+    },
+    "treasury": {
+      "title": "Treasury liquidity",
+      "description": "Introduce digital float into your operating account (manager only).",
+      "currentFloat": "Current float",
+      "noOperatingAccount": "No operating account is linked to your user.",
+      "amount": "Amount to issue",
+      "noteOptional": "Note (optional)",
+      "notePlaceholder": "e.g. Initial monthly float",
+      "issueCta": "Issue liquidity",
+      "issueSuccess": "Liquidity issued successfully"
     },
     "agents": {
       "title": "Agents",
@@ -316,6 +424,12 @@
       "editAgent": "Edit Agent",
       "searchPlaceholder": "Search agents...",
       "filterByStatus": "Filter by status",
+      "allStatuses": "All statuses",
+      "columnAgent": "Agent",
+      "columnBalance": "Balance",
+      "columnPhone": "Phone",
+      "columnStatus": "Status",
+      "columnCreated": "Created",
       "addAgent": "Add Agent",
       "refillAmount": "Refill Amount",
       "createNewAgent": "Create New Agent",
@@ -360,7 +474,9 @@
       "usernameOptionalDesc": "Optional. If empty, a username will be auto-generated.",
       "passwordPlaceholder": "Leave empty to auto-generate",
       "passwordOptionalDesc": "Leave empty to auto-generate a secure password.",
-      "autoCredentialsInfo": "A username and password will be automatically generated. Login credentials will be downloaded as a file after creation."
+      "autoCredentialsInfo": "A username and password will be automatically generated. Login credentials will be downloaded as a file after creation.",
+      "refillPendingApproval": "Refill request created successfully (Pending Approval)",
+      "refillFailed": "Failed to refill account"
     },
     "loans": {
       "title": "Loans",
@@ -383,6 +499,8 @@
       "principalAmountXof": "Principal Amount (XOF)",
       "interestRatePercent": "Interest Rate (0.15 = 15%)",
       "purpose": "Purpose",
+      "repaymentDueDate": "Repayment Due Date",
+      "repaymentDueDateDesc": "Set the final date by which this loan should be fully repaid.",
       "amountXof": "Amount (XOF)",
       "recordRepayment": "Record Repayment",
       "recordRepaymentDesc": "Record a repayment for loan {{loanNumber}}. Remaining Balance: {{balance}}",
@@ -400,7 +518,25 @@
       "clientInformation": "Client Information",
       "clientNumber": "Client Number",
       "contact": "Contact",
-      "area": "Area"
+      "area": "Area",
+      "onlyPendingLoansEditable": "Only pending loans can be edited. This loan is {{status}}.",
+      "list": {
+        "searchPlaceholder": "Search loans...",
+        "filterByStatus": "Filter by status",
+        "allStatuses": "All statuses",
+        "statusActiveDisbursed": "Active (disbursed or active)",
+        "columnLoan": "Loan",
+        "columnPrincipal": "Principal",
+        "columnRemaining": "Remaining",
+        "columnStatus": "Status",
+        "columnCreated": "Created"
+      },
+      "toastRequestCreated": "Loan request created successfully",
+      "toastRequestUpdated": "Loan request updated successfully",
+      "toastRepaymentRecorded": "Repayment recorded successfully",
+      "toastRepaymentFailed": "Failed to record repayment",
+      "toastCreateFailed": "Failed to create loan request",
+      "toastUpdateFailed": "Failed to update loan request"
     },
     "topbar": {
       "chat": {
@@ -451,7 +587,9 @@
         "loansSuffix": ", {{count}} loans",
         "viewPendingTransactions": "View pending transactions ->",
         "viewPendingAccounts": "View pending accounts ->",
-        "openTxHint": "Click to view details and approve or reject",
+        "maturityLoans": "Loans approaching maturity ({{count}})",
+        "viewLoans": "View all loans",
+        "openTxHint": "Open for full details, or use Approve / Reject below.",
         "tabs": {
           "all": "All",
           "inbox": "Inbox",
@@ -600,9 +738,105 @@
     },
     "reports": {
       "title": "Reports",
+      "dashboard": {
+        "monthlyBalance": {
+          "title": "Monthly Balance",
+          "description": "Client account balances with deposits, withdrawals, collections, and commissions for a given month."
+        },
+        "collectionJournal": {
+          "title": "Collection Journal",
+          "description": "Detailed log of all daily collection transactions by agent and area within a date range."
+        },
+        "clientStatement": {
+          "title": "Client Statement",
+          "description": "Full account statement for a specific client showing all debits, credits, and running balance."
+        },
+        "areaStatistics": {
+          "title": "Area Statistics",
+          "description": "Performance metrics by collection area: transaction volume, net balance, client and agent counts."
+        },
+        "commissions": {
+          "title": "Commission Report",
+          "description": "Commission charges on withdrawal transactions: amounts, rates, and totals per client or period."
+        },
+        "surplusShortage": {
+          "title": "Surplus / Shortage",
+          "description": "Daily reconciliation of physical cash versus system balance. Identifies discrepancies."
+        }
+      },
       "monthlyBalance": "Monthly Balance",
       "collectionJournal": "Collection Journal",
+      "collectionJournalReport": {
+        "summaryTotalCollections": "Total Collections",
+        "summaryEntries": "Entries",
+        "columnTransactionNumber": "Transaction #",
+        "columnDate": "Date",
+        "columnClient": "Client",
+        "columnAgent": "Agent",
+        "columnArea": "Area",
+        "columnAmount": "Amount",
+        "columnStatus": "Status"
+      },
+      "monthlyBalanceReport": {
+        "columns": {
+          "clientNumber": "Client #",
+          "name": "Name",
+          "area": "Area",
+          "openingBalance": "Opening Bal.",
+          "deposits": "Deposits",
+          "collections": "Collections",
+          "withdrawals": "Withdrawals",
+          "commissions": "Commissions",
+          "closingBalance": "Closing Bal."
+        }
+      },
+      "areaStatisticsReport": {
+        "columns": {
+          "code": "Code",
+          "area": "Area",
+          "clients": "Clients",
+          "agents": "Agents",
+          "collections": "Collections",
+          "deposits": "Deposits",
+          "withdrawals": "Withdrawals",
+          "transactions": "Txns",
+          "netBalance": "Net Balance"
+        }
+      },
+      "surplusShortageReport": {
+        "columns": {
+          "date": "Date",
+          "collections": "Collections",
+          "deposits": "Deposits",
+          "withdrawals": "Withdrawals",
+          "systemBalance": "System Bal.",
+          "physicalCash": "Physical Cash",
+          "surplusShortage": "Surplus / Shortage",
+          "closedBy": "Closed By"
+        }
+      },
       "clientStatement": "Client Statement",
+      "clientStatementReport": {
+        "filterTitle": "Select Client & Period",
+        "clientLabel": "Client",
+        "startDate": "Start Date",
+        "endDate": "End Date",
+        "area": "Area",
+        "currentBalance": "Current Balance",
+        "totalCredit": "Total Credit",
+        "totalDebit": "Total Debit",
+        "transactionCount": "Transactions",
+        "emptyHint": "Select a client and date range above to generate the statement.",
+        "columns": {
+          "date": "Date",
+          "reference": "Reference",
+          "type": "Type",
+          "description": "Description",
+          "debit": "Debit",
+          "credit": "Credit",
+          "balance": "Balance"
+        }
+      },
       "areaStatistics": "Area Statistics",
       "surplusShortage": "Surplus / Shortage",
       "commissions": "Commissions",
@@ -671,6 +905,28 @@
       "filterByStatus": "Filter by status",
       "filterByRegion": "Filter by region",
       "allRegions": "All regions",
+      "allAreas": "All areas",
+      "columns": {
+        "code": "Code",
+        "city": "City",
+        "region": "Region",
+        "status": "Status",
+        "clients": "Clients",
+        "created": "Created"
+      },
+      "deactivateAreaTitle": "Deactivate Collection Area",
+      "deactivateAreaDescription": "Are you sure you want to deactivate \"{{name}}\"? This will mark the area as inactive but will not delete it. Clients and transactions associated with this area will remain.",
+      "deactivateArea": "Deactivate",
+      "deactivatingArea": "Deactivating...",
+      "areaDeactivatedSuccess": "Collection area deactivated successfully",
+      "areaDeactivateFailed": "Failed to deactivate area",
+      "fetchAreasFailed": "Failed to fetch collection areas",
+      "fetchAgentsFailed": "Failed to fetch agents",
+      "fetchAgentAssignmentsFailed": "Failed to load agent assignments",
+      "assignAreasSuccess": "Areas assigned successfully",
+      "assignAreasFailed": "Failed to assign areas",
+      "areaTakenBy": "{{area}} is already assigned to {{agent}}.",
+      "assignedToCollector": "Assigned to {{name}} ({{code}})",
       "addArea": "Add Area",
       "createNewArea": "Create New Collection Area",
       "editCollectionArea": "Edit Collection Area",
@@ -693,7 +949,11 @@
       "selectAgentFirst": "Please select an agent first",
       "noActiveAreasAvailable": "No active collection areas available",
       "saving": "Saving...",
-      "saveAssignments": "Save Assignments"
+      "saveAssignments": "Save Assignments",
+      "toastCreated": "Collection area created successfully",
+      "toastUpdated": "Collection area updated successfully",
+      "toastCreateFailed": "Failed to create collection area",
+      "toastUpdateFailed": "Failed to update collection area"
     },
     "userManagement": {
       "users": "Users",
@@ -704,7 +964,122 @@
       "deleteUser": "Delete user account",
       "addUserTitle": "Add User",
       "addUserButton": "Add user",
-      "credentialsAutoGenerated": "Username and password will be automatically generated. Login credentials will be downloaded as a file after creation."
+      "credentialsAutoGenerated": "Username and password will be automatically generated. Login credentials will be downloaded as a file after creation.",
+      "columnUser": "User",
+      "columnName": "Name",
+      "columnRole": "Role",
+      "columnStatus": "Status",
+      "columnJoined": "Joined",
+      "columnLastSignIn": "Last Sign In",
+      "filterByRole": "Filter by role",
+      "filterByStatus": "Filter by status",
+      "allRoles": "All roles",
+      "allUsersStatus": "All users",
+      "trashed": "Trashed",
+      "rolesTable": {
+        "columnRole": "Role",
+        "columnSlug": "Slug",
+        "columnPermissions": "Permissions",
+        "columnActions": "Actions",
+        "searchPlaceholder": "Search roles...",
+        "addRole": "Add Role",
+        "badgeSystem": "system",
+        "badgeDefault": "default",
+        "moreCount": "{{count}} more",
+        "editRole": "Edit role",
+        "setAsDefault": "Set as default",
+        "deleteRole": "Delete role"
+      },
+      "permissionsTable": {
+        "columnPermission": "Permission",
+        "columnSlug": "Slug",
+        "columnDescription": "Description",
+        "columnCreatedAt": "Created At",
+        "columnActions": "Actions",
+        "searchPlaceholder": "Search permissions...",
+        "addPermission": "Add Permission",
+        "deleteSelected": "Delete {{count}} permissions",
+        "editPermission": "Edit permission",
+        "deletePermission": "Delete permission",
+        "filterByRole": "Filter by role",
+        "allRoles": "All roles"
+      },
+      "profileLabels": {
+        "fullName": "Full name:",
+        "email": "Email address:",
+        "role": "Role:",
+        "status": "Status:",
+        "lastSignIn": "Last Sign In:",
+        "joined": "Joined:",
+        "verified": "Verified",
+        "notVerified": "Not verified",
+        "systemRole": "System",
+        "notAvailable": "Not available",
+        "never": "Never"
+      },
+      "editUserDialog": {
+        "title": "Edit User Details",
+        "name": "Name",
+        "role": "Role",
+        "status": "Status",
+        "successToast": "User updated successfully"
+      },
+      "profileToolbarTitle": "User",
+      "systemSettingsLayout": {
+        "toolbarTitle": "Settings",
+        "fetchFailed": "Failed to fetch settings",
+        "tabs": {
+          "general": "General",
+          "notifications": "Notifications"
+        }
+      },
+      "settings": {
+        "notifications": {
+          "title": "Notification settings",
+          "columns": {
+            "notification": "Notification",
+            "roles": "Roles",
+            "email": "Email",
+            "web": "Web / in-app"
+          },
+          "notSet": "Not set",
+          "searchRolesPlaceholder": "Search roles...",
+          "noRolesFound": "No roles found.",
+          "reset": "Reset",
+          "save": "Save settings",
+          "updateSuccess": "Notification settings updated successfully",
+          "rows": {
+            "balanceThreshold": {
+              "title": "Account balance alerts",
+              "description": "Notify when balances approach configured thresholds (system threshold field applies where used)."
+            },
+            "pendingTransactions": {
+              "title": "Pending transactions",
+              "description": "Notify when new transactions require approval."
+            },
+            "transactionStatus": {
+              "title": "Transaction outcomes",
+              "description": "Notify when transactions are approved, rejected, or completed."
+            },
+            "loanRepayment": {
+              "title": "Loan repayment issues",
+              "description": "Notify when loan repayments fail or are overdue."
+            },
+            "systemAlerts": {
+              "title": "System alerts",
+              "description": "Notify on critical errors and operational issues."
+            }
+          }
+        }
+      },
+      "staffAccountLayout": {
+        "toolbarTitle": "Account",
+        "tabs": {
+          "profile": "Profile",
+          "security": "Security",
+          "logs": "Logs"
+        }
+      }
     },
     "validation": {
       "pendingTransactions": "Pending Transactions",
@@ -729,9 +1104,11 @@
       "notesPlaceholder": "Add any notes about this approval...",
       "approving": "Approving...",
       "rejectTransaction": "Reject Transaction",
+      "rejectConfirm": "Are you sure you want to reject this transaction? The pending balance change will be discarded.",
       "reasonRequiredLabel": "Reason *",
       "reasonPlaceholder": "Enter the reason for rejection...",
       "rejecting": "Rejecting...",
+      "minBalanceAcknowledged": "Minimum balance rule was acknowledged for this request",
       "noPendingAccounts": "No pending accounts",
       "allAccountsReviewed": "All accounts have been reviewed and processed.",
       "approveAccount": "Approve Account",
@@ -749,6 +1126,96 @@
       "rejectLoanFailed": "Failed to reject loan",
       "loanApprovedSuccess": "Loan approved and disbursed successfully",
       "loanRejected": "Loan rejected"
+    },
+    "pendingAccounts": {
+      "sectionClients": "Pending Clients ({{count}})",
+      "sectionAgents": "Pending Agents ({{count}})",
+      "labelBalance": "Balance",
+      "labelUser": "User",
+      "labelAreas": "Areas",
+      "fetchFailed": "Failed to fetch pending accounts",
+      "approveSuccess": "Account approved successfully",
+      "approveFailed": "Failed to approve account",
+      "rejectSuccess": "Account rejected",
+      "rejectFailed": "Failed to reject account",
+      "approving": "Approving...",
+      "rejecting": "Rejecting...",
+      "reasonOptionalShort": "Reason (optional)"
+    },
+    "sessionGate": {
+      "unableToLoadTitle": "Unable to load session status",
+      "unableToLoadDesc": "Failed to fetch session status. Please check your connection and try again.",
+      "systemLocked": "System locked",
+      "sessionClosedWait": "The daily session has been closed. Please wait for a manager to open a new session before you can access the system.",
+      "sessionNotOpenedWait": "The daily session has not been opened yet. Please wait for a manager to open the session before you can access the system."
+    },
+    "operations": {
+      "sessionOpenedSuccess": "Session opened successfully",
+      "sessionOpenFailed": "Failed to open session",
+      "accountantRoleNotLoaded": "Accountant role not loaded yet.",
+      "plannedClosureSaveFailed": "Failed to save planned closure",
+      "plannedClosureUpdated": "Planned closure updated",
+      "sessionStatus": {
+        "tryAgain": "Try Again",
+        "currentSessionTitle": "Current Session",
+        "cardDescription": "Daily session status and information",
+        "badgeOpen": "Open",
+        "noSession": "No Session",
+        "closeSession": "Close Session",
+        "opening": "Opening…",
+        "openTodaysSession": "Open Today's Session",
+        "sessionDate": "Session Date",
+        "statusLabel": "Status",
+        "openedAt": "Opened At",
+        "closedAt": "Closed At",
+        "byUser": "by {{name}}",
+        "statusOPEN": "Open",
+        "statusCLOSED": "Closed",
+        "statusLOCKED": "Locked",
+        "noActiveSessionTitle": "No Active Session",
+        "noActiveSessionBody": "A daily session needs to be opened before transactions can be created.",
+        "sessionInformationTitle": "Session Information",
+        "sessionOpenTransactionsAllowed": "Session is open. Transactions can be created.",
+        "sessionOpenedAtLine": "Session opened at {{time}}",
+        "managerCloseHint": "As a manager, you can close this session at the end of the day to lock all transactions for today.",
+        "effectiveClosureToday": "Effective closure today",
+        "defaultClosureTimeLine": "Default time from settings: {{time}} ({{timezone}})",
+        "plannedClosureOverride": "Planned closure override (today)",
+        "plannedClosureOverrideHint": "Optional. Sets a specific closure moment for today; reminders use this instead of the default. Times are stored in UTC.",
+        "savePlannedClosure": "Save override",
+        "clearPlannedClosure": "Use default time",
+        "savingPlannedClosure": "Saving…"
+      }
+    },
+    "dayClosure": {
+      "accessDeniedTitle": "Access denied",
+      "accessDeniedDesc": "Only managers can close the daily session.",
+      "noActiveSessionTitle": "No active session",
+      "noActiveSessionDesc": "There is no open session to close.",
+      "alreadyClosedTitle": "Session already closed",
+      "alreadyClosedDesc": "The session for {{date}} has already been closed.",
+      "sessionInfoTitle": "Session information",
+      "sessionFor": "Session for {{date}}",
+      "systemBalance": "System balance",
+      "surplusShortage": "Surplus/shortage",
+      "closeCardTitle": "Close daily session",
+      "closeCardDesc": "Enter the physical cash count and close the session. This will lock all transactions for today.",
+      "physicalCashLabel": "Physical cash amount *",
+      "physicalCashHint": "Enter the total physical cash count",
+      "summarySystemBalance": "System balance",
+      "summaryPhysicalCash": "Physical cash",
+      "summaryDifference": "Difference",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Add any notes about the closure...",
+      "notesHint": "Optional notes about the day closure",
+      "warningHtml": "Closing the session will lock all transactions for today. This action cannot be undone.",
+      "warningLead": "Warning:",
+      "closing": "Closing…",
+      "closeSession": "Close session",
+      "toastClosed": "Session closed successfully",
+      "toastCloseFailed": "Failed to close session",
+      "toastInvalidCash": "Please enter a valid cash amount",
+      "validationPhysicalCashRequired": "Physical cash amount is required"
     },
     "auditLog": {
       "title": "Audit Log",
@@ -813,7 +1280,15 @@
       "receiptAmount": "Amount",
       "receiptPending": "These transactions are pending manager approval.",
       "printReceipt": "Print",
-      "downloadReceipt": "Download"
+      "downloadReceipt": "Download",
+      "agentOperatingBalance": "Your collection wallet (available)",
+      "ventilationTotal": "Ventilation total",
+      "ventilationExceedsBalance": "Total exceeds your available balance. Reduce amounts or request a transfer from your accountant.",
+      "submitSuccessAwaitingApproval": "Collections submitted successfully. Awaiting approval.",
+      "selectAreaRequired": "Please select a collection area",
+      "enterAmountRequired": "Please enter at least one collection amount",
+      "agentIdNotFound": "Agent ID not found",
+      "submitFailed": "Failed to submit collections"
     },
     "accounts": {
       "accountStatus": "Account Status",
@@ -857,7 +1332,7 @@
       "noOtherAccounts": "No other client accounts available"
     },
     "settings": {
-      "title": "Social Settings",
+      "title": "General settings",
       "updateSuccess": "Settings updated successfully",
       "formErrors": "Your form has errors. Please fix them before submitting!",
       "logoPreviewAlt": "Logo preview",
@@ -885,14 +1360,89 @@
       "currencyFormatDescription": "Choose how the currency is displayed (e.g., symbol before or after value).",
       "timezone": "Timezone",
       "reset": "Reset",
-      "saveSettings": "Save Settings"
+      "saveSettings": "Save Settings",
+      "commissionRateTitle": "Commission Rate Configuration",
+      "commissionRateLabel": "System Commission Rate (%)",
+      "commissionRateDescription": "Default commission rate applied when a client-specific override is not set.",
+      "saveCommissionRate": "Save Commission Rate",
+      "commissionRateUpdateSuccess": "Commission rate updated successfully",
+      "commissionRateUpdateFailed": "Failed to update commission rate",
+      "commissionRateInvalid": "Commission rate must be a number between 0 and 100",
+      "defaultDailyClosureTime": "Default daily closure time",
+      "defaultDailyClosureTimeDesc": "Used for pre-closure reminders (30, 15, and 5 minutes before) together with the timezone above. Managers can override for today under Operations > Session."
+    },
+    "commissions": {
+      "settingsTitle": "Commission settings",
+      "settingsDescription": "Set the default commission rate applied when a client has no override and is not exempt.",
+      "clientsTitle": "Client commission overrides",
+      "clientsDescription": "Search clients with custom commission rates or exemption. Use default rate when override is cleared.",
+      "filterCustomized": "Customized only",
+      "filterAll": "All clients",
+      "columnClient": "Client",
+      "columnClientNumber": "Client #",
+      "columnExempt": "Exempt",
+      "columnOverride": "Override (%)",
+      "columnActions": "Actions",
+      "editCommission": "Edit",
+      "save": "Save",
+      "clearOverride": "Clear override",
+      "updateSuccess": "Commission updated",
+      "updateFailed": "Update failed",
+      "loadFailed": "Failed to load clients",
+      "forbidden": "You do not have access to this page.",
+      "yes": "Yes",
+      "no": "No",
+      "defaultRate": "Default",
+      "searchPlaceholder": "Search by name or client number…"
     }
   },
   "status": {
     "active": "Active",
     "inactive": "Inactive",
     "suspended": "Suspended",
-    "closed": "Closed"
+    "closed": "Closed",
+    "unknown": "Unknown",
+    "user": {
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive",
+      "BLOCKED": "Blocked"
+    },
+    "account": {
+      "ACTIVE": "Active",
+      "FROZEN": "Frozen",
+      "CLOSED": "Closed"
+    },
+    "transaction": {
+      "PENDING_APPROVAL": "Pending approval",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "COMPLETED": "Completed",
+      "REVERSED": "Reversed"
+    },
+    "loan": {
+      "PENDING": "Pending",
+      "APPROVED": "Approved",
+      "DISBURSED": "Disbursed",
+      "ACTIVE": "Active",
+      "PAID_OFF": "Paid off",
+      "DEFAULTED": "Defaulted",
+      "CANCELLED": "Cancelled"
+    },
+    "area": {
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive"
+    },
+    "client": {
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive",
+      "SUSPENDED": "Suspended",
+      "CLOSED": "Closed"
+    },
+    "agent": {
+      "ACTIVE": "Active",
+      "INACTIVE": "Inactive",
+      "SUSPENDED": "Suspended"
+    }
   },
   "navigation": {
     "home": "Home",
@@ -963,6 +1513,9 @@
     "dayClosure": "Day Closure",
     "cashReconciliation": "Cash Reconciliation",
     "auditLog": "Audit Log",
+    "commissions": "Commissions",
+    "commissionSettings": "Commission settings",
+    "clientCommissionOverrides": "Client commission overrides",
     "settings": "Settings",
     "systemSettings": "System Settings",
     "commissionRates": "Commission Rates",
@@ -991,5 +1544,10 @@
     "myClients": "My Clients",
     "areaStatistics": "Area Statistics",
     "untitled": "Untitled"
+  },
+  "errors": {
+    "codes": {
+      "MIN_BALANCE_WARNING": "This operation would bring the balance below the minimum allowed. Adjust the amount or confirm to proceed."
+    }
   }
 }

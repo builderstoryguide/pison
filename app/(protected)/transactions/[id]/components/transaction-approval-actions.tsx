@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from '@/hooks/useTranslation';
 import { Button } from '@/components/ui/button';
@@ -20,11 +20,22 @@ import { useApproveTransaction, useRejectTransaction } from '@/hooks/queries/use
 
 interface TransactionApprovalActionsProps {
   transactionId: string;
+  /** `compact`: smaller controls for dense surfaces (e.g. notification sheet). */
+  variant?: 'toolbar' | 'compact';
+  /** When false, skip `router.refresh()` on success (React Query still invalidates). */
+  refreshRouterOnSuccess?: boolean;
 }
 
-export function TransactionApprovalActions({ transactionId }: TransactionApprovalActionsProps) {
+export function TransactionApprovalActions({
+  transactionId,
+  variant = 'toolbar',
+  refreshRouterOnSuccess = true,
+}: TransactionApprovalActionsProps) {
   const { t } = useTranslation();
   const router = useRouter();
+  const idPrefix = useId();
+  const approveNotesId = `${idPrefix}-approve-notes`;
+  const rejectReasonId = `${idPrefix}-reject-reason`;
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [approveNotes, setApproveNotes] = useState('');
@@ -43,7 +54,7 @@ export function TransactionApprovalActions({ transactionId }: TransactionApprova
           toast.success(t('pages.validation.transactionApprovedSuccess'));
           setApproveDialogOpen(false);
           setApproveNotes('');
-          router.refresh();
+          if (refreshRouterOnSuccess) router.refresh();
         },
         onError: (error: Error) => {
           toast.error(error.message || t('pages.validation.approveFailed'));
@@ -64,7 +75,7 @@ export function TransactionApprovalActions({ transactionId }: TransactionApprova
           toast.success(t('pages.validation.transactionRejected'));
           setRejectDialogOpen(false);
           setRejectReason('');
-          router.refresh();
+          if (refreshRouterOnSuccess) router.refresh();
         },
         onError: (error: Error) => {
           toast.error(error.message || t('pages.validation.rejectFailed'));
@@ -73,19 +84,30 @@ export function TransactionApprovalActions({ transactionId }: TransactionApprova
     );
   };
 
+  const isCompact = variant === 'compact';
+  const btnSize = isCompact ? 'sm' : 'default';
+  const iconClass = isCompact ? 'mr-1.5 size-3.5' : 'mr-2 size-4';
+
   return (
     <>
-      <div className="flex gap-2">
+      <div
+        className={
+          isCompact
+            ? 'flex w-full flex-wrap items-center justify-end gap-2'
+            : 'flex gap-2'
+        }
+      >
         <Button
           variant="outline"
+          size={btnSize}
           onClick={() => setRejectDialogOpen(true)}
           disabled={isPending}
         >
-          <XCircle className="mr-2 size-4" />
+          <XCircle className={iconClass} />
           {t('pages.validation.reject')}
         </Button>
-        <Button onClick={() => setApproveDialogOpen(true)} disabled={isPending}>
-          <CheckCircle2 className="mr-2 size-4" />
+        <Button size={btnSize} onClick={() => setApproveDialogOpen(true)} disabled={isPending}>
+          <CheckCircle2 className={iconClass} />
           {t('pages.validation.approve')}
         </Button>
       </div>
@@ -100,9 +122,9 @@ export function TransactionApprovalActions({ transactionId }: TransactionApprova
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="approve-notes">{t('pages.validation.notesOptional')}</Label>
+              <Label htmlFor={approveNotesId}>{t('pages.validation.notesOptional')}</Label>
               <Textarea
-                id="approve-notes"
+                id={approveNotesId}
                 placeholder={t('pages.validation.notesPlaceholder')}
                 value={approveNotes}
                 onChange={(e) => setApproveNotes(e.target.value)}
@@ -146,9 +168,9 @@ export function TransactionApprovalActions({ transactionId }: TransactionApprova
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="reject-reason">{t('pages.validation.reasonRequiredLabel')}</Label>
+              <Label htmlFor={rejectReasonId}>{t('pages.validation.reasonRequiredLabel')}</Label>
               <Textarea
-                id="reject-reason"
+                id={rejectReasonId}
                 placeholder={t('pages.validation.reasonPlaceholder')}
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}

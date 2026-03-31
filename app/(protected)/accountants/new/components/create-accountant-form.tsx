@@ -160,7 +160,7 @@ export default function CreateAccountantForm() {
 
     const handleSubmit = (values: AccountantAddSchemaType) => {
         if (!accountantRole) {
-            toast.error('Accountant role not loaded yet.');
+            toast.error(t('pages.operations.accountantRoleNotLoaded'));
             return;
         }
         mutation.mutate(values);

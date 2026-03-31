@@ -105,7 +105,11 @@ export default function DailyCollectionForm() {
 
   // Submit collections mutation
   const submitMutation = useMutation({
-    mutationFn: async (data: { areaId: string; entries: Array<{ clientId: string; amount: number }> }) => {
+    mutationFn: async (data: {
+      areaId: string;
+      agentId: string;
+      entries: Array<{ clientId: string; amount: number }>;
+    }) => {
       const response = await apiFetch('/api/collections/daily', {
         method: 'POST',
         headers: {
@@ -116,7 +120,7 @@ export default function DailyCollectionForm() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to submit collections');
+        throw new Error(error.error?.message || t('pages.collections.submitFailed'));
       }
 
       return response.json();
@@ -125,7 +129,8 @@ export default function DailyCollectionForm() {
       queryClient.invalidateQueries({ queryKey: transactionKeys.all });
       queryClient.invalidateQueries({ queryKey: transactionKeys.pending() });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
-      toast.success('Collections submitted successfully. Awaiting approval.');
+      queryClient.invalidateQueries({ queryKey: ['me-agent', session?.user?.id] });
+      toast.success(t('pages.collections.submitSuccessAwaitingApproval'));
 
       // Build receipt data before clearing
       const area = areas.find((a) => a.id === variables.areaId);
@@ -143,7 +148,7 @@ export default function DailyCollectionForm() {
             amount: e.amount,
           };
         }),
-        totalAmount: variables.entries.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0),
+        totalAmount: variables.entries.reduce((s, e) => s + e.amount, 0),
         transactionCount: variables.entries.length,
       };
       setReceiptData(receipt);
@@ -156,7 +161,7 @@ export default function DailyCollectionForm() {
       const msg = error.message || '';
       const isNotAssignedError = msg.includes('not assigned to you');
       toast.error(
-        isNotAssignedError ? t('pages.collections.errorClientsNotAssigned') : msg || 'Failed to submit collections'
+        isNotAssignedError ? t('pages.collections.errorClientsNotAssigned') : msg || t('pages.collections.submitFailed')
       );
     },
   });
@@ -190,14 +195,14 @@ export default function DailyCollectionForm() {
     if (!clientsData) return;
     const newEntries = clientsData.map((client: Client) => ({
       clientId: client.id,
-      amount: '0',
+      amount: '',
     }));
     setEntries(newEntries);
   };
 
   const handleSubmit = () => {
     if (!selectedAreaId) {
-      toast.error('Please select a collection area');
+      toast.error(t('pages.collections.selectAreaRequired'));
       return;
     }
 
@@ -209,12 +214,18 @@ export default function DailyCollectionForm() {
       .filter((e) => e.amount > 0);
 
     if (validEntries.length === 0) {
-      toast.error('Please enter at least one collection amount');
+      toast.error(t('pages.collections.enterAmountRequired'));
       return;
     }
 
     if (!agentId) {
-      toast.error('Agent ID not found');
+      toast.error(t('pages.collections.agentIdNotFound'));
+      return;
+    }
+
+    const sum = validEntries.reduce((s, e) => s + e.amount, 0);
+    if (sum > agentAvailable + 1e-9) {
+      toast.error(t('pages.collections.ventilationExceedsBalance'));
       return;
     }
 
@@ -231,6 +242,12 @@ export default function DailyCollectionForm() {
     (sum, e) => sum + (parseFloat(e.amount) || 0),
     0,
   );
+
+  const agentAvailable = agentData?.account?.availableBalance
+    ? parseFloat(agentData.account.availableBalance)
+    : 0;
+  const ventilationExceedsBalance =
+    isSessionOpen && totalAmount > 0 && totalAmount > agentAvailable + 1e-9;
 
   if (!agentId) {
     return (
@@ -259,6 +276,33 @@ export default function DailyCollectionForm() {
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span className="size-2 rounded-full bg-emerald-500" aria-hidden />
           {t('pages.collections.sessionOpen')}
+        </div>
+      )}
+      {agentData?.account && isSessionOpen && (
+        <Card className="border-muted">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div className="flex items-center gap-2 text-sm">
+              <DollarSign className="size-4 text-muted-foreground" />
+              <span className="text-muted-foreground">{t('pages.collections.agentOperatingBalance')}:</span>
+              <span className="font-semibold tabular-nums">
+                {formatCurrency(agentAvailable)}
+              </span>
+            </div>
+            {totalAmount > 0 && (
+              <div className="text-sm">
+                <span className="text-muted-foreground">{t('pages.collections.ventilationTotal')}: </span>
+                <span className="font-medium tabular-nums">{formatCurrency(totalAmount)}</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+      {ventilationExceedsBalance && (
+        <div
+          className="rounded-lg border border-destructive/50 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+          role="alert"
+        >
+          {t('pages.collections.ventilationExceedsBalance')}
         </div>
       )}
       <Card>
@@ -340,7 +384,7 @@ export default function DailyCollectionForm() {
                   <div className="space-y-4">
                     {clients.map((client) => {
                       const entry = entries.find((e) => e.clientId === client.id);
-                      const amount = entry?.amount || '0';
+                      const amount = entry?.amount ?? '';
                       const balance = client.account
                         ? parseFloat(client.account.balance)
                         : 0;
@@ -370,7 +414,7 @@ export default function DailyCollectionForm() {
                             <div className="w-32">
                               <Input
                                 type="number"
-                                placeholder="0"
+                                placeholder={t('common.placeholders.amountZero')}
                                 value={amount}
                                 onChange={(e) =>
                                   handleAmountChange(client.id, e.target.value)
@@ -405,6 +449,7 @@ export default function DailyCollectionForm() {
                     onClick={handleSubmit}
                     disabled={
                       !isSessionOpen ||
+                      ventilationExceedsBalance ||
                       submitMutation.isPending ||
                       entries.filter((e) => parseFloat(e.amount) > 0).length ===
                       0

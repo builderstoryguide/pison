@@ -14,6 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useTranslation } from '@/hooks/useTranslation';
+import { getLoanStatusPresentation } from '@/lib/status/presenters';
+import type { StatusBadgeVariant } from '@/lib/status/presenters';
 import { formatCurrency, formatDate } from '@/lib/helpers';
 import LoanForm from '../../components/loan-form';
 import RepaymentDialog from '../../components/repayment-dialog';
@@ -52,23 +54,6 @@ interface LoanDetailContentProps {
   canRecordRepayment: boolean;
 }
 
-function getStatusVariant(status: string) {
-  switch (status) {
-    case 'APPROVED':
-    case 'DISBURSED':
-    case 'ACTIVE':
-    case 'PAID_OFF':
-      return 'success';
-    case 'PENDING':
-      return 'warning';
-    case 'DEFAULTED':
-    case 'CANCELLED':
-      return 'destructive';
-    default:
-      return 'secondary';
-  }
-}
-
 export default function LoanDetailContent({
   loan,
   isManager,
@@ -77,6 +62,7 @@ export default function LoanDetailContent({
   canRecordRepayment,
 }: LoanDetailContentProps) {
   const { t } = useTranslation();
+  const loanStatus = getLoanStatusPresentation(loan.status);
 
   return (
     <>
@@ -85,7 +71,7 @@ export default function LoanDetailContent({
           <ToolbarHeading>
             <ToolbarTitle>{loan.loanNumber}</ToolbarTitle>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Badge variant={getStatusVariant(loan.status)}>{loan.status}</Badge>
+              <Badge variant={loanStatus.variant as StatusBadgeVariant}>{t(loanStatus.labelKey)}</Badge>
               <span>{loan.client.fullName}</span>
             </div>
             <Breadcrumb>

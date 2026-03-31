@@ -30,6 +30,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { isManagerRole } from '@/lib/auth-client';
+import {
+  getTransactionStatusLabel,
+  getTransactionTypeLabel,
+} from '@/lib/i18n/transaction-labels';
+import { TreasuryIssueCard } from '@/app/(protected)/dashboard/admin/components/treasury-issue-card';
 
 interface Transaction {
   id: string;
@@ -71,12 +76,18 @@ export default function AdminDashboard({ initialStats }: AdminDashboardProps) {
         [t('pages.dashboard.loanRequests'), String(stats.pendingLoans ?? 0)],
         [],
         [t('pages.dashboard.recentTransactions')],
-        ['Type', 'Reference', 'Date', 'Status', 'Amount'],
+        [
+          t('pages.transactions.columnType'),
+          t('pages.reports.clientStatementReport.columns.reference'),
+          t('pages.transactions.columnDate'),
+          t('pages.transactions.columnStatus'),
+          t('pages.transactions.columnAmount'),
+        ],
         ...(stats.recentTransactions ?? []).map((txn: Transaction) => [
-          txn.type,
+          getTransactionTypeLabel(txn.type, t, { reference: txn.reference }),
           txn.reference,
           formatDate(txn.date),
-          txn.status,
+          getTransactionStatusLabel(txn.status, t),
           String(txn.amount),
         ]),
       ];
@@ -101,7 +112,7 @@ export default function AdminDashboard({ initialStats }: AdminDashboardProps) {
         <Toolbar>
           <ToolbarHeading
             title={t('pages.dashboard.adminTitle')}
-            description={t('pages.dashboard.overviewDescription', 'Overview of system performance and activities')}
+            description={t('pages.dashboard.overviewDescription')}
           />
           <ToolbarActions>
             <Button
@@ -110,7 +121,7 @@ export default function AdminDashboard({ initialStats }: AdminDashboardProps) {
               disabled={isLoading || !stats || isExporting}
             >
               {isExporting && <Loader2 className="size-3.5 animate-spin" />}
-              {t('common.actions.export', 'Export Report')}
+              {t('common.actions.export')}
             </Button>
           </ToolbarActions>
         </Toolbar>
@@ -208,6 +219,12 @@ export default function AdminDashboard({ initialStats }: AdminDashboardProps) {
             </Card>
             </div>
 
+            {isManager ? (
+              <div className="max-w-md">
+                <TreasuryIssueCard />
+              </div>
+            ) : null}
+
             {stats?.surplusShortageSummary && (
             <Card className={stats.surplusShortageSummary.shortageDays > 0 ? 'border-destructive/50' : ''}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -276,7 +293,9 @@ export default function AdminDashboard({ initialStats }: AdminDashboardProps) {
                         >
                             <div className="space-y-1">
                             <p className="text-sm font-medium leading-none">
-                                {txn.type}
+                                {getTransactionTypeLabel(txn.type, t, {
+                                  reference: txn.reference,
+                                })}
                             </p>
                             <p className="text-sm text-muted-foreground">
                                 {txn.reference} • {formatDate(txn.date)}
@@ -284,13 +303,17 @@ export default function AdminDashboard({ initialStats }: AdminDashboardProps) {
                             </div>
                             <div className="flex items-center gap-4">
                             <Badge
-                                variant={
-                                txn.status === 'COMPLETED'
-                                    ? 'success'
-                                    : 'secondary'
-                                }
+                              variant={
+                                {
+                                  COMPLETED: 'success',
+                                  APPROVED: 'success',
+                                  PENDING_APPROVAL: 'warning',
+                                  REJECTED: 'destructive',
+                                  REVERSED: 'secondary',
+                                }[txn.status] || 'secondary'
+                              }
                             >
-                                {txn.status}
+                              {getTransactionStatusLabel(txn.status, t)}
                             </Badge>
                             <div
                                 className={`font-medium ${

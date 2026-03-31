@@ -13,6 +13,7 @@ import { parseFieldsParam } from '@/lib/utils/field-select';
 import { cachedJson } from '@/lib/api';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { isMinBalanceViolationError } from '@/lib/errors/transaction-errors';
 
 const TRANSACTION_FIELDS_ALLOWLIST = [
   'id',
@@ -52,6 +53,7 @@ const createTransactionSchema = z.object({
   type: z.enum(['DEPOSIT', 'WITHDRAWAL']),
   amount: z.coerce.number().positive('Amount must be positive'),
   description: z.string().optional(),
+  acknowledgeMinBalanceViolation: z.boolean().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -282,6 +284,7 @@ export async function POST(request: NextRequest) {
         amount: validatedData.amount,
         description: validatedData.description,
         agentId,
+        acknowledgeMinBalanceViolation: validatedData.acknowledgeMinBalanceViolation,
       },
       userId
     );
@@ -305,6 +308,20 @@ export async function POST(request: NextRequest) {
           },
         },
         { status: 400 }
+      );
+    }
+
+    if (isMinBalanceViolationError(error)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+          },
+        },
+        { status: 422 }
       );
     }
 

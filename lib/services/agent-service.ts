@@ -833,6 +833,36 @@ export class AgentService {
   }
 
   /**
+   * Zones currently assigned to collectors (one row per area).
+   */
+  async getAreaAssignmentOccupancy(): Promise<
+    Array<{
+      areaId: string;
+      areaName: string;
+      areaCode: string;
+      agentId: string;
+      agentFullName: string;
+      agentCode: string;
+    }>
+  > {
+    const rows = await prisma.agentAreaAssignment.findMany({
+      include: {
+        area: { select: { id: true, name: true, code: true } },
+        agent: { select: { id: true, fullName: true, agentCode: true } },
+      },
+    });
+
+    return rows.map((r) => ({
+      areaId: r.areaId,
+      areaName: r.area.name,
+      areaCode: r.area.code,
+      agentId: r.agentId,
+      agentFullName: r.agent.fullName,
+      agentCode: r.agent.agentCode,
+    }));
+  }
+
+  /**
    * Validate agent has access to area
    */
   async validateAgentAreaAccess(agentId: string, areaId: string): Promise<boolean> {
@@ -880,21 +910,16 @@ export class AgentService {
       throw new Error('Agent account must be approved before refill');
     }
 
-    // This will create a transaction that needs approval
-    // The actual balance update happens when transaction is approved
-    const transaction = await prisma.transaction.create({
-      data: {
-        transactionNumber: await this.generateTransactionNumber(),
+    const { transactionService } = await import('./transaction-service');
+    const transaction = await transactionService.createTransaction(
+      {
         accountId: agent.accountId,
         type: 'DEPOSIT',
         amount,
-        balanceBefore: agent.account.balance,
-        balanceAfter: agent.account.balance + amount, // Will be updated on approval
-        status: 'PENDING_APPROVAL',
         description: `Account refill for agent ${agent.agentCode}`,
-        createdBy: userId,
       },
-    });
+      userId,
+    );
 
     await prisma.auditLog.create({
       data: {
@@ -944,12 +969,14 @@ export class AgentService {
     }
 
     return await prisma.$transaction(async (tx) => {
+      const { getDbNow } = await import('@/lib/utils/db-time');
+      const approvedAt = await getDbNow(tx);
       const updated = await tx.agent.update({
         where: { id },
         data: {
           approvalStatus: 'APPROVED',
           approvedBy,
-          approvedAt: new Date(),
+          approvedAt,
           updatedBy: approvedBy,
         },
         include: {
@@ -991,10 +1018,12 @@ export class AgentService {
     }
 
     return await prisma.$transaction(async (tx) => {
+      const { getDbNow } = await import('@/lib/utils/db-time');
+      const rejectedAt = await getDbNow(tx);
       // Close the financial account
       await tx.financialAccount.update({
         where: { id: agent.accountId },
-        data: { status: 'CLOSED', closedAt: new Date() },
+        data: { status: 'CLOSED', closedAt: rejectedAt },
       });
 
       const updated = await tx.agent.update({
@@ -1002,7 +1031,7 @@ export class AgentService {
         data: {
           approvalStatus: 'REJECTED',
           approvedBy: rejectedBy,
-          approvedAt: new Date(),
+          approvedAt: rejectedAt,
           updatedBy: rejectedBy,
           status: 'INACTIVE',
         },
@@ -1027,25 +1056,6 @@ export class AgentService {
     });
   }
 
-  /**
-   * Generate unique transaction number
-   */
-  private async generateTransactionNumber(): Promise<string> {
-    const date = new Date();
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    const transactionNumber = `TXN-${dateStr}-${random}`;
-
-    const exists = await prisma.transaction.findUnique({
-      where: { transactionNumber },
-    });
-
-    if (exists) {
-      return this.generateTransactionNumber();
-    }
-
-    return transactionNumber;
-  }
 }
 
 export const agentService = new AgentService();

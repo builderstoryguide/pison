@@ -24,6 +24,7 @@ export const useRoleSelectQuery = () => {
     queryKey: ['user-role-select'],
     queryFn: fetchRoleList,
     staleTime: Infinity,
+    refetchInterval: false,
     gcTime: 1000 * 60 * 60, // 60 minutes
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

@@ -1,7 +1,10 @@
+'use client';
+
 import { HTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useDataGrid } from '@/components/ui/data-grid';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -46,6 +49,7 @@ function DataGridColumnHeader<TData, TValue>({
   filter,
   visibility = false,
 }: DataGridColumnHeaderProps<TData, TValue>) {
+  const { t } = useTranslation();
   const { isLoading, table, props, recordCount } = useDataGrid();
 
   const moveColumn = (direction: 'left' | 'right') => {
@@ -136,8 +140,8 @@ function DataGridColumnHeader<TData, TValue>({
         variant="ghost"
         className="-me-1 size-7 rounded-md"
         onClick={() => column.pin(false)}
-        aria-label={`Unpin ${title} column`}
-        title={`Unpin ${title} column`}
+        aria-label={t('common.dataGrid.unpinColumn', { column: title })}
+        title={t('common.dataGrid.unpinColumn', { column: title })}
       >
         <PinOff className="size-3.5! opacity-50!" aria-hidden="true" />
       </Button>
@@ -167,7 +171,7 @@ function DataGridColumnHeader<TData, TValue>({
                   disabled={!column.getCanSort()}
                 >
                   <ArrowUp className="size-3.5!" />
-                  <span className="grow">Asc</span>
+                  <span className="grow">{t('common.dataGrid.sortAsc')}</span>
                   {column.getIsSorted() === 'asc' && <Check className="size-4 opacity-100! text-primary" />}
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -181,7 +185,7 @@ function DataGridColumnHeader<TData, TValue>({
                   disabled={!column.getCanSort()}
                 >
                   <ArrowDown className="size-3.5!" />
-                  <span className="grow">Desc</span>
+                  <span className="grow">{t('common.dataGrid.sortDesc')}</span>
                   {column.getIsSorted() === 'desc' && <Check className="size-4 opacity-100! text-primary" />}
                 </DropdownMenuItem>
               </>
@@ -195,12 +199,12 @@ function DataGridColumnHeader<TData, TValue>({
               <>
                 <DropdownMenuItem onClick={() => column.pin(column.getIsPinned() === 'left' ? false : 'left')}>
                   <ArrowLeftToLine className="size-3.5!" aria-hidden="true" />
-                  <span className="grow">Pin to left</span>
+                  <span className="grow">{t('common.dataGrid.pinToLeft')}</span>
                   {column.getIsPinned() === 'left' && <Check className="size-4 opacity-100! text-primary" />}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => column.pin(column.getIsPinned() === 'right' ? false : 'right')}>
                   <ArrowRightToLine className="size-3.5!" aria-hidden="true" />
-                  <span className="grow">Pin to right</span>
+                  <span className="grow">{t('common.dataGrid.pinToRight')}</span>
                   {column.getIsPinned() === 'right' && <Check className="size-4 opacity-100! text-primary" />}
                 </DropdownMenuItem>
               </>
@@ -214,14 +218,14 @@ function DataGridColumnHeader<TData, TValue>({
                   disabled={!canMove('left') || column.getIsPinned() !== false}
                 >
                   <ArrowLeft className="size-3.5!" aria-hidden="true" />
-                  <span>Move to Left</span>
+                  <span>{t('common.dataGrid.moveLeft')}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => moveColumn('right')}
                   disabled={!canMove('right') || column.getIsPinned() !== false}
                 >
                   <ArrowRight className="size-3.5!" aria-hidden="true" />
-                  <span>Move to Right</span>
+                  <span>{t('common.dataGrid.moveRight')}</span>
                 </DropdownMenuItem>
               </>
             )}
@@ -234,7 +238,7 @@ function DataGridColumnHeader<TData, TValue>({
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   <Settings2 className="size-3.5!" />
-                  <span>Columns</span>
+                  <span>{t('common.dataGrid.columnsMenu')}</span>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuPortal>
                   <DropdownMenuSubContent>

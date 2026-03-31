@@ -9,6 +9,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
 import { denyAgentAccess, requirePermission } from '@/lib/auth';
 import { transactionService } from '@/lib/services';
 import { z } from 'zod';
+import { isMinBalanceViolationError } from '@/lib/errors/transaction-errors';
 
 const transferSchema = z
   .object({
@@ -16,6 +17,7 @@ const transferSchema = z
     destinationAccountId: z.string().uuid(),
     amount: z.coerce.number().positive('Amount must be positive'),
     description: z.string().optional(),
+    acknowledgeMinBalanceViolation: z.boolean().optional(),
   })
   .refine((data) => data.sourceAccountId !== data.destinationAccountId, {
     message: 'Source and destination must differ',
@@ -40,7 +42,10 @@ export async function POST(request: NextRequest) {
     const validatedData = transferSchema.parse(body);
 
     const result = await transactionService.createTransfer(
-      validatedData,
+      {
+        ...validatedData,
+        acknowledgeMinBalanceViolation: validatedData.acknowledgeMinBalanceViolation,
+      },
       userId
     );
 
@@ -63,6 +68,20 @@ export async function POST(request: NextRequest) {
           },
         },
         { status: 400 }
+      );
+    }
+
+    if (isMinBalanceViolationError(error)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+          },
+        },
+        { status: 422 }
       );
     }
 

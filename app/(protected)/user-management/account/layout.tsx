@@ -17,17 +17,19 @@ import {
   ToolbarTitle,
 } from '@/components/common/toolbar';
 import { AccountProvider } from './components/account-context';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type NavRoutes = Record<
   string,
   {
-    title: string;
+    titleKey: string;
     icon: React.FC<React.SVGProps<SVGSVGElement>>;
     path: string;
   }
 >;
 
 export default function Layout({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -42,6 +44,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       return response.json();
     },
     staleTime: Infinity,
+    refetchInterval: false,
     gcTime: 1000 * 60 * 60, // 60 minutes
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -51,17 +54,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navRoutes = useMemo<NavRoutes>(
     () => ({
       profile: {
-        title: 'Profile',
+        titleKey: 'pages.userManagement.staffAccountLayout.tabs.profile',
         icon: UserPen,
         path: '/user-management/account',
       },
       security: {
-        title: 'Security',
+        titleKey: 'pages.userManagement.staffAccountLayout.tabs.security',
         icon: ShieldCheck,
         path: '/user-management/account/security',
       },
       logs: {
-        title: 'Logs',
+        titleKey: 'pages.userManagement.staffAccountLayout.tabs.logs',
         icon: AudioLines,
         path: '/user-management/account/logs',
       },
@@ -69,10 +72,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  // Local state to instantly update the active tab on click
   const [activeTab, setActiveTab] = useState<string>('');
 
-  // Keep the local state in sync with the current pathname, in case navigation happens externally
   useEffect(() => {
     const found = Object.keys(navRoutes).find(
       (key) => pathname === navRoutes[key].path,
@@ -84,10 +85,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [navRoutes, pathname]);
 
-  // Handle tab click: update local state immediately and trigger navigation
   const handleTabClick = (key: string, path: string) => {
     setActiveTab(key);
-    // Navigate after a short delay (or immediately) so that the UI updates first
     router.push(path);
   };
 
@@ -100,7 +99,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>Account</ToolbarTitle>
+            <ToolbarTitle>{t('pages.userManagement.staffAccountLayout.toolbarTitle')}</ToolbarTitle>
           </ToolbarHeading>
           <ToolbarActions />
         </Toolbar>
@@ -128,7 +127,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 className="flex flex-col items-stretch gap-3.5 border-0"
               >
                 {Object.entries(navRoutes).map(
-                  ([key, { title, icon: Icon, path }]) => (
+                  ([key, { titleKey, icon: Icon, path }]) => (
                     <TabsTrigger
                       key={key}
                       value={key}
@@ -137,7 +136,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                       className="justify-start"
                     >
                       <Icon />
-                      <span>{title}</span>
+                      <span>{t(titleKey)}</span>
                     </TabsTrigger>
                   ),
                 )}

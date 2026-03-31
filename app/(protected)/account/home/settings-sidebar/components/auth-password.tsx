@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const AuthPassword = () => {
+  const { t } = useTranslation();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -51,7 +53,7 @@ const AuthPassword = () => {
           </div>
         </div>
         <div className="flex justify-end pt-2.5">
-          <Button>Reset Password</Button>
+          <Button>{t('common.buttons.resetPassword')}</Button>
         </div>
       </CardContent>
     </Card>

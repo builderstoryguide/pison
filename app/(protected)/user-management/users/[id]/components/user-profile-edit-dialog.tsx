@@ -41,7 +41,8 @@ import {
 import { LoaderCircleIcon } from 'lucide-react';
 import { User, UserRole } from '@/app/models/user';
 import { useRoleSelectQuery } from '../../../roles/hooks/use-role-select-query';
-import { UserStatusProps } from '../../constants/status';
+import { USER_STATUS_VALUES } from '../../constants/status';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   UserProfileSchema,
   UserProfileSchemaType,
@@ -56,6 +57,7 @@ const UserProfileEditDialog = ({
   closeDialog: () => void;
   user: User;
 }) => {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   // Fetch available roles
@@ -99,7 +101,7 @@ const UserProfileEditDialog = ({
       return response.json();
     },
     onSuccess: () => {
-      const message = 'User updated successfully';
+      const message = t('pages.userManagement.editUserDialog.successToast');
 
       toast.custom(
         () => (
@@ -146,7 +148,7 @@ const UserProfileEditDialog = ({
     <Dialog open={open} onOpenChange={closeDialog}>
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>Edit User Details</DialogTitle>
+          <DialogTitle>{t('pages.userManagement.editUserDialog.title')}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form
@@ -163,9 +165,9 @@ const UserProfileEditDialog = ({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>{t('pages.userManagement.editUserDialog.name')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter user name" {...field} />
+                    <Input placeholder={t('common.placeholders.enterUserName')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -176,14 +178,14 @@ const UserProfileEditDialog = ({
               name="roleId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Role</FormLabel>
+                  <FormLabel>{t('pages.userManagement.editUserDialog.role')}</FormLabel>
                   <FormControl>
                     <Select
                       onValueChange={(value) => field.onChange(value)}
                       defaultValue={field.value}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
+                        <SelectValue placeholder={t('common.placeholders.selectRole')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
@@ -205,24 +207,22 @@ const UserProfileEditDialog = ({
               name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Status</FormLabel>
+                  <FormLabel>{t('pages.userManagement.editUserDialog.status')}</FormLabel>
                   <FormControl>
                     <Select
                       onValueChange={(value) => field.onChange(value)}
                       defaultValue={field.value}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a status" />
+                        <SelectValue placeholder={t('common.placeholders.selectStatus')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          {Object.entries(UserStatusProps).map(
-                            ([status, { label }]) => (
-                              <SelectItem key={status} value={status}>
-                                {label}
-                              </SelectItem>
-                            ),
-                          )}
+                          {USER_STATUS_VALUES.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {t(`status.user.${status}`)}
+                            </SelectItem>
+                          ))}
                         </SelectGroup>
                       </SelectContent>
                     </Select>
@@ -233,14 +233,14 @@ const UserProfileEditDialog = ({
             />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog}>
-                Cancel
+                {t('common.buttons.cancel')}
               </Button>
               <Button
                 type="submit"
                 disabled={!form.formState.isDirty || isProcessing}
               >
                 {isProcessing && <LoaderCircleIcon className="animate-spin" />}
-                Save Changes
+                {t('common.buttons.save')}
               </Button>
             </DialogFooter>
           </form>

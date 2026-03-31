@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -32,6 +33,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { formatNumber } from '@/lib/helpers';
+import { isManagerRole } from '@/lib/auth-client';
 
 const clientSchema = z.object({
   fullName: z.string().min(1, 'Full name is required').max(255),
@@ -47,6 +49,7 @@ const clientSchema = z.object({
   documentChecklist: z.record(z.string(), z.boolean()).optional().default({}),
   openingAmount: z.number().min(0).optional(),
   customInterestRate: z.number().min(0).max(1).optional(),
+  commissionRatePercent: z.number().min(0).max(100).nullable().optional(),
 });
 
 type ClientFormData = z.infer<typeof clientSchema>;
@@ -59,7 +62,9 @@ export default function ClientForm({ clientId }: ClientFormProps) {
   const router = useRouter();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const { data: session } = useSession();
   const isEditMode = !!clientId;
+  const canEditCommissionFields = isManagerRole(session ?? null);
 
   // Fetch collection areas
   const { data: areasData } = useQuery({
@@ -111,6 +116,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
       documentChecklist: {} as Record<string, boolean>,
       openingAmount: undefined,
       customInterestRate: undefined,
+      commissionRatePercent: null,
     },
   });
 
@@ -169,6 +175,11 @@ export default function ClientForm({ clientId }: ClientFormProps) {
         areaId: clientData.areaId,
         agentId: clientData.assignedAgent?.id || '',
         isCommissionExempt: clientData.isCommissionExempt || false,
+        commissionRatePercent:
+          clientData.commissionRateOverride === null ||
+          clientData.commissionRateOverride === undefined
+            ? null
+            : Number(clientData.commissionRateOverride) * 100,
       });
     }
   }, [clientData, form]);
@@ -185,8 +196,12 @@ export default function ClientForm({ clientId }: ClientFormProps) {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || t('pages.clients.createFailed'));
+        const body = await response.json().catch(() => ({}));
+        const err = new Error(
+          body.error?.message || t('pages.clients.createFailed')
+        ) as Error & { details?: Array<{ field: string; message: string }> };
+        err.details = body.error?.details;
+        throw err;
       }
 
       return response.json();
@@ -197,6 +212,14 @@ export default function ClientForm({ clientId }: ClientFormProps) {
       router.push('/clients');
     },
     onError: (error: Error) => {
+      const details = (error as Error & { details?: Array<{ field: string; message: string }> })
+        .details;
+      if (Array.isArray(details) && details.length > 0) {
+        for (const d of details) {
+          toast.error(d.message);
+        }
+        return;
+      }
       toast.error(error.message || t('pages.clients.createFailed'));
     },
   });
@@ -251,6 +274,7 @@ export default function ClientForm({ clientId }: ClientFormProps) {
         openingAmount: data.openingAmount,
         customInterestRate: data.customInterestRate,
       };
+      delete payload.commissionRatePercent;
       if (!payload.agentId || payload.agentId === 'none') delete payload.agentId;
       createMutation.mutate(payload);
     }
@@ -620,6 +644,37 @@ export default function ClientForm({ clientId }: ClientFormProps) {
                 </FormItem>
               )}
             />
+
+            {isEditMode && canEditCommissionFields && (
+              <FormField
+                control={form.control}
+                name="commissionRatePercent"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('pages.clients.commissionRatePercent')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="0.01"
+                        placeholder={t('pages.clients.commissionRatePercentPlaceholder')}
+                        value={field.value ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          field.onChange(value === '' ? null : Number(value));
+                        }}
+                        disabled={isLoading}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t('pages.clients.commissionRatePercentDescription')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="flex justify-end gap-4">
               <Button

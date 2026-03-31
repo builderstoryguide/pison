@@ -15,6 +15,7 @@ import {
   invalidateCountCacheForEntity,
   invalidateTransactionListCache,
   invalidateTransactionDetail,
+  invalidateAgentByUser,
   invalidateAll,
 } from '@/lib/cache';
 import { getCachedCount } from '@/lib/cache';
@@ -26,9 +27,27 @@ import {
   encodeCursor,
   buildCountCacheKey,
 } from '@/lib/utils/pagination';
+import { MinBalanceViolationError, MIN_BALANCE_ACK_MARKER } from '@/lib/errors/transaction-errors';
+import {
+  getDbNow,
+  getDbCalendarDayStart,
+  getOpenDailySessionIdForDbToday,
+  transactionNumberDatePrefix,
+} from '@/lib/utils/db-time';
 
 const TXN_LIST_TTL = 30;
 const TXN_DETAIL_TTL = 60;
+
+const VENTILATION_DEBIT_TYPES = new Set<string>(['WITHDRAWAL', 'TRANSFER', 'LOAN_REPAYMENT', 'COMMISSION']);
+
+/** Process payer debits before client credits when approving a ventilation batch */
+function sortVentilationApprovalOrder<T extends { type: string }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    const da = VENTILATION_DEBIT_TYPES.has(a.type) ? 0 : 1;
+    const db = VENTILATION_DEBIT_TYPES.has(b.type) ? 0 : 1;
+    return da - db;
+  });
+}
 
 async function notifyManagersOfPendingTransactions(count: number) {
   try {
@@ -47,6 +66,8 @@ export interface CreateTransactionInput {
   reference?: string;
   areaId?: string;
   agentId?: string;
+  /** When true, allows withdrawal that would go below account nature minimum balance (still blocks if amount > available). */
+  acknowledgeMinBalanceViolation?: boolean;
 }
 
 export interface CreateCollectionInput {
@@ -64,6 +85,7 @@ export interface CreateTransferInput {
   destinationAccountId: string;
   amount: number;
   description?: string;
+  acknowledgeMinBalanceViolation?: boolean;
 }
 
 export class TransactionService {
@@ -72,8 +94,8 @@ export class TransactionService {
    * @param tx - Optional Prisma transaction client for use within $transaction callbacks
    */
   private async generateTransactionNumber(tx?: Prisma.TransactionClient): Promise<string> {
-    const date = new Date();
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+    const dbNow = await getDbNow(tx);
+    const dateStr = transactionNumberDatePrefix(dbNow);
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     const transactionNumber = `TXN-${dateStr}-${random}`;
 
@@ -93,16 +115,11 @@ export class TransactionService {
    * Check if session is open
    */
   private async isSessionOpen(): Promise<boolean> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const session = await prisma.dailySession.findUnique({
-      where: {
-        sessionDate: today,
-      },
+    const today = await getDbCalendarDayStart();
+    const session = await prisma.dailySession.findFirst({
+      where: { sessionDate: today, status: 'OPEN' },
     });
-
-    return session?.status === 'OPEN' || false;
+    return session != null;
   }
 
   /**
@@ -147,6 +164,7 @@ export class TransactionService {
     if (account.accountNature) {
       const nature = account.accountNature;
       const opType = data.type;
+      const compareNow = await getDbNow(client);
       if (opType === 'DEPOSIT' || opType === 'COLLECTION' || opType === 'LOAN_DISBURSEMENT') {
         if (!nature.allowDeposit) {
           throw new Error(`Deposits are not allowed for ${nature.name} accounts`);
@@ -155,20 +173,20 @@ export class TransactionService {
         if (!nature.allowWithdrawal) {
           throw new Error(`Withdrawals are not allowed for ${nature.name} accounts`);
         }
-        if (account.blockedUntil && new Date() < account.blockedUntil) {
+        if (account.blockedUntil && compareNow < account.blockedUntil) {
           throw new Error('Account is blocked until maturity. Withdrawals not allowed.');
         }
-        if (account.maturityDate && new Date() < account.maturityDate) {
+        if (account.maturityDate && compareNow < account.maturityDate) {
           throw new Error('Account has not reached maturity. Withdrawals not allowed.');
         }
       } else if (opType === 'TRANSFER') {
         if (!nature.allowTransfer) {
           throw new Error(`Transfers are not allowed for ${nature.name} accounts`);
         }
-        if (account.blockedUntil && new Date() < account.blockedUntil) {
+        if (account.blockedUntil && compareNow < account.blockedUntil) {
           throw new Error('Account is blocked until maturity. Transfers not allowed.');
         }
-        if (account.maturityDate && new Date() < account.maturityDate) {
+        if (account.maturityDate && compareNow < account.maturityDate) {
           throw new Error('Account has not reached maturity. Transfers not allowed.');
         }
       }
@@ -184,15 +202,33 @@ export class TransactionService {
       if (account.availableBalance.toNumber() < data.amount) {
         throw new Error('Insufficient available balance');
       }
-      // Min balance check (after withdrawal, balance must not go below min)
+      // Min balance: block unless explicitly acknowledged (withdrawal/transfer only)
       if (account.accountNature?.minBalance) {
         const minBal = account.accountNature.minBalance.toNumber();
         const balanceAfter = account.balance.toNumber() - data.amount;
         if (balanceAfter < minBal) {
-          throw new Error(
-            `Withdrawal would bring balance below minimum required (${minBal} XAF)`
-          );
+          if (!data.acknowledgeMinBalanceViolation) {
+            throw new MinBalanceViolationError(
+              `Withdrawal would bring balance below minimum required (${minBal} XAF)`,
+              { minBalance: minBal, projectedBalance: balanceAfter }
+            );
+          }
         }
+      }
+    }
+
+    let descriptionForCreate = data.description;
+    if (
+      data.acknowledgeMinBalanceViolation &&
+      (data.type === 'WITHDRAWAL' || data.type === 'TRANSFER') &&
+      account.accountNature?.minBalance
+    ) {
+      const minBal = account.accountNature.minBalance.toNumber();
+      const balanceAfter = account.balance.toNumber() - data.amount;
+      if (balanceAfter < minBal) {
+        descriptionForCreate = [data.description?.trim(), MIN_BALANCE_ACK_MARKER]
+          .filter(Boolean)
+          .join(' ');
       }
     }
 
@@ -205,6 +241,7 @@ export class TransactionService {
     }
 
     const transactionNumber = await this.generateTransactionNumber(tx);
+    const dailySessionId = await getOpenDailySessionIdForDbToday(client);
 
     const created = await client.transaction.create({
       data: {
@@ -215,10 +252,11 @@ export class TransactionService {
         balanceBefore: account.balance,
         balanceAfter,
         status: 'PENDING_APPROVAL',
-        description: data.description,
+        description: descriptionForCreate,
         reference: data.reference,
         areaId: data.areaId,
         agentId: data.agentId,
+        ...(dailySessionId ? { dailySessionId } : {}),
         createdBy,
       },
       include: {
@@ -264,6 +302,116 @@ export class TransactionService {
   }
 
   /**
+   * Issue treasury liquidity (digital float) onto the manager's operating account.
+   * Immediate COMPLETED transaction; manager role enforced by API layer.
+   */
+  async issueTreasuryLiquidity(managerUserId: string, amount: number, description?: string) {
+    if (amount <= 0 || !Number.isFinite(amount)) {
+      throw new Error('Amount must be a positive number');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: managerUserId },
+      include: {
+        role: { select: { slug: true } },
+        operatingAccount: true,
+      },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const roleSlug = (user.role?.slug || '').toLowerCase();
+    if (roleSlug !== 'manager') {
+      throw new Error('Only managers can issue treasury liquidity');
+    }
+
+    if (!user.operatingAccountId || !user.operatingAccount) {
+      throw new Error('Manager has no operating account. contact support or re-run staff account setup.');
+    }
+
+    const account = user.operatingAccount;
+    if (account.status !== 'ACTIVE') {
+      throw new Error('Operating account is not active');
+    }
+
+    const amountDec = new Prisma.Decimal(amount);
+    const balBefore = account.balance;
+    const balNum =
+      balBefore instanceof Prisma.Decimal ? balBefore.toNumber() : Number(balBefore);
+    const availNum =
+      account.availableBalance instanceof Prisma.Decimal
+        ? account.availableBalance.toNumber()
+        : Number(account.availableBalance);
+    const balanceAfter = new Prisma.Decimal(balNum + amount);
+    const availableAfter = new Prisma.Decimal(availNum + amount);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const [transactionNumber, treasuryApprovedAt, treasurySessionId] = await Promise.all([
+        this.generateTransactionNumber(tx),
+        getDbNow(tx),
+        getOpenDailySessionIdForDbToday(tx),
+      ]);
+      const txn = await tx.transaction.create({
+        data: {
+          transactionNumber,
+          accountId: account.id,
+          type: 'TREASURY_ISSUANCE',
+          amount: amountDec,
+          balanceBefore: balBefore,
+          balanceAfter,
+          status: 'COMPLETED',
+          description: description?.trim() || 'Treasury liquidity issuance',
+          createdBy: managerUserId,
+          approvedBy: managerUserId,
+          approvedAt: treasuryApprovedAt,
+          ...(treasurySessionId ? { dailySessionId: treasurySessionId } : {}),
+        },
+      });
+
+      await tx.financialAccount.update({
+        where: { id: account.id },
+        data: {
+          balance: balanceAfter,
+          availableBalance: availableAfter,
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: managerUserId,
+          action: 'TREASURY_ISSUE',
+          entityType: 'TRANSACTION',
+          entityId: txn.id,
+          transactionId: txn.id,
+          description: `Treasury issuance ${amount} — ${txn.transactionNumber}`,
+          changes: { amount, accountId: account.id },
+        },
+      });
+
+      return tx.transaction.findUnique({
+        where: { id: txn.id },
+        include: {
+          account: true,
+          approver: { select: { id: true, name: true, email: true } },
+        },
+      });
+    });
+
+    await invalidateAll(
+      invalidateBalanceForAccount(account.id),
+      invalidateRecentTransactionsForAccount(account.id),
+      invalidateAdminRecentTransactions(),
+      invalidateCountCacheForEntity('transactions'),
+      invalidateTransactionListCache(),
+      invalidateDashboardStats(),
+    );
+
+    return result!;
+  }
+
+  /**
    * Create collection entries (ventilation) - multiple transactions at once
    */
   async createCollectionEntries(data: CreateCollectionInput, createdBy: string) {
@@ -281,13 +429,19 @@ export class TransactionService {
       throw new Error('Daily session is closed. No transactions allowed.');
     }
 
-    // Validate agent is approved
     const agent = await prisma.agent.findUnique({
       where: { id: data.agentId },
-      select: { approvalStatus: true },
+      include: {
+        account: true,
+      },
     });
+
     if (!agent || agent.approvalStatus !== 'APPROVED') {
       throw new Error('Agent account must be approved before performing collections');
+    }
+
+    if (!agent.account) {
+      throw new Error('Agent has no financial account');
     }
 
     // Validate all clients belong to the area and are approved
@@ -311,38 +465,90 @@ export class TransactionService {
       );
     }
 
-    // Create transactions for each entry
-    const transactions = await Promise.all(
-      data.entries.map(async (entry) => {
-        const client = clients.find((c) => c.id === entry.clientId);
-        if (!client) {
-          throw new Error(`Client ${entry.clientId} not found`);
-        }
+    let totalDec = new Prisma.Decimal(0);
+    for (const e of data.entries) {
+      totalDec = totalDec.add(new Prisma.Decimal(e.amount));
+    }
 
-        const transactionNumber = await this.generateTransactionNumber();
-        const currentBalance = client.account.balance instanceof Prisma.Decimal ? client.account.balance.toNumber() : Number(client.account.balance);
-        const balanceAfter = currentBalance + entry.amount;
+    const payerAvailable = agent.account.availableBalance;
+    const payerAvailNum =
+      payerAvailable instanceof Prisma.Decimal ? payerAvailable.toNumber() : Number(payerAvailable);
+    if (payerAvailNum + 1e-9 < totalDec.toNumber()) {
+      throw new Error(
+        `Insufficient balance in agent operating account for this ventilation. Required: ${totalDec.toFixed(2)}, available: ${payerAvailNum.toFixed(2)}.`
+      );
+    }
 
-        return await prisma.transaction.create({
-          data: {
-            transactionNumber,
-            accountId: client.accountId,
-            clientId: client.id,
-            type: 'COLLECTION',
-            amount: entry.amount,
-            balanceBefore: client.account.balance,
-            balanceAfter,
-            status: 'PENDING_APPROVAL',
-            description: entry.description || `Collection from area ${data.areaId}`,
-            areaId: data.areaId,
-            agentId: data.agentId,
-            createdBy,
-          },
-        });
-      })
-    );
+    const batchRef = `ventilation-${crypto.randomUUID()}`;
+    const payerBalanceBefore = agent.account.balance;
+    const payerBalNum =
+      payerBalanceBefore instanceof Prisma.Decimal
+        ? payerBalanceBefore.toNumber()
+        : Number(payerBalanceBefore);
+    const payerBalanceAfter = new Prisma.Decimal(payerBalNum - totalDec.toNumber());
 
-    const totalAmount = transactions.reduce((sum, t) => sum + t.amount.toNumber(), 0);
+    const transactions = await prisma.$transaction(async (tx) => {
+      const ventilationSessionId = await getOpenDailySessionIdForDbToday(tx);
+      const sessionFields = ventilationSessionId ? { dailySessionId: ventilationSessionId } : {};
+
+      const payerTxnNumber = await this.generateTransactionNumber(tx);
+      const payerDebit = await tx.transaction.create({
+        data: {
+          transactionNumber: payerTxnNumber,
+          accountId: agent.accountId,
+          type: 'WITHDRAWAL',
+          amount: totalDec,
+          balanceBefore: payerBalanceBefore,
+          balanceAfter: payerBalanceAfter,
+          status: 'PENDING_APPROVAL',
+          description: `Ventilation batch disbursement (${data.entries.length} clients)`,
+          reference: batchRef,
+          areaId: data.areaId,
+          agentId: data.agentId,
+          ...sessionFields,
+          createdBy,
+        },
+      });
+
+      const clientTxns = await Promise.all(
+        data.entries.map(async (entry) => {
+          const client = clients.find((c) => c.id === entry.clientId);
+          if (!client) {
+            throw new Error(`Client ${entry.clientId} not found`);
+          }
+
+          const transactionNumber = await this.generateTransactionNumber(tx);
+          const currentBalance =
+            client.account.balance instanceof Prisma.Decimal
+              ? client.account.balance.toNumber()
+              : Number(client.account.balance);
+          const balanceAfter = currentBalance + entry.amount;
+
+          return await tx.transaction.create({
+            data: {
+              transactionNumber,
+              accountId: client.accountId,
+              clientId: client.id,
+              type: 'COLLECTION',
+              amount: entry.amount,
+              balanceBefore: client.account.balance,
+              balanceAfter,
+              status: 'PENDING_APPROVAL',
+              description: entry.description || `Collection from area ${data.areaId}`,
+              reference: batchRef,
+              areaId: data.areaId,
+              agentId: data.agentId,
+              ...sessionFields,
+              createdBy,
+            },
+          });
+        })
+      );
+
+      return [payerDebit, ...clientTxns];
+    });
+
+    const totalAmount = totalDec.toNumber();
     const area = await prisma.collectionArea.findUnique({
       where: { id: data.areaId },
       select: { code: true, name: true },
@@ -358,8 +564,15 @@ export class TransactionService {
         entityType: 'TRANSACTION',
         entityId: transactions[0]?.id ?? null,
         transactionId: transactions[0]?.id ?? null,
-        description: `Collection batch: ${transactions.length} entries, total ${totalAmount} - area ${area?.code ?? data.areaId}, agent ${agentForAudit?.agentCode ?? data.agentId}`,
-        changes: { entryCount: transactions.length, totalAmount, areaId: data.areaId, agentId: data.agentId },
+        description: `Ventilation batch: ${data.entries.length} client entries + payer debit, total ${totalAmount} — ref ${batchRef} — area ${area?.code ?? data.areaId}, agent ${agentForAudit?.agentCode ?? data.agentId}`,
+        changes: {
+          entryCount: data.entries.length,
+          totalCount: transactions.length,
+          totalAmount,
+          reference: batchRef,
+          areaId: data.areaId,
+          agentId: data.agentId,
+        },
       },
     });
 
@@ -373,6 +586,9 @@ export class TransactionService {
       invalidateDashboardStats(agentForAudit?.userId),
     ];
     await invalidateAll(...collOps);
+    if (agentForAudit?.userId) {
+      await invalidateAgentByUser(agentForAudit.userId);
+    }
 
     void notifyManagersOfPendingTransactions(transactions.length);
     return transactions;
@@ -397,7 +613,10 @@ export class TransactionService {
     }
 
     const [sourceAccount, destAccount] = await Promise.all([
-      prisma.financialAccount.findUnique({ where: { id: data.sourceAccountId } }),
+      prisma.financialAccount.findUnique({
+        where: { id: data.sourceAccountId },
+        include: { accountNature: true },
+      }),
       prisma.financialAccount.findUnique({ where: { id: data.destinationAccountId } }),
     ]);
 
@@ -410,16 +629,43 @@ export class TransactionService {
       throw new Error('Insufficient available balance in source account');
     }
 
+    const sourceBalanceNum =
+      sourceAccount.balance instanceof Prisma.Decimal
+        ? sourceAccount.balance.toNumber()
+        : Number(sourceAccount.balance);
+    const projectedSourceAfter = sourceBalanceNum - data.amount;
+    if (sourceAccount.accountNature?.minBalance) {
+      const minBal = sourceAccount.accountNature.minBalance.toNumber();
+      if (projectedSourceAfter < minBal) {
+        if (!data.acknowledgeMinBalanceViolation) {
+          throw new MinBalanceViolationError(
+            `Transfer would bring source balance below minimum required (${minBal} XAF)`,
+            { minBalance: minBal, projectedBalance: projectedSourceAfter }
+          );
+        }
+      }
+    }
+
+    const sourceDescriptionBase = data.description || `Transfer to ${destAccount.accountNumber}`;
+    const sourceDescriptionFinal =
+      data.acknowledgeMinBalanceViolation &&
+      sourceAccount.accountNature?.minBalance &&
+      projectedSourceAfter < sourceAccount.accountNature.minBalance.toNumber()
+        ? [sourceDescriptionBase.trim(), MIN_BALANCE_ACK_MARKER].filter(Boolean).join(' ')
+        : sourceDescriptionBase;
+
     const transferRef = `transfer-${crypto.randomUUID()}`;
 
     const result = await prisma.$transaction(async (tx) => {
+      const transferSessionId = await getOpenDailySessionIdForDbToday(tx);
+      const transferSessionFields = transferSessionId ? { dailySessionId: transferSessionId } : {};
+
       const sourceTxnNumber = await this.generateTransactionNumber(tx);
       const destTxnNumber = await this.generateTransactionNumber(tx);
 
-      const sourceBalanceNum = sourceAccount.balance instanceof Prisma.Decimal ? sourceAccount.balance.toNumber() : Number(sourceAccount.balance);
       const destBalanceNum = destAccount.balance instanceof Prisma.Decimal ? destAccount.balance.toNumber() : Number(destAccount.balance);
 
-      const sourceBalanceAfter = sourceBalanceNum - data.amount;
+      const sourceBalanceAfter = projectedSourceAfter;
       const destBalanceAfter = destBalanceNum + data.amount;
 
       const [sourceTxn, destTxn] = await Promise.all([
@@ -432,8 +678,9 @@ export class TransactionService {
             balanceBefore: sourceAccount.balance,
             balanceAfter: sourceBalanceAfter,
             status: 'PENDING_APPROVAL',
-            description: data.description || `Transfer to ${destAccount.accountNumber}`,
+            description: sourceDescriptionFinal,
             reference: transferRef,
+            ...transferSessionFields,
             createdBy,
           },
           include: {
@@ -452,6 +699,7 @@ export class TransactionService {
             status: 'PENDING_APPROVAL',
             description: data.description || `Transfer from ${sourceAccount.accountNumber}`,
             reference: transferRef,
+            ...transferSessionFields,
             createdBy,
           },
           include: {
@@ -533,23 +781,58 @@ export class TransactionService {
       }
     }
 
+    const ref = transaction.reference;
+    const isVentilation = Boolean(ref?.startsWith('ventilation-'));
+    let ventilationBatch: Prisma.TransactionGetPayload<{ include: { account: true } }>[] | null =
+      null;
+
+    if (isVentilation && ref) {
+      const pending = await db.transaction.findMany({
+        where: { reference: ref, status: 'PENDING_APPROVAL' },
+        include: { account: true },
+      });
+      if (pending.length === 0) {
+        const allForRef = await db.transaction.findMany({ where: { reference: ref } });
+        const allCompleted =
+          allForRef.length > 0 && allForRef.every((t) => t.status === 'COMPLETED');
+        if (allCompleted) {
+          const existing = await db.transaction.findUnique({
+            where: { id: transactionId },
+            include: {
+              account: true,
+              approver: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+          });
+          return existing!;
+        }
+        throw new Error('Ventilation batch has no pending transactions');
+      }
+      ventilationBatch = pending;
+    }
+
     // For transfers, find the paired transaction
-    const isTransfer = transaction.reference?.startsWith('transfer-');
+    const isTransfer = Boolean(!isVentilation && ref?.startsWith('transfer-'));
     const pairedTransaction = isTransfer
       ? await db.transaction.findFirst({
-        where: {
-          reference: transaction.reference,
-          id: { not: transactionId },
-          status: 'PENDING_APPROVAL',
-        },
-        include: { account: true },
-      })
+          where: {
+            reference: ref,
+            id: { not: transactionId },
+            status: 'PENDING_APPROVAL',
+          },
+          include: { account: true },
+        })
       : null;
 
     const runInTx = async (innerTx: Prisma.TransactionClient) => {
-      const transactionsToApprove = pairedTransaction
-        ? [transaction, pairedTransaction]
-        : [transaction];
+      const transactionsToApprove = ventilationBatch
+        ? sortVentilationApprovalOrder(ventilationBatch)
+        : pairedTransaction
+          ? [transaction, pairedTransaction]
+          : [transaction];
+
+      const approvedAt = await getDbNow(innerTx);
 
       for (const txn of transactionsToApprove) {
         await innerTx.transaction.update({
@@ -557,7 +840,7 @@ export class TransactionService {
           data: {
             status: 'APPROVED',
             approvedBy: approverId,
-            approvedAt: new Date(),
+            approvedAt,
           },
         });
 
@@ -568,7 +851,15 @@ export class TransactionService {
         });
         const currentAvailable = freshAccount?.availableBalance instanceof Prisma.Decimal ? freshAccount.availableBalance.toNumber() : Number(freshAccount?.availableBalance ?? 0);
         const isCredit =
-          txn.type === 'DEPOSIT' || txn.type === 'COLLECTION' || txn.type === 'LOAN_DISBURSEMENT';
+          txn.type === 'DEPOSIT' ||
+          txn.type === 'COLLECTION' ||
+          txn.type === 'LOAN_DISBURSEMENT' ||
+          txn.type === 'TREASURY_ISSUANCE';
+        if (!isCredit && currentAvailable + 1e-9 < txn.amount.toNumber()) {
+          throw new Error(
+            'Insufficient available balance to approve this debit. Reject the batch if it is a ventilation.',
+          );
+        }
         let newAvailableBalance = isCredit
           ? currentAvailable + txn.amount.toNumber()
           : currentAvailable - txn.amount.toNumber();
@@ -600,7 +891,8 @@ export class TransactionService {
                 reference: `fee-for-${txn.transactionNumber}`,
                 createdBy: approverId,
                 approvedBy: approverId,
-                approvedAt: new Date(),
+                approvedAt,
+                ...(txn.dailySessionId ? { dailySessionId: txn.dailySessionId } : {}),
               },
             });
             finalBalance = new Prisma.Decimal(balAfterFee);
@@ -652,9 +944,11 @@ export class TransactionService {
       return runInTx(tx);
     }
     const result = await prisma.$transaction(runInTx);
-    const transactionsToInvalidate = pairedTransaction
-      ? [transaction, pairedTransaction]
-      : [transaction];
+    const transactionsToInvalidate = ventilationBatch
+      ? ventilationBatch
+      : pairedTransaction
+        ? [transaction, pairedTransaction]
+        : [transaction];
     const ops: Promise<unknown>[] = [
       invalidateAdminRecentTransactions(),
       invalidateCountCacheForEntity('transactions'),
@@ -691,21 +985,35 @@ export class TransactionService {
       throw new Error(`Transaction is not pending approval. Current status: ${transaction.status}`);
     }
 
-    const isTransfer = transaction.reference?.startsWith('transfer-');
+    const rejRef = transaction.reference;
+    const isVentilationReject = Boolean(rejRef?.startsWith('ventilation-'));
+    const ventilationRejectBatch =
+      isVentilationReject && rejRef
+        ? await prisma.transaction.findMany({
+            where: { reference: rejRef, status: 'PENDING_APPROVAL' },
+          })
+        : [];
+
+    const isTransfer = Boolean(!isVentilationReject && rejRef?.startsWith('transfer-'));
     const pairedTransaction = isTransfer
       ? await prisma.transaction.findFirst({
-        where: {
-          reference: transaction.reference,
-          id: { not: transactionId },
-          status: 'PENDING_APPROVAL',
-        },
-      })
+          where: {
+            reference: rejRef,
+            id: { not: transactionId },
+            status: 'PENDING_APPROVAL',
+          },
+        })
       : null;
 
     const result = await prisma.$transaction(async (tx) => {
-      const transactionsToReject = pairedTransaction
-        ? [transaction, pairedTransaction]
-        : [transaction];
+      const transactionsToReject =
+        ventilationRejectBatch.length > 0
+          ? ventilationRejectBatch
+          : pairedTransaction
+            ? [transaction, pairedTransaction]
+            : [transaction];
+
+      const rejectedAt = await getDbNow(tx);
 
       for (const txn of transactionsToReject) {
         await tx.transaction.update({
@@ -713,7 +1021,7 @@ export class TransactionService {
           data: {
             status: 'REJECTED',
             approvedBy: approverId,
-            approvedAt: new Date(),
+            approvedAt: rejectedAt,
             rejectedReason: reason,
           },
         });
@@ -736,9 +1044,12 @@ export class TransactionService {
       });
     });
 
-    const txnsToInvalidate = pairedTransaction
-      ? [transaction, pairedTransaction]
-      : [transaction];
+    const txnsToInvalidate =
+      ventilationRejectBatch.length > 0
+        ? ventilationRejectBatch
+        : pairedTransaction
+          ? [transaction, pairedTransaction]
+          : [transaction];
     const rejectOps: Promise<unknown>[] = [
       invalidateAdminRecentTransactions(),
       invalidateCountCacheForEntity('transactions'),

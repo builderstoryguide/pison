@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface IAdvancedSettingsNotificationsItem {
   title: string;
@@ -21,6 +22,7 @@ type IAdvancedSettingsNotificationsItems =
   Array<IAdvancedSettingsNotificationsItem>;
 
 const AdvancedSettingsNotifications = () => {
+  const { t } = useTranslation();
   const id1 = useId();
   const id2 = useId();
   const id3 = useId();
@@ -157,7 +159,7 @@ const AdvancedSettingsNotifications = () => {
           </div>
         </div>
         <div className="flex justify-end">
-          <Button>Save Changes</Button>
+          <Button>{t('common.buttons.saveChanges')}</Button>
         </div>
       </CardContent>
     </Card>

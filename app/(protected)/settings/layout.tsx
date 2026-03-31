@@ -34,7 +34,7 @@ export default function SettingsLayout({
   const allNavItems = useMemo<NavItem[]>(
     () => [
       { key: 'system', title: t('menu.systemSettings'), path: '/user-management/settings', permission: 'settings.manage' },
-      { key: 'commissions', title: t('menu.commissionRates'), path: '/reports/commissions', permission: 'reports.view' },
+      { key: 'commissions', title: t('menu.commissionSettings'), path: '/commissions/settings', permission: 'settings.manage' },
       { key: 'areas', title: t('menu.collectionAreas'), path: '/collection-areas', permission: 'collection_areas.view' },
       { key: 'users', title: t('menu.userManagement'), path: '/user-management/users', permission: 'users.manage' },
       { key: 'roles', title: t('menu.roles'), path: '/settings/roles', permission: 'roles.manage' },

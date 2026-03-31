@@ -105,6 +105,7 @@ export default function CommissionReport() {
       };
     },
     staleTime: 1000 * 60 * 5,
+    refetchInterval: false,
   });
 
   const rows = data?.data ?? [];

@@ -56,3 +56,12 @@ export async function getSettings(): Promise<SystemSetting | null> {
 
   return settings;
 }
+
+/**
+ * Returns the singleton system settings row, creating one with schema defaults if missing.
+ */
+export async function getOrCreateSystemSetting() {
+  const existing = await prisma.systemSetting.findFirst();
+  if (existing) return existing;
+  return prisma.systemSetting.create({ data: {} });
+}

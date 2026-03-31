@@ -3,7 +3,7 @@
 > **Purpose**: Single source of truth mapping [PRD.md](./PRD.md) requirements to implementation status.
 > **Workflow**: Before implementing a feature, check this tracker. Update it as features are completed.
 
-**Last Updated**: 2026-03-10 (Accountant loan request: loans.view/loans.create by default; Manager validates at validation/pending)
+**Last Updated**: 2026-03-30 (Notifications & validation: min-balance acknowledgment; closure schedule + countdown toasts; session-closed sign-in block + audit + manager push; loan maturity buckets + in-app + push; area assignment occupancy UX; client create multi-error; planned closure override on Operations session)
 
 ---
 
@@ -76,6 +76,10 @@
 | [x] | Confirmation receipt (print/forward) | VentilationReceiptDialog – print/download after submit (`app/(protected)/collections/daily/components/ventilation-receipt-dialog.tsx`) |
 | [x] | Ventilation restricted to agent's assigned clients | Backend: `createCollectionEntries` validates area access; GET /api/clients filters by agent's areas; COLLECTION tx sets `clientId`; session indicator and improved empty state on form | `lib/services/transaction-service.ts`, `app/api/clients/route.ts`, `app/(protected)/collections/daily/components/daily-collection-form.tsx` |
 | [x] | Manager views collection records | Collection Records page under Daily Collections; search, filters (date, agent, area, status); server-side pagination; agent/area in tx API | `app/(protected)/collections/records/`, `config/menu.config.tsx`, `lib/services/transaction-service.ts` |
+| [x] | Digital float: manager / accountant operating accounts | `User.operatingAccountId`, `AccountType` MANAGER/ACCOUNTANT; auto-created on user create (staff roles) and in seed | `prisma/schema.prisma`, `lib/services/staff-operating-account-service.ts`, `app/api/user-management/users/route.ts`, `prisma/seed-microfinance.ts` |
+| [x] | Treasury liquidity (manager introduces digital money) | `TREASURY_ISSUANCE` COMPLETED txn + `issueTreasuryLiquidity`; `treasury.issue` permission; `POST /api/treasury/issue`; dashboard card | `lib/services/transaction-service.ts`, `app/api/treasury/issue/route.ts`, `app/(protected)/dashboard/admin/components/treasury-issue-card.tsx` |
+| [x] | Ventilation debits agent operating account | Batch `ventilation-*`: pending WITHDRAWAL (total) + COLLECTION per client; insufficient `availableBalance` blocked; approval/rejection atomic on all legs | `lib/services/transaction-service.ts`, `app/api/collections/daily/route.ts`, `app/(protected)/collections/daily/components/daily-collection-form.tsx` |
+| [x] | Staff transfers from operating wallet | Transfer dialog: “from my operating account”; destinations via `GET /api/transfers/staff-destinations` (manager → accountant + agent; accountant → agent) | `app/(protected)/transactions/components/new-transaction-dialog.tsx`, `app/api/transfers/staff-destinations/route.ts`, `app/api/me/operating-account/route.ts` |
 
 ### 4.2 Management of Clients and Agents
 
@@ -102,6 +106,8 @@
 | [x] | System checks eligibility | `loanService.checkEligibility()` |
 | [x] | Loan recorded as negative balance | `LOAN_DISBURSEMENT` transaction |
 | [x] | Repayments update loan balance | `POST /api/loans/[id]/repayments` |
+| [x] | Manager sets repayment period at request creation | Loan form includes repayment due date; backend uses provided due date (or term months) for non-product loans | `app/(protected)/loans/components/loan-form.tsx`, `app/api/loans/route.ts`, `lib/services/loan-service.ts` |
+| [x] | Manager receives periodic reminders before due date | Daily cron emails all users with `loans.approve` for unpaid loans due within 14 days | `lib/jobs/loan-maturity-reminders.ts`, `app/api/cron/loan-reminders/route.ts`, `server.js` |
 
 ### 4.4–4.11 Other Operations
 
@@ -158,6 +164,7 @@
 | [x] | Add/modify/remove users and permissions | User management, roles, permissions | `app/(protected)/user-management/`, `app/(protected)/settings/` |
 | [x] | Create and view reports | Reports section | |
 | [x] | Total control over transactions | Four-eye principle, audit trail | |
+| [x] | Configure commission rates (system-wide and per-client) | Manager-only API + UI for default commission rate and client overrides; exempt clients remain zero | `app/api/user-management/settings/commission-rate/route.ts`, `app/api/clients/[id]/route.ts`, `app/(protected)/user-management/settings/page.tsx`, `app/(protected)/clients/components/client-form.tsx`, `lib/services/commission-service.ts` |
 
 ---
 
@@ -219,7 +226,7 @@
 |--------|-------------|----------------|
 | [x] | Account nature dropdown on creation | `client-form.tsx` - Account Type dropdown |
 | [x] | Account natures (Daily Collection, Simple Saving, etc.) | `AccountNature` model, 12 types in seed |
-| [x] | Minimum balance per nature | Enforced in `transaction-service` on withdrawal |
+| [x] | Minimum balance per nature | Hard block if insufficient available balance; below nature minimum requires `acknowledgeMinBalanceViolation` and approver-visible marker (`lib/services/transaction-service.ts`, withdrawal/transfer UIs, pending list) |
 | [x] | Interest remuneration | `interestRateDefault`, `interestRateMin/Max`, `customInterestRate` on account |
 | [x] | Maintenance fees | `maintenanceFee`, `maintenanceFeeType` on AccountNature (config; application TBD) |
 | [x] | Transaction fees (withdrawals) | Per-account-nature in `transaction-service` on approval |
@@ -266,3 +273,16 @@
 10. [x] Commission calculation cron/scheduler
 11. [x] Session closure enforcement (block all operations)
 12. [x] Analytics module placeholder pages
+
+---
+
+## X. Notifications and operational validation (enhancement plan)
+
+| Status | Capability | Implementation |
+|--------|------------|------------------|
+| [x] | Pre-closure reminders (30 / 15 / 5 min) | `defaultDailyClosureTime` on `SystemSetting`, `plannedClosureAt` on `DailySession`, `effectiveClosureAt` in session status API, `ClosureCountdownAlerts`, manager override on Operations session |
+| [x] | Session closed at sign-in (non-managers) | `authorize()` checks `sessionService.isSessionOpen()`, audit `LOGIN_REJECTED_SESSION_CLOSED`, optional manager push |
+| [x] | Loan maturity visibility | Email buckets in `loan-maturity-reminders.ts`, `GET /api/loans/maturity-alerts`, notifications sheet + push for `loans.approve` |
+| [x] | Area already assigned UX | `GET /api/collection-areas/assignment-occupancy`, disabled rows + `areaTakenBy` errors |
+| [x] | Client create validation surface | Multi-detail API errors + toasts in `client-form.tsx` |
+| [x] | Unknown-user failed login audit | `AuditLog` nullable `userId`, `LOGIN_FAILED_UNKNOWN_USER` |

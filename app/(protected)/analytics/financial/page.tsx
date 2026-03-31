@@ -63,7 +63,7 @@ export default function FinancialAnalyticsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              {t('pages.analytics.useReports', 'Use the reports below for detailed financial analytics.')}
+              {t('pages.analytics.useReports')}
             </p>
             <div className="flex flex-wrap gap-2">
               <Link href="/reports/monthly-balance">

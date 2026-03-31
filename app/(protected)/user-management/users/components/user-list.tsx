@@ -39,10 +39,12 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { User, UserStatus } from '@/app/models/user';
 import { useRoleSelectQuery } from '../../roles/hooks/use-role-select-query';
-import { getUserStatusProps, UserStatusProps } from '../constants/status';
+import { getUserStatusProps, USER_STATUS_VALUES } from '../constants/status';
 import UserInviteDialog from './user-add-dialog';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const UserList = () => {
+  const { t } = useTranslation();
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
@@ -119,6 +121,7 @@ const UserList = () => {
         selectedStatus,
       }),
     staleTime: Infinity,
+    refetchInterval: false,
     gcTime: 1000 * 60 * 60, // 60 minutes
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -147,7 +150,7 @@ const UserList = () => {
         id: 'name',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="User"
+            title={t('pages.userManagement.columnUser')}
             visibility={true}
             column={column}
           />
@@ -176,7 +179,7 @@ const UserList = () => {
         },
         size: 300,
         meta: {
-          headerTitle: 'Name',
+          headerTitle: t('pages.userManagement.columnName'),
           skeleton: (
             <div className="flex items-center gap-3">
               <Skeleton className="size-8 rounded-full" />
@@ -195,7 +198,7 @@ const UserList = () => {
         id: 'role_nameme',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Role"
+            title={t('pages.userManagement.columnRole')}
             visibility={true}
             column={column}
           />
@@ -208,7 +211,7 @@ const UserList = () => {
           return <Badge variant="secondary">{role.name}</Badge>;
         },
         meta: {
-          headerTitle: 'Role',
+          headerTitle: t('pages.userManagement.columnRole'),
           skeleton: <Skeleton className="w-28 h-7" />,
         },
         enableSorting: true,
@@ -219,7 +222,7 @@ const UserList = () => {
         id: 'status',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Status"
+            title={t('pages.userManagement.columnStatus')}
             visibility={true}
             column={column}
           />
@@ -235,11 +238,11 @@ const UserList = () => {
             <div className="inline-flex gap-2.5">
               <Badge variant={variant} appearance="ghost">
                 <BadgeDot />
-                {statusProps.label}
+                {t(statusProps.labelKey)}
               </Badge>
               {isTrashed && (
                 <Badge variant="destructive" appearance="light">
-                  Trashed
+                  {t('pages.userManagement.trashed')}
                 </Badge>
               )}
             </div>
@@ -247,7 +250,7 @@ const UserList = () => {
         },
         size: 125,
         meta: {
-          headerTitle: 'Status',
+          headerTitle: t('pages.userManagement.columnStatus'),
           skeleton: <Skeleton className="w-14 h-7" />,
         },
         enableSorting: true,
@@ -258,7 +261,7 @@ const UserList = () => {
         id: 'createdAt',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Joined"
+            title={t('pages.userManagement.columnJoined')}
             visibility={true}
             column={column}
           />
@@ -266,7 +269,7 @@ const UserList = () => {
         cell: (info) => formatDate(new Date(info.getValue() as string)),
         size: 150,
         meta: {
-          headerTitle: 'Joined',
+          headerTitle: t('pages.userManagement.columnJoined'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: true,
@@ -277,7 +280,7 @@ const UserList = () => {
         id: 'lastSignInAt',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Last Sign In"
+            title={t('pages.userManagement.columnLastSignIn')}
             visibility={true}
             column={column}
           />
@@ -288,7 +291,7 @@ const UserList = () => {
             : '-',
         size: 175,
         meta: {
-          headerTitle: 'Last Sign In',
+          headerTitle: t('pages.userManagement.columnLastSignIn'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: true,
@@ -309,7 +312,7 @@ const UserList = () => {
         enableResizing: false,
       },
     ],
-    [],
+    [t],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -352,7 +355,7 @@ const UserList = () => {
           <div className="relative">
             <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Search users"
+              placeholder={t('common.placeholders.searchUsers')}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -377,10 +380,10 @@ const UserList = () => {
             disabled={isLoading}
           >
             <SelectTrigger className="w-full sm:w-36">
-              <SelectValue placeholder="Filter by role" />
+              <SelectValue placeholder={t('pages.userManagement.filterByRole')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All roles</SelectItem>
+              <SelectItem value="all">{t('pages.userManagement.allRoles')}</SelectItem>
               {roleList?.map((role: User) => (
                 <SelectItem key={role.id} value={role.id}>
                   {role.name}
@@ -395,15 +398,18 @@ const UserList = () => {
             disabled={isLoading}
           >
             <SelectTrigger className="w-full sm:w-36">
-              <SelectValue placeholder="Filter by status" />
+              <SelectValue placeholder={t('pages.userManagement.filterByStatus')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All users</SelectItem>
-              {Object.entries(UserStatusProps).map(([status, { label }]) => (
-                <SelectItem key={status} value={status}>
-                  {label}
-                </SelectItem>
-              ))}
+              <SelectItem value="all">{t('pages.userManagement.allUsersStatus')}</SelectItem>
+              {USER_STATUS_VALUES.map((status) => {
+                const { labelKey } = getUserStatusProps(status);
+                return (
+                  <SelectItem key={status} value={status}>
+                    {t(labelKey)}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -415,7 +421,7 @@ const UserList = () => {
             }}
           >
             <Plus />
-            Add user
+            {t('pages.userManagement.addUserButton')}
           </Button>
         </div>
       </CardHeader>

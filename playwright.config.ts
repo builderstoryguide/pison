@@ -43,6 +43,7 @@ export default defineConfig({
     command: 'npm run dev',
     url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001',
     reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
+    timeout: 180 * 1000,
+    env: { ...process.env, PORT: '3001' },
   },
 });

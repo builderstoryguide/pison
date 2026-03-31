@@ -17,6 +17,8 @@ import {
 import { hasPermission } from '@/lib/auth';
 import { getBalanceForUser } from '@/lib/cache/balance-cache';
 import { getCachedQuery, setCachedQuery } from '@/lib/cache/query-cache';
+import { getDbCalendarDayBounds, getDbNow } from '@/lib/utils/db-time';
+import { transactionWhereBusinessWindow } from '@/lib/utils/transaction-business-date';
 
 const RECENT_TXN_TTL = 300;
 const DASHBOARD_STATS_TTL = 300;
@@ -61,7 +63,9 @@ async function getSurplusShortageSummary(): Promise<{
   }>(cacheKey);
   if (cached) return cached;
 
-  const end = new Date();
+  const summaryEnd = await getDbNow();
+
+  const end = new Date(summaryEnd);
   end.setHours(23, 59, 59, 999);
   const start = new Date(end);
   start.setDate(start.getDate() - 30);
@@ -156,10 +160,12 @@ export async function getDashboardStats(
 ): Promise<AdminDashboardStats | AgentDashboardStats | null> {
   if (!session?.user) return null;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const { start: today, endExclusive: tomorrow } = await getDbCalendarDayBounds();
+  const todayCollectionsWhere = {
+    type: 'COLLECTION' as const,
+    status: 'COMPLETED' as const,
+    ...transactionWhereBusinessWindow(today, tomorrow),
+  };
 
   const roleName = (session.user.roleName ?? '').toLowerCase();
   const isAgent = roleName.includes('agent') || roleName.includes('collector');
@@ -202,10 +208,8 @@ export async function getDashboardStats(
           prisma.transaction.aggregate({
             _sum: { amount: true },
             where: {
-              type: 'COLLECTION',
-              status: 'COMPLETED',
+              ...todayCollectionsWhere,
               agentId: agent.id,
-              createdAt: { gte: today, lt: tomorrow },
             },
           }),
           getBalanceForUser(session.user.id),
@@ -242,10 +246,8 @@ export async function getDashboardStats(
       prisma.transaction.aggregate({
         _sum: { amount: true },
         where: {
-          type: 'COLLECTION',
-          status: 'COMPLETED',
+          ...todayCollectionsWhere,
           agentId: agent.id,
-          createdAt: { gte: today, lt: tomorrow },
         },
       }),
       prisma.transaction.findMany({
@@ -328,11 +330,7 @@ export async function getDashboardStats(
       prisma.loan.count({ where: { status: 'PENDING' } }),
       prisma.transaction.aggregate({
         _sum: { amount: true },
-        where: {
-          type: 'COLLECTION',
-          status: 'COMPLETED',
-          createdAt: { gte: today, lt: tomorrow },
-        },
+        where: todayCollectionsWhere,
       }),
       prisma.collectionArea.count({ where: { status: 'ACTIVE' } }),
     ]);
@@ -367,11 +365,7 @@ export async function getDashboardStats(
     prisma.loan.count({ where: { status: 'PENDING' } }),
     prisma.transaction.aggregate({
       _sum: { amount: true },
-      where: {
-        type: 'COLLECTION',
-        status: 'COMPLETED',
-        createdAt: { gte: today, lt: tomorrow },
-      },
+      where: todayCollectionsWhere,
     }),
     prisma.collectionArea.count({ where: { status: 'ACTIVE' } }),
     prisma.transaction.findMany({

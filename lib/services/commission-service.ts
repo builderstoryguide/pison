@@ -21,16 +21,21 @@ export interface CommissionCalculationResult {
 }
 
 export class CommissionService {
+  private rateDecimalToPercent(rateDecimal: number): number {
+    return Number((rateDecimal * 100).toFixed(2));
+  }
+
   /**
    * Get commission rate for a client
    */
   async getCommissionRate(clientId: string): Promise<number> {
-    // Default commission rate (can be configured per client or system-wide)
-    // For now, return a default rate of 2% (0.02)
-    const DEFAULT_COMMISSION_RATE = 0.02;
-
     const client = await prisma.client.findUnique({
       where: { id: clientId },
+      select: {
+        id: true,
+        isCommissionExempt: true,
+        commissionRateOverride: true,
+      },
     });
 
     if (!client) {
@@ -42,8 +47,23 @@ export class CommissionService {
       return 0;
     }
 
-    // TODO: Implement per-client commission rate configuration
-    return DEFAULT_COMMISSION_RATE;
+    if (client.commissionRateOverride !== null) {
+      return client.commissionRateOverride.toNumber();
+    }
+
+    const systemSetting = await prisma.systemSetting.findFirst({
+      select: { commissionRate: true },
+    });
+
+    return systemSetting?.commissionRate.toNumber() ?? 0.02;
+  }
+
+  /**
+   * Get commission rate as whole percent for manager-facing settings.
+   */
+  async getCommissionRatePercent(clientId: string): Promise<number> {
+    const rateDecimal = await this.getCommissionRate(clientId);
+    return this.rateDecimalToPercent(rateDecimal);
   }
 
   /**

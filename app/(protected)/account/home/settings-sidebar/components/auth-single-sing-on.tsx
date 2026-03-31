@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface IAuthSingleSingOnItem {
   logo: string;
@@ -16,6 +17,7 @@ interface IAuthSingleSingOnItem {
 type IAuthSingleSingOnItems = Array<IAuthSingleSingOnItem>;
 
 const AuthSingleSingOn = () => {
+  const { t } = useTranslation();
   const items: IAuthSingleSingOnItems = [
     {
       logo: 'azure.svg',
@@ -121,7 +123,7 @@ const AuthSingleSingOn = () => {
               </div>
             </div>
             <div className="flex justify-end">
-              <Button>Save Changes</Button>
+              <Button>{t('common.buttons.saveChanges')}</Button>
             </div>
           </div>
           <div className="border-b border-border"></div>
@@ -139,7 +141,9 @@ const AuthSingleSingOn = () => {
                       placeholder="https://your-domain.com/oauth/callback"
                       className="rounded-r-none border-r-0 focus:ring-0 focus:ring-offset-0"
                     />
-                    <Button className="rounded-l-none border-l-0">Copy</Button>
+                    <Button className="rounded-l-none border-l-0">
+                      {t('common.buttons.copy')}
+                    </Button>
                   </div>
                 </div>
               </div>

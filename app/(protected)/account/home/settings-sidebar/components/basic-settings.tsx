@@ -25,8 +25,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const BasicSettings = () => {
+  const { t } = useTranslation();
   const [date, setDate] = useState<Date | undefined>(new Date(1984, 0, 20));
   const [nameInput, setNameInput] = useState('Jason Tatum');
   const [companyInput, setCompanyInput] = useState('INNOVATE CREDIT');
@@ -284,7 +286,7 @@ const BasicSettings = () => {
           </div>
         </div>
         <div className="flex justify-end pt-2.5">
-          <Button>Save Changes</Button>
+          <Button>{t('common.buttons.saveChanges')}</Button>
         </div>
       </CardContent>
     </Card>

@@ -16,6 +16,8 @@ import {
   buildCountCacheKey,
 } from '@/lib/utils/pagination';
 import { transactionService } from './transaction-service';
+import { getDbNow, transactionNumberDatePrefix } from '@/lib/utils/db-time';
+import crypto from 'crypto';
 import {
   invalidateBalanceForAccount,
   invalidateRecentTransactionsForAccount,
@@ -39,6 +41,7 @@ export interface CreateLoanInput {
   interestRate: number;
   purpose?: string;
   maturityDate?: Date;
+  termMonths?: number;
   loanProductId?: string;
 }
 
@@ -52,12 +55,19 @@ export interface LoanEligibilityResult {
 }
 
 export class LoanService {
+  private getTermMonthsFromDates(startDate: Date, endDate: Date): number {
+    const diffTime = endDate.getTime() - startDate.getTime();
+    if (diffTime <= 0) {
+      throw new Error('Repayment due date must be after today');
+    }
+    return Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 30)));
+  }
+
   /**
    * Generate unique loan number
    */
   private async generateLoanNumber(): Promise<string> {
-    const date = new Date();
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+    const dateStr = transactionNumberDatePrefix(await getDbNow());
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     const loanNumber = `LON-${dateStr}-${random}`;
 
@@ -175,7 +185,8 @@ export class LoanService {
       throw new Error('Interest rate must be between 0 and 1 (0% to 100%)');
     }
 
-    const maturityDate = data.maturityDate ? new Date(data.maturityDate) : new Date();
+    const createdAt = await getDbNow();
+    let maturityDate: Date;
     let termMonths = 12;
     let interestRate = data.interestRate;
 
@@ -194,6 +205,7 @@ export class LoanService {
       }
       interestRate = product.interestRate.toNumber();
       termMonths = Math.ceil(product.maxDurationDays / 30);
+      maturityDate = new Date(createdAt);
       maturityDate.setDate(maturityDate.getDate() + product.maxDurationDays);
 
       // Green Credit: require client has Daily Collection account with 1+ month history
@@ -209,7 +221,8 @@ export class LoanService {
           throw new Error('Green Credit requires client to have a Daily Collection account');
         }
         const accountAge = client.account.openedAt;
-        const monthsSince = (Date.now() - accountAge.getTime()) / (1000 * 60 * 60 * 24 * 30);
+        const monthsSince =
+          (createdAt.getTime() - accountAge.getTime()) / (1000 * 60 * 60 * 24 * 30);
         if (monthsSince < product.minDailyCollectionMonths) {
           throw new Error(
             `Client must have Daily Collection account for at least ${product.minDailyCollectionMonths} month(s)`
@@ -217,7 +230,20 @@ export class LoanService {
         }
       }
     } else {
-      maturityDate.setMonth(maturityDate.getMonth() + 12);
+      if (data.maturityDate) {
+        maturityDate = new Date(data.maturityDate);
+        termMonths = this.getTermMonthsFromDates(createdAt, maturityDate);
+      } else if (data.termMonths) {
+        if (!Number.isInteger(data.termMonths) || data.termMonths <= 0) {
+          throw new Error('Term months must be a positive integer');
+        }
+        termMonths = data.termMonths;
+        maturityDate = new Date(createdAt);
+        maturityDate.setMonth(maturityDate.getMonth() + termMonths);
+      } else {
+        maturityDate = new Date(createdAt);
+        maturityDate.setMonth(maturityDate.getMonth() + 12);
+      }
     }
 
     const interestAmount = this.calculateInterest(
@@ -304,6 +330,7 @@ export class LoanService {
     const disbursementRef = `loan-disbursement-${loanId}`;
 
     const updatedLoan = await prisma.$transaction(async (tx) => {
+      const loanTimestamps = await getDbNow(tx);
       // Idempotency: check for existing disbursement (inside tx to avoid race)
       const existingTxn = await tx.transaction.findFirst({
         where: { reference: disbursementRef },
@@ -335,8 +362,8 @@ export class LoanService {
         data: {
           status: 'DISBURSED',
           approvedBy: approverId,
-          approvedAt: new Date(),
-          disbursedAt: new Date(),
+          approvedAt: loanTimestamps,
+          disbursedAt: loanTimestamps,
         },
         include: {
           account: true,
@@ -392,12 +419,13 @@ export class LoanService {
       throw new Error(`Loan is not pending. Current status: ${loan.status}`);
     }
 
+    const rejectedAt = await getDbNow();
     const updatedLoan = await prisma.loan.update({
       where: { id: loanId },
       data: {
         status: 'CANCELLED',
         approvedBy: rejectorId,
-        approvedAt: new Date(),
+        approvedAt: rejectedAt,
       },
       include: {
         account: true,
@@ -471,7 +499,7 @@ export class LoanService {
         type: 'LOAN_REPAYMENT',
         amount,
         description: `Loan repayment for ${loan.loanNumber}`,
-        reference: `loan-repayment-${loanId}-${Date.now()}`,
+        reference: `loan-repayment-${loanId}-${crypto.randomUUID()}`,
       },
       userId
     );
@@ -549,14 +577,14 @@ export class LoanService {
     // Recalculate if financial terms change
     if (data.principalAmount || data.interestRate || data.maturityDate) {
       // Calculate term in months
-      const startDate = new Date();
+      const startDate = await getDbNow();
 
       let maturityDate = data.maturityDate;
       if (!maturityDate) {
         if (loan.maturityDate) {
           maturityDate = new Date(loan.maturityDate);
         } else {
-          maturityDate = new Date();
+          maturityDate = new Date(startDate);
           maturityDate.setFullYear(maturityDate.getFullYear() + 1);
         }
       }

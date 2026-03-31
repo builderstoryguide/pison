@@ -30,7 +30,12 @@ import { toast } from 'sonner';
 import { Loader2, PlusCircle } from 'lucide-react';
 
 const refillSchema = z.object({
-  amount: z.coerce.number().positive('Amount must be positive'),
+  amount: z
+    .number({
+      required_error: 'Amount must be positive',
+      invalid_type_error: 'Amount must be positive',
+    })
+    .positive('Amount must be positive'),
 });
 
 type RefillFormData = z.infer<typeof refillSchema>;
@@ -48,8 +53,8 @@ export default function RefillDialog({ agentId, agentName }: RefillDialogProps) 
   const form = useForm<RefillFormData>({
     resolver: zodResolver(refillSchema),
     defaultValues: {
-      amount: 0,
-    },
+      amount: undefined,
+    } as RefillFormData,
   });
 
   const mutation = useMutation({
@@ -72,12 +77,12 @@ export default function RefillDialog({ agentId, agentName }: RefillDialogProps) 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent', agentId] });
       queryClient.invalidateQueries({ queryKey: ['agents'] });
-      toast.success('Refill request created successfully (Pending Approval)');
+      toast.success(t('pages.agents.refillPendingApproval'));
       setOpen(false);
       form.reset();
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to refill account');
+      toast.error(error.message || t('pages.agents.refillFailed'));
     },
   });
 
@@ -114,7 +119,14 @@ export default function RefillDialog({ agentId, agentName }: RefillDialogProps) 
                       placeholder={t('common.placeholders.amount')}
                       min="0"
                       step="100"
-                      {...field}
+                      name={field.name}
+                      ref={field.ref}
+                      onBlur={field.onBlur}
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        field.onChange(raw === '' ? undefined : Number(raw));
+                      }}
                     />
                   </FormControl>
                   <FormMessage />

@@ -56,8 +56,10 @@ import { useRoleSelectQuery } from '../../roles/hooks/use-role-select-query';
 import PermissionDeleteDialog from './permission-delete-dialog';
 import PermissionEditDialog from './permission-edit-dialog';
 import PermissionGroupDeleteDialog from './permission-group-delete-dialog';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const PermissionList = () => {
+  const { t } = useTranslation();
   // List state management
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -139,6 +141,7 @@ const PermissionList = () => {
         searchQuery,
       }),
     staleTime: Infinity,
+    refetchInterval: false,
     gcTime: 1000 * 60 * 60, // 60 minutes
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -179,14 +182,14 @@ const PermissionList = () => {
         id: 'name',
         accessorKey: 'name',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Permission" column={column} />
+          <DataGridColumnHeader title={t('pages.userManagement.permissionsTable.columnPermission')} column={column} />
         ),
         cell: (info) => info.getValue(),
         size: 150,
         enableSorting: true,
         enableHiding: false,
         meta: {
-          headerTitle: 'Permission',
+          headerTitle: t('pages.userManagement.permissionsTable.columnPermission'),
           skeleton: <Skeleton className="w-28 h-8" />,
         },
       },
@@ -194,7 +197,7 @@ const PermissionList = () => {
         id: 'slug',
         accessorKey: 'slug',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Slug" column={column} />
+          <DataGridColumnHeader title={t('pages.userManagement.permissionsTable.columnSlug')} column={column} />
         ),
         cell: (info) => {
           const value = info.getValue() as string;
@@ -205,7 +208,7 @@ const PermissionList = () => {
         enableSorting: true,
         enableHiding: false,
         meta: {
-          headerTitle: 'min-w-[200px]',
+          headerTitle: t('pages.userManagement.permissionsTable.columnSlug'),
           skeleton: <Skeleton className="w-14 h-8" />,
         },
       },
@@ -213,7 +216,7 @@ const PermissionList = () => {
         id: 'description',
         accessorKey: 'description',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Description" column={column} />
+          <DataGridColumnHeader title={t('pages.userManagement.permissionsTable.columnDescription')} column={column} />
         ),
         cell: (info) => {
           const value = info.getValue() as string;
@@ -224,7 +227,7 @@ const PermissionList = () => {
         enableSorting: false,
         enableHiding: false,
         meta: {
-          headerTitle: 'Description',
+          headerTitle: t('pages.userManagement.permissionsTable.columnDescription'),
           skeleton: <Skeleton className="w-28 h-8" />,
         },
       },
@@ -232,7 +235,7 @@ const PermissionList = () => {
         id: 'createdAt',
         accessorKey: 'createdAt',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Created At" column={column} />
+          <DataGridColumnHeader title={t('pages.userManagement.permissionsTable.columnCreatedAt')} column={column} />
         ),
         cell: (info) => {
           const value = info.getValue() as string;
@@ -241,13 +244,13 @@ const PermissionList = () => {
         enableSorting: true,
         enableHiding: false,
         meta: {
-          headerTitle: 'Created At',
+          headerTitle: t('pages.userManagement.permissionsTable.columnCreatedAt'),
           skeleton: <Skeleton className="w-20 h-8" />,
         },
       },
       {
         id: 'actions',
-        header: 'Actions',
+        header: t('pages.userManagement.permissionsTable.columnActions'),
         cell: ({ row }) => (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -262,7 +265,7 @@ const PermissionList = () => {
                   setEditDialogOpen(true);
                 }}
               >
-                Edit permission
+                {t('pages.userManagement.permissionsTable.editPermission')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"
@@ -271,7 +274,7 @@ const PermissionList = () => {
                   setDeleteDialogOpen(true);
                 }}
               >
-                Delete permission
+                {t('pages.userManagement.permissionsTable.deletePermission')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -285,7 +288,7 @@ const PermissionList = () => {
         },
       },
     ],
-    [],
+    [t],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -330,7 +333,7 @@ const PermissionList = () => {
           <div className="relative">
             <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Search permissions"
+              placeholder={t('pages.userManagement.permissionsTable.searchPlaceholder')}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -355,10 +358,10 @@ const PermissionList = () => {
             defaultValue="all"
           >
             <SelectTrigger className="w-full sm:w-36">
-              <SelectValue placeholder="Filter by role" />
+              <SelectValue placeholder={t('pages.userManagement.permissionsTable.filterByRole')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All roles</SelectItem>
+              <SelectItem value="all">{t('pages.userManagement.permissionsTable.allRoles')}</SelectItem>
               {roleList?.map((role: UserRole) => (
                 <SelectItem key={role.id} value={role.id}>
                   {role.name}
@@ -375,7 +378,9 @@ const PermissionList = () => {
                 setGroupDeleteDialogOpen(true);
               }}
             >
-              Delete {deletePermissionIds.length} permissions
+              {t('pages.userManagement.permissionsTable.deleteSelected', {
+                count: deletePermissionIds.length,
+              })}
             </Button>
           )}
           <Button
@@ -386,7 +391,7 @@ const PermissionList = () => {
             }}
           >
             <Plus />
-            Add Permission
+            {t('pages.userManagement.permissionsTable.addPermission')}
           </Button>
         </CardToolbar>
       </CardHeader>

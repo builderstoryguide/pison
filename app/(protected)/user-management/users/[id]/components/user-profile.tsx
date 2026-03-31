@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { User, UserStatus } from '@/app/models/user';
 import { getUserStatusProps } from '../../constants/status';
+import { useTranslation } from '@/hooks/useTranslation';
 import UserProfileEditDialog from './user-profile-edit-dialog';
 
 const UserProfile = ({
@@ -17,6 +18,7 @@ const UserProfile = ({
   user: User;
   isLoading: boolean;
 }) => {
+  const { t } = useTranslation();
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
 
   const Loading = () => (
@@ -86,57 +88,57 @@ const UserProfile = ({
         <CardContent>
           <dl className="grid grid-cols-[auto_1fr] gap-3 text-sm mb-5 [&_dt]:text-muted-foreground">
             <div className="grid grid-cols-subgrid col-span-2 items-baseline">
-              <dt className="flex md:w-64">Full name:</dt>
-              <dd>{user.name || 'Not available'}</dd>
+              <dt className="flex md:w-64">{t('pages.userManagement.profileLabels.fullName')}</dt>
+              <dd>{user.name || t('pages.userManagement.profileLabels.notAvailable')}</dd>
             </div>
             <div className="grid grid-cols-subgrid col-span-2 items-baseline">
-              <dt>Email address:</dt>
+              <dt>{t('pages.userManagement.profileLabels.email')}</dt>
               <dd className="flex items-center gap-2.5">
                 <span>{user.email}</span>
                 {user.emailVerifiedAt ? (
                   <Badge variant="secondary" appearance="light">
-                    Verified
+                    {t('pages.userManagement.profileLabels.verified')}
                   </Badge>
                 ) : (
                   <Badge variant="warning" appearance="light">
-                    Not verified
+                    {t('pages.userManagement.profileLabels.notVerified')}
                   </Badge>
                 )}
               </dd>
             </div>
             <div className="grid grid-cols-subgrid col-span-2 items-baseline">
-              <dt>Role:</dt>
+              <dt>{t('pages.userManagement.profileLabels.role')}</dt>
               <dd>
                 <span className="inline-flex items-center gap-1">
                   {user.role?.name}
                   {user.role?.isProtected && (
-                    <Badge variant="outline">System</Badge>
+                    <Badge variant="outline">{t('pages.userManagement.profileLabels.systemRole')}</Badge>
                   )}
                 </span>
               </dd>
             </div>
             <div className="grid grid-cols-subgrid col-span-2 items-baseline">
-              <dt>Status:</dt>
+              <dt>{t('pages.userManagement.profileLabels.status')}</dt>
               <dd>
                 <div className="inline-flex gap-2.5">
                   <Badge variant={statusVariant} appearance="ghost">
                     <BadgeDot />
-                    {statusPros.label}
+                    {t(statusPros.labelKey)}
                   </Badge>
                   {user.isTrashed && (
                     <Badge variant="destructive" appearance="light">
-                      Trashed
+                      {t('pages.userManagement.trashed')}
                     </Badge>
                   )}
                 </div>
               </dd>
             </div>
             <div className="grid grid-cols-subgrid col-span-2 items-baseline">
-              <dt>Last Sign In:</dt>
+              <dt>{t('pages.userManagement.profileLabels.lastSignIn')}</dt>
               <dd>
                 {user.lastSignInAt
                   ? formatDateTime(new Date(user.lastSignInAt))
-                  : 'Never'}
+                  : t('pages.userManagement.profileLabels.never')}
               </dd>
             </div>
           </dl>
@@ -145,7 +147,7 @@ const UserProfile = ({
             disabled={user.role?.isProtected}
             onClick={() => setEditDialogOpen(true)}
           >
-            Edit user details
+            {t('pages.userManagement.editUser')}
           </Button>
         </CardContent>
       </Card>

@@ -17,6 +17,10 @@ import { Users, Wallet, FileText, Activity, AlertTriangle, CheckCircle2 } from '
 import { formatCurrency, formatDate } from '@/lib/helpers';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import {
+  getTransactionStatusLabel,
+  getTransactionTypeLabel,
+} from '@/lib/i18n/transaction-labels';
 
 interface Transaction {
   id: string;
@@ -194,14 +198,26 @@ export default function AccountantDashboard({ initialStats }: AccountantDashboar
                       stats.recentTransactions.map((txn: Transaction) => (
                         <div key={txn.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
                           <div className="space-y-1">
-                            <p className="text-sm font-medium leading-none">{txn.type}</p>
+                            <p className="text-sm font-medium leading-none">
+                              {getTransactionTypeLabel(txn.type, t, { reference: txn.reference })}
+                            </p>
                             <p className="text-sm text-muted-foreground">
                               {txn.reference} • {formatDate(txn.date)}
                             </p>
                           </div>
                           <div className="flex items-center gap-4">
-                            <Badge variant={txn.status === 'COMPLETED' ? 'success' : 'secondary'}>
-                              {txn.status}
+                            <Badge
+                              variant={
+                                {
+                                  COMPLETED: 'success',
+                                  APPROVED: 'success',
+                                  PENDING_APPROVAL: 'warning',
+                                  REJECTED: 'destructive',
+                                  REVERSED: 'secondary',
+                                }[txn.status] || 'secondary'
+                              }
+                            >
+                              {getTransactionStatusLabel(txn.status, t)}
                             </Badge>
                             <div className={`font-medium ${
                               ['DEPOSIT', 'COLLECTION'].includes(txn.type) 

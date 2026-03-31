@@ -45,3 +45,17 @@ gzip on;
 gzip_types application/json text/plain text/css application/javascript;
 gzip_min_length 1024;
 ```
+
+---
+
+## Clock sync (NTP) for database and application hosts
+
+Financial timestamps and daily session boundaries use **PostgreSQL** as the source of truth for “now” and calendar-day truncation (`SELECT NOW()`, `date_trunc('day', CURRENT_TIMESTAMP)`). Operational reporting ties new transactions to `DailySession` where possible.
+
+**Production expectations:**
+
+1. Run **NTP** (or your platform’s time sync) on every host that runs **PostgreSQL** and every host that runs the **Next.js / Node** application so wall clocks stay aligned.
+2. Set PostgreSQL’s session **TimeZone** deliberately (e.g. to your institution’s business timezone) so `date_trunc('day', …)` matches how you open and close daily sessions.
+3. Avoid manual large clock steps on production servers. If you restore or copy data, preserve original `createdAt` / `approvedAt` values—do not “fix” history by rewriting transaction timestamps.
+
+Misaligned clocks between app and DB are less of an issue for new writes because approval times and session-day logic consult the database clock; remaining app-only `new Date()` uses are mostly non-financial or display-related.

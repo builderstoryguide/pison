@@ -10,7 +10,28 @@
       "add": "Ajouter",
       "remove": "Retirer",
       "submit": "Soumettre",
-      "close": "Fermer"
+      "close": "Fermer",
+      "saveChanges": "Enregistrer les modifications",
+      "copy": "Copier",
+      "resetPassword": "Réinitialiser le mot de passe",
+      "setup": "Configurer",
+      "addNew": "Ajouter",
+      "invitePeople": "Inviter des personnes",
+      "selectCsvFile": "Sélectionner un fichier CSV",
+      "addDevice": "Ajouter un appareil",
+      "addIpAddress": "Ajouter une adresse IP",
+      "managePayment": "Gérer le paiement",
+      "backToLoans": "Retour aux prêts",
+      "reCreate": "Recréer",
+      "tryAgain": "Réessayer",
+      "signOut": "Se déconnecter",
+      "returnToDashboard": "Retour au tableau de bord",
+      "viewSessionStatus": "Voir l'état de la session",
+      "backToAccountants": "Retour aux comptables",
+      "backToUsers": "Retour aux utilisateurs"
+    },
+    "actions": {
+      "export": "Exporter le rapport"
     },
     "labels": {
       "name": "Nom",
@@ -66,7 +87,20 @@
       "enterName": "Entrer le nom",
       "enterEmail": "Entrer l'email utilisateur",
       "setPassword": "Définir le mot de passe initial",
-      "confirmPassword": "Confirmer le mot de passe"
+      "confirmPassword": "Confirmer le mot de passe",
+      "searchUsers": "Rechercher des utilisateurs...",
+      "searchRoles": "Rechercher des rôles...",
+      "searchPermissions": "Rechercher des autorisations...",
+      "searchAccountants": "Rechercher des comptables...",
+      "searchLoans": "Rechercher des prêts...",
+      "filterByRole": "Filtrer par rôle",
+      "enterUserName": "Entrer le nom de l'utilisateur",
+      "enterEmailConfirm": "Entrer l'adresse e-mail",
+      "enterRoleName": "Entrer le nom du rôle",
+      "reasonRejectionAccount": "Entrer la raison du rejet...",
+      "notesClosure": "Ajouter des notes sur la clôture...",
+      "amountZero": "0",
+      "commandSearchPermissions": "Rechercher des autorisations..."
     },
     "validation": {
       "amountPositive": "Le montant doit être positif",
@@ -84,6 +118,9 @@
       "southwest": "Sud-Ouest",
       "west": "Ouest"
     },
+    "badges": {
+      "soon": "Bientôt"
+    },
     "aria": {
       "userAvatar": "Avatar utilisateur"
     },
@@ -96,6 +133,27 @@
       "users": "Utilisateurs",
       "roles": "Rôles",
       "userManagement": "Gestion des utilisateurs"
+    },
+    "table": {
+      "rowsPerPage": "Lignes par page",
+      "show": "Afficher",
+      "perPage": "par page",
+      "paginationRange": "{{from}} - {{to}} sur {{count}}",
+      "noData": "Aucune donnée disponible",
+      "selectRow": "Sélectionner la ligne",
+      "selectAll": "Tout sélectionner",
+      "goToPreviousPage": "Page précédente",
+      "goToNextPage": "Page suivante"
+    },
+    "dataGrid": {
+      "sortAsc": "Croissant",
+      "sortDesc": "Décroissant",
+      "pinToLeft": "Épingler à gauche",
+      "pinToRight": "Épingler à droite",
+      "moveLeft": "Déplacer à gauche",
+      "moveRight": "Déplacer à droite",
+      "columnsMenu": "Colonnes",
+      "unpinColumn": "Désépingler la colonne {{column}}"
     }
   },
   "pages": {
@@ -113,6 +171,9 @@
       "currentPasswordPlaceholder": "Entrez votre mot de passe actuel",
       "updateUsername": "Mettre à jour le nom d'utilisateur",
       "usernameUpdated": "Nom d'utilisateur mis à jour avec succès",
+      "emailUpdatedSuccess": "Adresse e-mail mise à jour avec succès",
+      "passwordUpdatedSuccess": "Mot de passe mis à jour avec succès",
+      "passwordUpdateFailed": "Échec de la mise à jour du mot de passe",
       "notifications": {
         "title": "Notifications",
         "description": "Gérer vos préférences de notification",
@@ -165,6 +226,8 @@
       }
     },
     "profile": {
+      "toolbarDescription": "Gérez vos informations personnelles et vos paramètres",
+      "photo": "Photo",
       "cardTitle": "Profil",
       "cardDescription": "Gérer les informations du profil",
       "avatarLabel": "Avatar du profil",
@@ -180,12 +243,20 @@
       "connections": "Connexions",
       "publicProfile": "Profil public",
       "jointLinks": "Liens communs",
-      "viewMore": "Voir {{count}} de plus"
+      "viewMore": "Voir {{count}} de plus",
+      "defaultUserRole": "Utilisateur",
+      "userStatus": {
+        "active": "Actif",
+        "inactive": "Inactif",
+        "suspended": "Suspendu",
+        "pending": "En attente"
+      }
     },
     "dashboard": {
       "adminTitle": "Tableau de bord Manager",
       "accountantTitle": "Tableau de bord Comptable",
       "agentTitle": "Tableau de bord Agent",
+      "overviewDescription": "Vue d'ensemble des performances du système et des activités",
       "home": "Accueil",
       "activeClients": "Clients actifs",
       "totalRegisteredClients": "Total des clients enregistrés",
@@ -230,7 +301,11 @@
       "recentCollections": "Collectes récentes",
       "noRecentCollections": "Aucune collecte récente",
       "startDailyCollection": "Démarrer la collecte quotidienne",
-      "viewClients": "Voir les clients"
+      "viewClients": "Voir les clients",
+      "pendingValidationsTitle": "Validations en attente",
+      "pendingValidationsEmpty": "Aucune transaction en attente",
+      "pendingValidationsViewAll": "Tout voir ({{count}})",
+      "pendingValidationsAgent": "Agent : {{name}}"
     },
     "clients": {
       "title": "Clients",
@@ -272,6 +347,9 @@
       "agentDesc": "Agent optionnel assigné pour collecter auprès de ce client",
       "commissionExempt": "Exonéré de commission",
       "commissionExemptDesc": "Si activé, ce client ne sera pas facturé de commissions sur les retraits",
+      "commissionRatePercent": "Taux de commission client (%)",
+      "commissionRatePercentPlaceholder": "Laisser vide pour utiliser le taux système",
+      "commissionRatePercentDescription": "Définissez un taux spécifique pour ce client. Laissez vide pour hériter du taux global.",
       "columnClient": "Client",
       "columnArea": "Zone",
       "columnBalance": "Solde",
@@ -302,13 +380,43 @@
       "typeCollection": "Collecte",
       "typeLoanRepayment": "Remboursement de prêt",
       "typeLoanDisbursement": "Déblocage de prêt",
+      "typeCommission": "Commission",
+      "typeAdjustment": "Ajustement",
       "statusCompleted": "Terminé",
       "statusPending": "En attente",
       "statusApproved": "Approuvé",
       "statusRejected": "Rejeté",
+      "statusReversed": "Annulée",
       "noClientsWithActiveAccounts": "Aucun client avec compte actif",
       "sessionClosed": "Session fermée",
-      "sessionClosedDesc": "Aucune transaction ne peut être créée tant que la session quotidienne est fermée."
+      "sessionClosedDesc": "Aucune transaction ne peut être créée tant que la session quotidienne est fermée.",
+      "notFound": "Transaction introuvable",
+      "balanceBeforeAfter": "Solde avant / après",
+      "detailAmount": "Montant",
+      "transferPickSource": "Choisissez le compte à débiter.",
+      "transferFromOperating": "Depuis mon compte d’exploitation",
+      "transferFromClient": "Depuis un compte client (comme avant)",
+      "transferFromOperatingDesc": "Débit de votre compte staff {{account}}. Le gestionnaire peut envoyer aux comptables ou agents ; le comptable peut envoyer aux agents.",
+      "noStaffDestinations": "Aucun compte de destination disponible.",
+      "typeTreasuryIssuance": "Émission de trésorerie",
+      "minBalanceWarningTitle": "En dessous du solde minimum",
+      "confirmMinBalanceProceed": "Continuer quand même"
+    },
+    "closureAlert": {
+      "minutes30": "La clôture du jour est dans environ 30 minutes ({{time}}).",
+      "minutes15": "La clôture du jour est dans environ 15 minutes ({{time}}).",
+      "minutes5": "La clôture du jour est dans environ 5 minutes ({{time}})."
+    },
+    "treasury": {
+      "title": "Liquidité de trésorerie",
+      "description": "Introduire du float numérique sur votre compte d’exploitation (gestionnaire uniquement).",
+      "currentFloat": "Float actuel",
+      "noOperatingAccount": "Aucun compte d’exploitation n’est lié à votre utilisateur.",
+      "amount": "Montant à émettre",
+      "noteOptional": "Note (facultatif)",
+      "notePlaceholder": "ex. Float mensuel initial",
+      "issueCta": "Émettre la liquidité",
+      "issueSuccess": "Liquidité émise avec succès"
     },
     "agents": {
       "title": "Agents",
@@ -316,6 +424,12 @@
       "editAgent": "Modifier l'agent",
       "searchPlaceholder": "Rechercher des agents...",
       "filterByStatus": "Filtrer par statut",
+      "allStatuses": "Tous les statuts",
+      "columnAgent": "Agent",
+      "columnBalance": "Solde",
+      "columnPhone": "Téléphone",
+      "columnStatus": "Statut",
+      "columnCreated": "Créé",
       "addAgent": "Ajouter un agent",
       "refillAmount": "Montant du rechargement",
       "createNewAgent": "Créer un nouvel agent",
@@ -360,7 +474,9 @@
       "usernameOptionalDesc": "Optionnel. Si vide, un nom d'utilisateur sera généré automatiquement.",
       "passwordPlaceholder": "Laisser vide pour générer automatiquement",
       "passwordOptionalDesc": "Laisser vide pour générer un mot de passe sécurisé automatiquement.",
-      "autoCredentialsInfo": "Un nom d'utilisateur et un mot de passe seront générés automatiquement. Les identifiants de connexion seront téléchargés dans un fichier après la création."
+      "autoCredentialsInfo": "Un nom d'utilisateur et un mot de passe seront générés automatiquement. Les identifiants de connexion seront téléchargés dans un fichier après la création.",
+      "refillPendingApproval": "Demande de réapprovisionnement créée avec succès (en attente d'approbation)",
+      "refillFailed": "Échec du réapprovisionnement du compte"
     },
     "loans": {
       "title": "Prêts",
@@ -383,6 +499,8 @@
       "editLoanRequest": "Modifier la demande de prêt",
       "principalAmountXof": "Montant principal (XOF)",
       "purpose": "Objectif",
+      "repaymentDueDate": "Date limite de remboursement",
+      "repaymentDueDateDesc": "Définissez la date finale à laquelle ce prêt doit être totalement remboursé.",
       "amountXof": "Montant (XOF)",
       "recordRepayment": "Enregistrer le remboursement",
       "recordRepaymentDesc": "Enregistrer un remboursement pour le prêt {{loanNumber}}. Solde restant : {{balance}}",
@@ -400,7 +518,25 @@
       "clientInformation": "Informations client",
       "clientNumber": "Numéro client",
       "contact": "Contact",
-      "area": "Zone"
+      "area": "Zone",
+      "onlyPendingLoansEditable": "Seuls les prêts en attente peuvent être modifiés. Ce prêt est {{status}}.",
+      "list": {
+        "searchPlaceholder": "Rechercher des prêts...",
+        "filterByStatus": "Filtrer par statut",
+        "allStatuses": "Tous les statuts",
+        "statusActiveDisbursed": "Actif (débloqué ou en cours)",
+        "columnLoan": "Prêt",
+        "columnPrincipal": "Principal",
+        "columnRemaining": "Restant",
+        "columnStatus": "Statut",
+        "columnCreated": "Créé"
+      },
+      "toastRequestCreated": "Demande de prêt créée avec succès",
+      "toastRequestUpdated": "Demande de prêt mise à jour avec succès",
+      "toastRepaymentRecorded": "Remboursement enregistré avec succès",
+      "toastRepaymentFailed": "Échec de l'enregistrement du remboursement",
+      "toastCreateFailed": "Échec de la création de la demande de prêt",
+      "toastUpdateFailed": "Échec de la mise à jour de la demande de prêt"
     },
     "topbar": {
       "chat": {
@@ -451,7 +587,9 @@
         "loansSuffix": ", {{count}} prêts",
         "viewPendingTransactions": "Voir les transactions en attente ->",
         "viewPendingAccounts": "Voir les comptes en attente ->",
-        "openTxHint": "Cliquez pour voir les détails et approuver ou rejeter",
+        "maturityLoans": "Prêts proches de l'échéance ({{count}})",
+        "viewLoans": "Voir tous les prêts",
+        "openTxHint": "Ouvrez pour tous les détails, ou utilisez Approuver / Rejeter ci-dessous.",
         "tabs": {
           "all": "Tous",
           "inbox": "Boîte de réception",
@@ -600,9 +738,105 @@
     },
     "reports": {
       "title": "Rapports",
+      "dashboard": {
+        "monthlyBalance": {
+          "title": "Solde mensuel",
+          "description": "Soldes des comptes clients avec dépôts, retraits, collectes et commissions pour un mois donné."
+        },
+        "collectionJournal": {
+          "title": "Journal des collectes",
+          "description": "Journal détaillé de toutes les transactions de collecte quotidienne par agent et par zone sur une période."
+        },
+        "clientStatement": {
+          "title": "Relevé client",
+          "description": "Relevé de compte complet pour un client : tous les débits, crédits et solde courant."
+        },
+        "areaStatistics": {
+          "title": "Statistiques par zone",
+          "description": "Indicateurs par zone de collecte : volume des transactions, solde net, nombre de clients et d'agents."
+        },
+        "commissions": {
+          "title": "Rapport des commissions",
+          "description": "Commissions sur les retraits : montants, taux et totaux par client ou par période."
+        },
+        "surplusShortage": {
+          "title": "Excédent / Pénurie",
+          "description": "Rapprochement quotidien des espèces physiques et du solde système. Met en évidence les écarts."
+        }
+      },
       "monthlyBalance": "Solde mensuel",
       "collectionJournal": "Journal des collectes",
+      "collectionJournalReport": {
+        "summaryTotalCollections": "Total des collectes",
+        "summaryEntries": "Lignes",
+        "columnTransactionNumber": "N° transaction",
+        "columnDate": "Date",
+        "columnClient": "Client",
+        "columnAgent": "Agent",
+        "columnArea": "Zone",
+        "columnAmount": "Montant",
+        "columnStatus": "Statut"
+      },
+      "monthlyBalanceReport": {
+        "columns": {
+          "clientNumber": "N° client",
+          "name": "Nom",
+          "area": "Zone",
+          "openingBalance": "Solde d'ouverture",
+          "deposits": "Dépôts",
+          "collections": "Collectes",
+          "withdrawals": "Retraits",
+          "commissions": "Commissions",
+          "closingBalance": "Solde de clôture"
+        }
+      },
+      "areaStatisticsReport": {
+        "columns": {
+          "code": "Code",
+          "area": "Zone",
+          "clients": "Clients",
+          "agents": "Agents",
+          "collections": "Collectes",
+          "deposits": "Dépôts",
+          "withdrawals": "Retraits",
+          "transactions": "Trans.",
+          "netBalance": "Solde net"
+        }
+      },
+      "surplusShortageReport": {
+        "columns": {
+          "date": "Date",
+          "collections": "Collectes",
+          "deposits": "Dépôts",
+          "withdrawals": "Retraits",
+          "systemBalance": "Solde système",
+          "physicalCash": "Espèces physiques",
+          "surplusShortage": "Excédent / Pénurie",
+          "closedBy": "Clôturé par"
+        }
+      },
       "clientStatement": "Relevé client",
+      "clientStatementReport": {
+        "filterTitle": "Sélectionner le client et la période",
+        "clientLabel": "Client",
+        "startDate": "Date de début",
+        "endDate": "Date de fin",
+        "area": "Zone",
+        "currentBalance": "Solde actuel",
+        "totalCredit": "Total crédit",
+        "totalDebit": "Total débit",
+        "transactionCount": "Transactions",
+        "emptyHint": "Sélectionnez un client et une plage de dates ci-dessus pour générer le relevé.",
+        "columns": {
+          "date": "Date",
+          "reference": "Référence",
+          "type": "Type",
+          "description": "Description",
+          "debit": "Débit",
+          "credit": "Crédit",
+          "balance": "Solde"
+        }
+      },
       "areaStatistics": "Statistiques par zone",
       "surplusShortage": "Excédent / Pénurie",
       "commissions": "Commissions",
@@ -671,6 +905,28 @@
       "filterByStatus": "Filtrer par statut",
       "filterByRegion": "Filtrer par région",
       "allRegions": "Toutes les régions",
+      "allAreas": "Toutes les zones",
+      "columns": {
+        "code": "Code",
+        "city": "Ville",
+        "region": "Région",
+        "status": "Statut",
+        "clients": "Clients",
+        "created": "Créé le"
+      },
+      "deactivateAreaTitle": "Désactiver la zone de collecte",
+      "deactivateAreaDescription": "Voulez-vous vraiment désactiver « {{name}} » ? La zone sera marquée comme inactive mais ne sera pas supprimée. Les clients et transactions liés à cette zone resteront conservés.",
+      "deactivateArea": "Désactiver",
+      "deactivatingArea": "Désactivation...",
+      "areaDeactivatedSuccess": "Zone de collecte désactivée avec succès",
+      "areaDeactivateFailed": "Échec de la désactivation de la zone",
+      "fetchAreasFailed": "Échec du chargement des zones de collecte",
+      "fetchAgentsFailed": "Échec du chargement des agents",
+      "fetchAgentAssignmentsFailed": "Échec du chargement des affectations de l'agent",
+      "assignAreasSuccess": "Zones assignées avec succès",
+      "assignAreasFailed": "Échec de l'assignation des zones",
+      "areaTakenBy": "{{area}} est déjà assignée à {{agent}}.",
+      "assignedToCollector": "Assignée à {{name}} ({{code}})",
       "addArea": "Ajouter une zone",
       "createNewArea": "Créer une nouvelle zone de collecte",
       "editCollectionArea": "Modifier la zone de collecte",
@@ -693,7 +949,11 @@
       "selectAgentFirst": "Veuillez d'abord sélectionner un agent",
       "noActiveAreasAvailable": "Aucune zone de collecte active disponible",
       "saving": "Enregistrement...",
-      "saveAssignments": "Enregistrer les affectations"
+      "saveAssignments": "Enregistrer les affectations",
+      "toastCreated": "Zone de collecte créée avec succès",
+      "toastUpdated": "Zone de collecte mise à jour avec succès",
+      "toastCreateFailed": "Échec de la création de la zone de collecte",
+      "toastUpdateFailed": "Échec de la mise à jour de la zone de collecte"
     },
     "userManagement": {
       "users": "Utilisateurs",
@@ -704,7 +964,122 @@
       "deleteUser": "Supprimer le compte utilisateur",
       "addUserTitle": "Ajouter un utilisateur",
       "addUserButton": "Ajouter l'utilisateur",
-      "credentialsAutoGenerated": "Le nom d'utilisateur et le mot de passe seront générés automatiquement. Les identifiants de connexion seront téléchargés dans un fichier après la création."
+      "credentialsAutoGenerated": "Le nom d'utilisateur et le mot de passe seront générés automatiquement. Les identifiants de connexion seront téléchargés dans un fichier après la création.",
+      "columnUser": "Utilisateur",
+      "columnName": "Nom",
+      "columnRole": "Rôle",
+      "columnStatus": "Statut",
+      "columnJoined": "Inscription",
+      "columnLastSignIn": "Dernière connexion",
+      "filterByRole": "Filtrer par rôle",
+      "filterByStatus": "Filtrer par statut",
+      "allRoles": "Tous les rôles",
+      "allUsersStatus": "Tous les utilisateurs",
+      "trashed": "Corbeille",
+      "rolesTable": {
+        "columnRole": "Rôle",
+        "columnSlug": "Identifiant",
+        "columnPermissions": "Autorisations",
+        "columnActions": "Actions",
+        "searchPlaceholder": "Rechercher des rôles...",
+        "addRole": "Ajouter un rôle",
+        "badgeSystem": "système",
+        "badgeDefault": "par défaut",
+        "moreCount": "{{count}} de plus",
+        "editRole": "Modifier le rôle",
+        "setAsDefault": "Définir par défaut",
+        "deleteRole": "Supprimer le rôle"
+      },
+      "permissionsTable": {
+        "columnPermission": "Autorisation",
+        "columnSlug": "Identifiant",
+        "columnDescription": "Description",
+        "columnCreatedAt": "Créé le",
+        "columnActions": "Actions",
+        "searchPlaceholder": "Rechercher des autorisations...",
+        "addPermission": "Ajouter une autorisation",
+        "deleteSelected": "Supprimer {{count}} autorisations",
+        "editPermission": "Modifier l'autorisation",
+        "deletePermission": "Supprimer l'autorisation",
+        "filterByRole": "Filtrer par rôle",
+        "allRoles": "Tous les rôles"
+      },
+      "profileLabels": {
+        "fullName": "Nom complet :",
+        "email": "Adresse e-mail :",
+        "role": "Rôle :",
+        "status": "Statut :",
+        "lastSignIn": "Dernière connexion :",
+        "joined": "Inscrit le :",
+        "verified": "Vérifié",
+        "notVerified": "Non vérifié",
+        "systemRole": "Système",
+        "notAvailable": "Non disponible",
+        "never": "Jamais"
+      },
+      "editUserDialog": {
+        "title": "Modifier l'utilisateur",
+        "name": "Nom",
+        "role": "Rôle",
+        "status": "Statut",
+        "successToast": "Utilisateur mis à jour avec succès"
+      },
+      "profileToolbarTitle": "Utilisateur",
+      "systemSettingsLayout": {
+        "toolbarTitle": "Paramètres",
+        "fetchFailed": "Échec du chargement des paramètres",
+        "tabs": {
+          "general": "Général",
+          "notifications": "Notifications"
+        }
+      },
+      "settings": {
+        "notifications": {
+          "title": "Paramètres de notification",
+          "columns": {
+            "notification": "Notification",
+            "roles": "Rôles",
+            "email": "E-mail",
+            "web": "Web / dans l’application"
+          },
+          "notSet": "Non défini",
+          "searchRolesPlaceholder": "Rechercher des rôles...",
+          "noRolesFound": "Aucun rôle trouvé.",
+          "reset": "Réinitialiser",
+          "save": "Enregistrer",
+          "updateSuccess": "Paramètres de notification mis à jour",
+          "rows": {
+            "balanceThreshold": {
+              "title": "Alertes de solde de compte",
+              "description": "Notifier lorsque les soldes approchent des seuils configurés (seuil système lorsqu’il est utilisé)."
+            },
+            "pendingTransactions": {
+              "title": "Transactions en attente",
+              "description": "Notifier lorsque de nouvelles transactions nécessitent une approbation."
+            },
+            "transactionStatus": {
+              "title": "Résultats des transactions",
+              "description": "Notifier lorsque des transactions sont approuvées, rejetées ou terminées."
+            },
+            "loanRepayment": {
+              "title": "Problèmes de remboursement de prêt",
+              "description": "Notifier en cas d’échec ou de retard de remboursement."
+            },
+            "systemAlerts": {
+              "title": "Alertes système",
+              "description": "Notifier en cas d’erreurs critiques ou de problèmes opérationnels."
+            }
+          }
+        }
+      },
+      "staffAccountLayout": {
+        "toolbarTitle": "Compte",
+        "tabs": {
+          "profile": "Profil",
+          "security": "Sécurité",
+          "logs": "Journaux"
+        }
+      }
     },
     "validation": {
       "pendingTransactions": "Transactions en attente",
@@ -729,9 +1104,11 @@
       "notesPlaceholder": "Ajoutez des notes à propos de cette approbation...",
       "approving": "Approbation...",
       "rejectTransaction": "Rejeter la transaction",
+      "rejectConfirm": "Êtes-vous sûr de vouloir rejeter cette transaction ? La modification de solde en attente sera annulée.",
       "reasonRequiredLabel": "Raison *",
       "reasonPlaceholder": "Entrez la raison du rejet...",
       "rejecting": "Rejet...",
+      "minBalanceAcknowledged": "La règle de solde minimum a été acceptée pour cette demande",
       "noPendingAccounts": "Aucun compte en attente",
       "allAccountsReviewed": "Tous les comptes ont été examinés et traités.",
       "approveAccount": "Approuver le compte",
@@ -749,6 +1126,96 @@
       "rejectLoanFailed": "Échec du rejet du prêt",
       "loanApprovedSuccess": "Prêt approuvé et débloqué avec succès",
       "loanRejected": "Prêt rejeté"
+    },
+    "pendingAccounts": {
+      "sectionClients": "Clients en attente ({{count}})",
+      "sectionAgents": "Agents en attente ({{count}})",
+      "labelBalance": "Solde",
+      "labelUser": "Utilisateur",
+      "labelAreas": "Zones",
+      "fetchFailed": "Échec du chargement des comptes en attente",
+      "approveSuccess": "Compte approuvé avec succès",
+      "approveFailed": "Échec de l'approbation du compte",
+      "rejectSuccess": "Compte rejeté",
+      "rejectFailed": "Échec du rejet du compte",
+      "approving": "Approbation...",
+      "rejecting": "Rejet...",
+      "reasonOptionalShort": "Raison (optionnelle)"
+    },
+    "sessionGate": {
+      "unableToLoadTitle": "Impossible de charger l'état de la session",
+      "unableToLoadDesc": "Échec de la récupération de l'état de la session. Vérifiez votre connexion et réessayez.",
+      "systemLocked": "Système verrouillé",
+      "sessionClosedWait": "La session quotidienne a été fermée. Veuillez attendre qu'un gestionnaire ouvre une nouvelle session avant d'accéder au système.",
+      "sessionNotOpenedWait": "La session quotidienne n'a pas encore été ouverte. Veuillez attendre qu'un gestionnaire ouvre la session avant d'accéder au système."
+    },
+    "operations": {
+      "sessionOpenedSuccess": "Session ouverte avec succès",
+      "sessionOpenFailed": "Échec de l'ouverture de la session",
+      "accountantRoleNotLoaded": "Le rôle comptable n'est pas encore chargé.",
+      "plannedClosureSaveFailed": "Impossible d'enregistrer la clôture planifiée",
+      "plannedClosureUpdated": "Clôture planifiée mise à jour",
+      "sessionStatus": {
+        "tryAgain": "Réessayer",
+        "currentSessionTitle": "Session en cours",
+        "cardDescription": "État et informations de la session quotidienne",
+        "badgeOpen": "Ouverte",
+        "noSession": "Aucune session",
+        "closeSession": "Fermer la session",
+        "opening": "Ouverture…",
+        "openTodaysSession": "Ouvrir la session du jour",
+        "sessionDate": "Date de session",
+        "statusLabel": "Statut",
+        "openedAt": "Ouverte le",
+        "closedAt": "Fermée le",
+        "byUser": "par {{name}}",
+        "statusOPEN": "Ouverte",
+        "statusCLOSED": "Fermée",
+        "statusLOCKED": "Verrouillée",
+        "noActiveSessionTitle": "Aucune session active",
+        "noActiveSessionBody": "Une session quotidienne doit être ouverte avant de pouvoir créer des transactions.",
+        "sessionInformationTitle": "Informations sur la session",
+        "sessionOpenTransactionsAllowed": "La session est ouverte. Les transactions peuvent être créées.",
+        "sessionOpenedAtLine": "Session ouverte le {{time}}",
+        "managerCloseHint": "En tant que gestionnaire, vous pouvez fermer cette session en fin de journée pour verrouiller toutes les transactions du jour.",
+        "effectiveClosureToday": "Clôture effective aujourd'hui",
+        "defaultClosureTimeLine": "Heure par défaut des paramètres : {{time}} ({{timezone}})",
+        "plannedClosureOverride": "Clôture planifiée (surcharge du jour)",
+        "plannedClosureOverrideHint": "Facultatif. Fixe l'heure de clôture pour aujourd'hui ; les rappels utilisent cette valeur plutôt que la valeur par défaut. Les horaires sont stockés en UTC.",
+        "savePlannedClosure": "Enregistrer la surcharge",
+        "clearPlannedClosure": "Utiliser l'heure par défaut",
+        "savingPlannedClosure": "Enregistrement…"
+      }
+    },
+    "dayClosure": {
+      "accessDeniedTitle": "Accès refusé",
+      "accessDeniedDesc": "Seuls les gestionnaires peuvent clôturer la session quotidienne.",
+      "noActiveSessionTitle": "Aucune session active",
+      "noActiveSessionDesc": "Il n'y a aucune session ouverte à clôturer.",
+      "alreadyClosedTitle": "Session déjà fermée",
+      "alreadyClosedDesc": "La session du {{date}} a déjà été fermée.",
+      "sessionInfoTitle": "Informations sur la session",
+      "sessionFor": "Session du {{date}}",
+      "systemBalance": "Solde système",
+      "surplusShortage": "Excédent/pénurie",
+      "closeCardTitle": "Clôturer la session quotidienne",
+      "closeCardDesc": "Saisissez le comptage d'espèces et fermez la session. Cela bloquera toutes les transactions pour aujourd'hui.",
+      "physicalCashLabel": "Montant d'espèces physiques *",
+      "physicalCashHint": "Saisissez le total des espèces comptées",
+      "summarySystemBalance": "Solde système",
+      "summaryPhysicalCash": "Espèces physiques",
+      "summaryDifference": "Écart",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Ajoutez des notes sur la clôture...",
+      "notesHint": "Notes facultatives sur la clôture de journée",
+      "warningHtml": "La clôture de session bloquera toutes les transactions pour aujourd'hui. Cette action est irréversible.",
+      "warningLead": "Attention :",
+      "closing": "Clôture…",
+      "closeSession": "Fermer la session",
+      "toastClosed": "Session fermée avec succès",
+      "toastCloseFailed": "Échec de la fermeture de la session",
+      "toastInvalidCash": "Veuillez saisir un montant d'espèces valide",
+      "validationPhysicalCashRequired": "Le montant d'espèces physiques est obligatoire"
     },
     "auditLog": {
       "title": "Journal d'audit",
@@ -813,7 +1280,15 @@
       "receiptAmount": "Montant",
       "receiptPending": "Ces transactions sont en attente d'approbation du gestionnaire.",
       "printReceipt": "Imprimer",
-      "downloadReceipt": "Télécharger"
+      "downloadReceipt": "Télécharger",
+      "agentOperatingBalance": "Votre portefeuille de collecte (disponible)",
+      "ventilationTotal": "Total ventilation",
+      "ventilationExceedsBalance": "Le total dépasse votre solde disponible. Réduisez les montants ou demandez un virement à votre comptable.",
+      "submitSuccessAwaitingApproval": "Collectes soumises avec succès. En attente d'approbation.",
+      "selectAreaRequired": "Veuillez sélectionner une zone de collecte",
+      "enterAmountRequired": "Veuillez saisir au moins un montant de collecte",
+      "agentIdNotFound": "Identifiant agent introuvable",
+      "submitFailed": "Échec de l'envoi des collectes"
     },
     "accounts": {
       "accountStatus": "Statut du compte",
@@ -857,7 +1332,7 @@
       "noOtherAccounts": "Aucun autre compte client disponible"
     },
     "settings": {
-      "title": "Paramètres sociaux",
+      "title": "Paramètres généraux",
       "updateSuccess": "Paramètres mis à jour avec succès",
       "formErrors": "Votre formulaire contient des erreurs. Veuillez les corriger avant de soumettre !",
       "logoPreviewAlt": "Aperçu du logo",
@@ -885,14 +1360,89 @@
       "currencyFormatDescription": "Choisissez comment la devise est affichée (ex. symbole avant ou après la valeur).",
       "timezone": "Fuseau horaire",
       "reset": "Réinitialiser",
-      "saveSettings": "Enregistrer les paramètres"
+      "saveSettings": "Enregistrer les paramètres",
+      "commissionRateTitle": "Configuration du taux de commission",
+      "commissionRateLabel": "Taux de commission système (%)",
+      "commissionRateDescription": "Taux par défaut appliqué lorsqu'aucune surcharge client n'est définie.",
+      "saveCommissionRate": "Enregistrer le taux de commission",
+      "commissionRateUpdateSuccess": "Taux de commission mis à jour avec succès",
+      "commissionRateUpdateFailed": "Échec de la mise à jour du taux de commission",
+      "commissionRateInvalid": "Le taux de commission doit être un nombre entre 0 et 100",
+      "defaultDailyClosureTime": "Heure de clôture quotidienne par défaut",
+      "defaultDailyClosureTimeDesc": "Utilisée pour les rappels avant clôture (30, 15 et 5 minutes avant) avec le fuseau horaire ci-dessus. Les gestionnaires peuvent surcharger pour aujourd'hui sous Opérations > Session."
+    },
+    "commissions": {
+      "settingsTitle": "Paramètres des commissions",
+      "settingsDescription": "Définissez le taux de commission par défaut lorsqu'un client n'a pas de surcharge et n'est pas exonéré.",
+      "clientsTitle": "Commissions par client",
+      "clientsDescription": "Recherchez les clients avec un taux personnalisé ou une exonération. Le taux système s'applique si la surcharge est effacée.",
+      "filterCustomized": "Personnalisés uniquement",
+      "filterAll": "Tous les clients",
+      "columnClient": "Client",
+      "columnClientNumber": "N° client",
+      "columnExempt": "Exonéré",
+      "columnOverride": "Surcharge (%)",
+      "columnActions": "Actions",
+      "editCommission": "Modifier",
+      "save": "Enregistrer",
+      "clearOverride": "Effacer la surcharge",
+      "updateSuccess": "Commission mise à jour",
+      "updateFailed": "Échec de la mise à jour",
+      "loadFailed": "Impossible de charger les clients",
+      "forbidden": "Vous n'avez pas accès à cette page.",
+      "yes": "Oui",
+      "no": "Non",
+      "defaultRate": "Par défaut",
+      "searchPlaceholder": "Rechercher par nom ou n° client…"
     }
   },
   "status": {
     "active": "Actif",
     "inactive": "Inactif",
     "suspended": "Suspendu",
-    "closed": "Fermé"
+    "closed": "Fermé",
+    "unknown": "Inconnu",
+    "user": {
+      "ACTIVE": "Actif",
+      "INACTIVE": "Inactif",
+      "BLOCKED": "Bloqué"
+    },
+    "account": {
+      "ACTIVE": "Actif",
+      "FROZEN": "Gelé",
+      "CLOSED": "Fermé"
+    },
+    "transaction": {
+      "PENDING_APPROVAL": "En attente d'approbation",
+      "APPROVED": "Approuvé",
+      "REJECTED": "Rejeté",
+      "COMPLETED": "Terminé",
+      "REVERSED": "Contrepassé"
+    },
+    "loan": {
+      "PENDING": "En attente",
+      "APPROVED": "Approuvé",
+      "DISBURSED": "Débloqué",
+      "ACTIVE": "Actif",
+      "PAID_OFF": "Remboursé",
+      "DEFAULTED": "En défaut",
+      "CANCELLED": "Annulé"
+    },
+    "area": {
+      "ACTIVE": "Actif",
+      "INACTIVE": "Inactif"
+    },
+    "client": {
+      "ACTIVE": "Actif",
+      "INACTIVE": "Inactif",
+      "SUSPENDED": "Suspendu",
+      "CLOSED": "Fermé"
+    },
+    "agent": {
+      "ACTIVE": "Actif",
+      "INACTIVE": "Inactif",
+      "SUSPENDED": "Suspendu"
+    }
   },
   "navigation": {
     "home": "Accueil",
@@ -963,6 +1513,9 @@
     "dayClosure": "Clôture du jour",
     "cashReconciliation": "Réconciliation des espèces",
     "auditLog": "Journal d'audit",
+    "commissions": "Commissions",
+    "commissionSettings": "Paramètres des commissions",
+    "clientCommissionOverrides": "Commissions par client",
     "settings": "Paramètres",
     "systemSettings": "Paramètres système",
     "commissionRates": "Taux de commission",
@@ -991,5 +1544,10 @@
     "myClients": "Mes clients",
     "areaStatistics": "Statistiques par zone",
     "untitled": "Sans titre"
+  },
+  "errors": {
+    "codes": {
+      "MIN_BALANCE_WARNING": "Cette opération ferait passer le solde sous le minimum autorisé. Ajustez le montant ou confirmez pour continuer."
+    }
   }
 }

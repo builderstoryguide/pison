@@ -6,7 +6,11 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useCreateTransaction } from '@/hooks/queries/use-transactions';
+import {
+  useCreateTransaction,
+  isTransactionApiError,
+} from '@/hooks/queries/use-transactions';
+import { MinBalanceConfirmDialog } from '@/components/min-balance-confirm-dialog';
 import { transactionKeys } from '@/hooks/queries/query-keys';
 import { formatCurrency } from '@/lib/helpers';
 import { Button } from '@/components/ui/button';
@@ -32,10 +36,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Loader2, TrendingDown } from 'lucide-react';
 
-type WithdrawalFormData = {
-  amount: number;
-  description?: string;
-};
+type PendingWithdrawal = { amount: number; description?: string };
 
 interface WithdrawalDialogProps {
   agentId: string;
@@ -55,14 +56,19 @@ export default function WithdrawalDialog({
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [minBalOpen, setMinBalOpen] = useState(false);
+  const [minBalMessage, setMinBalMessage] = useState('');
+  const [pendingData, setPendingData] = useState<PendingWithdrawal | null>(null);
   const createTransaction = useCreateTransaction();
 
   const withdrawalSchema = useMemo(
     () =>
       z.object({
         amount: z
-          .coerce
-          .number()
+          .number({
+            required_error: t('common.validation.amountPositive', 'Amount must be positive'),
+            invalid_type_error: t('common.validation.amountPositive', 'Amount must be positive'),
+          })
           .positive(t('common.validation.amountPositive', 'Amount must be positive'))
           .max(
             availableBalance,
@@ -73,12 +79,14 @@ export default function WithdrawalDialog({
     [availableBalance, t]
   );
 
+  type WithdrawalFormData = z.infer<typeof withdrawalSchema>;
+
   const form = useForm<WithdrawalFormData>({
     resolver: zodResolver(withdrawalSchema),
     defaultValues: {
-      amount: 0,
+      amount: undefined,
       description: '',
-    },
+    } as WithdrawalFormData,
   });
 
   useEffect(() => {
@@ -86,31 +94,55 @@ export default function WithdrawalDialog({
     // form is stable from useForm; we only want to re-validate when availableBalance changes
   }, [availableBalance, form]);
 
-  const onSubmit = (data: WithdrawalFormData) => {
-    createTransaction.mutate(
-      {
+  const runSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['agent', agentId] });
+    queryClient.invalidateQueries({ queryKey: ['agents'] });
+    queryClient.invalidateQueries({ queryKey: transactionKeys.all });
+    toast.success(t('pages.clientDetails.withdrawalSuccess'));
+    setOpen(false);
+    setMinBalOpen(false);
+    setPendingData(null);
+    form.reset();
+  };
+
+  const onSubmit = async (data: WithdrawalFormData) => {
+    try {
+      await createTransaction.mutateAsync({
         accountId,
         type: 'WITHDRAWAL',
         amount: data.amount,
         description: data.description || undefined,
-      },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ['agent', agentId] });
-          queryClient.invalidateQueries({ queryKey: ['agents'] });
-          queryClient.invalidateQueries({ queryKey: transactionKeys.all });
-          toast.success(t('pages.clientDetails.withdrawalSuccess'));
-          setOpen(false);
-          form.reset();
-        },
-        onError: (error: Error) => {
-          toast.error(error.message || t('pages.clientDetails.withdrawalError'));
-        },
+      });
+      runSuccess();
+    } catch (e: unknown) {
+      if (isTransactionApiError(e) && e.errorCode === 'MIN_BALANCE_WARNING') {
+        setPendingData(data);
+        setMinBalMessage(e.message);
+        setMinBalOpen(true);
+        return;
       }
-    );
+      toast.error(e instanceof Error ? e.message : t('pages.clientDetails.withdrawalError'));
+    }
+  };
+
+  const confirmMinBalance = async () => {
+    if (!pendingData) return;
+    try {
+      await createTransaction.mutateAsync({
+        accountId,
+        type: 'WITHDRAWAL',
+        amount: pendingData.amount,
+        description: pendingData.description || undefined,
+        acknowledgeMinBalanceViolation: true,
+      });
+      runSuccess();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : t('pages.clientDetails.withdrawalError'));
+    }
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2">
@@ -146,7 +178,14 @@ export default function WithdrawalDialog({
                       placeholder={t('common.placeholders.amount')}
                       min="0"
                       step="100"
-                      {...field}
+                      name={field.name}
+                      ref={field.ref}
+                      onBlur={field.onBlur}
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        field.onChange(raw === '' ? undefined : Number(raw));
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -191,5 +230,14 @@ export default function WithdrawalDialog({
         </Form>
       </DialogContent>
     </Dialog>
+
+    <MinBalanceConfirmDialog
+      open={minBalOpen}
+      onOpenChange={setMinBalOpen}
+      message={minBalMessage}
+      onConfirm={confirmMinBalance}
+      isPending={createTransaction.isPending}
+    />
+    </>
   );
 }

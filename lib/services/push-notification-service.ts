@@ -8,6 +8,7 @@ import webpush from 'web-push';
 import { prisma } from '@/lib/prisma';
 
 const TRANSACTIONS_APPROVE_SLUG = 'transactions.approve';
+const LOANS_APPROVE_SLUG = 'loans.approve';
 
 export class PushNotificationService {
   private initialized = false;
@@ -75,6 +76,26 @@ export class PushNotificationService {
     return users.map((u) => u.id);
   }
 
+  /** Users with loans.approve permission. */
+  async getUsersWithLoanApprovePermission(): Promise<string[]> {
+    const permission = await prisma.userPermission.findUnique({
+      where: { slug: LOANS_APPROVE_SLUG },
+      select: { id: true },
+    });
+    if (!permission) return [];
+    const roleIdsWithPermission = await prisma.userRolePermission.findMany({
+      where: { permissionId: permission.id },
+      select: { roleId: true },
+    });
+    const roleIds = [...new Set(roleIdsWithPermission.map((r) => r.roleId))];
+    if (roleIds.length === 0) return [];
+    const users = await prisma.user.findMany({
+      where: { roleId: { in: roleIds }, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    return users.map((u) => u.id);
+  }
+
   /**
    * Get push subscriptions for given user IDs
    */
@@ -128,6 +149,93 @@ export class PushNotificationService {
           },
         };
 
+        try {
+          await webpush.sendNotification(pushSubscription, payload);
+        } catch (err: unknown) {
+          const status = (err as { statusCode?: number })?.statusCode;
+          if (status === 410 || status === 404) {
+            await this.removeSubscription(sub.id);
+          }
+          throw err;
+        }
+      })
+    );
+  }
+
+  /**
+   * Notify managers/approvers when a non-manager is blocked at sign-in because the daily session is closed.
+   */
+  async sendSessionClosedLoginAttempt(displayIdentifier: string) {
+    this.ensureInitialized();
+    if (!this.initialized) return;
+
+    const userIds = await this.getUsersWithApprovePermission();
+    if (userIds.length === 0) return;
+
+    const subscriptions = await this.getSubscriptionsForUsers(userIds);
+    if (subscriptions.length === 0) return;
+
+    const safe = displayIdentifier.length > 80 ? `${displayIdentifier.slice(0, 77)}...` : displayIdentifier;
+    const payload = JSON.stringify({
+      title: 'Daily session closed',
+      body: `Sign-in attempt blocked while session is closed (${safe}).`,
+      url: '/operations/session',
+    });
+
+    await Promise.allSettled(
+      subscriptions.map(async (sub) => {
+        const pushSubscription = {
+          endpoint: sub.endpoint,
+          keys: {
+            auth: sub.auth,
+            p256dh: sub.p256dh,
+          },
+        };
+
+        try {
+          await webpush.sendNotification(pushSubscription, payload);
+        } catch (err: unknown) {
+          const status = (err as { statusCode?: number })?.statusCode;
+          if (status === 410 || status === 404) {
+            await this.removeSubscription(sub.id);
+          }
+          throw err;
+        }
+      })
+    );
+  }
+
+  /** Digest: unpaid loans approaching maturity (loan approvers). */
+  async sendLoanMaturityDigest(totalCount: number, dueWithinOneDay: number) {
+    this.ensureInitialized();
+    if (!this.initialized) return;
+    if (totalCount <= 0) return;
+
+    const userIds = await this.getUsersWithLoanApprovePermission();
+    if (userIds.length === 0) return;
+
+    const subscriptions = await this.getSubscriptionsForUsers(userIds);
+    if (subscriptions.length === 0) return;
+
+    const urgent =
+      dueWithinOneDay > 0
+        ? ` ${dueWithinOneDay} due within 24h.`
+        : '';
+    const payload = JSON.stringify({
+      title: 'Loan maturity reminder',
+      body:
+        totalCount === 1
+          ? `1 unpaid loan is approaching maturity.${urgent}`
+          : `${totalCount} unpaid loans are approaching maturity.${urgent}`,
+      url: '/loans',
+    });
+
+    await Promise.allSettled(
+      subscriptions.map(async (sub) => {
+        const pushSubscription = {
+          endpoint: sub.endpoint,
+          keys: { auth: sub.auth, p256dh: sub.p256dh },
+        };
         try {
           await webpush.sendNotification(pushSubscription, payload);
         } catch (err: unknown) {

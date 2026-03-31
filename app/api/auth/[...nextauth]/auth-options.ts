@@ -3,6 +3,7 @@ import { JWT } from 'next-auth/jwt';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcrypt';
 import prisma from '@/lib/prisma';
+import { isManagerRoleFromSlug } from '@/lib/auth';
 import { SIGNIN_IDENTIFIER_LABEL } from '@/app/(auth)/constants';
 import { getSigninSchema } from '@/app/(auth)/forms/signin-schema';
 
@@ -75,6 +76,11 @@ const authOptions: NextAuthOptions = {
         });
 
         if (!user) {
+          await logAuthEvent(
+            null,
+            'LOGIN_FAILED_UNKNOWN_USER',
+            `Unknown identifier (login attempt): ${normalizedIdentifier}`,
+          );
           throw new Error(
             JSON.stringify({
               message: 'Invalid username/email or password.',
@@ -153,13 +159,11 @@ const authOptions: NextAuthOptions = {
         );
 
         if (!passwordMatch) {
-          // Increment failed attempts
           const newAttempts = user.failedLoginAttempts + 1;
           const updateData: Record<string, unknown> = {
             failedLoginAttempts: newAttempts,
           };
 
-          // Lock account if threshold reached
           if (newAttempts >= MAX_FAILED_ATTEMPTS) {
             updateData.lockedUntil = new Date(
               Date.now() + LOCKOUT_DURATION_MS,
@@ -195,6 +199,35 @@ const authOptions: NextAuthOptions = {
               message: 'Invalid username/email or password.',
             }),
           );
+        }
+
+        // Block non-managers when daily session is closed (before issuing JWT)
+        if (!isManagerRoleFromSlug(user.role.slug, user.role.name)) {
+          const { sessionService } = await import('@/lib/services');
+          const open = await sessionService.isSessionOpen();
+          if (!open) {
+            await logAuthEvent(
+              user.id,
+              'LOGIN_REJECTED_SESSION_CLOSED',
+              'Daily session closed; non-manager blocked at sign-in.',
+            );
+            try {
+              const { pushNotificationService } = await import(
+                '@/lib/services/push-notification-service'
+              );
+              await pushNotificationService.sendSessionClosedLoginAttempt(
+                user.email ?? user.username ?? normalizedIdentifier
+              );
+            } catch (e) {
+              console.error('[Auth] push notify session-closed login failed:', e);
+            }
+            throw new Error(
+              JSON.stringify({
+                message:
+                  'The daily session is closed. Only managers may sign in until the session is opened.',
+              }),
+            );
+          }
         }
 
         // 8. Successful login — reset lockout counters and update last sign-in
@@ -345,7 +378,7 @@ const authOptions: NextAuthOptions = {
 // ─── Audit logging helper ───────────────────────────────────────
 
 async function logAuthEvent(
-  userId: string,
+  userId: string | null,
   action: string,
   description: string,
 ) {
@@ -354,7 +387,7 @@ async function logAuthEvent(
       data: {
         userId,
         action,
-        entityType: 'USER',
+        entityType: userId ? 'USER' : 'AUTH',
         entityId: userId,
         description,
       },

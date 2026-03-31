@@ -43,7 +43,7 @@ async function globalSetup(_config: FullConfig) {
     }
     
     // Launch browser and login as manager to create auth state
-    const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
     const browser = await chromium.launch();
     const context = await browser.newContext({ baseURL });
     const page = await context.newPage();

@@ -25,6 +25,7 @@ import {
 } from '@/components/common/toolbar';
 import { UserProvider } from './components/user-context';
 import UserHero from './components/user-hero';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type NavRoutes = Record<
   string,
@@ -46,6 +47,7 @@ export default function UserLayout({
   const { id } = use(params);
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useTranslation();
 
   // Use local state to control active tab
   const [activeTab, setActiveTab] = useState<string>('');
@@ -96,6 +98,7 @@ export default function UserLayout({
       return response.json();
     },
     staleTime: Infinity,
+    refetchInterval: false,
     gcTime: 1000 * 60 * 60, // 60 minutes
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -114,19 +117,21 @@ export default function UserLayout({
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>User</ToolbarTitle>
+            <ToolbarTitle>{t('pages.userManagement.profileToolbarTitle')}</ToolbarTitle>
             <Breadcrumb>
               <BreadcrumbList>
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/">Home</BreadcrumbLink>
+                  <BreadcrumbLink href="/">{t('common.breadcrumbs.home')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>User Management</BreadcrumbPage>
+                  <BreadcrumbPage>{t('menu.userManagement')}</BreadcrumbPage>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/user-management/users">Users</BreadcrumbLink>
+                  <BreadcrumbLink href="/user-management/users">
+                    {t('pages.userManagement.users')}
+                  </BreadcrumbLink>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -134,7 +139,7 @@ export default function UserLayout({
           <ToolbarActions>
             <Button asChild variant="outline">
               <Link href="/user-management/users">
-                <MoveLeft /> Back to users
+                <MoveLeft /> {t('common.buttons.backToUsers')}
               </Link>
             </Button>
           </ToolbarActions>

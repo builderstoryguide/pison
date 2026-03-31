@@ -5,7 +5,7 @@ import { SystemSetting } from '@/app/models/system';
 import { UserRole } from '@/app/models/user';
 
 interface SystemSettingsContextProps {
-  settings: SystemSetting;
+  settings: SystemSetting | null;
   roles: UserRole[];
 }
 

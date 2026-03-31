@@ -68,6 +68,7 @@ export default function Page() {
     currency: settings?.currency || 'USD',
     currencyFormat: settings?.currencyFormat || '$ {value}',
     timezone: settings?.timezone || 'Europe/London',
+    defaultDailyClosureTime: settings?.defaultDailyClosureTime || '18:00',
   };
 
   useEffect(() => {
@@ -127,6 +128,7 @@ export default function Page() {
       );
 
       queryClient.invalidateQueries({ queryKey: ['system-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['session-status'] });
     },
     onError: (error: Error) => {
       toast.custom(
@@ -163,7 +165,7 @@ export default function Page() {
 
   const handleCancelLogo = () => {
     setLogoAttachedPreview(null);
-    if (settings.logo) {
+    if (settings?.logo) {
       setLogoExistingPreview(settings.logo);
     }
     form.setValue('logoFile', null);
@@ -198,7 +200,7 @@ export default function Page() {
   };
 
   const handleError = (errors: FieldErrors<GeneralSettingsSchemaType>) => {
-    // Cast keys as an array of keys of SocialSettingsSchemaType
+    // Cast keys as an array of keys of GeneralSettingsSchemaType
     const keys = Object.keys(errors) as (keyof GeneralSettingsSchemaType)[];
     const firstErrorKey = keys[0];
     const firstErrorMessage = errors[firstErrorKey]?.message;
@@ -230,11 +232,12 @@ export default function Page() {
   };
 
   return (
-    <Card>
-      <CardHeader className="border-b border-border">
-        <CardTitle>{t('pages.settings.title')}</CardTitle>
-      </CardHeader>
-      <CardContent className="py-12">
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="border-b border-border">
+          <CardTitle>{t('pages.settings.title')}</CardTitle>
+        </CardHeader>
+        <CardContent className="py-12">
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(handleSubmit, handleError)}
@@ -586,6 +589,28 @@ export default function Page() {
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="defaultDailyClosureTime"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {t('pages.settings.defaultDailyClosureTime', 'Default daily closure time (HH:mm)')}
+                  </FormLabel>
+                  <FormControl>
+                    <Input type="time" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'pages.settings.defaultDailyClosureTimeDesc',
+                      'Used for pre-closure reminders (30, 15, 5 minutes before) with the timezone above.'
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {/* Action Buttons */}
             <div className="flex gap-2.5 justify-end">
               <Button type="button" variant="outline" onClick={handleFormReset}>
@@ -601,7 +626,8 @@ export default function Page() {
             </div>
           </form>
         </Form>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

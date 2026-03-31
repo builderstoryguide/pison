@@ -73,13 +73,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const message = error?.message || 'Failed to create collection entries';
+    if (typeof message === 'string' && message.includes('Insufficient balance in agent operating account')) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'INSUFFICIENT_AGENT_BALANCE',
+            message,
+          },
+        },
+        { status: 422 }
+      );
+    }
+
+    if (
+      typeof message === 'string' &&
+      (message.includes('Daily session is closed') || message.includes('No transactions allowed'))
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { code: 'SESSION_CLOSED', message },
+        },
+        { status: 422 }
+      );
+    }
+
     console.error('Error creating collection entries:', error);
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'CREATE_ERROR',
-          message: error.message || 'Failed to create collection entries',
+          message,
         },
       },
       { status: 500 }

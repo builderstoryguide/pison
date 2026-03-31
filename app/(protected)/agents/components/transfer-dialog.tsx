@@ -42,7 +42,12 @@ import { Loader2, ArrowRightLeft } from 'lucide-react';
 
 const transferSchema = z.object({
   destinationAccountId: z.string().uuid('Please select a destination account'),
-  amount: z.coerce.number().positive('Amount must be positive'),
+  amount: z
+    .number({
+      required_error: 'Amount must be positive',
+      invalid_type_error: 'Amount must be positive',
+    })
+    .positive('Amount must be positive'),
   description: z.string().optional(),
 });
 
@@ -130,9 +135,9 @@ export default function TransferDialog({
     resolver: zodResolver(transferSchema),
     defaultValues: {
       destinationAccountId: '',
-      amount: 0,
+      amount: undefined,
       description: '',
-    },
+    } as TransferFormData,
   });
 
   const onSubmit = (data: TransferFormData) => {
@@ -234,7 +239,14 @@ export default function TransferDialog({
                       placeholder={t('common.placeholders.amount')}
                       min="0"
                       step="100"
-                      {...field}
+                      name={field.name}
+                      ref={field.ref}
+                      onBlur={field.onBlur}
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        field.onChange(raw === '' ? undefined : Number(raw));
+                      }}
                     />
                   </FormControl>
                   <FormMessage />

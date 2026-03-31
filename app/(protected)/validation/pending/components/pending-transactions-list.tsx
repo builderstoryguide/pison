@@ -36,6 +36,8 @@ import {
   Banknote,
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getTransactionTypeLabel } from '@/lib/i18n/transaction-labels';
+import { MIN_BALANCE_ACK_MARKER } from '@/lib/errors/transaction-errors';
 
 interface Transaction {
   id: string;
@@ -327,10 +329,6 @@ export default function PendingTransactionsList() {
     }
   };
 
-  const getTransactionTypeLabel = (type: string) => {
-    return type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
-  };
-
   const isInitialLoading = isLoading || (canApproveLoans && loansLoading);
 
   if (isInitialLoading) {
@@ -524,9 +522,9 @@ export default function PendingTransactionsList() {
                     {getTransactionIcon(transaction.type)}
                     <div>
                       <CardTitle className="text-lg">
-                        {isTransferRef(transaction.reference)
-                          ? t('pages.transactions.typeTransfer')
-                          : getTransactionTypeLabel(transaction.type)}
+                        {getTransactionTypeLabel(transaction.type, t, {
+                          reference: transaction.reference,
+                        })}
                       </CardTitle>
                       <div className="text-sm text-muted-foreground mt-1">
                         {transaction.transactionNumber}
@@ -628,6 +626,13 @@ export default function PendingTransactionsList() {
                           {t('common.labels.description')}
                         </div>
                         <div className="text-sm">{transaction.description}</div>
+                        {transaction.description.includes(MIN_BALANCE_ACK_MARKER) && (
+                          <div className="mt-2">
+                            <span className="inline-flex rounded-md border border-amber-500/50 bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-800 dark:text-amber-200">
+                              {t('pages.validation.minBalanceAcknowledged')}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
 

@@ -33,6 +33,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslation } from '@/hooks/useTranslation';
+import { getLoanStatusPresentation } from '@/lib/status/presenters';
+import type { StatusBadgeVariant } from '@/lib/status/presenters';
 
 interface Loan {
   id: string;
@@ -55,6 +58,7 @@ interface LoanListProps {
 }
 
 const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
+  const { t } = useTranslation();
   const router = useRouter();
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -125,7 +129,7 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
         id: 'loanNumber',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Loan"
+            title={t('pages.loans.list.columnLoan')}
             visibility={true}
             column={column}
           />
@@ -150,7 +154,7 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
         },
         size: 250,
         meta: {
-          headerTitle: 'Loan',
+          headerTitle: t('pages.loans.list.columnLoan'),
           skeleton: (
             <div className="flex items-center gap-3">
               <Skeleton className="size-8 rounded-md" />
@@ -169,7 +173,7 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
         id: 'principalAmount',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Principal"
+            title={t('pages.loans.list.columnPrincipal')}
             visibility={true}
             column={column}
           />
@@ -181,7 +185,7 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
         ),
         size: 150,
         meta: {
-          headerTitle: 'Principal',
+          headerTitle: t('pages.loans.list.columnPrincipal'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: true,
@@ -192,7 +196,7 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
         id: 'remainingBalance',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Remaining"
+            title={t('pages.loans.list.columnRemaining')}
             visibility={true}
             column={column}
           />
@@ -204,7 +208,7 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
         ),
         size: 150,
         meta: {
-          headerTitle: 'Remaining',
+          headerTitle: t('pages.loans.list.columnRemaining'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: true,
@@ -215,33 +219,24 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
         id: 'status',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Status"
+            title={t('pages.loans.list.columnStatus')}
             visibility={true}
             column={column}
           />
         ),
         cell: ({ row }) => {
           const status = row.original.status;
-          const variantMap: Record<string, 'success' | 'secondary' | 'warning' | 'destructive'> = {
-            ACTIVE: 'success',
-            PENDING: 'warning',
-            APPROVED: 'secondary',
-            DISBURSED: 'success',
-            PAID_OFF: 'success',
-            DEFAULTED: 'destructive',
-            CANCELLED: 'secondary',
-          };
-          const variant = variantMap[status] || 'secondary';
+          const { labelKey, variant } = getLoanStatusPresentation(status);
           return (
-            <Badge variant={variant} appearance="ghost">
+            <Badge variant={variant as StatusBadgeVariant} appearance="ghost">
               <BadgeDot />
-              {status.replace(/_/g, ' ')}
+              {t(labelKey)}
             </Badge>
           );
         },
         size: 125,
         meta: {
-          headerTitle: 'Status',
+          headerTitle: t('pages.loans.list.columnStatus'),
           skeleton: <Skeleton className="w-14 h-7" />,
         },
         enableSorting: true,
@@ -252,7 +247,7 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
         id: 'createdAt',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Created"
+            title={t('pages.loans.list.columnCreated')}
             visibility={true}
             column={column}
           />
@@ -260,7 +255,7 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
         cell: (info) => formatDate(new Date(info.getValue() as string)),
         size: 150,
         meta: {
-          headerTitle: 'Created',
+          headerTitle: t('pages.loans.list.columnCreated'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: true,
@@ -281,7 +276,7 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
         enableResizing: false,
       },
     ],
-    [],
+    [t],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -317,7 +312,7 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
           <div className="relative">
             <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Search loans..."
+              placeholder={t('pages.loans.list.searchPlaceholder')}
               value={immediateSearch}
               onChange={(e) => {
                 setSearchValue(e.target.value);
@@ -348,18 +343,18 @@ const LoanList = ({ defaultStatus = 'all' }: LoanListProps) => {
             disabled={isLoading}
           >
             <SelectTrigger className="w-full sm:w-36">
-              <SelectValue placeholder="Filter by status" />
+              <SelectValue placeholder={t('pages.loans.list.filterByStatus')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="PENDING">Pending</SelectItem>
-              <SelectItem value="active">Active (Disbursed/Active)</SelectItem>
-              <SelectItem value="APPROVED">Approved</SelectItem>
-              <SelectItem value="DISBURSED">Disbursed</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="PAID_OFF">Paid Off</SelectItem>
-              <SelectItem value="DEFAULTED">Defaulted</SelectItem>
-              <SelectItem value="CANCELLED">Cancelled</SelectItem>
+              <SelectItem value="all">{t('pages.loans.list.allStatuses')}</SelectItem>
+              <SelectItem value="PENDING">{t('status.loan.PENDING')}</SelectItem>
+              <SelectItem value="active">{t('pages.loans.list.statusActiveDisbursed')}</SelectItem>
+              <SelectItem value="APPROVED">{t('status.loan.APPROVED')}</SelectItem>
+              <SelectItem value="DISBURSED">{t('status.loan.DISBURSED')}</SelectItem>
+              <SelectItem value="ACTIVE">{t('status.loan.ACTIVE')}</SelectItem>
+              <SelectItem value="PAID_OFF">{t('status.loan.PAID_OFF')}</SelectItem>
+              <SelectItem value="DEFAULTED">{t('status.loan.DEFAULTED')}</SelectItem>
+              <SelectItem value="CANCELLED">{t('status.loan.CANCELLED')}</SelectItem>
             </SelectContent>
           </Select>
         </div>

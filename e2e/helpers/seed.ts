@@ -4,6 +4,10 @@ import pg from 'pg';
 import { faker } from '@faker-js/faker';
 import bcrypt from 'bcrypt';
 import path from 'path';
+import {
+  ensureStaffOperatingAccount,
+  staffAccountTypeForRoleSlug,
+} from '../../lib/services/staff-operating-account-service';
 
 // Ensure env vars are loaded for E2E (uses .env.test)
 if (!process.env.DATABASE_URL) {
@@ -43,6 +47,11 @@ export async function createTestUser(roleSlug: string = 'agent') {
       status: 'ACTIVE',
     },
   });
+
+  const staffType = staffAccountTypeForRoleSlug(roleSlug);
+  if (staffType) {
+    await ensureStaffOperatingAccount(prisma, user.id, staffType);
+  }
 
   return { ...user, password }; // Return plain password for login
 }

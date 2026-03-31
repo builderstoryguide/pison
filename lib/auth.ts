@@ -38,6 +38,7 @@ export const PERMISSIONS = {
   ROLES_MANAGE: 'roles.manage',
   SETTINGS_MANAGE: 'settings.manage',
   COMMISSIONS_CALCULATE: 'commissions.calculate',
+  TREASURY_ISSUE: 'treasury.issue',
 } as const;
 
 /**
@@ -82,17 +83,61 @@ function hasFullAccessByRole(roleName: string): boolean {
 }
 
 /**
+ * For auth layer when only role slug/name are available (no Session).
+ */
+export function isManagerRoleFromSlug(
+  roleSlug?: string | null,
+  roleName?: string | null
+): boolean {
+  const slug = roleSlug?.toLowerCase() ?? '';
+  if (slug === 'manager' || slug === 'administrator' || slug === 'admin') return true;
+  const r = (roleName || '').toLowerCase();
+  return r.includes('manager') || r.includes('administrator');
+}
+
+/**
  * Check if the user has the Manager role (for session open/close restrictions).
  * Only Manager can open and close daily sessions; Accountant and Agent cannot.
  */
 export function isManagerRole(session: Session | null): boolean {
   if (!session?.user) return false;
-  const roleName = session.user.roleName ?? '';
-  const roleSlug = session.user.roleSlug ?? '';
-  const slug = roleSlug.toLowerCase();
-  if (slug === 'manager' || slug === 'administrator' || slug === 'admin') return true;
-  const r = roleName.toLowerCase();
-  return r.includes('manager') || r.includes('administrator');
+  return isManagerRoleFromSlug(session.user.roleSlug, session.user.roleName);
+}
+
+/**
+ * Check if the user is strictly a Manager (excludes Administrator).
+ * Used where business rules explicitly require Manager-only actions.
+ */
+export function isStrictManagerRole(session: Session | null): boolean {
+  if (!session?.user) return false;
+  const roleSlug = (session.user.roleSlug ?? '').toLowerCase();
+  if (roleSlug) return roleSlug === 'manager';
+  const roleName = (session.user.roleName ?? '').toLowerCase();
+  return roleName.includes('manager') && !roleName.includes('administrator');
+}
+
+/**
+ * Require strict Manager role for API routes.
+ */
+export function requireStrictManagerRole(
+  session: Session | null,
+  message = 'Only managers can perform this action'
+): NextResponse | null {
+  if (!session) {
+    return NextResponse.json(
+      { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+      { status: 401 }
+    );
+  }
+
+  if (!isStrictManagerRole(session)) {
+    return NextResponse.json(
+      { success: false, error: { code: 'FORBIDDEN', message } },
+      { status: 403 }
+    );
+  }
+
+  return null;
 }
 
 /**

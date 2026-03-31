@@ -9,6 +9,7 @@ export interface SessionStatusData {
     status: 'OPEN' | 'CLOSED' | 'LOCKED';
     openedAt: string;
     closedAt?: string;
+    plannedClosureAt?: string | null;
     openedBy?: {
       name: string;
     };
@@ -18,6 +19,10 @@ export interface SessionStatusData {
   } | null;
   isOpen: boolean;
   systemBalance: number;
+  effectiveClosureAt: string | null;
+  defaultDailyClosureTime: string;
+  plannedClosureAt: string | null;
+  timezone: string;
 }
 
 /** Parse API error response for a user-friendly message */

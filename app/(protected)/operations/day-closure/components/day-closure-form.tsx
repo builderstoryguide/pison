@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -33,21 +34,27 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useSessionStatus } from '@/hooks/use-session-status';
 import { isManagerRole } from '@/lib/auth-client';
-
-const closureSchema = z.object({
-  physicalCash: z.string().min(1, 'Physical cash amount is required'),
-  notes: z.string().optional(),
-});
-
-type ClosureFormData = z.infer<typeof closureSchema>;
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function DayClosureForm() {
+  const { t } = useTranslation();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const { data: sessionStatusData, isLoading: isLoadingSession } = useSessionStatus();
   const sessionData = sessionStatusData?.session ?? null;
   const systemBalance = sessionStatusData?.systemBalance ?? 0;
+
+  const closureSchema = useMemo(
+    () =>
+      z.object({
+        physicalCash: z.string().min(1, t('pages.dayClosure.validationPhysicalCashRequired')),
+        notes: z.string().optional(),
+      }),
+    [t],
+  );
+
+  type ClosureFormData = z.infer<typeof closureSchema>;
 
   const form = useForm<ClosureFormData>({
     resolver: zodResolver(closureSchema),
@@ -70,25 +77,25 @@ export default function DayClosureForm() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to close session');
+        throw new Error(error.error?.message || t('pages.dayClosure.toastCloseFailed'));
       }
 
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['session-status'] });
-      toast.success('Session closed successfully');
+      toast.success(t('pages.dayClosure.toastClosed'));
       router.push('/operations/session');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to close session');
+      toast.error(error.message || t('pages.dayClosure.toastCloseFailed'));
     },
   });
 
   const onSubmit = (data: ClosureFormData) => {
     const physicalCash = parseFloat(data.physicalCash);
     if (isNaN(physicalCash) || physicalCash < 0) {
-      toast.error('Please enter a valid cash amount');
+      toast.error(t('pages.dayClosure.toastInvalidCash'));
       return;
     }
 
@@ -114,12 +121,12 @@ export default function DayClosureForm() {
       <Card>
         <CardContent className="py-12 text-center">
           <AlertTriangle className="size-12 text-amber-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+          <h3 className="text-lg font-semibold mb-2">{t('pages.dayClosure.accessDeniedTitle')}</h3>
           <p className="text-muted-foreground mb-4">
-            Only managers can close the daily session.
+            {t('pages.dayClosure.accessDeniedDesc')}
           </p>
           <Button variant="outline" onClick={() => router.push('/')}>
-            Return to Dashboard
+            {t('common.buttons.returnToDashboard')}
           </Button>
         </CardContent>
       </Card>
@@ -133,12 +140,12 @@ export default function DayClosureForm() {
       <Card>
         <CardContent className="py-12 text-center">
           <AlertTriangle className="size-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No Active Session</h3>
+          <h3 className="text-lg font-semibold mb-2">{t('pages.dayClosure.noActiveSessionTitle')}</h3>
           <p className="text-muted-foreground mb-4">
-            There is no open session to close.
+            {t('pages.dayClosure.noActiveSessionDesc')}
           </p>
           <Button variant="outline" onClick={() => router.push('/operations/session')}>
-            View Session Status
+            {t('common.buttons.viewSessionStatus')}
           </Button>
         </CardContent>
       </Card>
@@ -150,12 +157,14 @@ export default function DayClosureForm() {
       <Card>
         <CardContent className="py-12 text-center">
           <Lock className="size-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Session Already Closed</h3>
+          <h3 className="text-lg font-semibold mb-2">{t('pages.dayClosure.alreadyClosedTitle')}</h3>
           <p className="text-muted-foreground mb-4">
-            The session for {formatDate(new Date(sessionData.sessionDate))} has already been closed.
+            {t('pages.dayClosure.alreadyClosedDesc', {
+              date: formatDate(new Date(sessionData.sessionDate)),
+            })}
           </p>
           <Button variant="outline" onClick={() => router.push('/operations/session')}>
-            View Session Status
+            {t('common.buttons.viewSessionStatus')}
           </Button>
         </CardContent>
       </Card>
@@ -170,9 +179,11 @@ export default function DayClosureForm() {
     <div className="grid gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>Session Information</CardTitle>
+          <CardTitle>{t('pages.dayClosure.sessionInfoTitle')}</CardTitle>
           <CardDescription>
-            Session for {formatDate(new Date(sessionData.sessionDate))}
+            {t('pages.dayClosure.sessionFor', {
+              date: formatDate(new Date(sessionData.sessionDate)),
+            })}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -180,7 +191,9 @@ export default function DayClosureForm() {
             <div className="flex items-center gap-3 p-4 rounded-lg border">
               <DollarSign className="size-8 text-primary" />
               <div>
-                <div className="text-sm text-muted-foreground">System Balance</div>
+                <div className="text-sm text-muted-foreground">
+                  {t('pages.dayClosure.systemBalance')}
+                </div>
                 <div className="text-2xl font-bold">
                   {formatCurrency(systemBalance)}
                 </div>
@@ -190,7 +203,9 @@ export default function DayClosureForm() {
             <div className="flex items-center gap-3 p-4 rounded-lg border">
               <Calculator className="size-8 text-muted-foreground" />
               <div>
-                <div className="text-sm text-muted-foreground">Surplus/Shortage</div>
+                <div className="text-sm text-muted-foreground">
+                  {t('pages.dayClosure.surplusShortage')}
+                </div>
                 <div
                   className={`text-2xl font-bold ${
                     surplusShortage >= 0 ? 'text-green-600' : 'text-red-600'
@@ -207,10 +222,9 @@ export default function DayClosureForm() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Close Daily Session</CardTitle>
+          <CardTitle>{t('pages.dayClosure.closeCardTitle')}</CardTitle>
           <CardDescription>
-            Enter the physical cash count and close the session. This will lock all
-            transactions for today.
+            {t('pages.dayClosure.closeCardDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -221,13 +235,13 @@ export default function DayClosureForm() {
                 name="physicalCash"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Physical Cash Amount *</FormLabel>
+                    <FormLabel>{t('pages.dayClosure.physicalCashLabel')}</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                         <Input
                           type="number"
-                          placeholder="0"
+                          placeholder={t('common.placeholders.amountZero')}
                           {...field}
                           className="pl-10"
                           disabled={closeMutation.isPending}
@@ -237,7 +251,7 @@ export default function DayClosureForm() {
                       </div>
                     </FormControl>
                     <FormDescription>
-                      Enter the total physical cash count
+                      {t('pages.dayClosure.physicalCashHint')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -247,19 +261,25 @@ export default function DayClosureForm() {
               {watchPhysicalCash && !isNaN(parseFloat(watchPhysicalCash)) && (
                 <div className="p-4 rounded-lg border bg-muted/50">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">System Balance</span>
+                    <span className="text-sm font-medium">
+                      {t('pages.dayClosure.summarySystemBalance')}
+                    </span>
                     <span className="font-mono">
                       {formatCurrency(systemBalance)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">Physical Cash</span>
+                    <span className="text-sm font-medium">
+                      {t('pages.dayClosure.summaryPhysicalCash')}
+                    </span>
                     <span className="font-mono">
                       {formatCurrency(physicalCashValue)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t">
-                    <span className="text-sm font-medium">Difference</span>
+                    <span className="text-sm font-medium">
+                      {t('pages.dayClosure.summaryDifference')}
+                    </span>
                     <Badge
                       variant={surplusShortage >= 0 ? 'success' : 'destructive'}
                       className="font-mono"
@@ -276,17 +296,17 @@ export default function DayClosureForm() {
                 name="notes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Notes</FormLabel>
+                    <FormLabel>{t('pages.dayClosure.notesLabel')}</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Add any notes about the closure..."
+                        placeholder={t('pages.dayClosure.notesPlaceholder')}
                         {...field}
                         disabled={closeMutation.isPending}
                         rows={3}
                       />
                     </FormControl>
                     <FormDescription>
-                      Optional notes about the day closure
+                      {t('pages.dayClosure.notesHint')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -296,8 +316,8 @@ export default function DayClosureForm() {
               <div className="flex items-center gap-2 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800">
                 <AlertTriangle className="size-5 text-yellow-600 dark:text-yellow-500" />
                 <div className="text-sm text-yellow-800 dark:text-yellow-200">
-                  <strong>Warning:</strong> Closing the session will lock all transactions
-                  for today. This action cannot be undone.
+                  <strong>{t('pages.dayClosure.warningLead')}</strong>{' '}
+                  {t('pages.dayClosure.warningHtml')}
                 </div>
               </div>
 
@@ -308,7 +328,7 @@ export default function DayClosureForm() {
                   onClick={() => router.back()}
                   disabled={closeMutation.isPending}
                 >
-                  Cancel
+                  {t('common.buttons.cancel')}
                 </Button>
                 <Button
                   type="submit"
@@ -318,12 +338,12 @@ export default function DayClosureForm() {
                   {closeMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" />
-                      Closing...
+                      {t('pages.dayClosure.closing')}
                     </>
                   ) : (
                     <>
                       <Lock className="mr-2 size-4" />
-                      Close Session
+                      {t('pages.dayClosure.closeSession')}
                     </>
                   )}
                 </Button>

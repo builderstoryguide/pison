@@ -9,12 +9,14 @@ import { getCachedCount } from '@/lib/cache';
 import { getCachedOrFetch, getCachedOrFetchByKey } from '@/lib/cache/query-cache';
 import { LIST_PREFIX_CLIENTS, clientDetailKey } from '@/lib/cache/keys';
 import { accountNatureService } from './account-nature-service';
+import { ClientCreationValidationError } from '@/lib/errors/client-validation-error';
 import {
   capLimit,
   decodeCursor,
   encodeCursor,
   buildCountCacheKey,
 } from '@/lib/utils/pagination';
+import { getDbNow, transactionNumberDatePrefix } from '@/lib/utils/db-time';
 
 const CLIENT_LIST_TTL = 30;
 const CLIENT_DETAIL_TTL = 60;
@@ -46,6 +48,7 @@ export interface UpdateClientInput {
   agentId?: string | null;
   status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'CLOSED';
   isCommissionExempt?: boolean;
+  commissionRateOverride?: number | null;
 }
 
 export class ClientService {
@@ -53,8 +56,7 @@ export class ClientService {
    * Generate unique client number
    */
   private async generateClientNumber(): Promise<string> {
-    const date = new Date();
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+    const dateStr = transactionNumberDatePrefix(await getDbNow());
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     const clientNumber = `CLT-${dateStr}-${random}`;
 
@@ -73,8 +75,7 @@ export class ClientService {
    * Generate unique account number
    */
   private async generateAccountNumber(): Promise<string> {
-    const date = new Date();
-    const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+    const dateStr = transactionNumberDatePrefix(await getDbNow());
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     const accountNumber = `ACC-CLT-${dateStr}-${random}`;
 
@@ -138,8 +139,7 @@ export class ClientService {
       data.openingAmount
     );
     if (validationErrors.length > 0) {
-      const first = validationErrors[0];
-      throw new Error(first.message);
+      throw new ClientCreationValidationError(validationErrors);
     }
 
     const accountNature = await prisma.accountNature.findUnique({
@@ -160,7 +160,7 @@ export class ClientService {
       const accountNumber = await this.generateAccountNumber();
 
       // Compute account-specific fields
-      const now = new Date();
+      const now = await getDbNow(tx);
       let blockedUntil: Date | null = null;
       let maturityDate: Date | null = null;
       if (accountNature.isBlocked && accountNature.blockedDurationMonths) {
@@ -593,12 +593,13 @@ export class ClientService {
     }
 
     return await prisma.$transaction(async (tx) => {
+      const approvedAt = await getDbNow(tx);
       const updated = await tx.client.update({
         where: { id },
         data: {
           approvalStatus: 'APPROVED',
           approvedBy,
-          approvedAt: new Date(),
+          approvedAt,
           updatedBy: approvedBy,
         },
         include: {
@@ -639,10 +640,11 @@ export class ClientService {
     }
 
     return await prisma.$transaction(async (tx) => {
+      const rejectedAt = await getDbNow(tx);
       // Close the financial account since we're rejecting the client
       await tx.financialAccount.update({
         where: { id: client.accountId },
-        data: { status: 'CLOSED', closedAt: new Date() },
+        data: { status: 'CLOSED', closedAt: rejectedAt },
       });
 
       const updated = await tx.client.update({
@@ -650,7 +652,7 @@ export class ClientService {
         data: {
           approvalStatus: 'REJECTED',
           approvedBy: rejectedBy,
-          approvedAt: new Date(),
+          approvedAt: rejectedAt,
           updatedBy: rejectedBy,
           status: 'CLOSED',
         },
@@ -699,6 +701,7 @@ export class ClientService {
     }
 
     return await prisma.$transaction(async (tx) => {
+      const closedAt = await getDbNow(tx);
       // Update client status
       await tx.client.update({
         where: { id },
@@ -713,7 +716,7 @@ export class ClientService {
         where: { id: client.accountId },
         data: {
           status: 'CLOSED',
-          closedAt: new Date(),
+          closedAt,
         },
       });
 

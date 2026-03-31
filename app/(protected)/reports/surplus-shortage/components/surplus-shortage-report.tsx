@@ -70,6 +70,7 @@ export default function SurplusShortageReport() {
     },
     enabled: !!startDate && !!endDate,
     staleTime: 1000 * 60 * 5,
+    refetchInterval: false,
   });
 
   const allRows = rows ?? [];
@@ -104,20 +105,31 @@ export default function SurplusShortageReport() {
         accessorKey: 'date',
         id: 'date',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Date" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.surplusShortageReport.columns.date')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="text-sm font-medium">{formatDate(row.original.date)}</span>
         ),
         size: 160,
-        meta: { headerTitle: 'Date', skeleton: <Skeleton className="w-28 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.surplusShortageReport.columns.date'),
+          skeleton: <Skeleton className="w-28 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'totalCollections',
         id: 'totalCollections',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Collections" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.surplusShortageReport.columns.collections')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-right block">
@@ -125,14 +137,21 @@ export default function SurplusShortageReport() {
           </span>
         ),
         size: 130,
-        meta: { headerTitle: 'Collections', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.surplusShortageReport.columns.collections'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'totalDeposits',
         id: 'totalDeposits',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Deposits" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.surplusShortageReport.columns.deposits')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-right block">
@@ -140,14 +159,21 @@ export default function SurplusShortageReport() {
           </span>
         ),
         size: 130,
-        meta: { headerTitle: 'Deposits', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.surplusShortageReport.columns.deposits'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'totalWithdrawals',
         id: 'totalWithdrawals',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Withdrawals" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.surplusShortageReport.columns.withdrawals')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-right block">
@@ -155,14 +181,21 @@ export default function SurplusShortageReport() {
           </span>
         ),
         size: 130,
-        meta: { headerTitle: 'Withdrawals', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.surplusShortageReport.columns.withdrawals'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'systemBalance',
         id: 'systemBalance',
         header: ({ column }) => (
-          <DataGridColumnHeader title="System Bal." visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.surplusShortageReport.columns.systemBalance')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-right block">
@@ -170,14 +203,21 @@ export default function SurplusShortageReport() {
           </span>
         ),
         size: 140,
-        meta: { headerTitle: 'System Bal.', skeleton: <Skeleton className="w-24 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.surplusShortageReport.columns.systemBalance'),
+          skeleton: <Skeleton className="w-24 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'physicalCash',
         id: 'physicalCash',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Physical Cash" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.surplusShortageReport.columns.physicalCash')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-right block">
@@ -187,14 +227,21 @@ export default function SurplusShortageReport() {
           </span>
         ),
         size: 140,
-        meta: { headerTitle: 'Physical Cash', skeleton: <Skeleton className="w-24 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.surplusShortageReport.columns.physicalCash'),
+          skeleton: <Skeleton className="w-24 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'surplusShortage',
         id: 'surplusShortage',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Surplus / Shortage" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.surplusShortageReport.columns.surplusShortage')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => {
           const val = row.original.surplusShortage;
@@ -217,14 +264,21 @@ export default function SurplusShortageReport() {
           );
         },
         size: 170,
-        meta: { headerTitle: 'Surplus / Shortage', skeleton: <Skeleton className="w-28 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.surplusShortageReport.columns.surplusShortage'),
+          skeleton: <Skeleton className="w-28 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'closedBy',
         id: 'closedBy',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Closed By" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.surplusShortageReport.columns.closedBy')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground">
@@ -232,11 +286,14 @@ export default function SurplusShortageReport() {
           </span>
         ),
         size: 130,
-        meta: { headerTitle: 'Closed By', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.surplusShortageReport.columns.closedBy'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
     ],
-    [],
+    [t],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(

@@ -13,6 +13,7 @@ import {
   HelpCircle,
   LayoutGrid,
   MapPin,
+  Percent,
   PieChart,
   Receipt,
   Settings,
@@ -162,12 +163,25 @@ export const MENU_SIDEBAR: MenuConfig = [
     ],
   },
   {
+    title: 'menu.commissions',
+    icon: Percent,
+    hiddenForRoles: ['agent', 'collector'],
+    children: [
+      { title: 'menu.commissionSettings', path: '/commissions/settings', permission: 'settings.manage' },
+      {
+        title: 'menu.clientCommissionOverrides',
+        path: '/commissions/clients',
+        permission: 'settings.manage',
+      },
+      { title: 'menu.commissionReport', path: '/reports/commissions', permission: 'reports.view' },
+    ],
+  },
+  {
     title: 'menu.settings',
     icon: Settings,
     hiddenForRoles: ['agent', 'collector'],
     children: [
       { title: 'menu.systemSettings', path: '/user-management/settings', permission: 'settings.manage' },
-      { title: 'menu.commissionRates', path: '/reports/commissions', permission: 'reports.view' },
       { title: 'menu.collectionAreas', path: '/collection-areas', permission: 'collection_areas.view' },
       { title: 'menu.userManagement', path: '/user-management/users', permission: 'users.manage' },
       { title: 'menu.roles', path: '/settings/roles', permission: 'roles.manage' },

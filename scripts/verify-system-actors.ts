@@ -96,6 +96,13 @@ async function main() {
     }
     console.log('✅ Agent assigned to Area');
 
+    await prisma.financialAccount.update({
+      where: { id: agent.accountId },
+      data: {
+        balance: 10000,
+        availableBalance: 10000,
+      },
+    });
 
     // ============================================
     // 4. ACCOUNTANT: Create Client (Pending Approval)
@@ -194,15 +201,19 @@ async function main() {
     // Collection transactions are created as PENDING or APPROVED? 
     // Checking createCollectionEntries: it creates PENDING_APPROVAL transactions
     
-    const collectionTxId = collectionBatch[0].id;
-    // Admin approves collection
-    await transactionService.approveTransaction(collectionTxId, adminUser.id);
+    const collectionTx = collectionBatch.find((t) => t.type === 'COLLECTION');
+    if (!collectionTx) throw new Error('Expected COLLECTION in batch');
+    await transactionService.approveTransaction(collectionTx.id, adminUser.id);
 
     const clientBalanceAfterCollection = (await prisma.financialAccount.findUnique({where: {id: clientAccount.id}}))?.balance.toNumber();
     const expectedBalance = depositAmount - withdrawAmount + collectionAmount;
     
     if (clientBalanceAfterCollection !== expectedBalance) {
         throw new Error(`Balance mismatch after collection. Expected ${expectedBalance}, got ${clientBalanceAfterCollection}`);
+    }
+    const agentBalAfter = (await prisma.financialAccount.findUnique({ where: { id: agent.accountId } }))?.balance.toNumber();
+    if (agentBalAfter !== 10000 - collectionAmount) {
+        throw new Error(`Agent wallet mismatch after collection. Expected ${10000 - collectionAmount}, got ${agentBalAfter}`);
     }
     console.log(`✅ Collection of ${collectionAmount} successful. Balance: ${clientBalanceAfterCollection}`);
 

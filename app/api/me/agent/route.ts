@@ -26,6 +26,7 @@ export async function GET() {
       );
     }
 
+    const acc = agent.account;
     return NextResponse.json({
       success: true,
       data: {
@@ -34,6 +35,14 @@ export async function GET() {
         fullName: agent.fullName,
         userId: agent.userId,
         status: agent.status,
+        account: acc
+          ? {
+              id: acc.id,
+              accountNumber: acc.accountNumber,
+              balance: acc.balance?.toString?.() ?? String(acc.balance),
+              availableBalance: acc.availableBalance?.toString?.() ?? String(acc.availableBalance),
+            }
+          : null,
       },
     });
   } catch (error: any) {

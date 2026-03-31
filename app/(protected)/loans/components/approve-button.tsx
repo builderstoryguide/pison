@@ -40,10 +40,10 @@ export default function ApproveButton({ loanId }: ApproveButtonProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loan', loanId] });
       queryClient.invalidateQueries({ queryKey: ['loans'] });
-      toast.success('Loan approved and disbursed successfully');
+      toast.success(t('pages.validation.loanApprovedSuccess'));
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to approve loan');
+      toast.error(error.message || t('pages.validation.approveLoanFailed'));
     },
   });
 

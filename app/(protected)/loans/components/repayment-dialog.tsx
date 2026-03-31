@@ -31,7 +31,12 @@ import { Loader2, PlusCircle } from 'lucide-react';
 import { formatCurrency } from '@/lib/helpers';
 
 const repaymentSchema = z.object({
-  amount: z.coerce.number().positive('Amount must be positive'),
+  amount: z
+    .number({
+      required_error: 'Amount must be positive',
+      invalid_type_error: 'Amount must be positive',
+    })
+    .positive('Amount must be positive'),
 });
 
 type RepaymentFormData = z.infer<typeof repaymentSchema>;
@@ -50,8 +55,8 @@ export default function RepaymentDialog({ loanId, loanNumber, remainingBalance }
   const form = useForm<RepaymentFormData>({
     resolver: zodResolver(repaymentSchema),
     defaultValues: {
-      amount: 0,
-    },
+      amount: undefined,
+    } as RepaymentFormData,
   });
 
   const mutation = useMutation({
@@ -74,12 +79,12 @@ export default function RepaymentDialog({ loanId, loanNumber, remainingBalance }
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loan', loanId] });
       queryClient.invalidateQueries({ queryKey: ['loans'] });
-      toast.success('Repayment recorded successfully');
+      toast.success(t('pages.loans.toastRepaymentRecorded'));
       setOpen(false);
       form.reset();
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to record repayment');
+      toast.error(error.message || t('pages.loans.toastRepaymentFailed'));
     },
   });
 
@@ -124,7 +129,14 @@ export default function RepaymentDialog({ loanId, loanNumber, remainingBalance }
                       min="0"
                       max={remainingBalance}
                       step="100"
-                      {...field}
+                      name={field.name}
+                      ref={field.ref}
+                      onBlur={field.onBlur}
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        field.onChange(raw === '' ? undefined : Number(raw));
+                      }}
                     />
                   </FormControl>
                   <FormMessage />

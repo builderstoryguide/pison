@@ -6,6 +6,8 @@ import { formatCurrency } from '@/lib/helpers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useTranslation } from '@/hooks/useTranslation';
+import { getTransactionTypeLabel } from '@/lib/i18n/transaction-labels';
 
 interface PendingTransaction {
   id: string;
@@ -22,15 +24,25 @@ interface PendingTransactionsCardProps {
   viewAllPath: string;
 }
 
+const PENDING_TYPE_TO_ENUM: Record<
+  PendingTransaction['type'],
+  'DEPOSIT' | 'WITHDRAWAL' | 'COLLECTION'
+> = {
+  deposit: 'DEPOSIT',
+  withdrawal: 'WITHDRAWAL',
+  collection: 'COLLECTION',
+};
+
 export function PendingTransactionsCard({
   transactions,
   viewAllPath,
 }: PendingTransactionsCardProps) {
+  const { t } = useTranslation();
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="text-base font-semibold">
-          Pending Validations
+          {t('pages.dashboard.pendingValidationsTitle')}
         </CardTitle>
         <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300">
           {transactions.length}
@@ -41,7 +53,7 @@ export function PendingTransactionsCard({
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <CalendarCheck className="w-12 h-12 text-muted-foreground mb-2" />
             <p className="text-sm text-muted-foreground">
-              No pending transactions
+              {t('pages.dashboard.pendingValidationsEmpty')}
             </p>
           </div>
         ) : (
@@ -60,12 +72,17 @@ export function PendingTransactionsCard({
                       variant="outline"
                       className="text-xs"
                     >
-                      {transaction.type}
+                      {getTransactionTypeLabel(
+                        PENDING_TYPE_TO_ENUM[transaction.type],
+                        t,
+                      )}
                     </Badge>
                   </div>
                   {transaction.agentName && (
                     <p className="text-xs text-muted-foreground">
-                      Agent: {transaction.agentName}
+                      {t('pages.dashboard.pendingValidationsAgent', {
+                        name: transaction.agentName,
+                      })}
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground">{transaction.date}</p>
@@ -80,7 +97,9 @@ export function PendingTransactionsCard({
             {transactions.length > 5 && (
               <Link href={viewAllPath}>
                 <Button variant="ghost" className="w-full">
-                  View All ({transactions.length})
+                  {t('pages.dashboard.pendingValidationsViewAll', {
+                    count: transactions.length,
+                  })}
                   <ChevronRight className="ml-2 w-4 h-4" />
                 </Button>
               </Link>

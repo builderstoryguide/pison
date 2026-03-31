@@ -56,6 +56,37 @@ function scheduleCommissionCron() {
   console.log('[Cron] Commission calculation scheduled (1st of each month at 00:05)');
 }
 
+function scheduleLoanReminderCron() {
+  const enabled = process.env.ENABLE_LOAN_REMINDER_CRON === '1' || (!dev && !process.env.DISABLE_LOAN_REMINDER_CRON);
+  const secret = process.env.CRON_SECRET;
+  if (!enabled || !secret) {
+    if (enabled && !secret) {
+      console.warn('[Cron] Loan reminder cron enabled but CRON_SECRET not set. Loan reminder cron disabled.');
+    }
+    return;
+  }
+
+  const baseUrl = process.env.NEXTAUTH_URL || `http://localhost:${port}`;
+  // Run every day at 08:00
+  cron.schedule('0 8 * * *', async () => {
+    try {
+      const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/cron/loan-reminders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Cron-Secret': secret },
+      });
+      if (res.ok) {
+        console.log('[Cron] Loan maturity reminders completed');
+      } else {
+        const text = await res.text();
+        console.error('[Cron] Loan maturity reminders failed:', res.status, text);
+      }
+    } catch (err) {
+      console.error('[Cron] Loan maturity reminders failed:', err);
+    }
+  });
+  console.log('[Cron] Loan maturity reminders scheduled (daily at 08:00)');
+}
+
 app.prepare().then(() => {
   const server = createServer((req, res) => {
     compress(req, res, () => {
@@ -73,5 +104,6 @@ app.prepare().then(() => {
       `> Server listening at http://localhost:${port} as ${dev ? 'development' : 'production'}`
     );
     scheduleCommissionCron();
+    scheduleLoanReminderCron();
   });
 });

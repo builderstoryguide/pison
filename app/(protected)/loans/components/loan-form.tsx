@@ -32,10 +32,15 @@ import { useTranslation } from '@/hooks/useTranslation';
 
 const loanSchema = z.object({
   clientId: z.string().uuid('Please select a client'),
-  principalAmount: z.coerce.number().positive('Amount must be positive'),
+  principalAmount: z
+    .number({
+      required_error: 'Amount must be positive',
+      invalid_type_error: 'Amount must be positive',
+    })
+    .positive('Amount must be positive'),
   interestRate: z.coerce.number().min(0).max(1, 'Rate must be between 0 and 1'),
   purpose: z.string().optional(),
-  maturityDate: z.string().datetime().optional(),
+  maturityDate: z.string().optional(),
 });
 
 type LoanFormData = z.infer<typeof loanSchema>;
@@ -79,22 +84,26 @@ export default function LoanForm({ loanId }: LoanFormProps) {
     resolver: zodResolver(loanSchema),
     defaultValues: {
       clientId: '',
-      principalAmount: 0,
+      principalAmount: undefined,
       interestRate: 0.15, // Default 15%
       purpose: '',
       maturityDate: undefined,
-    },
+    } as LoanFormData,
   });
 
   // Populate form when loan data is loaded
   useEffect(() => {
     if (loanData) {
+      const parsedMaturityDate = loanData.maturityDate
+        ? new Date(loanData.maturityDate).toISOString().slice(0, 10)
+        : undefined;
+
       form.reset({
         clientId: loanData.clientId,
         principalAmount: Number(loanData.principalAmount),
         interestRate: Number(loanData.interestRate),
         purpose: loanData.purpose || '',
-        maturityDate: loanData.maturityDate ? new Date(loanData.maturityDate).toISOString() : undefined,
+        maturityDate: parsedMaturityDate,
       });
     }
   }, [loanData, form]);
@@ -112,6 +121,9 @@ export default function LoanForm({ loanId }: LoanFormProps) {
       const payload = {
         ...data,
         accountId,
+        maturityDate: data.maturityDate
+          ? new Date(`${data.maturityDate}T00:00:00.000Z`).toISOString()
+          : undefined,
       };
 
       const response = await apiFetch('/api/loans', {
@@ -131,11 +143,11 @@ export default function LoanForm({ loanId }: LoanFormProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loans'] });
-      toast.success('Loan request created successfully');
+      toast.success(t('pages.loans.toastRequestCreated'));
       router.push('/loans');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to create loan request');
+      toast.error(error.message || t('pages.loans.toastCreateFailed'));
     },
   });
 
@@ -147,7 +159,12 @@ export default function LoanForm({ loanId }: LoanFormProps) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          maturityDate: data.maturityDate
+            ? new Date(`${data.maturityDate}T00:00:00.000Z`).toISOString()
+            : undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -160,11 +177,11 @@ export default function LoanForm({ loanId }: LoanFormProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loans'] });
       queryClient.invalidateQueries({ queryKey: ['loan', loanId] });
-      toast.success('Loan request updated successfully');
+      toast.success(t('pages.loans.toastRequestUpdated'));
       router.push('/loans');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update loan request');
+      toast.error(error.message || t('pages.loans.toastUpdateFailed'));
     },
   });
 
@@ -192,10 +209,12 @@ export default function LoanForm({ loanId }: LoanFormProps) {
       <Card>
         <CardContent className="py-12 text-center">
           <p className="text-muted-foreground">
-            Only pending loans can be edited. This loan is {loanData.status.toLowerCase()}.
+            {t('pages.loans.onlyPendingLoansEditable', {
+              status: loanData.status.toLowerCase(),
+            })}
           </p>
           <Button className="mt-4" onClick={() => router.push('/loans')}>
-            Back to Loans
+            {t('common.buttons.backToLoans')}
           </Button>
         </CardContent>
       </Card>
@@ -260,7 +279,14 @@ export default function LoanForm({ loanId }: LoanFormProps) {
                         placeholder={t('common.placeholders.amount')}
                         min="0"
                         step="100"
-                        {...field}
+                        name={field.name}
+                        ref={field.ref}
+                        onBlur={field.onBlur}
+                        value={field.value ?? ''}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          field.onChange(raw === '' ? undefined : Number(raw));
+                        }}
                         disabled={isLoading}
                       />
                     </FormControl>
@@ -308,6 +334,26 @@ export default function LoanForm({ loanId }: LoanFormProps) {
                       disabled={isLoading}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="maturityDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('pages.loans.repaymentDueDate')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="date"
+                      {...field}
+                      value={field.value || ''}
+                      disabled={isLoading}
+                    />
+                  </FormControl>
+                  <FormDescription>{t('pages.loans.repaymentDueDateDesc')}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

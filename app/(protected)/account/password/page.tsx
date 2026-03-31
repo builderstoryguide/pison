@@ -12,6 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const passwordFormSchema = z
   .object({
@@ -27,6 +28,7 @@ const passwordFormSchema = z
 type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
 export default function ChangePasswordPage() {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<PasswordFormValues>({
@@ -55,13 +57,15 @@ export default function ChangePasswordPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error?.message || 'Failed to update password');
+        throw new Error(result.error?.message || t('pages.account.passwordUpdateFailed'));
       }
 
-      toast.success('Password updated successfully');
+      toast.success(t('pages.account.passwordUpdatedSuccess'));
       form.reset();
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update password');
+      toast.error(
+        error instanceof Error ? error.message : t('pages.account.passwordUpdateFailed'),
+      );
     } finally {
       setIsLoading(false);
     }

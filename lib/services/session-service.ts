@@ -4,11 +4,15 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 import { redisGet, redisSet, redisDel } from '@/lib/cache/redis';
 import {
   sessionStatusTodayKey,
   dashboardSurplusShortageSummaryKey,
 } from '@/lib/cache/keys';
+import { computeEffectiveClosureAt } from '@/lib/utils/effective-closure';
+import { getDbNow, getDbCalendarDayStart } from '@/lib/utils/db-time';
+import { transactionWhereForSessionDay } from '@/lib/utils/transaction-business-date';
 
 const SESSION_STATUS_TTL = 30;
 
@@ -22,8 +26,7 @@ export class SessionService {
    * Get current session (today's session)
    */
   async getCurrentSession() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = await getDbCalendarDayStart();
 
     return await prisma.dailySession.findUnique({
       where: {
@@ -66,25 +69,88 @@ export class SessionService {
     session: Awaited<ReturnType<SessionService['getCurrentSession']>>;
     isOpen: boolean;
     systemBalance: number;
+    effectiveClosureAt: string | null;
+    defaultDailyClosureTime: string;
+    plannedClosureAt: string | null;
+    timezone: string;
   }> {
     const cacheKey = sessionStatusTodayKey();
     const cached = await redisGet<{
       session: Awaited<ReturnType<SessionService['getCurrentSession']>>;
       isOpen: boolean;
       systemBalance: number;
+      effectiveClosureAt: string | null;
+      defaultDailyClosureTime: string;
+      plannedClosureAt: string | null;
+      timezone: string;
     }>(cacheKey);
     if (cached) return cached;
 
-    const [currentSession, systemBalance] = await Promise.all([
+    const [currentSession, systemBalance, settings] = await Promise.all([
       this.getCurrentSession(),
       this.calculateSystemBalance(),
+      prisma.systemSetting.findFirst({
+        select: {
+          defaultDailyClosureTime: true,
+          timezone: true,
+        },
+      }),
     ]);
 
     const isOpen = currentSession?.status === 'OPEN' || false;
+    const tz = settings?.timezone?.trim() || 'UTC';
+    const defaultDailyClosureTime = settings?.defaultDailyClosureTime?.trim() || '18:00';
+    const planned = currentSession?.plannedClosureAt ?? null;
+    const effective = currentSession?.sessionDate
+      ? computeEffectiveClosureAt(
+          currentSession.sessionDate,
+          planned,
+          defaultDailyClosureTime,
+          tz
+        )
+      : null;
 
-    const result = { session: currentSession, isOpen, systemBalance };
+    const result = {
+      session: currentSession,
+      isOpen,
+      systemBalance,
+      effectiveClosureAt: effective ? effective.toISOString() : null,
+      defaultDailyClosureTime,
+      plannedClosureAt: planned ? planned.toISOString() : null,
+      timezone: tz,
+    };
     await redisSet(cacheKey, result, SESSION_STATUS_TTL);
     return result;
+  }
+
+  /**
+   * Manager: set or clear today's planned closure override (UTC stored).
+   */
+  async setPlannedClosure(plannedClosureAt: Date | null, userId: string) {
+    const session = await this.getCurrentSession();
+    if (!session) {
+      throw new Error('No session found for today. Open a session first.');
+    }
+    if (session.status !== 'OPEN') {
+      throw new Error('Session is not open; planned closure cannot be set.');
+    }
+    await prisma.dailySession.update({
+      where: { id: session.id },
+      data: { plannedClosureAt },
+    });
+    await prisma.auditLog.create({
+      data: {
+        userId,
+        action: plannedClosureAt ? 'SET_PLANNED_CLOSURE' : 'CLEAR_PLANNED_CLOSURE',
+        entityType: 'DAILY_SESSION',
+        entityId: session.id,
+        description: plannedClosureAt
+          ? `Planned closure set to ${plannedClosureAt.toISOString()}`
+          : 'Planned closure override cleared',
+      },
+    });
+    await this.invalidateSessionStatusCache();
+    return this.getCurrentSession();
   }
 
   /**
@@ -98,8 +164,7 @@ export class SessionService {
    * Open a new session for today
    */
   async openSession(userId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = await getDbCalendarDayStart();
 
     // Check if session already exists
     const existing = await prisma.dailySession.findUnique({
@@ -113,12 +178,13 @@ export class SessionService {
         throw new Error('Session is already open');
       }
       // If closed, reopen it
+      const reopenedAt = await getDbNow();
       const updated = await prisma.dailySession.update({
         where: { id: existing.id },
         data: {
           status: 'OPEN',
           openedBy: userId,
-          openedAt: new Date(),
+          openedAt: reopenedAt,
           closedAt: null,
           closedBy: null,
         },
@@ -184,51 +250,45 @@ export class SessionService {
   /**
    * Calculate totals for the day
    */
-  async calculateDayTotals(date: Date) {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+  /**
+   * Totals for a daily session: uses linked transactions when present, else legacy createdAt window.
+   */
+  async calculateDayTotals(
+    session: { id: string; sessionDate: Date },
+    tx?: Prisma.TransactionClient,
+  ) {
+    const db = tx ?? prisma;
+    const dayWhere = transactionWhereForSessionDay(session.id, session.sessionDate);
 
     const [collections, withdrawals, deposits] = await Promise.all([
-      prisma.transaction.aggregate({
+      db.transaction.aggregate({
         _sum: {
           amount: true,
         },
         where: {
           type: 'COLLECTION',
           status: 'COMPLETED',
-          createdAt: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
+          ...dayWhere,
         },
       }),
-      prisma.transaction.aggregate({
+      db.transaction.aggregate({
         _sum: {
           amount: true,
         },
         where: {
           type: 'WITHDRAWAL',
           status: 'COMPLETED',
-          createdAt: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
+          ...dayWhere,
         },
       }),
-      prisma.transaction.aggregate({
+      db.transaction.aggregate({
         _sum: {
           amount: true,
         },
         where: {
           type: 'DEPOSIT',
           status: 'COMPLETED',
-          createdAt: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
+          ...dayWhere,
         },
       }),
     ]);
@@ -266,9 +326,7 @@ export class SessionService {
     const pendingCount = await prisma.transaction.count({
       where: {
         status: 'PENDING_APPROVAL',
-        createdAt: {
-          gte: session.sessionDate,
-        },
+        ...transactionWhereForSessionDay(session.id, session.sessionDate),
       },
     });
 
@@ -276,20 +334,22 @@ export class SessionService {
       throw new Error(`Cannot close session. There are ${pendingCount} pending transactions that need approval.`);
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const closureDate = new Date(session.sessionDate);
+    closureDate.setHours(0, 0, 0, 0);
 
     return await prisma.$transaction(async (tx) => {
       // Calculate day totals
-      const totals = await this.calculateDayTotals(today);
+      const totals = await this.calculateDayTotals(session, tx);
       const systemBalance = await this.calculateSystemBalance();
       const surplusShortage = data.physicalCash - systemBalance;
+
+      const closedAt = await getDbNow(tx);
 
       // Create closure record
       const closure = await tx.dailyClosure.create({
         data: {
           sessionId: session.id,
-          closureDate: today,
+          closureDate,
           totalCollections: totals.totalCollections,
           totalWithdrawals: totals.totalWithdrawals,
           totalDeposits: totals.totalDeposits,
@@ -307,7 +367,7 @@ export class SessionService {
         data: {
           status: 'CLOSED',
           closedBy: userId,
-          closedAt: new Date(),
+          closedAt,
         },
       });
 

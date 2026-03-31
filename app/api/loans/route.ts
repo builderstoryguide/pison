@@ -51,7 +51,11 @@ const createLoanSchema = z.object({
   interestRate: z.number().min(0).max(1),
   purpose: z.string().optional(),
   maturityDate: z.string().datetime().optional(),
-});
+  termMonths: z.number().int().positive().optional(),
+}).refine(
+  (value) => !(value.maturityDate && value.termMonths),
+  { message: 'Provide either maturityDate or termMonths, not both', path: ['termMonths'] }
+);
 
 export async function GET(request: NextRequest) {
   try {

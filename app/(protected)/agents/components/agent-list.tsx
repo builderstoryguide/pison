@@ -35,6 +35,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import { getAgentStatusPresentation } from '@/lib/status/presenters';
+import type { StatusBadgeVariant } from '@/lib/status/presenters';
 
 interface Agent {
   id: string;
@@ -122,7 +124,7 @@ const AgentList = () => {
         id: 'agentCode',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Agent"
+            title={t('pages.agents.columnAgent')}
             visibility={true}
             column={column}
           />
@@ -145,7 +147,7 @@ const AgentList = () => {
         },
         size: 250,
         meta: {
-          headerTitle: 'Agent',
+          headerTitle: t('pages.agents.columnAgent'),
           skeleton: (
             <div className="flex items-center gap-3">
               <Skeleton className="size-8 rounded-md" />
@@ -164,7 +166,7 @@ const AgentList = () => {
         id: 'balance',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Balance"
+            title={t('pages.agents.columnBalance')}
             visibility={true}
             column={column}
           />
@@ -184,7 +186,7 @@ const AgentList = () => {
         },
         size: 150,
         meta: {
-          headerTitle: 'Balance',
+          headerTitle: t('pages.agents.columnBalance'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: false,
@@ -195,7 +197,7 @@ const AgentList = () => {
         id: 'phone',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Phone"
+            title={t('pages.agents.columnPhone')}
             visibility={true}
             column={column}
           />
@@ -203,7 +205,7 @@ const AgentList = () => {
         cell: ({ row }) => row.original.phone || '-',
         size: 150,
         meta: {
-          headerTitle: 'Phone',
+          headerTitle: t('pages.agents.columnPhone'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: false,
@@ -214,29 +216,24 @@ const AgentList = () => {
         id: 'status',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Status"
+            title={t('pages.agents.columnStatus')}
             visibility={true}
             column={column}
           />
         ),
         cell: ({ row }) => {
           const status = row.original.status;
-          const variantMap: Record<string, 'success' | 'secondary' | 'warning'> = {
-            ACTIVE: 'success',
-            INACTIVE: 'secondary',
-            SUSPENDED: 'warning',
-          };
-          const variant = variantMap[status] || 'secondary';
+          const { labelKey, variant } = getAgentStatusPresentation(status);
           return (
-            <Badge variant={variant} appearance="ghost">
+            <Badge variant={variant as StatusBadgeVariant} appearance="ghost">
               <BadgeDot />
-              {status}
+              {t(labelKey)}
             </Badge>
           );
         },
         size: 125,
         meta: {
-          headerTitle: 'Status',
+          headerTitle: t('pages.agents.columnStatus'),
           skeleton: <Skeleton className="w-14 h-7" />,
         },
         enableSorting: true,
@@ -247,7 +244,7 @@ const AgentList = () => {
         id: 'createdAt',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Created"
+            title={t('pages.agents.columnCreated')}
             visibility={true}
             column={column}
           />
@@ -255,7 +252,7 @@ const AgentList = () => {
         cell: (info) => formatDate(new Date(info.getValue() as string)),
         size: 150,
         meta: {
-          headerTitle: 'Created',
+          headerTitle: t('pages.agents.columnCreated'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: true,
@@ -276,7 +273,7 @@ const AgentList = () => {
         enableResizing: false,
       },
     ],
-    [],
+    [t],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -350,10 +347,10 @@ const AgentList = () => {
               <SelectValue placeholder={t('pages.agents.filterByStatus')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="INACTIVE">Inactive</SelectItem>
-              <SelectItem value="SUSPENDED">Suspended</SelectItem>
+              <SelectItem value="all">{t('pages.agents.allStatuses')}</SelectItem>
+              <SelectItem value="ACTIVE">{t('status.agent.ACTIVE')}</SelectItem>
+              <SelectItem value="INACTIVE">{t('status.agent.INACTIVE')}</SelectItem>
+              <SelectItem value="SUSPENDED">{t('status.agent.SUSPENDED')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -362,7 +359,7 @@ const AgentList = () => {
             <Link href="/agents/new">
               <Button disabled={isLoading}>
                 <Plus />
-                Add Agent
+                {t('pages.agents.addAgent')}
               </Button>
             </Link>
           </div>

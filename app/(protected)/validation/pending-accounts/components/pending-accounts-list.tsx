@@ -79,7 +79,7 @@ export default function PendingAccountsList() {
     queryFn: async () => {
       const response = await apiFetch('/api/accounts/pending');
       if (!response.ok) {
-        throw new Error('Failed to fetch pending accounts');
+        throw new Error(t('pages.pendingAccounts.fetchFailed'));
       }
       const result = await response.json();
       return result.data as PendingAccountsData;
@@ -97,7 +97,7 @@ export default function PendingAccountsList() {
 
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.error?.message || 'Failed to approve');
+        throw new Error(err.error?.message || t('pages.pendingAccounts.approveFailed'));
       }
       return response.json();
     },
@@ -105,12 +105,12 @@ export default function PendingAccountsList() {
       queryClient.invalidateQueries({ queryKey: pendingAccountKeys.all });
       queryClient.invalidateQueries({ queryKey: clientKeys.all });
       queryClient.invalidateQueries({ queryKey: agentKeys.all });
-      toast.success('Account approved successfully');
+      toast.success(t('pages.pendingAccounts.approveSuccess'));
       setApproveDialogOpen(false);
       setSelectedItem(null);
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to approve account');
+      toast.error(error.message || t('pages.pendingAccounts.approveFailed'));
     },
   });
 
@@ -128,7 +128,7 @@ export default function PendingAccountsList() {
 
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.error?.message || 'Failed to reject');
+        throw new Error(err.error?.message || t('pages.pendingAccounts.rejectFailed'));
       }
       return response.json();
     },
@@ -136,13 +136,13 @@ export default function PendingAccountsList() {
       queryClient.invalidateQueries({ queryKey: pendingAccountKeys.all });
       queryClient.invalidateQueries({ queryKey: clientKeys.all });
       queryClient.invalidateQueries({ queryKey: agentKeys.all });
-      toast.success('Account rejected');
+      toast.success(t('pages.pendingAccounts.rejectSuccess'));
       setRejectDialogOpen(false);
       setSelectedItem(null);
       setRejectReason('');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to reject account');
+      toast.error(error.message || t('pages.pendingAccounts.rejectFailed'));
     },
   });
 
@@ -211,7 +211,7 @@ export default function PendingAccountsList() {
           <div>
             <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
               <UserCircle className="size-5" />
-              Pending Clients ({pendingClients.length})
+              {t('pages.pendingAccounts.sectionClients', { count: pendingClients.length })}
             </h2>
             <div className="space-y-4">
               {pendingClients.map((client) => (
@@ -224,7 +224,7 @@ export default function PendingAccountsList() {
                           {client.clientNumber} • {client.account?.accountNumber}
                         </div>
                       </div>
-                      <Badge variant="warning">Pending Approval</Badge>
+                      <Badge variant="warning">{t('pages.validation.pendingApproval')}</Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -234,7 +234,9 @@ export default function PendingAccountsList() {
                           <div className="flex items-center gap-2">
                             <Users className="size-4 text-muted-foreground" />
                             <div>
-                              <div className="text-sm text-muted-foreground">Area</div>
+                              <div className="text-sm text-muted-foreground">
+                                {t('pages.clients.columnArea')}
+                              </div>
                               <div className="font-medium">
                                 {client.area.name} ({client.area.code})
                               </div>
@@ -250,12 +252,16 @@ export default function PendingAccountsList() {
                       </div>
                       <div className="space-y-2">
                         <div>
-                          <div className="text-sm text-muted-foreground">Created</div>
+                          <div className="text-sm text-muted-foreground">
+                            {t('pages.clients.columnCreated')}
+                          </div>
                           <div className="text-sm">{formatDateTime(new Date(client.createdAt))}</div>
                         </div>
                         {client.account && (
                           <div>
-                            <div className="text-sm text-muted-foreground">Balance</div>
+                            <div className="text-sm text-muted-foreground">
+                              {t('pages.pendingAccounts.labelBalance')}
+                            </div>
                             <div className="font-medium">{formatCurrency(client.account.balance)}</div>
                           </div>
                         )}
@@ -289,7 +295,7 @@ export default function PendingAccountsList() {
           <div>
             <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
               <CreditCard className="size-5" />
-              Pending Agents ({pendingAgents.length})
+              {t('pages.pendingAccounts.sectionAgents', { count: pendingAgents.length })}
             </h2>
             <div className="space-y-4">
               {pendingAgents.map((agent) => (
@@ -302,7 +308,7 @@ export default function PendingAccountsList() {
                           {agent.agentCode} • {agent.account?.accountNumber}
                         </div>
                       </div>
-                      <Badge variant="warning">Pending Approval</Badge>
+                      <Badge variant="warning">{t('pages.validation.pendingApproval')}</Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -310,13 +316,17 @@ export default function PendingAccountsList() {
                       <div className="space-y-2">
                         {agent.user && (
                           <div>
-                            <div className="text-sm text-muted-foreground">User</div>
+                            <div className="text-sm text-muted-foreground">
+                              {t('pages.pendingAccounts.labelUser')}
+                            </div>
                             <div className="text-sm">{agent.user.email}</div>
                           </div>
                         )}
                         {agent.areaAssignments && agent.areaAssignments.length > 0 && (
                           <div>
-                            <div className="text-sm text-muted-foreground">Areas</div>
+                            <div className="text-sm text-muted-foreground">
+                              {t('pages.pendingAccounts.labelAreas')}
+                            </div>
                             <div className="text-sm">
                               {agent.areaAssignments.map((a) => a.area.name).join(', ')}
                             </div>
@@ -331,12 +341,16 @@ export default function PendingAccountsList() {
                       </div>
                       <div className="space-y-2">
                         <div>
-                          <div className="text-sm text-muted-foreground">Created</div>
+                          <div className="text-sm text-muted-foreground">
+                            {t('pages.clients.columnCreated')}
+                          </div>
                           <div className="text-sm">{formatDateTime(new Date(agent.createdAt))}</div>
                         </div>
                         {agent.account && (
                           <div>
-                            <div className="text-sm text-muted-foreground">Balance</div>
+                            <div className="text-sm text-muted-foreground">
+                              {t('pages.pendingAccounts.labelBalance')}
+                            </div>
                             <div className="font-medium">{formatCurrency(agent.account.balance)}</div>
                           </div>
                         )}
@@ -392,7 +406,7 @@ export default function PendingAccountsList() {
               {approveMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
-                  Approving...
+                  {t('pages.pendingAccounts.approving')}
                 </>
               ) : (
                 <>
@@ -420,10 +434,10 @@ export default function PendingAccountsList() {
           )}
           <div className="space-y-4">
             <div>
-              <Label htmlFor="reject-reason">{t('common.labels.description')} (optional)</Label>
+              <Label htmlFor="reject-reason">{t('pages.pendingAccounts.reasonOptionalShort')}</Label>
               <Textarea
                 id="reject-reason"
-                placeholder="Enter reason for rejection..."
+                placeholder={t('common.placeholders.reasonRejectionAccount')}
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 rows={3}
@@ -449,7 +463,7 @@ export default function PendingAccountsList() {
               {rejectMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
-                  Rejecting...
+                  {t('pages.pendingAccounts.rejecting')}
                 </>
               ) : (
                 <>

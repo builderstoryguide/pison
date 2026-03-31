@@ -33,6 +33,8 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCollectionAreas } from '@/hooks/queries';
+import { getClientStatusPresentation } from '@/lib/status/presenters';
+import type { StatusBadgeVariant } from '@/lib/status/presenters';
 
 interface ClientAccountRow {
   id: string;
@@ -88,13 +90,6 @@ export default function ClientAccountsList() {
 
   const handleRowClick = (row: ClientAccountRow) => {
     router.push(`/clients/${row.id}`);
-  };
-
-  const statusColors: Record<string, 'success' | 'secondary' | 'destructive' | 'warning'> = {
-    ACTIVE: 'success',
-    INACTIVE: 'secondary',
-    SUSPENDED: 'warning',
-    CLOSED: 'destructive',
   };
 
   const columns = useMemo<ColumnDef<ClientAccountRow>[]>(
@@ -211,11 +206,11 @@ export default function ClientAccountsList() {
         ),
         cell: ({ row }) => {
           const status = row.original.status;
-          const variant = statusColors[status] || 'secondary';
+          const { labelKey, variant } = getClientStatusPresentation(status);
           return (
-            <Badge variant={variant} appearance="ghost">
+            <Badge variant={variant as StatusBadgeVariant} appearance="ghost">
               <BadgeDot />
-              {status}
+              {t(labelKey)}
             </Badge>
           );
         },
@@ -282,11 +277,11 @@ export default function ClientAccountsList() {
               <SelectValue placeholder={t('common.labels.status')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t('common.labels.status')}: All</SelectItem>
-              <SelectItem value="ACTIVE">ACTIVE</SelectItem>
-              <SelectItem value="INACTIVE">INACTIVE</SelectItem>
-              <SelectItem value="SUSPENDED">SUSPENDED</SelectItem>
-              <SelectItem value="CLOSED">CLOSED</SelectItem>
+              <SelectItem value="all">{t('pages.clients.allStatuses')}</SelectItem>
+              <SelectItem value="ACTIVE">{t('status.client.ACTIVE')}</SelectItem>
+              <SelectItem value="INACTIVE">{t('status.client.INACTIVE')}</SelectItem>
+              <SelectItem value="SUSPENDED">{t('status.client.SUSPENDED')}</SelectItem>
+              <SelectItem value="CLOSED">{t('status.client.CLOSED')}</SelectItem>
             </SelectContent>
           </Select>
           <Select
@@ -300,7 +295,7 @@ export default function ClientAccountsList() {
               <SelectValue placeholder={t('common.labels.collectionArea')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">{t('common.labels.collectionArea')}: All</SelectItem>
+              <SelectItem value="all">{t('pages.clients.allAreas')}</SelectItem>
               {areas.map((a: { id: string; code: string; name: string }) => (
                 <SelectItem key={a.id} value={a.id}>
                   {a.name} ({a.code})
@@ -331,12 +326,12 @@ export default function ClientAccountsList() {
         {toolbarContent}
         <CardTable>
           <ScrollArea>
-            <DataGridTable table={table} />
+            <DataGridTable />
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </CardTable>
         <CardFooter className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 py-4">
-          <DataGridPagination table={table} />
+          <DataGridPagination />
         </CardFooter>
       </Card>
     </DataGrid>

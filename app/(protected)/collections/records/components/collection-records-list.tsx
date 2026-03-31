@@ -35,6 +35,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiFetch } from '@/lib/api';
 import { formatCurrency, formatDateTime } from '@/lib/helpers';
+import { getTransactionStatusLabel } from '@/lib/i18n/transaction-labels';
 
 interface Transaction {
   id: string;
@@ -133,6 +134,7 @@ export default function CollectionRecordsList() {
       APPROVED: 'success',
       PENDING_APPROVAL: 'warning',
       REJECTED: 'destructive',
+      REVERSED: 'secondary',
     };
     return map[status] || 'secondary';
   };
@@ -249,16 +251,10 @@ export default function CollectionRecordsList() {
         ),
         cell: ({ row }) => {
           const status = row.original.status;
-          const statusLabels: Record<string, string> = {
-            COMPLETED: t('pages.transactions.statusCompleted'),
-            APPROVED: t('pages.transactions.statusApproved'),
-            PENDING_APPROVAL: t('pages.transactions.statusPending'),
-            REJECTED: t('pages.transactions.statusRejected'),
-          };
           return (
             <Badge variant={statusVariant(status)} appearance="ghost">
               <BadgeDot />
-              {statusLabels[status] ?? status.replace(/_/g, ' ')}
+              {getTransactionStatusLabel(status, t)}
             </Badge>
           );
         },

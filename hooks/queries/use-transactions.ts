@@ -85,6 +85,21 @@ export interface TransactionFilters {
   offset?: number;
 }
 
+export class TransactionApiError extends Error {
+  constructor(
+    message: string,
+    public readonly errorCode?: string,
+    public readonly details?: unknown
+  ) {
+    super(message);
+    this.name = 'TransactionApiError';
+  }
+}
+
+export function isTransactionApiError(e: unknown): e is TransactionApiError {
+  return e instanceof TransactionApiError;
+}
+
 export interface CreateTransactionInput {
   accountId: string;
   type: Transaction['type'];
@@ -93,6 +108,7 @@ export interface CreateTransactionInput {
   reference?: string;
   areaId?: string;
   agentId?: string;
+  acknowledgeMinBalanceViolation?: boolean;
 }
 
 // Fetchers
@@ -243,8 +259,12 @@ export function useCreateTransaction() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to create transaction');
+        const error = await response.json().catch(() => ({}));
+        throw new TransactionApiError(
+          error.error?.message || 'Failed to create transaction',
+          error.error?.code,
+          error.error?.details
+        );
       }
 
       return response.json();
@@ -265,6 +285,7 @@ export interface CreateTransferInput {
   destinationAccountId: string;
   amount: number;
   description?: string;
+  acknowledgeMinBalanceViolation?: boolean;
 }
 
 export function useCreateTransfer() {
@@ -279,8 +300,12 @@ export function useCreateTransfer() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to create transfer');
+        const error = await response.json().catch(() => ({}));
+        throw new TransactionApiError(
+          error.error?.message || 'Failed to create transfer',
+          error.error?.code,
+          error.error?.details
+        );
       }
 
       return response.json();

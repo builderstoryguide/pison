@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
-import { requirePermission } from '@/lib/auth';
+import { isManagerRole, requirePermission } from '@/lib/auth';
 import { clientService } from '@/lib/services';
 import { z } from 'zod';
 
@@ -23,6 +23,7 @@ const updateClientSchema = z.object({
   agentId: z.string().uuid().optional().nullable(),
   status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'CLOSED']).optional(),
   isCommissionExempt: z.boolean().optional(),
+  commissionRatePercent: z.number().min(0).max(100).nullable().optional(),
 });
 
 export async function GET(
@@ -102,9 +103,28 @@ export async function PUT(
       );
     }
 
+    if (validatedData.commissionRatePercent !== undefined && !isManagerRole(session)) {
+      return NextResponse.json(
+        { error: 'Only managers and administrators can set per-client commission rates' },
+        { status: 403 }
+      );
+    }
+
+    const commissionRateOverride =
+      validatedData.commissionRatePercent === undefined
+        ? undefined
+        : validatedData.commissionRatePercent === null
+          ? null
+          : Number((validatedData.commissionRatePercent / 100).toFixed(4));
+
+    const { commissionRatePercent, ...baseValidatedData } = validatedData;
+
     const updatedClient = await clientService.updateClient(
       params.id,
-      validatedData,
+      {
+        ...baseValidatedData,
+        commissionRateOverride,
+      },
       session?.user?.id || ''
     );
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { getClientIP } from '@/lib/api';
 import { isAgentOrCollectorRole } from '@/lib/auth';
+import { getOrCreateSystemSetting } from '@/lib/db';
 import { prisma } from '@/lib/prisma';
 import { systemLog } from '@/services/system-log';
 import { NotificationSettingsSchema } from '@/app/(protected)/user-management/settings/forms/notification-settings-schema';
@@ -25,13 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     const clientIp = getClientIP(request);
-    const settings = await prisma.systemSetting.findFirst();
-    if (!settings) {
-      return NextResponse.json(
-        { message: 'Settings not found.' },
-        { status: 404 },
-      );
-    }
+    const settings = await getOrCreateSystemSetting();
 
     // Parse the request body
     const body = await request.json();

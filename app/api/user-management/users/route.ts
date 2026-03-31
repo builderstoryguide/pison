@@ -13,6 +13,10 @@ import {
 import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
 import { requirePermission } from '@/lib/auth';
 import { UserStatus } from '@/app/models/user';
+import {
+  ensureStaffOperatingAccount,
+  staffAccountTypeForRoleSlug,
+} from '@/lib/services/staff-operating-account-service';
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
 
@@ -313,6 +317,11 @@ export async function POST(request: NextRequest) {
           description: `Manager created user account (id: ${user.id}) with role ${existingRole.name}.`,
         },
       });
+
+      const staffType = staffAccountTypeForRoleSlug(existingRole.slug);
+      if (staffType) {
+        await ensureStaffOperatingAccount(tx, user.id, staffType);
+      }
 
       return user;
     });

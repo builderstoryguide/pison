@@ -29,6 +29,7 @@ import {
   AccountEmailSchema,
   AccountEmailSchemaType,
 } from '../../forms/account-email-schema';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const ChangeEmailDialog = ({
   open,
@@ -37,6 +38,7 @@ const ChangeEmailDialog = ({
   open: boolean;
   closeDialog: () => void;
 }) => {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const form = useForm<AccountEmailSchemaType>({
@@ -72,7 +74,7 @@ const ChangeEmailDialog = ({
       return response.json();
     },
     onSuccess: () => {
-      toast.success('Email updated successfully', { position: 'top-center' });
+      toast.success(t('pages.account.emailUpdatedSuccess'), { position: 'top-center' });
       queryClient.invalidateQueries({ queryKey: ['user-account'] });
       closeDialog();
     },

@@ -6,6 +6,7 @@ import { toAbsoluteUrl } from '@/lib/helpers';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface IAuthSocialSignInItem {
   logo: string;
@@ -23,6 +24,7 @@ interface IAuthSocialSignInBlock {
 type IAuthSocialSignInBlocks = Array<IAuthSocialSignInBlock>;
 
 const AuthSocialSignIn = () => {
+  const { t } = useTranslation();
   const items: IAuthSocialSignInItems = [
     {
       logo: 'google.svg',
@@ -149,7 +151,7 @@ const AuthSocialSignIn = () => {
           })}
         </div>
         <div className="flex justify-end">
-          <Button>Save Changes</Button>
+          <Button>{t('common.buttons.saveChanges')}</Button>
         </div>
       </CardContent>
     </Card>

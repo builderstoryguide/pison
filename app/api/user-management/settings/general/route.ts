@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { getClientIP } from '@/lib/api';
 import { isAgentOrCollectorRole } from '@/lib/auth';
+import { getOrCreateSystemSetting } from '@/lib/db';
 import { prisma } from '@/lib/prisma';
 import { deleteFromS3, uploadToS3 } from '@/lib/s3-upload';
 import { systemLog } from '@/services/system-log';
 import { invalidateAllConfigCaches } from '@/lib/cache';
+import { sessionService } from '@/lib/services';
 import { GeneralSettingsSchema } from '@/app/(protected)/user-management/settings/forms/general-settings-schema';
 import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
 
@@ -27,13 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     const clientIp = getClientIP(request);
-    const settings = await prisma.systemSetting.findFirst();
-    if (!settings) {
-      return NextResponse.json(
-        { message: 'Settings not found.' },
-        { status: 404 },
-      );
-    }
+    const settings = await getOrCreateSystemSetting();
 
     // Parse the form data
     const formData = await request.formData();
@@ -50,6 +46,7 @@ export async function POST(request: NextRequest) {
       supportPhone: formData.get('supportPhone'),
       language: formData.get('language'),
       timezone: formData.get('timezone'),
+      defaultDailyClosureTime: formData.get('defaultDailyClosureTime'),
       currency: formData.get('currency'),
       currencyFormat: formData.get('currencyFormat'),
     };
@@ -74,6 +71,7 @@ export async function POST(request: NextRequest) {
       supportPhone,
       language,
       timezone,
+      defaultDailyClosureTime,
       currency,
       currencyFormat,
     } = validationResult.data;
@@ -129,6 +127,7 @@ export async function POST(request: NextRequest) {
         supportPhone,
         language,
         timezone,
+        defaultDailyClosureTime,
         currency,
         currencyFormat,
         logo:
@@ -141,6 +140,7 @@ export async function POST(request: NextRequest) {
     });
 
     await invalidateAllConfigCaches();
+    await sessionService.invalidateSessionStatusCache();
 
     // Log the event
     await systemLog({

@@ -34,7 +34,7 @@ export default function Page() {
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href="/reports">{t('menu.reports')}</BreadcrumbLink>
+                  <BreadcrumbLink href="/commissions/settings">{t('menu.commissions')}</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>

@@ -80,6 +80,7 @@ export default function MonthlyBalanceReport() {
       return json.data ?? [];
     },
     staleTime: 1000 * 60 * 10,
+    refetchInterval: false,
   });
 
   // Fetch report data
@@ -96,6 +97,7 @@ export default function MonthlyBalanceReport() {
     },
     enabled: !!month,
     staleTime: 1000 * 60 * 5,
+    refetchInterval: false,
   });
 
   // Filter by search locally
@@ -129,46 +131,71 @@ export default function MonthlyBalanceReport() {
         accessorKey: 'clientNumber',
         id: 'clientNumber',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Client #" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.monthlyBalanceReport.columns.clientNumber')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm">{row.original.clientNumber}</span>
         ),
         size: 100,
-        meta: { headerTitle: 'Client #', skeleton: <Skeleton className="w-16 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.monthlyBalanceReport.columns.clientNumber'),
+          skeleton: <Skeleton className="w-16 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'fullName',
         id: 'fullName',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Name" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.monthlyBalanceReport.columns.name')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-medium text-sm">{row.original.fullName}</span>
         ),
         size: 180,
-        meta: { headerTitle: 'Name', skeleton: <Skeleton className="w-28 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.monthlyBalanceReport.columns.name'),
+          skeleton: <Skeleton className="w-28 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'areaName',
         id: 'areaName',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Area" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.monthlyBalanceReport.columns.area')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground">{row.original.areaName}</span>
         ),
         size: 130,
-        meta: { headerTitle: 'Area', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.monthlyBalanceReport.columns.area'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'openingBalance',
         id: 'openingBalance',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Opening Bal." visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.monthlyBalanceReport.columns.openingBalance')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-right block">
@@ -176,14 +203,21 @@ export default function MonthlyBalanceReport() {
           </span>
         ),
         size: 140,
-        meta: { headerTitle: 'Opening Bal.', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.monthlyBalanceReport.columns.openingBalance'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'totalDeposits',
         id: 'totalDeposits',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Deposits" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.monthlyBalanceReport.columns.deposits')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-green-600 text-right block">
@@ -193,14 +227,21 @@ export default function MonthlyBalanceReport() {
           </span>
         ),
         size: 130,
-        meta: { headerTitle: 'Deposits', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.monthlyBalanceReport.columns.deposits'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'totalCollections',
         id: 'totalCollections',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Collections" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.monthlyBalanceReport.columns.collections')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-emerald-600 text-right block">
@@ -210,14 +251,21 @@ export default function MonthlyBalanceReport() {
           </span>
         ),
         size: 130,
-        meta: { headerTitle: 'Collections', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.monthlyBalanceReport.columns.collections'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'totalWithdrawals',
         id: 'totalWithdrawals',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Withdrawals" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.monthlyBalanceReport.columns.withdrawals')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-red-600 text-right block">
@@ -227,14 +275,21 @@ export default function MonthlyBalanceReport() {
           </span>
         ),
         size: 130,
-        meta: { headerTitle: 'Withdrawals', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.monthlyBalanceReport.columns.withdrawals'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'totalCommissions',
         id: 'totalCommissions',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Commissions" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.monthlyBalanceReport.columns.commissions')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-orange-600 text-right block">
@@ -244,14 +299,21 @@ export default function MonthlyBalanceReport() {
           </span>
         ),
         size: 130,
-        meta: { headerTitle: 'Commissions', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.monthlyBalanceReport.columns.commissions'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'closingBalance',
         id: 'closingBalance',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Closing Bal." visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.monthlyBalanceReport.columns.closingBalance')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm font-semibold text-right block">
@@ -259,11 +321,14 @@ export default function MonthlyBalanceReport() {
           </span>
         ),
         size: 140,
-        meta: { headerTitle: 'Closing Bal.', skeleton: <Skeleton className="w-24 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.monthlyBalanceReport.columns.closingBalance'),
+          skeleton: <Skeleton className="w-24 h-5" />,
+        },
         enableSorting: true,
       },
     ],
-    [],
+    [t],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -316,7 +381,9 @@ export default function MonthlyBalanceReport() {
               <SelectValue placeholder={t('pages.reports.allAreas')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All areas</SelectItem>
+              <SelectItem value="all">
+                {t('pages.collectionAreas.allAreas')}
+              </SelectItem>
               {areas?.map((a) => (
                 <SelectItem key={a.id} value={a.id}>
                   {a.name}

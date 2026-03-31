@@ -33,6 +33,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { apiFetch } from '@/lib/api';
 import { buildUrl } from '@/lib/hooks/use-api';
 import { formatCurrency, formatDateTime } from '@/lib/helpers';
+import { getTransactionStatusLabel } from '@/lib/i18n/transaction-labels';
+import { getTransactionStatusPresentation } from '@/lib/status/presenters';
+import type { StatusBadgeVariant } from '@/lib/status/presenters';
 
 interface CollectionJournalRow {
   transactionNumber: string;
@@ -86,6 +89,7 @@ export default function CollectionJournalReport() {
       return json.data ?? [];
     },
     staleTime: 1000 * 60 * 10,
+    refetchInterval: false,
   });
 
   // Fetch report
@@ -103,6 +107,7 @@ export default function CollectionJournalReport() {
     },
     enabled: !!startDate && !!endDate,
     staleTime: 1000 * 60 * 5,
+    refetchInterval: false,
   });
 
   const filteredRows = useMemo(() => {
@@ -123,49 +128,57 @@ export default function CollectionJournalReport() {
     [filteredRows],
   );
 
-  const statusVariant = (status: string) => {
-    const map: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = {
-      COMPLETED: 'success',
-      APPROVED: 'success',
-      PENDING_APPROVAL: 'warning',
-      REJECTED: 'destructive',
-    };
-    return map[status] || 'secondary';
-  };
-
   const columns = useMemo<ColumnDef<CollectionJournalRow>[]>(
     () => [
       {
         accessorKey: 'transactionNumber',
         id: 'transactionNumber',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Transaction #" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.collectionJournalReport.columnTransactionNumber')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm">{row.original.transactionNumber}</span>
         ),
         size: 150,
-        meta: { headerTitle: 'Transaction #', skeleton: <Skeleton className="w-28 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.collectionJournalReport.columnTransactionNumber'),
+          skeleton: <Skeleton className="w-28 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'date',
         id: 'date',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Date" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.collectionJournalReport.columnDate')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="text-sm">{formatDateTime(row.original.date)}</span>
         ),
         size: 180,
-        meta: { headerTitle: 'Date', skeleton: <Skeleton className="w-32 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.collectionJournalReport.columnDate'),
+          skeleton: <Skeleton className="w-32 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'clientName',
         id: 'clientName',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Client" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.collectionJournalReport.columnClient')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <div className="space-y-px">
@@ -174,14 +187,21 @@ export default function CollectionJournalReport() {
           </div>
         ),
         size: 180,
-        meta: { headerTitle: 'Client', skeleton: <Skeleton className="w-28 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.collectionJournalReport.columnClient'),
+          skeleton: <Skeleton className="w-28 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'agentName',
         id: 'agentName',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Agent" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.collectionJournalReport.columnAgent')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <div className="space-y-px">
@@ -190,27 +210,41 @@ export default function CollectionJournalReport() {
           </div>
         ),
         size: 160,
-        meta: { headerTitle: 'Agent', skeleton: <Skeleton className="w-24 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.collectionJournalReport.columnAgent'),
+          skeleton: <Skeleton className="w-24 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'areaName',
         id: 'areaName',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Area" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.collectionJournalReport.columnArea')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground">{row.original.areaName}</span>
         ),
         size: 130,
-        meta: { headerTitle: 'Area', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.collectionJournalReport.columnArea'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'amount',
         id: 'amount',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Amount" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.collectionJournalReport.columnAmount')}
+            visibility={true}
+            column={column}
+          />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm font-medium text-green-600 text-right block">
@@ -218,27 +252,41 @@ export default function CollectionJournalReport() {
           </span>
         ),
         size: 130,
-        meta: { headerTitle: 'Amount', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.collectionJournalReport.columnAmount'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
       {
         accessorKey: 'status',
         id: 'status',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Status" visibility={true} column={column} />
+          <DataGridColumnHeader
+            title={t('pages.reports.collectionJournalReport.columnStatus')}
+            visibility={true}
+            column={column}
+          />
         ),
-        cell: ({ row }) => (
-          <Badge variant={statusVariant(row.original.status)} appearance="ghost">
-            <BadgeDot />
-            {row.original.status.replace(/_/g, ' ')}
-          </Badge>
-        ),
+        cell: ({ row }) => {
+          const st = row.original.status;
+          const { variant } = getTransactionStatusPresentation(st);
+          return (
+            <Badge variant={variant as StatusBadgeVariant} appearance="ghost">
+              <BadgeDot />
+              {getTransactionStatusLabel(st, t)}
+            </Badge>
+          );
+        },
         size: 140,
-        meta: { headerTitle: 'Status', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: {
+          headerTitle: t('pages.reports.collectionJournalReport.columnStatus'),
+          skeleton: <Skeleton className="w-20 h-5" />,
+        },
         enableSorting: true,
       },
     ],
-    [],
+    [t],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -301,7 +349,9 @@ export default function CollectionJournalReport() {
               <SelectValue placeholder={t('pages.reports.allAreas')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All areas</SelectItem>
+              <SelectItem value="all">
+                {t('pages.collectionAreas.allAreas')}
+              </SelectItem>
               {areas?.map((a) => (
                 <SelectItem key={a.id} value={a.id}>
                   {a.name}
@@ -351,7 +401,9 @@ export default function CollectionJournalReport() {
         <div className="grid grid-cols-2 gap-4">
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Total Collections</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                {t('pages.reports.collectionJournalReport.summaryTotalCollections')}
+              </p>
               <p className="text-xl font-semibold font-mono text-green-600">
                 {formatCurrency(totalAmount)}
               </p>
@@ -359,7 +411,9 @@ export default function CollectionJournalReport() {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Entries</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                {t('pages.reports.collectionJournalReport.summaryEntries')}
+              </p>
               <p className="text-xl font-semibold font-mono">{filteredRows.length}</p>
             </CardContent>
           </Card>

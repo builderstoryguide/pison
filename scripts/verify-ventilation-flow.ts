@@ -32,13 +32,15 @@ async function main() {
         data: { code: 'FLOW-AREA', name: 'Flow Area', status: 'ACTIVE' }
     });
 
-    // Create Agent Account
-    const agentAccount = await prisma.financialAccount.create({ 
-        data: { 
-            accountNumber: 'ACC-AGT-FLOW',
-            accountType: 'AGENT', 
-            status: 'ACTIVE' 
-        } 
+    // Create Agent Account (funded so ventilation debit can be reserved pending approval)
+    const agentAccount = await prisma.financialAccount.create({
+      data: {
+        accountNumber: 'ACC-AGT-FLOW',
+        accountType: 'AGENT',
+        status: 'ACTIVE',
+        balance: 10000,
+        availableBalance: 10000,
+      },
     });
 
     // Create Agent Profile
@@ -120,20 +122,24 @@ async function main() {
 
     // Call Service (mimicking API handler)
     const result = await transactionService.createCollectionEntries(payload, agentUser.id);
-    
-    if (result.length !== 1) throw new Error('Expected 1 transaction created');
-    if (result[0].amount.toNumber() !== collectionAmount) throw new Error('Amount mismatch');
-    
+
+    if (result.length !== 2) throw new Error('Expected 2 transactions (payer debit + collection credit)');
+    const ref = result[0].reference;
+    if (!ref?.startsWith('ventilation-')) throw new Error('Expected ventilation batch reference');
+    if (result[1].reference !== ref) throw new Error('Batch reference mismatch');
+    const collectionTx = result.find((t) => t.type === 'COLLECTION');
+    const payerTx = result.find((t) => t.type === 'WITHDRAWAL');
+    if (!collectionTx || !payerTx) throw new Error('Expected WITHDRAWAL + COLLECTION legs');
+    if (collectionTx.amount.toNumber() !== collectionAmount) throw new Error('Amount mismatch');
+
     console.log('✅ Collection Submitted Successfully');
     console.log(`Transactions Created: ${result.length}`);
 
-
     // 6. Verify Result (Receipt Data)
     console.log('\n--- 6. Verify Result ---');
-    // Check if transaction exists and is PENDING (as per requirement/code)
-    const tx = await prisma.transaction.findUnique({ where: { id: result[0].id } });
+    const tx = await prisma.transaction.findUnique({ where: { id: collectionTx.id } });
     if (tx?.status !== 'PENDING_APPROVAL') throw new Error('Transaction should be PENDING_APPROVAL');
-    
+
     console.log('✅ Transaction Verified: Recorded and PENDING_APPROVAL');
 
     

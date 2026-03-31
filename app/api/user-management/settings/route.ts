@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
+import { getOrCreateSystemSetting } from '@/lib/db';
 import { prisma } from '@/lib/prisma';
 import { isAgentOrCollectorRole } from '@/lib/auth';
 import authOptions from '@/app/api/auth/[...nextauth]/auth-options';
@@ -21,8 +22,7 @@ export async function GET() {
       );
     }
 
-    // Get settings
-    const settings = await prisma.systemSetting.findFirst();
+    const settings = await getOrCreateSystemSetting();
 
     // Fetch all roles from the UserRole table and sort by name
     const roles = await prisma.userRole.findMany({

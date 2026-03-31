@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { Demo1Layout } from '../components/layouts/demo1/layout';
 import { ScreenLoader } from '@/components/common/screen-loader';
 import { SessionEnforcer } from './components/session-enforcer';
+import { ClosureCountdownAlerts } from './components/closure-countdown-alerts';
 
 export default function ProtectedLayout({
   children,
@@ -34,6 +35,7 @@ export default function ProtectedLayout({
 
   return (
     <Demo1Layout>
+      <ClosureCountdownAlerts />
       <SessionEnforcer>{children}</SessionEnforcer>
     </Demo1Layout>
   );

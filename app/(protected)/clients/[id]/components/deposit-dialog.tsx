@@ -31,7 +31,12 @@ import { toast } from 'sonner';
 import { Loader2, TrendingUp } from 'lucide-react';
 
 const depositSchema = z.object({
-  amount: z.coerce.number().positive('Amount must be positive'),
+  amount: z
+    .number({
+      required_error: 'Amount must be positive',
+      invalid_type_error: 'Amount must be positive',
+    })
+    .positive('Amount must be positive'),
   description: z.string().optional(),
 });
 
@@ -58,9 +63,9 @@ export default function DepositDialog({
   const form = useForm<DepositFormData>({
     resolver: zodResolver(depositSchema),
     defaultValues: {
-      amount: 0,
+      amount: undefined,
       description: '',
-    },
+    } as DepositFormData,
   });
 
   const onSubmit = (data: DepositFormData) => {
@@ -119,7 +124,14 @@ export default function DepositDialog({
                       placeholder={t('common.placeholders.amount')}
                       min="0"
                       step="100"
-                      {...field}
+                      name={field.name}
+                      ref={field.ref}
+                      onBlur={field.onBlur}
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        field.onChange(raw === '' ? undefined : Number(raw));
+                      }}
                     />
                   </FormControl>
                   <FormMessage />

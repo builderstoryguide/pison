@@ -79,6 +79,17 @@ export function isManagerRole(session: Session | null): boolean {
 }
 
 /**
+ * Check if the user is strictly a Manager (excludes Administrator).
+ */
+export function isStrictManagerRole(session: Session | null): boolean {
+  if (!session?.user?.roleId) return false;
+  const roleSlug = (session.user.roleSlug ?? '').toLowerCase();
+  if (roleSlug) return roleSlug === 'manager';
+  const roleName = (session.user.roleName ?? '').toLowerCase();
+  return roleName.includes('manager') && !roleName.includes('administrator');
+}
+
+/**
  * Check if the user has a specific permission (client-side).
  * Uses session.permissions from JWT - no database access.
  * Manager bypass: always returns true (substring match for manager roles).

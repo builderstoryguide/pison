@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -48,6 +48,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { hasPermission } from '@/lib/auth-client';
 import { CAMEROON_REGIONS } from '@/lib/constants/cameroon-regions';
+import { getAreaStatusPresentation } from '@/lib/status/presenters';
 
 interface CollectionArea {
   id: string;
@@ -102,7 +103,7 @@ const CollectionAreaList = () => {
     );
 
     if (!response.ok) {
-      throw new Error('Failed to fetch collection areas');
+      throw new Error(t('pages.collectionAreas.fetchAreasFailed'));
     }
 
     const result = await response.json();
@@ -125,19 +126,23 @@ const CollectionAreaList = () => {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to delete area');
+        throw new Error(
+          error.error?.message || t('pages.collectionAreas.areaDeactivateFailed'),
+        );
       }
 
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['collection-areas'] });
-      toast.success('Collection area deactivated successfully');
+      toast.success(t('pages.collectionAreas.areaDeactivatedSuccess'));
       setDeleteDialogOpen(false);
       setAreaToDelete(null);
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to deactivate area');
+      toast.error(
+        error.message || t('pages.collectionAreas.areaDeactivateFailed'),
+      );
     },
   });
 
@@ -169,6 +174,15 @@ const CollectionAreaList = () => {
     }
   };
 
+  const formatRegionLabel = useCallback(
+    (region?: string) => {
+      if (!region) return t('common.labels.none');
+      const found = CAMEROON_REGIONS.find((x) => x.value === region);
+      return found ? t(`common.regions.${found.i18nKey}`) : region;
+    },
+    [t],
+  );
+
   const columns = useMemo<ColumnDef<CollectionArea>[]>(
     () => [
       {
@@ -176,7 +190,7 @@ const CollectionAreaList = () => {
         id: 'code',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Code"
+            title={t('pages.collectionAreas.columns.code')}
             visibility={true}
             column={column}
           />
@@ -199,7 +213,7 @@ const CollectionAreaList = () => {
         },
         size: 250,
         meta: {
-          headerTitle: 'Code',
+          headerTitle: t('pages.collectionAreas.columns.code'),
           skeleton: (
             <div className="flex items-center gap-3">
               <Skeleton className="size-8 rounded-md" />
@@ -218,15 +232,15 @@ const CollectionAreaList = () => {
         id: 'city',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="City"
+            title={t('pages.collectionAreas.columns.city')}
             visibility={true}
             column={column}
           />
         ),
-        cell: ({ row }) => row.original.city || '-',
+        cell: ({ row }) => row.original.city || t('common.labels.none'),
         size: 150,
         meta: {
-          headerTitle: 'City',
+          headerTitle: t('pages.collectionAreas.columns.city'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: true,
@@ -237,15 +251,15 @@ const CollectionAreaList = () => {
         id: 'region',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Region"
+            title={t('pages.collectionAreas.columns.region')}
             visibility={true}
             column={column}
           />
         ),
-        cell: ({ row }) => row.original.region || '-',
+        cell: ({ row }) => formatRegionLabel(row.original.region),
         size: 150,
         meta: {
-          headerTitle: 'Region',
+          headerTitle: t('pages.collectionAreas.columns.region'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: true,
@@ -256,24 +270,24 @@ const CollectionAreaList = () => {
         id: 'status',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Status"
+            title={t('pages.collectionAreas.columns.status')}
             visibility={true}
             column={column}
           />
         ),
         cell: ({ row }) => {
           const status = row.original.status;
-          const variant = status === 'ACTIVE' ? 'success' : 'secondary';
+          const { labelKey, variant } = getAreaStatusPresentation(status);
           return (
             <Badge variant={variant} appearance="ghost">
               <BadgeDot />
-              {status}
+              {t(labelKey)}
             </Badge>
           );
         },
         size: 125,
         meta: {
-          headerTitle: 'Status',
+          headerTitle: t('pages.collectionAreas.columns.status'),
           skeleton: <Skeleton className="w-14 h-7" />,
         },
         enableSorting: true,
@@ -284,7 +298,7 @@ const CollectionAreaList = () => {
         id: 'clients',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Clients"
+            title={t('pages.collectionAreas.columns.clients')}
             visibility={true}
             column={column}
           />
@@ -292,7 +306,7 @@ const CollectionAreaList = () => {
         cell: ({ row }) => row.original._count?.clients || 0,
         size: 100,
         meta: {
-          headerTitle: 'Clients',
+          headerTitle: t('pages.collectionAreas.columns.clients'),
           skeleton: <Skeleton className="w-12 h-7" />,
         },
         enableSorting: false,
@@ -303,7 +317,7 @@ const CollectionAreaList = () => {
         id: 'createdAt',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Created"
+            title={t('pages.collectionAreas.columns.created')}
             visibility={true}
             column={column}
           />
@@ -311,7 +325,7 @@ const CollectionAreaList = () => {
         cell: (info) => formatDate(new Date(info.getValue() as string)),
         size: 150,
         meta: {
-          headerTitle: 'Created',
+          headerTitle: t('pages.collectionAreas.columns.created'),
           skeleton: <Skeleton className="w-20 h-7" />,
         },
         enableSorting: true,
@@ -357,7 +371,7 @@ const CollectionAreaList = () => {
         enableResizing: false,
       },
     ],
-    [router, canManage],
+    [router, canManage, t, formatRegionLabel],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -432,9 +446,15 @@ const CollectionAreaList = () => {
               <SelectValue placeholder={t('pages.collectionAreas.filterByStatus')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All areas</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="INACTIVE">Inactive</SelectItem>
+              <SelectItem value="all">
+                {t('pages.collectionAreas.allAreas')}
+              </SelectItem>
+              <SelectItem value="ACTIVE">
+                {t('status.area.ACTIVE')}
+              </SelectItem>
+              <SelectItem value="INACTIVE">
+                {t('status.area.INACTIVE')}
+              </SelectItem>
             </SelectContent>
           </Select>
           <Select
@@ -461,7 +481,7 @@ const CollectionAreaList = () => {
             <Link href="/collection-areas/new">
               <Button disabled={isLoading}>
                 <Plus />
-                Add Area
+                {t('pages.collectionAreas.addArea')}
               </Button>
             </Link>
           </div>
@@ -504,11 +524,13 @@ const CollectionAreaList = () => {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Deactivate Collection Area</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('pages.collectionAreas.deactivateAreaTitle')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to deactivate "{areaToDelete?.name}"? This
-              will mark the area as inactive but will not delete it. Clients
-              and transactions associated with this area will remain.
+              {t('pages.collectionAreas.deactivateAreaDescription', {
+                name: areaToDelete?.name ?? '',
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -517,7 +539,9 @@ const CollectionAreaList = () => {
               onClick={handleDeleteConfirm}
               disabled={deleteMutation.isPending}
             >
-              {deleteMutation.isPending ? 'Deactivating...' : 'Deactivate'}
+              {deleteMutation.isPending
+                ? t('pages.collectionAreas.deactivatingArea')
+                : t('pages.collectionAreas.deactivateArea')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

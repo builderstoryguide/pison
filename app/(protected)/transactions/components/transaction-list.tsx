@@ -35,11 +35,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  getTransactionStatusLabel,
+  getTransactionTypeLabel,
+} from '@/lib/i18n/transaction-labels';
+import { getTransactionStatusPresentation } from '@/lib/status/presenters';
+import type { StatusBadgeVariant } from '@/lib/status/presenters';
 
 interface Transaction {
   id: string;
   transactionNumber: string;
   type: string;
+  reference?: string | null;
   amount: number | string;
   status: string;
   createdAt: string;
@@ -136,14 +143,9 @@ const TransactionList = ({ defaultType, accountId }: TransactionListProps) => {
                   {transaction.transactionNumber}
                 </div>
                 <div className="text-muted-foreground text-xs">
-                  {({
-                    COLLECTION: t('pages.transactions.typeCollection'),
-                    DEPOSIT: t('pages.transactions.typeDeposit'),
-                    WITHDRAWAL: t('pages.transactions.typeWithdrawal'),
-                    TRANSFER: t('pages.transactions.typeTransfer'),
-                    LOAN_REPAYMENT: t('pages.transactions.typeLoanRepayment'),
-                    LOAN_DISBURSEMENT: t('pages.transactions.typeLoanDisbursement'),
-                  })[transaction.type] || transaction.type}
+                  {getTransactionTypeLabel(transaction.type, t, {
+                    reference: transaction.reference,
+                  })}
                 </div>
               </div>
             </div>
@@ -211,24 +213,11 @@ const TransactionList = ({ defaultType, accountId }: TransactionListProps) => {
         ),
         cell: ({ row }) => {
           const status = row.original.status;
-          const variantMap: Record<string, 'success' | 'secondary' | 'warning' | 'destructive'> = {
-            COMPLETED: 'success',
-            APPROVED: 'success',
-            PENDING_APPROVAL: 'warning',
-            REJECTED: 'destructive',
-            REVERSED: 'secondary',
-          };
-          const variant = variantMap[status] || 'secondary';
-          const statusLabels: Record<string, string> = {
-            COMPLETED: t('pages.transactions.statusCompleted'),
-            APPROVED: t('pages.transactions.statusApproved'),
-            PENDING_APPROVAL: t('pages.transactions.statusPending'),
-            REJECTED: t('pages.transactions.statusRejected'),
-          };
+          const { variant } = getTransactionStatusPresentation(status);
           return (
-            <Badge variant={variant} appearance="ghost">
+            <Badge variant={variant as StatusBadgeVariant} appearance="ghost">
               <BadgeDot />
-              {statusLabels[status] ?? status.replace(/_/g, ' ')}
+              {getTransactionStatusLabel(status, t)}
             </Badge>
           );
         },
@@ -375,6 +364,8 @@ const TransactionList = ({ defaultType, accountId }: TransactionListProps) => {
             <SelectItem value="TRANSFER">{t('pages.transactions.typeTransfer')}</SelectItem>
             <SelectItem value="LOAN_DISBURSEMENT">{t('pages.transactions.typeLoanDisbursement')}</SelectItem>
             <SelectItem value="LOAN_REPAYMENT">{t('pages.transactions.typeLoanRepayment')}</SelectItem>
+            <SelectItem value="COMMISSION">{t('pages.transactions.typeCommission')}</SelectItem>
+            <SelectItem value="ADJUSTMENT">{t('pages.transactions.typeAdjustment')}</SelectItem>
           </SelectContent>
         </Select>
         <Select
@@ -392,6 +383,7 @@ const TransactionList = ({ defaultType, accountId }: TransactionListProps) => {
             <SelectItem value="APPROVED">{t('pages.transactions.statusApproved')}</SelectItem>
             <SelectItem value="COMPLETED">{t('pages.transactions.statusCompleted')}</SelectItem>
             <SelectItem value="REJECTED">{t('pages.transactions.statusRejected')}</SelectItem>
+            <SelectItem value="REVERSED">{t('pages.transactions.statusReversed')}</SelectItem>
           </SelectContent>
         </Select>
       </div>

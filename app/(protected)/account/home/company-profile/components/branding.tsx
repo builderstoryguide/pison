@@ -10,8 +10,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input, InputWrapper } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const Branding = () => {
+  const { t } = useTranslation();
   const id = useId();
   const [keyInput, setKeyInput] = useState('#BA35A0');
 
@@ -155,7 +157,7 @@ const Branding = () => {
           </div>
           <div className="border-t border-border my-7.5"></div>
           <div className="flex justify-end">
-            <Button>Save Changes</Button>
+            <Button>{t('common.buttons.saveChanges')}</Button>
           </div>
         </CardContent>
       </Card>

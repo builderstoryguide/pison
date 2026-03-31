@@ -124,11 +124,11 @@ export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['collection-areas'] });
-      toast.success('Collection area created successfully');
+      toast.success(t('pages.collectionAreas.toastCreated'));
       router.push('/collection-areas');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to create collection area');
+      toast.error(error.message || t('pages.collectionAreas.toastCreateFailed'));
     },
   });
 
@@ -156,11 +156,11 @@ export default function CollectionAreaForm({ areaId }: CollectionAreaFormProps) 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['collection-areas'] });
       queryClient.invalidateQueries({ queryKey: ['collection-area', areaId] });
-      toast.success('Collection area updated successfully');
+      toast.success(t('pages.collectionAreas.toastUpdated'));
       router.push('/collection-areas');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to update collection area');
+      toast.error(error.message || t('pages.collectionAreas.toastUpdateFailed'));
     },
   });
 

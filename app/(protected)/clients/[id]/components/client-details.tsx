@@ -8,6 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Users, MapPin, Wallet, Phone, Mail, Home, Calendar, Shield } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/helpers';
+import { useTranslation } from '@/hooks/useTranslation';
+import { getClientStatusPresentation } from '@/lib/status/presenters';
+import type { StatusBadgeVariant } from '@/lib/status/presenters';
 import DepositDialog from './deposit-dialog';
 import WithdrawalDialog from './withdrawal-dialog';
 import TransferDialog from './transfer-dialog';
@@ -17,6 +20,7 @@ interface ClientDetailsProps {
 }
 
 export default function ClientDetails({ clientId }: ClientDetailsProps) {
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const { data: client, isLoading } = useQuery({
     queryKey: ['client', clientId],
@@ -55,12 +59,7 @@ export default function ClientDetails({ clientId }: ClientDetailsProps) {
     ? parseFloat(String(client.account.availableBalance ?? client.account.balance))
     : 0;
   const canCreateTransactions = hasPermission(session, 'transactions.create');
-  const statusColors: Record<string, 'success' | 'secondary' | 'destructive' | 'warning'> = {
-    ACTIVE: 'success',
-    INACTIVE: 'secondary',
-    SUSPENDED: 'warning',
-    CLOSED: 'destructive',
-  };
+  const clientStatus = getClientStatusPresentation(client.status);
 
   return (
     <div className="grid gap-6">
@@ -68,9 +67,9 @@ export default function ClientDetails({ clientId }: ClientDetailsProps) {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Client Information</CardTitle>
-            <Badge variant={statusColors[client.status] || 'secondary'}>
-              {client.status}
+            <CardTitle>{t('pages.loans.clientInformation')}</CardTitle>
+            <Badge variant={clientStatus.variant as StatusBadgeVariant}>
+              {t(clientStatus.labelKey)}
             </Badge>
           </div>
         </CardHeader>

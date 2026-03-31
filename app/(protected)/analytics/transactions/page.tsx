@@ -63,7 +63,7 @@ export default function TransactionTrendsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              {t('pages.analytics.useReports', 'Use the reports below for transaction analytics.')}
+              {t('pages.analytics.useReports')}
             </p>
             <div className="flex flex-wrap gap-2">
               <Link href="/reports/collection-journal">

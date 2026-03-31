@@ -14,8 +14,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const AdvancedSettingsPreferences = () => {
+  const { t } = useTranslation();
   const id1 = useId();
   const id2 = useId();
 
@@ -129,7 +131,7 @@ const AdvancedSettingsPreferences = () => {
           </Label>
         </div>
         <div className="flex justify-end">
-          <Button>Save Changes</Button>
+          <Button>{t('common.buttons.saveChanges')}</Button>
         </div>
       </CardContent>
     </Card>

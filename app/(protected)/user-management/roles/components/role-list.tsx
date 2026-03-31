@@ -42,11 +42,13 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UserRole } from '@/app/models/user';
+import { useTranslation } from '@/hooks/useTranslation';
 import RoleDefaultDialog from './role-default-dialog';
 import RoleDeleteDialog from './role-delete-dialog';
 import RoleEditDialog from './role-edit-dialog';
 
 const RoleList = () => {
+  const { t } = useTranslation();
   // List state management
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -79,6 +81,7 @@ const RoleList = () => {
         searchQuery,
       }),
     staleTime: Infinity,
+    refetchInterval: false,
     gcTime: 1000 * 60 * 60, // 60 minutes
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -126,7 +129,7 @@ const RoleList = () => {
         accessorKey: 'name',
         id: 'name',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Role" column={column} visibility />
+          <DataGridColumnHeader title={t('pages.userManagement.rolesTable.columnRole')} column={column} visibility />
         ),
         cell: ({ row, getValue }) => {
           const value = getValue() as string;
@@ -139,13 +142,13 @@ const RoleList = () => {
               {isProtected && (
                 <Badge variant="outline">
                   <ShieldAlert className="text-destructive" />
-                  system
+                  {t('pages.userManagement.rolesTable.badgeSystem')}
                 </Badge>
               )}
               {isDefault && (
                 <Badge variant="outline">
                   <UserRound className="text-success" />
-                  default
+                  {t('pages.userManagement.rolesTable.badgeDefault')}
                 </Badge>
               )}
             </div>
@@ -155,7 +158,7 @@ const RoleList = () => {
         enableSorting: true,
         enableHiding: false,
         meta: {
-          headerTitle: 'Role',
+          headerTitle: t('pages.userManagement.rolesTable.columnRole'),
           skeleton: <Skeleton className="w-28 h-7" />,
         },
       },
@@ -163,7 +166,7 @@ const RoleList = () => {
         accessorKey: 'slug',
         id: 'slug',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Slug" column={column} visibility />
+          <DataGridColumnHeader title={t('pages.userManagement.rolesTable.columnSlug')} column={column} visibility />
         ),
         size: 125,
         cell: (info) => {
@@ -174,14 +177,14 @@ const RoleList = () => {
         enableSorting: true,
         enableHiding: true,
         meta: {
-          headerTitle: 'slug',
+          headerTitle: t('pages.userManagement.rolesTable.columnSlug'),
           skeleton: <Skeleton className="w-14 h-7" />,
         },
       },
       {
         accessorKey: 'permissions',
         id: 'permissions',
-        header: 'Permissions',
+        header: t('pages.userManagement.rolesTable.columnPermissions'),
         cell: (info) => {
           const permissions = info.getValue() as { slug: string }[] | undefined;
 
@@ -201,7 +204,9 @@ const RoleList = () => {
                 </Badge>
               ))}
               {extraPermissionsCount > 0 && (
-                <span className="text-muted-foreground text-xs ms-1">{`${extraPermissionsCount} more`}</span>
+                <span className="text-muted-foreground text-xs ms-1">
+                  {t('pages.userManagement.rolesTable.moreCount', { count: extraPermissionsCount })}
+                </span>
               )}
             </div>
           );
@@ -210,13 +215,13 @@ const RoleList = () => {
         enableSorting: false,
         enableHiding: true,
         meta: {
-          headerTitle: 'Permissions',
+          headerTitle: t('pages.userManagement.rolesTable.columnPermissions'),
           skeleton: <Skeleton className="w-44 h-7" />,
         },
       },
       {
         id: 'actions',
-        header: 'Actions',
+        header: t('pages.userManagement.rolesTable.columnActions'),
         cell: ({ row }) => (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -231,7 +236,7 @@ const RoleList = () => {
                   setEditDialogOpen(true);
                 }}
               >
-                Edit role
+                {t('pages.userManagement.rolesTable.editRole')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={row.original.isProtected || row.original.isDefault}
@@ -240,7 +245,7 @@ const RoleList = () => {
                   setDefaultDialogOpen(true);
                 }}
               >
-                Set as default
+                {t('pages.userManagement.rolesTable.setAsDefault')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -251,7 +256,7 @@ const RoleList = () => {
                   setDeleteDialogOpen(true);
                 }}
               >
-                Delete role
+                {t('pages.userManagement.rolesTable.deleteRole')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -264,7 +269,7 @@ const RoleList = () => {
         },
       },
     ],
-    [],
+    [t],
   );
 
   const table = useReactTable({
@@ -300,7 +305,7 @@ const RoleList = () => {
           <div className="relative">
             <Search className="size-4 text-muted-foreground absolute start-3 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Search users"
+              placeholder={t('pages.userManagement.rolesTable.searchPlaceholder')}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -328,7 +333,7 @@ const RoleList = () => {
             }}
           >
             <Plus />
-            Add Role
+            {t('pages.userManagement.rolesTable.addRole')}
           </Button>
         </div>
       </CardHeader>

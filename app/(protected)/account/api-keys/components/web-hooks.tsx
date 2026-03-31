@@ -13,8 +13,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const Webhooks = () => {
+  const { t } = useTranslation();
   const [webhooknameInput, setWebhookNameInput] = useState('CostaRicaHook');
 
   return (
@@ -71,7 +73,7 @@ const Webhooks = () => {
           </div>
         </div>
         <div className="flex justify-end">
-          <Button>Save Changes</Button>
+          <Button>{t('common.buttons.saveChanges')}</Button>
         </div>
       </CardContent>
     </Card>

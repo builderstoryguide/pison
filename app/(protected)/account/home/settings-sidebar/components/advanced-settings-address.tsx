@@ -12,8 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const AdvancedSettingsAddress = () => {
+  const { t } = useTranslation();
   const [address, setAddress] = useState('');
   const [country, setCountry] = useState('1');
   const [state, setState] = useState('');
@@ -84,7 +86,7 @@ const AdvancedSettingsAddress = () => {
           />
         </div>
         <div className="flex justify-end pt-2.5">
-          <Button>Save Changes</Button>
+          <Button>{t('common.buttons.saveChanges')}</Button>
         </div>
       </CardContent>
     </Card>

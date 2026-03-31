@@ -30,6 +30,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { apiFetch } from '@/lib/api';
 import { buildUrl } from '@/lib/hooks/use-api';
 import { formatDateTime, formatCurrency } from '@/lib/helpers';
+import { getTransactionTypeLabel } from '@/lib/i18n/transaction-labels';
 
 interface ClientStatementRow {
   transactionNumber: string;
@@ -91,6 +92,7 @@ export default function ClientStatementReport() {
       }));
     },
     staleTime: 1000 * 60 * 5,
+    refetchInterval: false,
   });
 
   // Fetch statement
@@ -111,6 +113,7 @@ export default function ClientStatementReport() {
     },
     enabled: !!clientId && !!startDate && !!endDate,
     staleTime: 1000 * 60 * 5,
+    refetchInterval: false,
   });
 
   const rows = statement?.rows ?? [];
@@ -123,63 +126,61 @@ export default function ClientStatementReport() {
     };
   }, [rows]);
 
-  const typeLabel = (type: string) => {
-    const map: Record<string, string> = {
-      DEPOSIT: 'Deposit',
-      WITHDRAWAL: 'Withdrawal',
-      COLLECTION: 'Collection',
-      LOAN_DISBURSEMENT: 'Loan Disbursement',
-      LOAN_REPAYMENT: 'Loan Repayment',
-      COMMISSION: 'Commission',
-      TRANSFER: 'Transfer',
-      ADJUSTMENT: 'Adjustment',
-    };
-    return map[type] || type;
-  };
-
   const columns = useMemo<ColumnDef<ClientStatementRow>[]>(
-    () => [
+    () => {
+      const h = {
+        date: t('pages.reports.clientStatementReport.columns.date'),
+        reference: t('pages.reports.clientStatementReport.columns.reference'),
+        type: t('pages.reports.clientStatementReport.columns.type'),
+        description: t('pages.reports.clientStatementReport.columns.description'),
+        debit: t('pages.reports.clientStatementReport.columns.debit'),
+        credit: t('pages.reports.clientStatementReport.columns.credit'),
+        balance: t('pages.reports.clientStatementReport.columns.balance'),
+      };
+      return [
       {
         accessorKey: 'date',
         id: 'date',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Date" visibility={true} column={column} />
+          <DataGridColumnHeader title={h.date} visibility={true} column={column} />
         ),
         cell: ({ row }) => (
           <span className="text-sm">{formatDateTime(row.original.date)}</span>
         ),
         size: 190,
-        meta: { headerTitle: 'Date', skeleton: <Skeleton className="w-32 h-5" /> },
+        meta: { headerTitle: h.date, skeleton: <Skeleton className="w-32 h-5" /> },
       },
       {
         accessorKey: 'transactionNumber',
         id: 'transactionNumber',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Reference" visibility={true} column={column} />
+          <DataGridColumnHeader title={h.reference} visibility={true} column={column} />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-xs">{row.original.transactionNumber}</span>
         ),
         size: 160,
-        meta: { headerTitle: 'Reference', skeleton: <Skeleton className="w-28 h-5" /> },
+        meta: { headerTitle: h.reference, skeleton: <Skeleton className="w-28 h-5" /> },
       },
       {
         accessorKey: 'type',
         id: 'type',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Type" visibility={true} column={column} />
+          <DataGridColumnHeader title={h.type} visibility={true} column={column} />
         ),
         cell: ({ row }) => (
-          <span className="text-sm">{typeLabel(row.original.type)}</span>
+          <span className="text-sm">
+            {getTransactionTypeLabel(row.original.type, t)}
+          </span>
         ),
         size: 140,
-        meta: { headerTitle: 'Type', skeleton: <Skeleton className="w-24 h-5" /> },
+        meta: { headerTitle: h.type, skeleton: <Skeleton className="w-24 h-5" /> },
       },
       {
         accessorKey: 'description',
         id: 'description',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Description" visibility={true} column={column} />
+          <DataGridColumnHeader title={h.description} visibility={true} column={column} />
         ),
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground truncate">
@@ -187,13 +188,13 @@ export default function ClientStatementReport() {
           </span>
         ),
         size: 200,
-        meta: { headerTitle: 'Description', skeleton: <Skeleton className="w-32 h-5" /> },
+        meta: { headerTitle: h.description, skeleton: <Skeleton className="w-32 h-5" /> },
       },
       {
         accessorKey: 'debit',
         id: 'debit',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Debit" visibility={true} column={column} />
+          <DataGridColumnHeader title={h.debit} visibility={true} column={column} />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-red-600 text-right block">
@@ -201,13 +202,13 @@ export default function ClientStatementReport() {
           </span>
         ),
         size: 130,
-        meta: { headerTitle: 'Debit', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: { headerTitle: h.debit, skeleton: <Skeleton className="w-20 h-5" /> },
       },
       {
         accessorKey: 'credit',
         id: 'credit',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Credit" visibility={true} column={column} />
+          <DataGridColumnHeader title={h.credit} visibility={true} column={column} />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm text-green-600 text-right block">
@@ -215,13 +216,13 @@ export default function ClientStatementReport() {
           </span>
         ),
         size: 130,
-        meta: { headerTitle: 'Credit', skeleton: <Skeleton className="w-20 h-5" /> },
+        meta: { headerTitle: h.credit, skeleton: <Skeleton className="w-20 h-5" /> },
       },
       {
         accessorKey: 'balance',
         id: 'balance',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Balance" visibility={true} column={column} />
+          <DataGridColumnHeader title={h.balance} visibility={true} column={column} />
         ),
         cell: ({ row }) => (
           <span className="font-mono text-sm font-semibold text-right block">
@@ -229,10 +230,11 @@ export default function ClientStatementReport() {
           </span>
         ),
         size: 140,
-        meta: { headerTitle: 'Balance', skeleton: <Skeleton className="w-24 h-5" /> },
+        meta: { headerTitle: h.balance, skeleton: <Skeleton className="w-24 h-5" /> },
       },
-    ],
-    [],
+    ];
+    },
+    [t],
   );
 
   const [columnOrder, setColumnOrder] = useState<string[]>(
@@ -259,12 +261,16 @@ export default function ClientStatementReport() {
       {/* Filter toolbar */}
       <Card>
         <CardHeader className="pb-3">
-          <h3 className="text-sm font-medium">Select Client & Period</h3>
+          <h3 className="text-sm font-medium">
+            {t('pages.reports.clientStatementReport.filterTitle')}
+          </h3>
         </CardHeader>
         <CardContent className="pb-5">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-4">
             <div className="flex-1 min-w-[200px]">
-              <label className="text-xs text-muted-foreground mb-1.5 block">Client</label>
+              <label className="text-xs text-muted-foreground mb-1.5 block">
+                {t('pages.reports.clientStatementReport.clientLabel')}
+              </label>
               <Select value={clientId} onValueChange={setClientId}>
                 <SelectTrigger>
                   <SelectValue placeholder={t('pages.reports.selectClient')} />
@@ -279,7 +285,9 @@ export default function ClientStatementReport() {
               </Select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block">Start Date</label>
+              <label className="text-xs text-muted-foreground mb-1.5 block">
+                {t('pages.reports.clientStatementReport.startDate')}
+              </label>
               <Input
                 type="date"
                 value={startDate}
@@ -288,7 +296,9 @@ export default function ClientStatementReport() {
               />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1.5 block">End Date</label>
+              <label className="text-xs text-muted-foreground mb-1.5 block">
+                {t('pages.reports.clientStatementReport.endDate')}
+              </label>
               <Input
                 type="date"
                 value={endDate}
@@ -310,20 +320,28 @@ export default function ClientStatementReport() {
               </div>
               <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Client</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('pages.reports.clientStatementReport.clientLabel')}
+                  </p>
                   <p className="text-sm font-medium">{client.fullName}</p>
                   <p className="text-xs text-muted-foreground">{client.clientNumber}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Account</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('common.labels.account')}
+                  </p>
                   <p className="text-sm font-mono">{client.accountNumber}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Area</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('pages.reports.clientStatementReport.area')}
+                  </p>
                   <p className="text-sm">{client.area.name}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Current Balance</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('pages.reports.clientStatementReport.currentBalance')}
+                  </p>
                   <p className="text-sm font-mono font-semibold">
                     {formatCurrency(client.currentBalance)}
                   </p>
@@ -339,7 +357,9 @@ export default function ClientStatementReport() {
         <div className="grid grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Total Credit</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                {t('pages.reports.clientStatementReport.totalCredit')}
+              </p>
               <p className="text-lg font-semibold font-mono text-green-600">
                 {formatCurrency(totals.totalCredit)}
               </p>
@@ -347,7 +367,9 @@ export default function ClientStatementReport() {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Total Debit</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                {t('pages.reports.clientStatementReport.totalDebit')}
+              </p>
               <p className="text-lg font-semibold font-mono text-red-600">
                 {formatCurrency(totals.totalDebit)}
               </p>
@@ -355,7 +377,9 @@ export default function ClientStatementReport() {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Transactions</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                {t('pages.reports.clientStatementReport.transactionCount')}
+              </p>
               <p className="text-lg font-semibold font-mono">{rows.length}</p>
             </CardContent>
           </Card>
@@ -368,7 +392,7 @@ export default function ClientStatementReport() {
           <CardContent className="py-16 flex flex-col items-center justify-center text-center">
             <FileText className="size-10 text-muted-foreground/40 mb-3" />
             <p className="text-muted-foreground">
-              Select a client and date range above to generate the statement.
+              {t('pages.reports.clientStatementReport.emptyHint')}
             </p>
           </CardContent>
         </Card>

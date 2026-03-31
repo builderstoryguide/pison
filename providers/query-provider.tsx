@@ -12,6 +12,20 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { toast } from 'sonner';
 import { Alert, AlertIcon, AlertTitle } from '@/components/ui/alert';
 
+/** Default background refetch interval (ms). Override with NEXT_PUBLIC_QUERY_REFETCH_INTERVAL_MS. */
+const DEFAULT_QUERY_REFETCH_INTERVAL_MS = 60_000;
+
+function getQueryRefetchIntervalMs(): number {
+  const raw = process.env.NEXT_PUBLIC_QUERY_REFETCH_INTERVAL_MS;
+  if (raw === undefined || raw === '') {
+    return DEFAULT_QUERY_REFETCH_INTERVAL_MS;
+  }
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : DEFAULT_QUERY_REFETCH_INTERVAL_MS;
+}
+
 const QueryProvider = ({ children }: { children: ReactNode }) => {
   const [queryClient] = useState(
     () =>
@@ -28,6 +42,8 @@ const QueryProvider = ({ children }: { children: ReactNode }) => {
             retry: 1,
             // Retry delay with exponential backoff
             retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+            // Periodic refetch for active queries (opt out per query with refetchInterval: false)
+            refetchInterval: getQueryRefetchIntervalMs(),
           },
           mutations: {
             // Retry mutations once on failure

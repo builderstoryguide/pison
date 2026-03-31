@@ -22,6 +22,9 @@ export const GeneralSettingsSchema = z.object({
   supportPhone: z.string().nullable().optional(),
   language: z.string(),
   timezone: z.string(),
+  defaultDailyClosureTime: z
+    .string()
+    .regex(/^([01]?\d|2[0-3]):([0-5]\d)$/, 'Use HH:mm (24h), e.g. 18:00'),
   currency: z.string(),
   currencyFormat: z.string(),
 });

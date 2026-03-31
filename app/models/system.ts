@@ -25,8 +25,11 @@ export interface SystemSetting {
   supportPhone?: string | null;
   language: string;
   timezone: string;
+  /** Local time HH:mm for default daily closure alerts */
+  defaultDailyClosureTime?: string;
   currency: string;
   currencyFormat: string;
+  commissionRate: number | string;
 
   socialFacebook?: string | null;
   socialTwitter?: string | null;

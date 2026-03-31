@@ -16,32 +16,35 @@ import {
 } from '@/components/common/toolbar';
 import { SettingsProvider } from './components/settings-context';
 import { isAgentOrCollectorRole } from '@/lib/auth-client';
+import { useTranslation } from '@/hooks/useTranslation';
 
 type NavRoutes = Record<
   string,
   {
-    title: string;
+    titleKey: string;
     path: string;
   }
 >;
 
-const fetchSettings = async () => {
-  const response = await apiFetch('/api/user-management/settings');
-  if (!response.ok) {
-    throw new Error('Failed to fetch settings');
-  }
-  return response.json();
-};
-
 export default function Layout({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
+
+  const fetchSettings = async () => {
+    const response = await apiFetch('/api/user-management/settings');
+    if (!response.ok) {
+      throw new Error(t('pages.userManagement.systemSettingsLayout.fetchFailed'));
+    }
+    return response.json();
+  };
 
   const { data = { settings: null, roles: [] }, isLoading } = useQuery({
     queryKey: ['system-settings'],
     queryFn: fetchSettings,
     staleTime: Infinity,
+    refetchInterval: false,
     gcTime: 1000 * 60 * 60, // 60 minutes
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -53,25 +56,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navRoutes = useMemo<NavRoutes>(
     () => ({
       general: {
-        title: 'General',
+        titleKey: 'pages.userManagement.systemSettingsLayout.tabs.general',
         path: '/user-management/settings',
       },
       notifications: {
-        title: 'Notifications',
+        titleKey: 'pages.userManagement.systemSettingsLayout.tabs.notifications',
         path: '/user-management/settings/notifications',
-      },
-      social: {
-        title: 'Social',
-        path: '/user-management/settings/social',
       },
     }),
     [],
   );
 
-  // Local state to instantly update the active tab on click
   const [activeTab, setActiveTab] = useState<string>('');
 
-  // Keep the local state in sync with the current pathname, in case navigation happens externally
   useEffect(() => {
     const found = Object.keys(navRoutes).find(
       (key) => pathname === navRoutes[key].path,
@@ -83,10 +80,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }, [navRoutes, pathname]);
 
-  // Handle tab click: update local state immediately and trigger navigation
   const handleTabClick = (key: string, path: string) => {
     setActiveTab(key);
-    // Navigate after a short delay (or immediately) so that the UI updates first
     router.push(path);
   };
 
@@ -117,11 +112,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <SettingsProvider settings={settings} roles={roles}>
+    <SettingsProvider settings={settings} roles={roles ?? []}>
       <Container>
         <Toolbar>
           <ToolbarHeading>
-            <ToolbarTitle>Settings</ToolbarTitle>
+            <ToolbarTitle>{t('pages.userManagement.systemSettingsLayout.toolbarTitle')}</ToolbarTitle>
           </ToolbarHeading>
           <ToolbarActions />
         </Toolbar>
@@ -129,7 +124,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <Container>
         <Tabs defaultValue={activeTab} value={activeTab} className="space-y-5">
           <TabsList variant="line">
-            {Object.entries(navRoutes).map(([key, { title, path }]) => (
+            {Object.entries(navRoutes).map(([key, { titleKey, path }]) => (
               <TabsTrigger
                 key={key}
                 value={key}
@@ -137,7 +132,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 onClick={() => handleTabClick(key, path)}
                 className="justify-start"
               >
-                {title}
+                {t(titleKey)}
               </TabsTrigger>
             ))}
           </TabsList>

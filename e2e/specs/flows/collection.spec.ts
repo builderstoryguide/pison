@@ -72,17 +72,24 @@ test.describe('Daily Collection Flow', () => {
     await logout(agentPage);
     await agentContext.close();
 
-    // 3. Manager logs in and approves pending transaction
+    // 3. Manager logs in and approves pending transaction from notification sheet
     const adminContext = await browser.newContext();
     const adminPage = await adminContext.newPage();
     await login(adminPage, adminUser.email, adminUser.password);
 
-    await adminPage.goto('/validation/pending');
+    await adminPage.goto('/');
     await adminPage.waitForLoadState('networkidle');
 
+    await adminPage
+      .getByRole('button', { name: /^notifications$/i })
+      .click();
+    await expect(adminPage.getByRole('heading', { name: /^notifications$/i })).toBeVisible();
     await expect(adminPage.getByText('100')).toBeVisible();
-    await adminPage.getByRole('button', { name: 'Approve' }).first().click();
-    await adminPage.getByRole('button', { name: 'Approve' }).last().click(); // Confirm in dialog
+    await adminPage.getByRole('button', { name: /^approve$/i }).first().click();
+    await adminPage
+      .getByRole('dialog')
+      .getByRole('button', { name: /^approve$/i })
+      .click();
 
     await expect(adminPage.getByText(/transaction approved/i)).toBeVisible();
 

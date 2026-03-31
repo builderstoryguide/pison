@@ -25,6 +25,10 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatDateTime } from '@/lib/helpers';
 import { Loader2 } from 'lucide-react';
 import { TransactionApprovalActions } from './components/transaction-approval-actions';
+import {
+  getTransactionStatusLabel,
+  getTransactionTypeLabel,
+} from '@/lib/i18n/transaction-labels';
 
 export default function Page() {
   const params = useParams();
@@ -55,7 +59,7 @@ export default function Page() {
       <Container>
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            Transaction not found
+            {t('pages.transactions.notFound')}
           </CardContent>
         </Card>
       </Container>
@@ -71,17 +75,6 @@ export default function Page() {
     REJECTED: 'destructive',
     REVERSED: 'secondary',
   }[transaction.status] || 'secondary';
-
-  const typeLabels: Record<string, string> = {
-    DEPOSIT: t('pages.transactions.typeDeposit'),
-    WITHDRAWAL: t('pages.transactions.typeWithdrawal'),
-    TRANSFER: t('pages.transactions.typeTransfer'),
-    COLLECTION: t('pages.transactions.typeCollection'),
-    LOAN_DISBURSEMENT: t('pages.transactions.typeLoanDisbursement'),
-    LOAN_REPAYMENT: t('pages.transactions.typeLoanRepayment'),
-    COMMISSION: 'Commission',
-    ADJUSTMENT: 'Adjustment',
-  };
 
   return (
     <>
@@ -117,27 +110,37 @@ export default function Page() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>{typeLabels[transaction.type] || transaction.type}</CardTitle>
+              <CardTitle>
+                {getTransactionTypeLabel(transaction.type, t, {
+                  reference: transaction.reference,
+                })}
+              </CardTitle>
               <Badge variant={statusVariant as 'success' | 'warning' | 'destructive' | 'secondary'}>
-                {transaction.status.replace(/_/g, ' ')}
+                {getTransactionStatusLabel(transaction.status, t)}
               </Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <div className="text-sm text-muted-foreground">Amount</div>
+                <div className="text-sm text-muted-foreground">
+                  {t('pages.transactions.detailAmount')}
+                </div>
                 <div className={`text-2xl font-bold ${isCredit ? 'text-green-600' : 'text-red-600'}`}>
                   {isCredit ? '+' : '-'}{formatCurrency(Math.abs(amount))}
                 </div>
               </div>
               <div>
-                <div className="text-sm text-muted-foreground">Date</div>
+                <div className="text-sm text-muted-foreground">
+                  {t('pages.transactions.columnDate')}
+                </div>
                 <div className="font-medium">{formatDateTime(transaction.createdAt)}</div>
               </div>
               {transaction.account && (
                 <div>
-                  <div className="text-sm text-muted-foreground">Account</div>
+                  <div className="text-sm text-muted-foreground">
+                    {t('common.labels.account')}
+                  </div>
                   <div className="font-medium">
                     {transaction.account.accountNumber}
                     {transaction.account.client && (
@@ -149,7 +152,9 @@ export default function Page() {
                 </div>
               )}
               <div>
-                <div className="text-sm text-muted-foreground">Balance Before / After</div>
+                <div className="text-sm text-muted-foreground">
+                  {t('pages.transactions.balanceBeforeAfter')}
+                </div>
                 <div className="font-medium">
                   {formatCurrency(Number(transaction.balanceBefore))} →{' '}
                   {formatCurrency(Number(transaction.balanceAfter))}
@@ -158,7 +163,9 @@ export default function Page() {
             </div>
             {transaction.description && (
               <div>
-                <div className="text-sm text-muted-foreground">Description</div>
+                <div className="text-sm text-muted-foreground">
+                  {t('common.labels.description')}
+                </div>
                 <div className="font-medium">{transaction.description}</div>
               </div>
             )}

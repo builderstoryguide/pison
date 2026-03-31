@@ -12,6 +12,7 @@ import {
   getCachedQuery,
   setCachedQuery,
 } from '@/lib/cache/query-cache';
+import { transactionWhereBusinessInclusiveRange } from '@/lib/utils/transaction-business-date';
 
 const REPORT_CACHE_TTL = 3600;
 
@@ -147,7 +148,7 @@ export class ReportService {
             where: {
               accountId: { in: accountIds },
               status: 'COMPLETED',
-              createdAt: { gte: startDate, lte: endDate },
+              ...transactionWhereBusinessInclusiveRange(startDate, endDate),
             },
             select: { accountId: true, type: true, amount: true },
           })
@@ -251,7 +252,7 @@ export class ReportService {
 
     const where: Prisma.TransactionWhereInput = {
       type: 'COLLECTION',
-      createdAt: { gte: start, lte: end },
+      ...transactionWhereBusinessInclusiveRange(start, end),
     };
     if (params.areaId) where.areaId = params.areaId;
     if (params.agentId) where.agentId = params.agentId;
@@ -320,7 +321,7 @@ export class ReportService {
       where: {
         accountId: client.accountId,
         status: 'COMPLETED',
-        createdAt: { gte: start, lte: end },
+        ...transactionWhereBusinessInclusiveRange(start, end),
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -403,7 +404,7 @@ export class ReportService {
           where: {
             areaId: { in: areaIds },
             status: 'COMPLETED',
-            createdAt: { gte: start, lte: end },
+            ...transactionWhereBusinessInclusiveRange(start, end),
           },
           select: { areaId: true, type: true, amount: true },
         })

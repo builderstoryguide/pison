@@ -9,6 +9,9 @@ import pg from 'pg';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
+import {
+  ensureStaffOperatingAccount,
+} from '../lib/services/staff-operating-account-service';
 
 dotenv.config();
 
@@ -21,6 +24,13 @@ async function main() {
   console.log('🌱 Seeding microfinance data...\n');
 
   try {
+    if ((await prisma.systemSetting.count()) === 0) {
+      await prisma.systemSetting.create({
+        data: { name: 'My Company' },
+      });
+      console.log('   ✅ Default system settings row created\n');
+    }
+
     // 1. Create User Roles (if they don't exist)
     console.log('1. Creating user roles...');
     const managerRole = await prisma.userRole.upsert({
@@ -94,6 +104,7 @@ async function main() {
       { slug: 'roles.manage', name: 'Manage Roles', description: 'Assign permissions to roles' },
       { slug: 'settings.manage', name: 'Manage Settings', description: 'Configure system settings' },
       { slug: 'commissions.calculate', name: 'Calculate Commissions', description: 'Run period commission calculation for withdrawals' },
+      { slug: 'treasury.issue', name: 'Issue Treasury Liquidity', description: 'Introduce digital money into the manager operating account' },
     ];
 
     const createdPermissions: Record<string, string> = {};
@@ -212,7 +223,8 @@ async function main() {
         emailVerifiedAt: new Date(),
       },
     });
-    console.log('   ✅ Manager user created\n');
+    await ensureStaffOperatingAccount(prisma, managerUser.id, 'MANAGER');
+    console.log('   ✅ Manager user created (with operating account)\n');
 
     // 5. Create Accountant User
     console.log('5. Creating accountant user...');
@@ -229,7 +241,8 @@ async function main() {
         emailVerifiedAt: new Date(),
       },
     });
-    console.log('   ✅ Accountant user created\n');
+    await ensureStaffOperatingAccount(prisma, accountantUser.id, 'ACCOUNTANT');
+    console.log('   ✅ Accountant user created (with operating account)\n');
 
     // 5b. Create System User (for cron/automated operations; cannot log in)
     console.log('5b. Creating system user (for commission cron, etc.)...');

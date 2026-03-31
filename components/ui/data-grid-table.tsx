@@ -1,7 +1,10 @@
+'use client';
+
 import * as React from 'react';
 import { CSSProperties, Fragment, ReactNode } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useDataGrid } from '@/components/ui/data-grid';
+import { useTranslation } from '@/hooks/useTranslation';
 import { Cell, Column, flexRender, Header, HeaderGroup, Row } from '@tanstack/react-table';
 import { cva } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
@@ -343,12 +346,13 @@ function DataGridTableBodyRowCell<TData>({
 
 function DataGridTableEmpty() {
   const { table, props } = useDataGrid();
+  const { t } = useTranslation();
   const totalColumns = table.getAllColumns().length;
 
   return (
     <tr>
       <td colSpan={totalColumns} className="text-center text-muted-foreground py-6">
-        {props.emptyMessage || 'No data available'}
+        {props.emptyMessage || t('common.table.noData')}
       </td>
     </tr>
   );
@@ -356,6 +360,7 @@ function DataGridTableEmpty() {
 
 function DataGridTableLoader() {
   const { props } = useDataGrid();
+  const { t } = useTranslation();
 
   return (
     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -373,13 +378,15 @@ function DataGridTableLoader() {
             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
           ></path>
         </svg>
-        {props.loadingMessage || 'Loading...'}
+        {props.loadingMessage || t('common.messages.loading')}
       </div>
     </div>
   );
 }
 
 function DataGridTableRowSelect<TData>({ row, size }: { row: Row<TData>; size?: 'sm' | 'md' | 'lg' }) {
+  const { t } = useTranslation();
+
   return (
     <>
       <div
@@ -388,7 +395,7 @@ function DataGridTableRowSelect<TData>({ row, size }: { row: Row<TData>; size?: 
       <Checkbox
         checked={row.getIsSelected()}
         onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
+        aria-label={t('common.table.selectRow')}
         size={size ?? 'sm'}
         className="align-[inherit]"
       />
@@ -398,13 +405,14 @@ function DataGridTableRowSelect<TData>({ row, size }: { row: Row<TData>; size?: 
 
 function DataGridTableRowSelectAll({ size }: { size?: 'sm' | 'md' | 'lg' }) {
   const { table, recordCount, isLoading } = useDataGrid();
+  const { t } = useTranslation();
 
   return (
     <Checkbox
       checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
       disabled={isLoading || recordCount === 0}
       onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-      aria-label="Select all"
+      aria-label={t('common.table.selectAll')}
       size={size}
       className="align-[inherit]"
     />

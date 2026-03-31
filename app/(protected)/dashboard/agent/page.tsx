@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Users, Wallet, MapPin, PlusCircle } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/helpers';
 import { Badge } from '@/components/ui/badge';
+import { getTransactionStatusPresentation } from '@/lib/status/presenters';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -158,7 +159,11 @@ export default function AgentDashboard({ initialStats }: AgentDashboardProps) {
                     {(() => {
                       const recentCollections = stats?.recentTransactions?.filter((txn: Transaction) => txn.type === 'COLLECTION') ?? [];
                       return recentCollections.length > 0 ? (
-                        recentCollections.map((txn: Transaction) => (
+                        recentCollections.map((txn: Transaction) => {
+                          const txnStatus = getTransactionStatusPresentation(
+                            txn.status,
+                          );
+                          return (
                           <div key={txn.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
                             <div className="space-y-1">
                               <p className="text-sm font-medium leading-none">{txn.reference}</p>
@@ -167,15 +172,16 @@ export default function AgentDashboard({ initialStats }: AgentDashboardProps) {
                               </p>
                             </div>
                             <div className="flex items-center gap-4">
-                              <Badge variant={txn.status === 'COMPLETED' ? 'success' : 'secondary'}>
-                                {txn.status}
+                              <Badge variant={txnStatus.variant}>
+                                {t(txnStatus.labelKey)}
                               </Badge>
                               <div className="font-medium text-green-600">
                                 +{formatCurrency(txn.amount)}
                               </div>
                             </div>
                           </div>
-                        ))
+                        );
+                        })
                       ) : (
                         <div className="text-center py-4 text-muted-foreground">
                           {t('pages.dashboard.noRecentCollections')}

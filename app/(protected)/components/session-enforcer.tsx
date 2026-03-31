@@ -7,12 +7,14 @@ import { Button } from '@/components/ui/button';
 import { signOut } from 'next-auth/react';
 import { Lock } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SessionEnforcerProps {
   children: React.ReactNode;
 }
 
 export function SessionEnforcer({ children }: SessionEnforcerProps) {
+  const { t } = useTranslation();
   const { data: session } = useSession();
   const { data: sessionStatus, isLoading: isSessionLoading, isError, error, refetch } = useSessionStatus();
 
@@ -30,17 +32,17 @@ export function SessionEnforcer({ children }: SessionEnforcerProps) {
           <Lock className="h-10 w-10 text-amber-600" />
         </div>
         <h1 className="mb-2 text-2xl font-bold text-foreground">
-          Unable to Load Session Status
+          {t('pages.sessionGate.unableToLoadTitle')}
         </h1>
         <p className="mb-6 max-w-md text-muted-foreground">
-          {error?.message || 'Failed to fetch session status. Please check your connection and try again.'}
+          {error?.message || t('pages.sessionGate.unableToLoadDesc')}
         </p>
         <div className="flex gap-3">
           <Button variant="outline" onClick={() => refetch()}>
-            Try Again
+            {t('common.buttons.tryAgain')}
           </Button>
           <Button variant="outline" onClick={() => signOut({ callbackUrl: '/auth/signin' })}>
-            Sign Out
+            {t('common.buttons.signOut')}
           </Button>
         </div>
       </div>
@@ -73,8 +75,8 @@ export function SessionEnforcer({ children }: SessionEnforcerProps) {
       sessionStatus.session?.status === 'CLOSED' ||
       sessionStatus.session?.status === 'LOCKED';
     const message = wasClosed
-      ? 'The daily session has been closed. Please wait for a manager to open a new session before you can access the system.'
-      : 'The daily session has not been opened yet. Please wait for a manager to open the session before you can access the system.';
+      ? t('pages.sessionGate.sessionClosedWait')
+      : t('pages.sessionGate.sessionNotOpenedWait');
 
     return (
       <div className="flex min-h-[60vh] w-full flex-col items-center justify-center p-4 text-center">
@@ -82,7 +84,7 @@ export function SessionEnforcer({ children }: SessionEnforcerProps) {
           <Lock className="h-10 w-10 text-red-600" />
         </div>
         <h1 className="mb-2 text-2xl font-bold text-foreground">
-          System Locked
+          {t('pages.sessionGate.systemLocked')}
         </h1>
         <p className="mb-8 max-w-md text-foreground">
           {message}
@@ -91,7 +93,7 @@ export function SessionEnforcer({ children }: SessionEnforcerProps) {
           variant="outline"
           onClick={() => signOut({ callbackUrl: '/auth/signin' })}
         >
-          Sign Out
+          {t('common.buttons.signOut')}
         </Button>
       </div>
     );

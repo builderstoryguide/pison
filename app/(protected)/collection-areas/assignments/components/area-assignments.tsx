@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
@@ -20,6 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Loader2, MapPin, UserCheck, Save } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getAreaStatusPresentation } from '@/lib/status/presenters';
 
 interface Agent {
   id: string;
@@ -47,7 +48,7 @@ export default function AreaAssignments() {
     queryFn: async () => {
       const response = await apiFetch('/api/agents');
       if (!response.ok) {
-        throw new Error('Failed to fetch agents');
+        throw new Error(t('pages.collectionAreas.fetchAgentsFailed'));
       }
       const result = await response.json();
       return result.data || [];
@@ -60,12 +61,29 @@ export default function AreaAssignments() {
     queryFn: async () => {
       const response = await apiFetch('/api/collection-areas?status=ACTIVE');
       if (!response.ok) {
-        throw new Error('Failed to fetch collection areas');
+        throw new Error(t('pages.collectionAreas.fetchAreasFailed'));
       }
       const result = await response.json();
       return result.data || [];
     },
   });
+
+  const { data: occupancy = [] } = useQuery({
+    queryKey: ['collection-area-occupancy'],
+    queryFn: async () => {
+      const response = await apiFetch('/api/collection-areas/assignment-occupancy');
+      if (!response.ok) return [];
+      const result = await response.json();
+      return (result.data || []) as Array<{
+        areaId: string;
+        agentId: string;
+        agentFullName: string;
+        agentCode: string;
+      }>;
+    },
+  });
+
+  const occupancyByArea = new Map(occupancy.map((o) => [o.areaId, o]));
 
   // Fetch agent's current assignments
   const { data: agentAreas, isLoading: isLoadingAssignments } = useQuery({
@@ -76,7 +94,7 @@ export default function AreaAssignments() {
         `/api/collection-areas/assignments?agentId=${selectedAgentId}`,
       );
       if (!response.ok) {
-        throw new Error('Failed to fetch agent areas');
+        throw new Error(t('pages.collectionAreas.fetchAgentAssignmentsFailed'));
       }
       const result = await response.json();
       return result.data || [];
@@ -103,8 +121,12 @@ export default function AreaAssignments() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Failed to assign areas');
+        const error = await response.json().catch(() => ({}));
+        const e = new Error(
+          error.error?.message || t('pages.collectionAreas.assignAreasFailed')
+        ) as Error & { details?: unknown };
+        e.details = error.error?.details;
+        throw e;
       }
 
       return response.json();
@@ -112,10 +134,25 @@ export default function AreaAssignments() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agent-areas', selectedAgentId] });
       queryClient.invalidateQueries({ queryKey: ['agents'] });
-      toast.success('Areas assigned successfully');
+      queryClient.invalidateQueries({ queryKey: ['collection-area-occupancy'] });
+      toast.success(t('pages.collectionAreas.assignAreasSuccess'));
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Failed to assign areas');
+      const details = (error as Error & { details?: Array<{ areaName: string; agentFullName: string }> })
+        .details;
+      if (Array.isArray(details) && details.length > 0) {
+        for (const d of details) {
+          toast.error(
+            t('pages.collectionAreas.areaTakenBy', {
+              defaultValue: '{{area}} is already assigned to {{agent}}.',
+              area: d.areaName,
+              agent: d.agentFullName,
+            })
+          );
+        }
+        return;
+      }
+      toast.error(error.message || t('pages.collectionAreas.assignAreasFailed'));
     },
   });
 
@@ -136,7 +173,7 @@ export default function AreaAssignments() {
 
   const handleSave = () => {
     if (!selectedAgentId) {
-      toast.error('Please select an agent');
+      toast.error(t('pages.collectionAreas.selectAgentFirst'));
       return;
     }
 
@@ -150,10 +187,10 @@ export default function AreaAssignments() {
   const areas: CollectionArea[] = areasData || [];
   const currentAssignments: CollectionArea[] = agentAreas || [];
 
-  // Update selected areas when assignments load
-  if (currentAssignments.length > 0 && selectedAreaIds.size === 0) {
-    setSelectedAreaIds(new Set(currentAssignments.map((area) => area.id)));
-  }
+  useEffect(() => {
+    if (!selectedAgentId || !agentAreas) return;
+    setSelectedAreaIds(new Set(agentAreas.map((area: CollectionArea) => area.id)));
+  }, [selectedAgentId, agentAreas]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -250,21 +287,28 @@ export default function AreaAssignments() {
             <>
               <ScrollArea className="h-[400px]">
                 <div className="space-y-2">
-                  {areas.map((area) => (
+                  {areas.map((area) => {
+                    const occ = occupancyByArea.get(area.id);
+                    const takenByOther =
+                      occ && selectedAgentId && occ.agentId !== selectedAgentId;
+                    return (
                     <div
                       key={area.id}
-                      className="flex items-center space-x-3 p-3 rounded-md border hover:bg-accent/50 transition-colors"
+                      className={`flex items-center space-x-3 p-3 rounded-md border transition-colors ${
+                        takenByOther ? 'bg-muted/40' : 'hover:bg-accent/50'
+                      }`}
                     >
                       <Checkbox
                         id={area.id}
                         checked={selectedAreaIds.has(area.id)}
+                        disabled={!!takenByOther}
                         onCheckedChange={() => handleAreaToggle(area.id)}
                       />
                       <label
                         htmlFor={area.id}
-                        className="flex-1 cursor-pointer"
+                        className={`flex-1 ${takenByOther ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}`}
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <div>
                             <div className="font-medium text-sm">
                               {area.name}
@@ -272,12 +316,23 @@ export default function AreaAssignments() {
                             <div className="text-xs text-muted-foreground">
                               {area.code}
                             </div>
+                            {takenByOther && (
+                              <div className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                                {t('pages.collectionAreas.assignedToCollector', {
+                                  defaultValue: 'Assigned to {{name}} ({{code}})',
+                                  name: occ.agentFullName,
+                                  code: occ.agentCode,
+                                })}
+                              </div>
+                            )}
                           </div>
-                          <Badge variant="outline">{area.status}</Badge>
+                          <Badge variant="outline">
+                            {t(getAreaStatusPresentation(area.status).labelKey)}
+                          </Badge>
                         </div>
                       </label>
                     </div>
-                  ))}
+                  )})}
                 </div>
               </ScrollArea>
               <Separator />

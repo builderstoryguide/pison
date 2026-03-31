@@ -25,12 +25,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface IGeneralSettingsProps {
   title: string;
 }
 
 const BasicSettings = ({ title }: IGeneralSettingsProps) => {
+  const { t } = useTranslation();
   const [date, setDate] = useState<Date | undefined>(new Date(1984, 0, 20));
   const [nameInput, setNameInput] = useState('Jason Tatum');
   const [emailInput, setEmailInput] = useState('jason@studio.io');
@@ -296,7 +298,7 @@ const BasicSettings = ({ title }: IGeneralSettingsProps) => {
           />
         </div>
         <div className="flex justify-end">
-          <Button>Save Changes</Button>
+          <Button>{t('common.buttons.saveChanges')}</Button>
         </div>
       </CardContent>
     </Card>

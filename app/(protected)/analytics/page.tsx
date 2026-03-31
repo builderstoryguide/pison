@@ -85,7 +85,7 @@ export default function AnalyticsPage() {
                 <CardContent>
                   <Link href={item.href}>
                     <Button variant="outline" size="sm">
-                      {t('common.buttons.view', 'View')}
+                      {t('common.buttons.view')}
                     </Button>
                   </Link>
                 </CardContent>
