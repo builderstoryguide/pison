@@ -86,6 +86,18 @@ export async function POST(request: NextRequest) {
     const subjectName = subject.name.trim()
     const sequenceName = getSequenceName(sequenceNumber)
 
+    // Lookup the sequence UUID from academic_sequences if academicYear and sequenceNumber are provided
+    let sequenceUuid: string | undefined = undefined
+    if (sequenceNumber && academicYear) {
+      const { data: seqData } = await supabase
+        .from('academic_sequences')
+        .select('id')
+        .eq('sequence_number', sequenceNumber)
+        .eq('academic_year', academicYear)
+        .maybeSingle()
+      if (seqData) sequenceUuid = seqData.id
+    }
+
     // Check if subject has branches
     const { data: oldBranches } = await supabase
       .from('subject_sub_branches')
@@ -114,7 +126,8 @@ export async function POST(request: NextRequest) {
         mark,
         term,
         academicYear,
-        user.id
+        user.id,
+        sequenceUuid
       )
     } else {
       // Handle regular subject
@@ -125,7 +138,8 @@ export async function POST(request: NextRequest) {
         classId,
         sequenceName,
         mark,
-        user.id
+        user.id,
+        sequenceUuid
       )
     }
   } catch (error: unknown) {
@@ -148,32 +162,50 @@ async function handleRegularSubjectMark(
   classId: string,
   sequenceName: string,
   mark: number,
-  adminUserId: string
+  adminUserId: string,
+  sequenceUuid?: string
 ): Promise<NextResponse> {
-  // Find or create assessment
-  let { data: assessment } = await supabase
+  const normalizedSubject = subjectName.toLowerCase().trim()
+  const validTitles = [sequenceName.toLowerCase().trim()]
+  if (sequenceUuid) {
+    validTitles.push(sequenceUuid.toLowerCase())
+  }
+
+  // Find all assessments for this class and filter in JS for subject and title matches
+  // This avoids complex Supabase OR queries with case-insensitive matches
+  const { data: allMatches } = await supabase
     .from('assessments')
-    .select('id, total_marks')
+    .select('id, subject, title, total_marks')
     .eq('class_id', classId)
-    .eq('subject', subjectName)
-    .eq('title', sequenceName)
-    .maybeSingle()
 
-  // Case-insensitive fallback
-  if (!assessment) {
-    const { data: allMatches } = await supabase
-      .from('assessments')
-      .select('id, subject, total_marks')
-      .eq('class_id', classId)
-      .eq('title', sequenceName)
+  let assessment = null
+  if (allMatches && allMatches.length > 0) {
+    // Find matching assessment
+    // Prefer the assessment that already has a grade for this student if possible,
+    // otherwise just take the first matching one
+    
+    const candidates = allMatches.filter(a => 
+      a.subject && a.subject.trim().toLowerCase() === normalizedSubject &&
+      a.title && validTitles.includes(a.title.trim().toLowerCase())
+    )
 
-    if (allMatches && allMatches.length > 0) {
-      const normalizedSubject = subjectName.toLowerCase().trim()
-      const match = allMatches.find((a: { subject: string }) =>
-        a.subject && a.subject.trim().toLowerCase() === normalizedSubject
-      )
-      if (match) {
-        assessment = match
+    if (candidates.length > 0) {
+      if (candidates.length === 1) {
+        assessment = candidates[0]
+      } else {
+        // If multiple candidates (due to previous duplicate bugs), try to find the one with a grade
+        const candidateIds = candidates.map(c => c.id)
+        const { data: existingGrades } = await supabase
+          .from('grades')
+          .select('assessment_id')
+          .eq('student_id', studentId)
+          .in('assessment_id', candidateIds)
+        
+        if (existingGrades && existingGrades.length > 0) {
+          assessment = candidates.find(c => c.id === existingGrades[0].assessment_id) || candidates[0]
+        } else {
+          assessment = candidates[0]
+        }
       }
     }
   }
@@ -294,7 +326,8 @@ async function handleBranchSubjectMark(
   mark: number,
   term: string | undefined,
   academicYear: string,
-  adminUserId: string
+  adminUserId: string,
+  sequenceUuid?: string
 ): Promise<NextResponse> {
   // Get all active branches for this subject
   const [oldBranchesResult, newBranchesResult] = await Promise.all([
@@ -321,20 +354,49 @@ async function handleBranchSubjectMark(
     )
   }
 
+  // Branch subjects might be saved with title "{term} Exam", sequenceName, or sequenceUuid
+  const validBranchTitles = [sequenceName.toLowerCase().trim()]
+  if (term) validBranchTitles.push(`${term} exam`)
+  if (sequenceUuid) validBranchTitles.push(sequenceUuid.toLowerCase())
+
   // For branch subjects, we need to create/update grades for each branch
-  // Find or create branch assessments for each branch
   const gradeResults = []
 
   for (const branchId of allBranchIds) {
-    // Find or create branch assessment
-    let { data: branchAssessment } = await supabase
+    // Find branch assessments for this class/branch
+    const { data: bAssessments } = await supabase
       .from('branch_assessments')
-      .select('id, total_marks')
+      .select('id, total_marks, title')
       .eq('branch_id', branchId)
       .eq('class_id', classId)
-      .eq('title', sequenceName)
       .eq('academic_year', academicYear)
-      .maybeSingle()
+
+    let branchAssessment = null
+    if (bAssessments && bAssessments.length > 0) {
+      const candidates = bAssessments.filter(a => 
+        a.title && validBranchTitles.includes(a.title.trim().toLowerCase())
+      )
+
+      if (candidates.length > 0) {
+        if (candidates.length === 1) {
+          branchAssessment = candidates[0]
+        } else {
+          // If multiple candidates, try to find the one with an existing grade for this student
+          const candidateIds = candidates.map(c => c.id)
+          const { data: bGrades } = await supabase
+            .from('branch_grades')
+            .select('assessment_id')
+            .eq('student_id', studentId)
+            .in('assessment_id', candidateIds)
+          
+          if (bGrades && bGrades.length > 0) {
+            branchAssessment = candidates.find(c => c.id === bGrades[0].assessment_id) || candidates[0]
+          } else {
+            branchAssessment = candidates[0]
+          }
+        }
+      }
+    }
 
     if (!branchAssessment) {
       const insertData = {

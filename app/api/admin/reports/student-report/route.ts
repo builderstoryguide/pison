@@ -696,6 +696,9 @@ export async function GET(req: NextRequest) {
     // Convert map to array (already deduplicated)
     const subjectsList = Array.from(subjectsMap.values());
     
+    // Resolve class label once for class-specific subject exclusion rules.
+    const currentClassLabel = String(classData?.class_name || classData?.name || student.class || '').trim();
+
     // Log subjects found for debugging
     console.log(`[Report Card] Found ${subjectsList.length} subjects for class ${classId}:`, 
         subjectsList.map((s: any) => ({ id: s.id, name: s.name, normalized: normalizeSubjectName(s.name) }))
@@ -963,7 +966,7 @@ export async function GET(req: NextRequest) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const subjectCode = (subject as any).code;
         const isGceSubject = subjectCode && String(subjectCode).trim().length > 0;
-        
+
         // Get category from subject_groupings, default to 'others'
         let category = 'others';
         try {
@@ -979,6 +982,24 @@ export async function GET(req: NextRequest) {
         } catch (err) {
           // If there's any error extracting category, default to 'others'
           console.warn('Error extracting subject category:', err);
+        }
+
+        if (isSubjectExcludedForClass(currentClassLabel, subjectName)) {
+            console.log(`[Report Card] Excluding subject "${subjectName}" for class "${currentClassLabel}"`);
+            reportItems.push({
+                name: subjectName.trim(),
+                subjectId: subjectId,
+                code: subjectCode || undefined,
+                eval: '-',
+                coef: 0,
+                plannedCoef: subjectCoef,
+                total: '-',
+                grade: '-',
+                rank: '-',
+                remark: 'Excluded for class',
+                category: category
+            });
+            continue;
         }
 
         let finalMark = 0;
@@ -1386,12 +1407,6 @@ export async function GET(req: NextRequest) {
         }
 
         if (hasMark) {
-            const coef = subjectCoef;
-            const total = finalMark * coef;
-            
-            totalScore += total;
-            totalCoef += coef;
-            if (finalMark >= 10) passedCount++;
             remark = calculateRemark(finalMark);
             
             // Track GCE subjects (only subjects with codes) that are PASSED (marks >= 10)
@@ -1475,6 +1490,24 @@ export async function GET(req: NextRequest) {
                 }
             }
 
+            // On term reports, include coefficient only when both sequence marks exist.
+            let eligibleForCoef = true;
+            if (termMode.mode === 'per_term') {
+                const [slotA, slotB] = getGlobalSequenceSlotsForTerm(termMode.term);
+                const seqA = subjectSequenceMarks[`seq${slotA}`];
+                const seqB = subjectSequenceMarks[`seq${slotB}`];
+                eligibleForCoef = typeof seqA === 'number' && typeof seqB === 'number';
+            }
+
+            const coef = eligibleForCoef ? subjectCoef : '-';
+            const total = eligibleForCoef ? parseFloat((finalMark * subjectCoef).toFixed(2)) : '-';
+
+            if (eligibleForCoef) {
+                totalScore += finalMark * subjectCoef;
+                totalCoef += subjectCoef;
+                if (finalMark >= 10) passedCount++;
+            }
+
             // Get subject rank (will be calculated later if not available yet)
             const subjectRank = subjectRanks.get(normalizeSubjectName(subjectName)) || 0;
             
@@ -1484,7 +1517,7 @@ export async function GET(req: NextRequest) {
                 code: subjectCode || undefined, // Include subject code for GCE identification
                 eval: parseFloat(finalMark.toFixed(2)),
                 coef: coef,
-                total: parseFloat(total.toFixed(2)),
+                total: total,
                 grade: calculateGrade(finalMark),
                 rank: subjectRank, 
                 remark: remark,
@@ -2131,6 +2164,44 @@ const SUBJECT_ALIASES: Record<string, string[]> = {
     'family life': ['family life education and gerontology (fleg)', 'family life education and gerontology', 'fleg', 'f.l.e.g.', 'f.l.e.g'],
     'food and nutrition': ['food, nutrition and health (fnh)', 'food nutrition and health (fnh)', 'food, nutrition and health', 'food nutrition and health', 'fnh', 'f.n.h.', 'f.n.h'],
 };
+
+function normalizeClassName(name: string | null | undefined): string {
+    if (!name) return '';
+    return name.toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function isSubjectExcludedForClass(className: string | null | undefined, subjectName: string | null | undefined): boolean {
+    const normalizedClass = normalizeClassName(className);
+    if (!normalizedClass || !subjectName) {
+        return false;
+    }
+
+    const ac1Ac2Excluded = ['entrepreneurship', 'computer science'];
+    const ac4Excluded = ['introduction to marketing', 'computer science'];
+    const hec1Hec2Excluded = ['computer science'];
+    const hec3Hec4Excluded = ['introduction to marketing', 'office practice', 'computer science'];
+    const bcEpsExcluded = ['industrial computing'];
+    const isSubjectInRule = (ruleSubjects: string[]) =>
+        ruleSubjects.some((ruleSubject) => subjectNamesMatch(subjectName, ruleSubject));
+
+    if (normalizedClass === 'AC1' || normalizedClass === 'AC2') {
+        return isSubjectInRule(ac1Ac2Excluded);
+    }
+    if (normalizedClass === 'AC4') {
+        return isSubjectInRule(ac4Excluded);
+    }
+    if (normalizedClass === 'HEC1' || normalizedClass === 'HEC2') {
+        return isSubjectInRule(hec1Hec2Excluded);
+    }
+    if (normalizedClass === 'HEC3' || normalizedClass === 'HEC4') {
+        return isSubjectInRule(hec3Hec4Excluded);
+    }
+    if (normalizedClass.startsWith('BC') || normalizedClass.startsWith('EPS')) {
+        return isSubjectInRule(bcEpsExcluded);
+    }
+
+    return false;
+}
 
 /**
  * Get all possible variations of a subject name (including aliases)

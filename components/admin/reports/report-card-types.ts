@@ -111,11 +111,11 @@ export interface PisonSubjectSection {
   title: string
   items: Array<{
     name: string
-    eval: number
-    coef: number
-    total: number
+    eval: number | string
+    coef: number | string
+    total: number | string
     grade: string
-    rank: number
+    rank: number | string
     remark: string
   }>
   summary: {

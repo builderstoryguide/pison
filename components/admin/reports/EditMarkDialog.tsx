@@ -154,6 +154,7 @@ export function EditMarkDialog({
             studentId,
             subjectId,
             classId,
+            sequenceName,
             sequenceNumber,
             mark: markValue,
             term: term.toString(),
