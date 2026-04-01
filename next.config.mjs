@@ -12,6 +12,28 @@ const nextConfig = {
   
   // Enable standalone output for Docker deployment
   output: 'standalone',
+
+  // Ensure Chromium brotli binaries are present in serverless bundles.
+  // Without these traced files, @sparticuz/chromium throws:
+  // "input directory .../bin does not exist. Please provide the location of the brotli file"
+  outputFileTracingIncludes: {
+    '/api/report-cards/pdf': [
+      './node_modules/@sparticuz/chromium/bin/**',
+      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
+    ],
+    '/app/api/report-cards/pdf/route': [
+      './node_modules/@sparticuz/chromium/bin/**',
+      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
+    ],
+    '/api/financial-reports': [
+      './node_modules/@sparticuz/chromium/bin/**',
+      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
+    ],
+    '/app/api/financial-reports/route': [
+      './node_modules/@sparticuz/chromium/bin/**',
+      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
+    ],
+  },
   
   // Image configuration
   images: {
