@@ -14,25 +14,23 @@ import {
   type TermSequenceCounts,
   type TermAverages,
 } from '@/lib/sequence-term-mapping';
+import { calculateGrade, getRemarkForMark } from '@/lib/grading-utils';
+import { REPORT_CARD_CATEGORIES } from '@/lib/report-card-transform';
+import {
+  isYearSummaryReport,
+  isThirdTermYearSummaryTable,
+} from '@/lib/report-card-year-summary';
 
 let activeTermSequenceCounts: TermSequenceCounts = { ...DEFAULT_TERM_COUNTS };
 let activeTotalSequences: 5 | 6 = 6;
 
 export async function GET(req: NextRequest) {
   /* eslint-disable no-console */
-  // #region agent log - function entry
-  fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:function-entry',message:'GET function started',data:{url:req.url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{ /* ignore */ });
-  // #endregion
-  
   try {
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get('studentId'); // This is the database ID (int or uuid)
     const classId = searchParams.get('classId');
     const academicTermId = searchParams.get('academicTermId'); // e.g., 'first', 'second' -> 1, 2, 3
-
-    // #region agent log - params extracted
-    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:params-extracted',message:'Parameters extracted',data:{studentId,classId,academicTermId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{ /* ignore */ });
-    // #endregion
 
     if (!studentId || !classId || !academicTermId) {
       return NextResponse.json(
@@ -223,15 +221,6 @@ export async function GET(req: NextRequest) {
           return subj ? { id: subj.id, name: subj.name, class_id: cs.class_id } : null;
         }).filter(Boolean)
       );
-      
-      // #region agent log - check CPB in class_subjects
-      const cpbInClassSubjects = classSubjects.filter(cs => {
-        const subj = Array.isArray(cs.subjects) ? cs.subjects[0] : cs.subjects;
-        const name = (subj?.name || '').toLowerCase();
-        return name.includes('construction') || name.includes('cpb') || name.includes('building');
-      });
-      fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:cpb-class-subjects',message:'CPB in class_subjects',data:{count:cpbInClassSubjects.length,subjects:cpbInClassSubjects.map(cs=>{const s=Array.isArray(cs.subjects)?cs.subjects[0]:cs.subjects;return{id:s?.id,name:s?.name}}),classId,className:classData?.class_name||classData?.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'CPB'})}).catch(()=>{ /* ignore */ });
-      // #endregion
     }
 
     // 4. Fetch Teacher-Subject Assignments for these subjects
@@ -420,21 +409,7 @@ export async function GET(req: NextRequest) {
     // This ensures data integrity - only marks from authorized teachers appear on report cards
     // EXCEPTION: Office Practice grades are always included regardless of teacher assignment
     let filteredGradesData = typedGradesData;
-    
-    // #region agent log - check CPB grades before filtering
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const cpbGradesBeforeFilter = typedGradesData.filter((g: any) => {
-      const subj = (g.assessment?.subject || '').toLowerCase();
-      return subj.includes('construction') || subj.includes('cpb') || subj.includes('building');
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:cpb-before-filter',message:'CPB grades before teacher filter',data:{count:cpbGradesBeforeFilter.length,grades:cpbGradesBeforeFilter.map((g:any)=>({subject:g.assessment?.subject,mark:g.marks_obtained,title:g.assessment?.title,teacherId:g.assessment?.teacher_id})),classId,studentId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'CPB'})}).catch(()=>{ /* ignore */ });
-    // #endregion
-    
-    // #region agent log - filter start
-    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:filter-start',message:'Starting grade filtering',data:{hasGradesData:!!gradesData,gradesCount:typedGradesData.length,subjectTeacherMapSize:subjectTeacherMap.size,adminUserIdsDefined:typeof adminUserIds!=='undefined',adminUserIdsCount:adminUserIds?.size||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{ /* ignore */ });
-    // #endregion
-    
+
     if (gradesData && subjectTeacherMap.size > 0) {
       filteredGradesData = typedGradesData.filter((grade) => {
         try {
@@ -451,11 +426,8 @@ export async function GET(req: NextRequest) {
           }
           
           // ALWAYS include grades entered by admin users
-          // #region agent log - admin check
           if (assessTeacherId) {
             const isAdmin = typeof adminUserIds !== 'undefined' && adminUserIds.has(assessTeacherId);
-            fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:admin-check',message:'Checking if teacher is admin',data:{assessTeacherId,assessSubject,adminUserIdsDefined:typeof adminUserIds!=='undefined',adminUserIdsCount:adminUserIds?.size||0,isAdmin},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{ /* ignore */ });
-            // #endregion
             if (isAdmin) {
               console.log(`[ADMIN MARK] ✓ Including grade (marks: ${grade.marks_obtained}) for subject "${assessSubject}" - Admin-entered marks are always included`);
               return true;
@@ -500,9 +472,6 @@ export async function GET(req: NextRequest) {
           return true;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
-          // #region agent log - filter error
-          fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:filter-error',message:'Error in grade filter',data:{error:error?.message||String(error),errorStack:error?.stack,assessSubject:grade?.assessment?.subject,assessTeacherId:grade?.assessment?.teacher_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{ /* ignore */ });
-          // #endregion
           console.error(`[Report Card] Error filtering grade:`, error);
           return false; // Exclude on error to be safe
         }
@@ -511,23 +480,10 @@ export async function GET(req: NextRequest) {
       if (filteredGradesData.length !== gradesData.length) {
         console.log(`[Report Card] Filtered ${gradesData.length - filteredGradesData.length} grades that don't match teacher assignments`);
       }
-      // #region agent log - filter complete
-      fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:filter-complete',message:'Grade filtering completed',data:{originalCount:typedGradesData.length,filteredCount:filteredGradesData.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{ /* ignore */ });
-      // #endregion
     }
 
     // Use filtered grades data (only marks from assigned teachers)
     const validGradesData = filteredGradesData;
-
-    // #region agent log - check CPB grades after filtering
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const cpbGradesAfterFilter = validGradesData.filter((g: any) => {
-      const subj = (g.assessment?.subject || '').toLowerCase();
-      return subj.includes('construction') || subj.includes('cpb') || subj.includes('building');
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:cpb-after-filter',message:'CPB grades after teacher filter',data:{countBefore:cpbGradesBeforeFilter.length,countAfter:cpbGradesAfterFilter.length,filtered:cpbGradesBeforeFilter.length-cpbGradesAfterFilter.length,grades:cpbGradesAfterFilter.map((g:any)=>({subject:g.assessment?.subject,mark:g.marks_obtained,title:g.assessment?.title}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'CPB'})}).catch(()=>{ /* ignore */ });
-    // #endregion
 
     // Fetch Branch Grades (if table exists)
     // Branch grades work similarly - teachers select subject branch, term, sequence, and enter marks
@@ -633,6 +589,10 @@ export async function GET(req: NextRequest) {
     }
 
     const termMode = parseAcademicTermMode(academicTermId);
+    const yearSummary = isYearSummaryReport(termMode);
+    const thirdTermTable = isThirdTermYearSummaryTable(termMode);
+    /** Load marks from every term when building year-summary columns (annual or term 3 table). */
+    const includeAllTermsGrades = yearSummary;
 
     // Helper to determine term from assessment title / UUID map / optional DB term string
     const getTermFromAssessment = (
@@ -692,6 +652,15 @@ export async function GET(req: NextRequest) {
             `[Report Card] Excluding grade: could not determine term (title: "${title}", term: "${termStr}", subject: "${assessSubject ?? ''}").`
         );
         return false;
+    };
+
+    const gradeIncludedForReport = (
+        termStr: string | null,
+        title: string | null | undefined,
+        assessSubject?: string | null
+    ) => {
+        if (includeAllTermsGrades) return true;
+        return isTargetTerm(termStr, title, assessSubject);
     };
 
     // Process Subjects
@@ -758,6 +727,9 @@ export async function GET(req: NextRequest) {
 
     let totalScore = 0;
     let totalCoef = 0;
+    /** Third-term footer uses term-3 weighted average; table uses annual totals in totalScore. */
+    let footerTotalScore = 0;
+    let footerTotalCoef = 0;
     let passedCount = 0;
     
     // Track GCE subjects (subjects with codes) for GCE section
@@ -993,8 +965,8 @@ export async function GET(req: NextRequest) {
           const subjectGroupings = (subject as any).subject_groupings;
           if (Array.isArray(subjectGroupings) && subjectGroupings.length > 0) {
             const rawCategory = subjectGroupings[0];
-            const validCategories = ['languages', 'related_trade_subjects', 'trade_subjects', 'others'];
-            if (validCategories.includes(rawCategory)) {
+            const validCategories = [...REPORT_CARD_CATEGORIES];
+            if (validCategories.includes(rawCategory as (typeof REPORT_CARD_CATEGORIES)[number])) {
               category = rawCategory;
             }
           }
@@ -1016,7 +988,9 @@ export async function GET(req: NextRequest) {
                 grade: '-',
                 rank: '-',
                 remark: 'Excluded for class',
-                category: category
+                category: category,
+                hasMark: false,
+                coefEligible: false,
             });
             continue;
         }
@@ -1058,7 +1032,7 @@ export async function GET(req: NextRequest) {
                 if (cpbBranchGrades.length > 0) {
                   const termFiltered = cpbBranchGrades.filter((bg: any) => {
                     const assessment = bg.assessment as any;
-                    return isTargetTerm(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
+                    return gradeIncludedForReport(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
                   });
                   console.log(`[CPB DIAGNOSTIC] Branch grades for target term: ${termFiltered.length}`);
                 }
@@ -1074,7 +1048,7 @@ export async function GET(req: NextRequest) {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const assessment = bg.assessment as any;
                         return bg.branch_id === branch.id && 
-                            isTargetTerm(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
+                            gradeIncludedForReport(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
                     }) || [];
 
                     if (bGrades.length > 0) {
@@ -1125,7 +1099,7 @@ export async function GET(req: NextRequest) {
                     const assessment = g.assessment as any;
                     const assessSubject = assessment?.subject || '';
                     return subjectNamesMatch(assessSubject, subjectName) && 
-                        isTargetTerm(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
+                        gradeIncludedForReport(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
                 }) || [];
 
                 if (sGrades.length > 0) {
@@ -1189,7 +1163,7 @@ export async function GET(req: NextRequest) {
                 }
                 
                 return matches && 
-                    isTargetTerm(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
+                    gradeIncludedForReport(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
             }) || [];
             
             // BC/EPS/AC/HEC AND FORM 1 EPS SUBJECTS: Log grades found
@@ -1248,7 +1222,7 @@ export async function GET(req: NextRequest) {
                 const assessmentTitle = (grade.assessment as any).title || '';
                 let globalSeqNum: number | null = null;
 
-                if (termMode.mode === 'annual') {
+                if (yearSummary) {
                     globalSeqNum = resolveGlobalSequenceFromTitle(assessmentTitle, sequenceIdToNumberMap);
                 } else if (perTermNum !== null) {
                     const inTermSeqNum = extractInTermSequenceNumber(assessmentTitle, perTermNum);
@@ -1350,7 +1324,7 @@ export async function GET(req: NextRequest) {
             
             // Calculate term average from sequence marks for this report only (not all six slots on a term bulletin)
             let marksForTermAverage: number[] = [];
-            if (termMode.mode === 'annual') {
+            if (yearSummary) {
                 annualTermAvgsForSubject = getTermAveragesFromSequenceMarks(
                     sequenceMarks,
                     activeTermSequenceCounts
@@ -1371,14 +1345,7 @@ export async function GET(req: NextRequest) {
                 finalMark = marksForTermAverage.reduce((acc, m) => acc + m, 0) / marksForTermAverage.length;
                 hasMark = true;
                 console.log(`[Report Card] Subject "${subjectName}": Found ${marksForTermAverage.length} sequence mark(s) for this report, average: ${finalMark.toFixed(2)}`);
-                
-                // #region agent log - CPB final mark calculation
-                const normSubjForLog = normalizeSubjectName(subjectName);
-                if (normSubjForLog.includes('construction') || normSubjForLog.includes('cpb') || normSubjForLog.includes('bcd') || normSubjForLog.includes('building')) {
-                    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:cpb-final-mark',message:`CPB subject "${subjectName}" mark calculated`,data:{subjectName,finalMark:finalMark.toFixed(2),hasMark,sequenceMarks,gradesBySequence:Object.fromEntries(Object.entries(gradesBySequence).map(([k,v])=>[k,v])),sGradesCount:sGrades.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'CPB'})}).catch(()=>{});
-                }
-                // #endregion
-                
+
                 // Log successful mark calculation for target subjects
                 if (isTargetSubject) {
                     console.log(`[${subjectName.toUpperCase()} SUCCESS] Marks calculated successfully:`, {
@@ -1436,7 +1403,7 @@ export async function GET(req: NextRequest) {
         }
 
         if (hasMark) {
-            remark = calculateRemark(finalMark);
+            remark = getRemarkForMark(finalMark);
             
             // Track GCE subjects (only subjects with codes) that are PASSED (marks >= 10)
             if (isGceSubject && finalMark >= 10) {
@@ -1472,7 +1439,7 @@ export async function GET(req: NextRequest) {
                     const assessment = g.assessment as any;
                     const assessSubject = assessment?.subject || '';
                     return subjectNamesMatch(assessSubject, subjectName) &&
-                        isTargetTerm(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
+                        gradeIncludedForReport(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
                 }) || [];
                 const perTermOut = termMode.mode === 'per_term' ? termMode.term : null;
                 const gradesBySeq: Record<number, number[]> = {};
@@ -1480,7 +1447,7 @@ export async function GET(req: NextRequest) {
                 for (const grade of sGradesForOutput) {
                     const assessmentTitle = grade.assessment?.title || '';
                     let globalSeqNum: number | null = null;
-                    if (termMode.mode === 'annual') {
+                    if (yearSummary) {
                         globalSeqNum = resolveGlobalSequenceFromTitle(assessmentTitle, sequenceIdToNumberMap);
                     } else if (perTermOut !== null) {
                         const inTermSeqNum = extractInTermSequenceNumber(assessmentTitle, perTermOut);
@@ -1517,18 +1484,18 @@ export async function GET(req: NextRequest) {
             }
 
             // On term reports, include coefficient only when all sequence marks exist for that term.
-            // On annual reports, require all slots in each term.
+            // On annual / third-term summary table, require all slots in each term.
             let eligibleForCoef = true;
-            if (termMode.mode === 'per_term') {
-                const slots = getGlobalSequenceSlotsForTerm(termMode.term);
-                eligibleForCoef =
-                    slots.length > 0 &&
-                    slots.every((slot) => typeof subjectSequenceMarks[`seq${slot}`] === 'number');
-            } else if (termMode.mode === 'annual') {
+            if (yearSummary) {
                 eligibleForCoef = isAnnualCoefEligible(
                     subjectSequenceMarks,
                     activeTermSequenceCounts
                 );
+            } else if (termMode.mode === 'per_term') {
+                const slots = getGlobalSequenceSlotsForTerm(termMode.term);
+                eligibleForCoef =
+                    slots.length > 0 &&
+                    slots.every((slot) => typeof subjectSequenceMarks[`seq${slot}`] === 'number');
             }
 
             const coef = eligibleForCoef ? subjectCoef : '-';
@@ -1537,6 +1504,10 @@ export async function GET(req: NextRequest) {
             if (eligibleForCoef) {
                 totalScore += finalMark * subjectCoef;
                 totalCoef += subjectCoef;
+                if (thirdTermTable && annualTermAvgsForSubject?.term3 !== undefined) {
+                    footerTotalScore += annualTermAvgsForSubject.term3 * subjectCoef;
+                    footerTotalCoef += subjectCoef;
+                }
                 if (finalMark >= 10) passedCount++;
             }
 
@@ -1544,7 +1515,7 @@ export async function GET(req: NextRequest) {
             const subjectRank = subjectRanks.get(normalizeSubjectName(subjectName)) || 0;
             
             if (
-                termMode.mode === 'annual' &&
+                yearSummary &&
                 !annualTermAvgsForSubject &&
                 Object.keys(subjectSequenceMarks).length > 0
             ) {
@@ -1554,12 +1525,18 @@ export async function GET(req: NextRequest) {
                 );
             }
 
+            const annualAvgForSubject =
+                annualTermAvgsForSubject !== undefined
+                    ? getAnnualAverageFromTermAverages(annualTermAvgsForSubject)
+                    : undefined;
+
             const annualTermFields =
-                termMode.mode === 'annual' && annualTermAvgsForSubject
+                yearSummary && annualTermAvgsForSubject
                     ? {
                           term1: annualTermAvgsForSubject.term1,
                           term2: annualTermAvgsForSubject.term2,
                           term3: annualTermAvgsForSubject.term3,
+                          annualAverage: annualAvgForSubject,
                       }
                     : {};
 
@@ -1574,6 +1551,8 @@ export async function GET(req: NextRequest) {
                 rank: subjectRank, 
                 remark: remark,
                 category: category,
+                hasMark: true,
+                coefEligible: eligibleForCoef,
                 // Include individual sequence marks
                 ...subjectSequenceMarks,
                 ...annualTermFields,
@@ -1592,19 +1571,13 @@ export async function GET(req: NextRequest) {
                 grade: '-',
                 rank: '-',
                 remark: 'No Grade',
-                category: category
+                category: category,
+                hasMark: false,
+                coefEligible: false,
             });
             // Note: Coefficient is set to 0 so subjects without marks don't count toward any calculations
         }
     }
-
-    // #region agent log - CPB in final reportItems
-    const cpbInReportItems = reportItems.filter((item: any) => {
-        const name = (item.name || '').toLowerCase();
-        return name.includes('construction') || name.includes('cpb') || name.includes('bcd') || name.includes('building');
-    });
-    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:cpb-report-items',message:'CPB in final reportItems',data:{count:cpbInReportItems.length,items:cpbInReportItems.map((i:any)=>({name:i.name,eval:i.eval,coef:i.coef,grade:i.grade,seq1:i.seq1,seq2:i.seq2,category:i.category})),totalReportItems:reportItems.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'CPB'})}).catch(()=>{});
-    // #endregion
 
     // Calculate student's rank in class (overall and per subject) using normalized points ranking
     let studentRank = 0;
@@ -1954,7 +1927,7 @@ export async function GET(req: NextRequest) {
                     total: parseFloat(sectionTotal.toFixed(2)),
                     avg: parseFloat(sectionAvg.toFixed(2)),
                     rank: 0, 
-                    remark: calculateRemark(sectionAvg)
+                    remark: getRemarkForMark(sectionAvg)
                 }
             };
         }
@@ -1975,16 +1948,21 @@ export async function GET(req: NextRequest) {
         return coef > 0 ? parseFloat((points / coef).toFixed(2)) : 0;
     };
 
-    const historyTerm1 =
-        termMode.mode === 'annual' ? computeWeightedHistoryAvg(reportItems, 'term1') : 0;
-    const historyTerm2 =
-        termMode.mode === 'annual' ? computeWeightedHistoryAvg(reportItems, 'term2') : 0;
-    const historyTerm3 =
-        termMode.mode === 'annual' ? computeWeightedHistoryAvg(reportItems, 'term3') : 0;
+    const historyTerm1 = yearSummary ? computeWeightedHistoryAvg(reportItems, 'term1') : 0;
+    const historyTerm2 = yearSummary ? computeWeightedHistoryAvg(reportItems, 'term2') : 0;
+    const historyTerm3 = yearSummary ? computeWeightedHistoryAvg(reportItems, 'term3') : 0;
     const historyAnnualAvg =
-        termMode.mode === 'annual' && totalCoef > 0
+        yearSummary && totalCoef > 0
             ? parseFloat((totalScore / totalCoef).toFixed(2))
             : 0;
+
+    const footerCoef = thirdTermTable && footerTotalCoef > 0 ? footerTotalCoef : totalCoef;
+    const footerScore =
+        thirdTermTable && footerTotalCoef > 0
+            ? parseFloat(footerTotalScore.toFixed(2))
+            : parseFloat(totalScore.toFixed(2));
+    const footerAverage =
+        footerCoef > 0 ? parseFloat((footerScore / footerCoef).toFixed(2)) : 0;
 
     const reportData: PisonReportCardData = {
         student: {
@@ -2012,9 +1990,9 @@ export async function GET(req: NextRequest) {
         },
         subjects: subjectSections,
         totals: {
-            coef: totalCoef,
-            score: parseFloat(totalScore.toFixed(2)),
-            average: totalCoef ? parseFloat((totalScore / totalCoef).toFixed(2)) : 0
+            coef: footerCoef,
+            score: footerScore,
+            average: footerAverage,
         },
         history: {
             term1: historyTerm1,
@@ -2043,13 +2021,14 @@ export async function GET(req: NextRequest) {
             gceLanguageSubjects: gceLanguageSubjectsPassed,
             gceOtherSubjects: gceOtherSubjectsPassed,
             gceSubjectsPassed: gceSubjectsPassed,
-        }
+        },
+        discipline: {
+            absences: 0,
+            suspensions: 0,
+            warnings: 0,
+        },
     };
 
-    // #region agent log - success return
-    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:success-return',message:'Function completed successfully',data:{subjectsCount:reportData.subjects?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-    
     return NextResponse.json(reportData, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -2060,9 +2039,6 @@ export async function GET(req: NextRequest) {
 
 
   } catch (error: unknown) {
-    // #region agent log - catch error
-    fetch('http://127.0.0.1:7242/ingest/ff3ab213-6dc0-4d42-bdda-aae2057cebcb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'student-report/route.ts:catch-error',message:'Error caught in GET function',data:{error:error instanceof Error?error.message:String(error),errorStack:error instanceof Error?error.stack:null,errorName:error instanceof Error?error.name:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     console.error('Report Generation Error:', error);
     const message = error instanceof Error ? error.message : 'Internal Server Error';
     return NextResponse.json(
@@ -2070,22 +2046,6 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-function calculateGrade(mark: number) {
-    if (mark >= 17) return 'A';
-    if (mark >= 14) return 'B';
-    if (mark >= 10) return 'C';
-    if (mark >= 7) return 'D';
-    return 'U';
-}
-
-function calculateRemark(mark: number) {
-    if (mark >= 17) return 'Excellent';
-    if (mark >= 14) return 'Very Good';
-    if (mark >= 10) return 'Passed';
-    if (mark >= 7) return 'Failed';
-    return 'Very Weak';
 }
 
 /**

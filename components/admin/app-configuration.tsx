@@ -48,7 +48,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { useAppConfiguration } from "@/lib/app-configuration-context-v2"
+import { useAppConfiguration, type AppConfiguration } from "@/lib/app-configuration-context-v2"
 import {
   useSequenceConfiguration,
   useUpdateSequenceConfiguration,
@@ -60,6 +60,7 @@ import {
   type TermSequenceCounts,
   validateSequenceConfig,
 } from "@/lib/sequence-term-mapping"
+import { sequenceConfigMatchesSaved } from "@/lib/sequence-config-save-state"
 
 // Form validation schema
 const configurationSchema = z.object({
@@ -103,6 +104,89 @@ function getAcademicYearOptions() {
     previous: previousYear,
     current: currentYearOption,
     next: nextYear
+  }
+}
+
+function normStr(value: string | null | undefined): string {
+  return (value ?? "").trim()
+}
+
+function appConfigMatchesSaved(
+  data: ConfigurationFormData,
+  saved: AppConfiguration | undefined
+): boolean {
+  if (!saved) return false
+  if (!saved.id && normStr(saved.school_name) === "Pison Academy") return false
+
+  return (
+    normStr(data.school_name) === normStr(saved.school_name) &&
+    normStr(data.school_logo_url) === normStr(saved.school_logo_url) &&
+    normStr(data.school_logo_alt_text) === normStr(saved.school_logo_alt_text) &&
+    normStr(data.school_address) === normStr(saved.school_address) &&
+    normStr(data.school_phone) === normStr(saved.school_phone) &&
+    normStr(data.school_email) === normStr(saved.school_email) &&
+    normStr(data.school_website) === normStr(saved.school_website) &&
+    normStr(data.school_motto) === normStr(saved.school_motto) &&
+    data.primary_color === saved.primary_color &&
+    data.secondary_color === saved.secondary_color &&
+    data.academic_year === saved.academic_year &&
+    data.currency === saved.currency &&
+    data.timezone === saved.timezone &&
+    data.language === saved.language &&
+    data.date_format === saved.date_format &&
+    data.time_format === saved.time_format
+  )
+}
+
+function showSaveResultToasts(options: {
+  appUnchanged: boolean
+  seqUnchanged: boolean
+  appSaveOk: boolean
+  sequenceSaveOk: boolean
+  seqValidationValid: boolean
+}) {
+  const { appUnchanged, seqUnchanged, appSaveOk, sequenceSaveOk, seqValidationValid } =
+    options
+
+  if (appUnchanged && seqUnchanged) {
+    toast.info("Already saved", {
+      description: "No changes were detected. Your configuration is already up to date.",
+    })
+    return
+  }
+
+  if (appSaveOk && sequenceSaveOk) {
+    if (!appUnchanged && !seqUnchanged) {
+      toast.success("Configuration saved", {
+        description: "App and sequence settings were saved successfully.",
+      })
+    } else if (!appUnchanged) {
+      toast.success("App settings saved", {
+        description: "System settings were updated. Sequence configuration was already saved.",
+      })
+    } else {
+      toast.success("Sequence configuration saved", {
+        description: "Sequence settings were updated. App configuration was already saved.",
+      })
+    }
+    return
+  }
+
+  if (appSaveOk && !sequenceSaveOk && seqValidationValid && !seqUnchanged) {
+    toast.warning("Partially saved", {
+      description: appUnchanged
+        ? "Sequence configuration could not be saved. Please try again."
+        : "App settings were saved, but sequence configuration could not be saved. Please try again.",
+    })
+    return
+  }
+
+  if (appSaveOk && !seqValidationValid && !seqUnchanged) {
+    toast.warning("Partially saved", {
+      description: appUnchanged
+        ? "Sequence configuration is invalid and was not saved."
+        : "App settings were saved, but sequence configuration is invalid and was not saved.",
+    })
   }
 }
 
@@ -189,14 +273,39 @@ export function AppConfiguration() {
   const onSubmit = async (data: ConfigurationFormData) => {
     setIsSaving(true)
     try {
-      const success = await updateConfiguration(data)
+      const academicYear = data.academic_year || currentAcademicYear
+      const appUnchanged = appConfigMatchesSaved(data, configuration)
+      const seqUnchanged = sequenceConfigMatchesSaved(
+        loadedSeqConfig,
+        totalSequences,
+        termSequenceCounts,
+        defaultMaxMarks
+      )
 
-      if (success) {
-        const seqValidation = validateSequenceConfig(totalSequences, termSequenceCounts)
-        let sequenceSaveOk = false
+      if (appUnchanged && seqUnchanged) {
+        toast.info("Already saved", {
+          description: "No changes were detected. Your configuration is already up to date.",
+        })
+        return
+      }
 
+      let appSaveOk = appUnchanged
+      if (!appUnchanged) {
+        appSaveOk = await updateConfiguration(data)
+        if (!appSaveOk) {
+          toast.error("Update failed", {
+            description: error || "Failed to update app configuration. Please try again.",
+          })
+          return
+        }
+      }
+
+      const seqValidation = validateSequenceConfig(totalSequences, termSequenceCounts)
+      let sequenceSaveOk = seqUnchanged
+
+      if (!seqUnchanged) {
         if (!seqValidation.valid) {
-          toast.error("Sequence Configuration Error", {
+          toast.error("Sequence configuration error", {
             description: seqValidation.error,
           })
         } else {
@@ -209,12 +318,11 @@ export function AppConfiguration() {
               `${seq6Count} grade row(s) still use the 6th sequence. Saving with 5 sequences will deactivate sequence 6 (marks remain in the database). Continue?`
             )
           ) {
-            setIsSaving(false)
             return
           }
           try {
             const seqResult = await updateSequenceConfig.mutateAsync({
-              academicYear: data.academic_year || currentAcademicYear,
+              academicYear,
               totalSequences,
               termSequenceCounts,
               defaultMaxMarks,
@@ -226,7 +334,7 @@ export function AppConfiguration() {
               })
             }
           } catch (seqError) {
-            toast.error("Sequence Configuration Error", {
+            toast.error("Sequence configuration error", {
               description:
                 seqError instanceof Error
                   ? seqError.message
@@ -234,33 +342,22 @@ export function AppConfiguration() {
             })
           }
         }
-
-        if (sequenceSaveOk) {
-          toast.success("Configuration Updated", {
-            description: "App and sequence settings were saved successfully.",
-          })
-        } else if (seqValidation.valid) {
-          toast.warning("Partially saved", {
-            description:
-              "App settings were saved, but sequence configuration could not be saved. Please try again.",
-          })
-        } else {
-          toast.warning("Partially saved", {
-            description:
-              "App settings were saved, but sequence configuration is invalid and was not saved.",
-          })
-        }
-      } else {
-        // Use the error from context if available, otherwise show generic message
-        const errorMessage = error || "Failed to update configuration. Please try again."
-        toast.error("Update Failed", {
-          description: errorMessage
-        })
       }
+
+      showSaveResultToasts({
+        appUnchanged,
+        seqUnchanged,
+        appSaveOk,
+        sequenceSaveOk,
+        seqValidationValid: seqValidation.valid,
+      })
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : (error || "An unexpected error occurred. Please try again.")
-      toast.error("Update Failed", {
-        description: errorMessage
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : error || "An unexpected error occurred. Please try again."
+      toast.error("Update failed", {
+        description: errorMessage,
       })
     } finally {
       setIsSaving(false)

@@ -12,7 +12,7 @@
     "db:link": "npx supabase@2.98.2 link --project-ref vzpwkfjthjaxotyebmui --yes",
     "db:push": "npx supabase@2.98.2 db push --linked",
     "db:migrate:sequences": "npx supabase@2.98.2 db query -f supabase/migrations/20260518025219_sequence_term_counts.sql --linked",
-    "test:sequence-config": "npx --yes tsx --test lib/resolve-sequence-year-config.test.ts"
+    "test:sequence-config": "npx --yes tsx --test lib/resolve-sequence-year-config.test.ts lib/sequence-config-save-state.test.ts lib/report-card-transform.test.ts lib/report-card-year-summary.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "latest",

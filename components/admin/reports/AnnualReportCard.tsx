@@ -19,6 +19,8 @@ import {
   getAnnualAverageFromTermAverages,
   type TermSequenceCounts,
 } from '@/lib/sequence-term-mapping'
+import { calculateGrade, getGradeRemarks, isNegativeRemark } from '@/lib/grading-utils'
+import { REPORT_CARD_CATEGORIES } from '@/lib/report-card-transform'
 
 import { SubjectGrade } from './report-card-types'
 import {
@@ -97,35 +99,35 @@ function getSubjectTermAvg(
   return getTermAveragesFromSequenceMarks(subject, termCounts)[key]
 }
 
-function getSubjectAnnualAvg(subject: SubjectGrade, termCounts: TermSequenceCounts): number {
-  if (typeof subject.annualAverage === 'number') return subject.annualAverage
-  const termAvgs = getTermAveragesFromSequenceMarks(subject, termCounts)
-  return getAnnualAverageFromTermAverages(termAvgs) ?? 0
-}
-
-function calculateGrade(mark: number): string {
-  if (mark >= 17) return 'A'
-  if (mark >= 14) return 'B'
-  if (mark >= 12) return 'C'
-  if (mark >= 10) return 'D'
-  if (mark >= 7) return 'E'
-  return 'F'
-}
-
-function calculateRemarks(grade: string): string {
-  switch (grade) {
-    case 'A': return 'Excellent'
-    case 'B': return 'Very Good'
-    case 'C': return 'Good'
-    case 'D': return 'Pass'
-    case 'E': return 'Weak'
-    case 'F': return 'Fail'
-    default: return ''
+function getSubjectAnnualAvg(
+  subject: SubjectGrade,
+  termCounts: TermSequenceCounts
+): number | undefined {
+  if (typeof subject.annualAverage === 'number' && !Number.isNaN(subject.annualAverage)) {
+    return subject.annualAverage
   }
+  if (typeof subject.termAverage === 'number' && !Number.isNaN(subject.termAverage)) {
+    return subject.termAverage
+  }
+  const termAvgs = getTermAveragesFromSequenceMarks(subject, termCounts)
+  return getAnnualAverageFromTermAverages(termAvgs)
+}
+
+function subjectHasMark(subject: SubjectGrade): boolean {
+  if (subject.hasMark === true) return true
+  if (subject.hasMark === false) return false
+  return typeof subject.annualAverage === 'number' && !Number.isNaN(subject.annualAverage)
+}
+
+function subjectCoefEligible(subject: SubjectGrade): boolean {
+  if (subject.coefEligible === true) return true
+  if (subject.coefEligible === false) return false
+  return subject.coefficient > 0
 }
 
 function getCategoryLabel(category: string | undefined): string {
   switch (category) {
+    case 'general': return 'GENERAL'
     case 'languages': return 'LANGUAGES'
     case 'related_trade_subjects': return 'R.T.S'
     case 'trade_subjects': return 'TRADE SUBJECTS'
@@ -136,6 +138,7 @@ function getCategoryLabel(category: string | undefined): string {
 
 function getCategoryFullLabel(category: string | undefined): string {
   switch (category) {
+    case 'general': return 'GENERAL SUBJECTS'
     case 'languages': return 'LANGUAGES'
     case 'related_trade_subjects': return 'RELATED TRADE SUBJECTS'
     case 'trade_subjects': return 'TRADE SUBJECTS'
@@ -232,67 +235,57 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
     [termCounts]
   )
 
-  // Group subjects by category
-  const categoryOrder = React.useMemo(() => [
-    'general',
-    'science',
-    'arts',
-    'languages',
-    'related_trade_subjects',
-    'trade_subjects',
-    'other_subjects'
-  ], [])
+  const categoryOrder = React.useMemo(() => [...REPORT_CARD_CATEGORIES], [])
 
   const groupedSubjects = React.useMemo(() => {
     if (!data?.subjects) return []
-    const groups: Record<string, typeof data.subjects> = {
-      general: [],
-      science: [],
-      arts: [],
-      languages: [],
-      related_trade_subjects: [],
-      trade_subjects: [],
-      other_subjects: []
-    }
+    const groups: Record<string, typeof data.subjects> = Object.fromEntries(
+      categoryOrder.map((c) => [c, [] as typeof data.subjects])
+    )
 
-    data.subjects.forEach(subject => {
-      const category = subject.category === 'others' ? 'other_subjects' : (subject.category || 'other_subjects')
-      groups[category] = groups[category] || []
+    data.subjects.forEach((subject) => {
+      const category = subject.category && groups[subject.category] ? subject.category : 'others'
       groups[category].push(subject)
     })
 
-    return categoryOrder.map(category => ({
-      category,
-      subjects: groups[category] || []
-    })).filter(group => group.subjects.length > 0)
+    return categoryOrder
+      .map((category) => ({
+        category,
+        subjects: groups[category] || [],
+      }))
+      .filter((group) => group.subjects.length > 0)
   }, [categoryOrder, data.subjects])
 
-  // Calculate category summaries
-  // Only include coefficients for subjects that have marks (coefficient > 0)
   const calculateCategorySummary = (subjects: typeof data.subjects, category: string) => {
-    // Only count coefficients for subjects with marks (coefficient > 0)
-    const coef = subjects.reduce((sum, s) => sum + (s.coefficient > 0 ? s.coefficient : 0), 0)
+    const coef = subjects.reduce(
+      (sum, s) => sum + (subjectCoefEligible(s) ? s.coefficient : 0),
+      0
+    )
     const totalScore = subjects.reduce((sum, s) => {
-      // Skip subjects without marks (coefficient = 0)
-      if (s.coefficient === 0) return sum
+      if (!subjectCoefEligible(s)) return sum
       const avg = annualAverageFromSubject(s)
-      return sum + (avg * s.coefficient)
+      if (avg === undefined) return sum
+      return sum + avg * s.coefficient
     }, 0)
     const avg = coef > 0 ? totalScore / coef : 0
     const validRanks = subjects.map(s => s.rank ?? 0).filter(r => r > 0)
     const rank = validRanks.length > 0 ? Math.min(...validRanks) : 0
     const passed = subjects.filter(s => {
-      // Skip subjects without marks
-      if (s.coefficient === 0) return false
+      if (!subjectCoefEligible(s)) return false
       const avg = annualAverageFromSubject(s)
-      return avg >= 10
+      return avg !== undefined && avg >= 10
     }).length
-    
-    // Generate remark based on category and pass/fail status
-    const categoryName = category === 'languages' ? 'languages' :
-                        category === 'related_trade_subjects' ? 'related trade subjects' :
-                        category === 'trade_subjects' ? 'trade subjects' :
-                        'other subjects'
+
+    const categoryName =
+      category === 'general'
+        ? 'general subjects'
+        : category === 'languages'
+          ? 'languages'
+          : category === 'related_trade_subjects'
+            ? 'related trade subjects'
+            : category === 'trade_subjects'
+              ? 'trade subjects'
+              : 'other subjects'
     const remark = avg >= 10 
       ? `Pass in ${categoryName}` 
       : `Fail in ${categoryName}`
@@ -324,22 +317,30 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
 
     const isPassed = (s: SubjectGrade) => {
       const avg = annualAverageFromSubject(s)
-      return avg >= 10
+      return avg !== undefined && avg >= 10
     }
 
     const isGcePassed = (s: SubjectGrade) =>
-      s.coefficient > 0 && hasGceSubjectCode(s.code) && isPassed(s)
-    
-    const tradePassed = groupedSubjects.find(g => g.category === 'trade_subjects')?.subjects.filter(isGcePassed).length || 0
-    const relatedPassed = groupedSubjects.find(g => g.category === 'related_trade_subjects')?.subjects.filter(isGcePassed).length || 0
-    
-    const generalPassed = groupedSubjects.find(g => g.category === 'general')?.subjects.filter(isGcePassed).length || 0
-    const sciencePassed = groupedSubjects.find(g => g.category === 'science')?.subjects.filter(isGcePassed).length || 0
-    const artsPassed = groupedSubjects.find(g => g.category === 'arts')?.subjects.filter(isGcePassed).length || 0
-    const languagesPassed = groupedSubjects.find(g => g.category === 'languages')?.subjects.filter(isGcePassed).length || 0
-    const otherSubjectsPassed = groupedSubjects.find(g => g.category === 'other_subjects')?.subjects.filter(isGcePassed).length || 0
+      subjectHasMark(s) && hasGceSubjectCode(s.code) && isPassed(s)
 
-    const otherPassed = generalPassed + sciencePassed + artsPassed + languagesPassed + otherSubjectsPassed
+    const tradePassed =
+      groupedSubjects.find((g) => g.category === 'trade_subjects')?.subjects.filter(isGcePassed)
+        .length || 0
+    const relatedPassed =
+      groupedSubjects.find((g) => g.category === 'related_trade_subjects')?.subjects.filter(
+        isGcePassed
+      ).length || 0
+
+    const generalPassed =
+      groupedSubjects.find((g) => g.category === 'general')?.subjects.filter(isGcePassed).length ||
+      0
+    const languagesPassed =
+      groupedSubjects.find((g) => g.category === 'languages')?.subjects.filter(isGcePassed)
+        .length || 0
+    const othersPassed =
+      groupedSubjects.find((g) => g.category === 'others')?.subjects.filter(isGcePassed).length || 0
+
+    const otherPassed = generalPassed + languagesPassed + othersPassed
 
     const passed = groupedSubjects.reduce((sum, group) => sum + group.subjects.filter(isGcePassed).length, 0)
     
@@ -1079,9 +1080,22 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
                         const t2 = getSubjectTermAvg(subject, 2, termCounts)
                         const t3 = getSubjectTermAvg(subject, 3, termCounts)
                         const avg = annualAverageFromSubject(subject)
-                        const totalScore = subject.coefficient > 0 ? avg * subject.coefficient : 0
-                        const grade = subject.grade || calculateGrade(avg)
-                        const remarks = subject.remarks || calculateRemarks(grade)
+                        const eligible = subjectCoefEligible(subject)
+                        const hasMark = subjectHasMark(subject)
+                        const totalScore =
+                          eligible && avg !== undefined ? avg * subject.coefficient : undefined
+                        const grade =
+                          hasMark && subject.grade && subject.grade !== '-'
+                            ? subject.grade
+                            : hasMark && avg !== undefined
+                              ? calculateGrade(avg)
+                              : '-'
+                        const remarks =
+                          hasMark && subject.remarks && subject.remarks !== 'No Grade'
+                            ? subject.remarks
+                            : hasMark && avg !== undefined
+                              ? getGradeRemarks(calculateGrade(avg))
+                              : subject.remarks || '-'
 
                         return (
                           <tr 
@@ -1124,12 +1138,12 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
                             <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}>{formatMark(t1)}</td>
                             <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}>{formatMark(t2)}</td>
                             <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}>{formatMark(t3)}</td>
-                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}>{subject.coefficient > 0 && avg > 0 ? avg.toFixed(2) : '-'}</td>
-                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}>{totalScore > 0 ? totalScore.toFixed(0) : '-'}</td>
-                            <td className={`p-1 print:p-0.5 border-r border-gray-300 text-center font-bold ${grade === 'F' || grade === 'E' || grade === 'U' ? 'text-red-600' : ''}`} style={{ border: '1px solid #d1d5db', padding: '4px 6px', color: (grade === 'F' || grade === 'E' || grade === 'U') ? '#dc2626' : 'inherit' }}>
+                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}>{hasMark && avg !== undefined ? avg.toFixed(2) : '-'}</td>
+                            <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}>{totalScore !== undefined ? totalScore.toFixed(0) : '-'}</td>
+                            <td className={`p-1 print:p-0.5 border-r border-gray-300 text-center font-bold ${grade === 'D' || grade === 'U' ? 'text-red-600' : ''}`} style={{ border: '1px solid #d1d5db', padding: '4px 6px', color: grade === 'D' || grade === 'U' ? '#dc2626' : 'inherit' }}>
                               {grade}
                             </td>
-                            <td className={`p-1 print:p-0.5 ${remarks.includes('Fail') || remarks.includes('Weak') || remarks.includes('Very weak') ? 'text-red-600' : 'text-green-700'}`} style={{ padding: '4px 6px', color: (remarks.includes('Fail') || remarks.includes('Weak') || remarks.includes('Very weak')) ? '#dc2626' : '#15803d' }}>
+                            <td className={`p-1 print:p-0.5 ${isNegativeRemark(remarks) ? 'text-red-600' : 'text-green-700'}`} style={{ padding: '4px 6px', color: isNegativeRemark(remarks) ? '#dc2626' : '#15803d' }}>
                               {remarks}
                             </td>
                           </tr>

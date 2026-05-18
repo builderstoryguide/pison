@@ -49,6 +49,18 @@ export function getGradeRemarks(grade: string): string {
   }
 }
 
+/** Letter-grade remark from a numeric mark (report cards, student-report). */
+export function getRemarkForMark(mark: number): string {
+  return getGradeRemarks(calculateGrade(mark))
+}
+
+/** Whether a remark should use negative (red) styling on report cards. */
+export function isNegativeRemark(remark: string): boolean {
+  const normalized = remark.trim().toLowerCase()
+  if (!normalized) return false
+  return normalized.includes('fail') || normalized.includes('weak')
+}
+
 /**
  * Calculate total marks by applying coefficient
  * @param mark - Raw mark

@@ -1,5 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
-import type { ReportCardData } from '@/components/admin/reports/report-card-types'
+import type { DisciplineInfo, ReportCardData } from '@/components/admin/reports/report-card-types'
+import { flattenPisonSubjects } from '@/lib/report-card-transform'
+
+const DEFAULT_DISCIPLINE: DisciplineInfo = {
+  absences: 0,
+  suspensions: 0,
+  warnings: 0,
+}
 
 export type LoadReportCardResult =
   | { ok: true; data: ReportCardData }
@@ -126,14 +133,19 @@ export async function loadReportCardData(options: {
       return { ok: false, status: 500, error: 'Invalid report data structure' }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allSubjects: any[] = []
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    Object.values(reportResult.subjects).forEach((section: any) => {
-      if (section.items && Array.isArray(section.items)) {
-        allSubjects.push(...section.items)
-      }
-    })
+    const subjects = flattenPisonSubjects(reportResult.subjects ?? {})
+
+    const discipline: DisciplineInfo =
+      reportResult.discipline &&
+      typeof reportResult.discipline.absences === 'number' &&
+      typeof reportResult.discipline.suspensions === 'number' &&
+      typeof reportResult.discipline.warnings === 'number'
+        ? {
+            absences: reportResult.discipline.absences,
+            suspensions: reportResult.discipline.suspensions,
+            warnings: reportResult.discipline.warnings,
+          }
+        : DEFAULT_DISCIPLINE
 
     const transformedData: ReportCardData = {
       student: {
@@ -157,52 +169,7 @@ export async function loadReportCardData(options: {
         term: reportResult.academic.term,
         orderNo: reportResult.academic.orderNo,
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      subjects: allSubjects.map((item: any) => {
-        const validCategories = ['languages', 'related_trade_subjects', 'trade_subjects', 'others']
-        const itemCategory = item.category || 'others'
-        const category = validCategories.includes(itemCategory) ? itemCategory : 'others'
-
-        const rawCode = item.code
-        const code =
-          typeof rawCode === 'string' && rawCode.trim().length > 0 ? rawCode.trim() : undefined
-
-        return {
-          subjectName: item.name,
-          subjectId: item.subjectId,
-          code,
-          coefficient: item.coef,
-          plannedCoefficient: typeof item.plannedCoef === 'number' ? item.plannedCoef : undefined,
-          seq1: typeof item.seq1 === 'number' ? item.seq1 : undefined,
-          seq2: typeof item.seq2 === 'number' ? item.seq2 : undefined,
-          seq3: typeof item.seq3 === 'number' ? item.seq3 : undefined,
-          seq4: typeof item.seq4 === 'number' ? item.seq4 : undefined,
-          seq5: typeof item.seq5 === 'number' ? item.seq5 : undefined,
-          seq6: typeof item.seq6 === 'number' ? item.seq6 : undefined,
-          sequences: {
-            seq1: typeof item.seq1 === 'number' ? item.seq1 : undefined,
-            seq2: typeof item.seq2 === 'number' ? item.seq2 : undefined,
-            seq3: typeof item.seq3 === 'number' ? item.seq3 : undefined,
-            seq4: typeof item.seq4 === 'number' ? item.seq4 : undefined,
-            seq5: typeof item.seq5 === 'number' ? item.seq5 : undefined,
-            seq6: typeof item.seq6 === 'number' ? item.seq6 : undefined,
-          },
-          termAverage: typeof item.eval === 'number' ? item.eval : undefined,
-          annualAverage: typeof item.eval === 'number' ? item.eval : undefined,
-          term1: typeof item.term1 === 'number' ? item.term1 : undefined,
-          term2: typeof item.term2 === 'number' ? item.term2 : undefined,
-          term3: typeof item.term3 === 'number' ? item.term3 : undefined,
-          termAverages: {
-            term1: typeof item.term1 === 'number' ? item.term1 : undefined,
-            term2: typeof item.term2 === 'number' ? item.term2 : undefined,
-            term3: typeof item.term3 === 'number' ? item.term3 : undefined,
-          },
-          grade: item.grade,
-          rank: typeof item.rank === 'number' ? item.rank : undefined,
-          remarks: item.remark,
-          category,
-        }
-      }),
+      subjects,
       totals: {
         coefficient: reportResult.totals.coef,
         totalScore: reportResult.totals.score,
@@ -210,11 +177,7 @@ export async function loadReportCardData(options: {
       },
       history: reportResult.history,
       stats: reportResult.stats,
-      discipline: {
-        absences: 0,
-        suspensions: 0,
-        warnings: 0,
-      },
+      discipline,
       watermarkUrl: reportResult.watermarkUrl,
     }
 

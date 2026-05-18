@@ -20,7 +20,13 @@ import {
   averageSequenceMarks,
   getGlobalSlotsForTerm,
 } from '@/lib/sequence-term-mapping'
+import {
+  getSubjectAnnualAvg,
+  subjectCoefEligibleForYearSummary,
+} from '@/lib/report-card-term-averages'
 import { EditMarkDialog } from './EditMarkDialog'
+import { ThirdTermYearSummaryGradesTable } from './ThirdTermYearSummaryGradesTable'
+import { isNegativeRemark } from '@/lib/grading-utils'
 
 import { SubjectGrade } from './report-card-types'
 import {
@@ -79,6 +85,7 @@ interface TermReportCardProps {
       term1?: number
       term2?: number
       term3?: number
+      annualAvg?: number
       rank?: number
     }
   }
@@ -115,6 +122,7 @@ function calculateRemarks(grade: string): string {
 
 function getCategoryLabel(category: string | undefined): string {
   switch (category) {
+    case 'general': return 'GENERAL'
     case 'languages': return 'LANGUAGES'
     case 'related_trade_subjects': return 'R.T.S'
     case 'trade_subjects': return 'TRADE SUBJECTS'
@@ -125,6 +133,7 @@ function getCategoryLabel(category: string | undefined): string {
 
 function getCategoryFullLabel(category: string | undefined): string {
   switch (category) {
+    case 'general': return 'GENERAL SUBJECTS'
     case 'languages': return 'LANGUAGES'
     case 'related_trade_subjects': return 'RELATED TRADE SUBJECTS'
     case 'trade_subjects': return 'TRADE SUBJECTS'
@@ -233,6 +242,7 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
 
   const term = data.academic.term
   const termName = TERM_NAMES[term]
+  const isThirdTermSummary = term === 3
 
   const { data: seqConfig } = useSequenceConfiguration(data.academic.year)
   const termCounts = seqConfig?.termSequenceCounts ?? DEFAULT_TERM_COUNTS
@@ -265,6 +275,17 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
     },
     [getSequenceValues]
   )
+
+  const tableAnnualAvg = data.history?.annualAvg ?? data.totals.average
+
+  const yearSummaryTableTotalScore = React.useMemo(() => {
+    return data.subjects.reduce((sum, s) => {
+      if (!subjectCoefEligibleForYearSummary(s)) return sum
+      const avg = getSubjectAnnualAvg(s, termCounts)
+      if (avg === undefined) return sum
+      return sum + avg * s.coefficient
+    }, 0)
+  }, [data.subjects, termCounts])
 
   // Handle click on sequence cell
   const handleSequenceClick = (subject: SubjectGrade, sequencePosition: number) => {
@@ -1160,6 +1181,16 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
           {/* Grades Table */}
           <div className="border border-black mb-1 print:mb-0.5 overflow-hidden relative z-10 bg-white/90" style={{ border: '1px solid #000' }}>
             <table className="w-full text-left border-collapse" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+              {isThirdTermSummary ? (
+                <ThirdTermYearSummaryGradesTable
+                  subjects={data.subjects}
+                  termCounts={termCounts}
+                  totalCoefficient={data.totals.coefficient}
+                  totalScore={yearSummaryTableTotalScore}
+                  tableAnnualAvg={tableAnnualAvg}
+                />
+              ) : (
+                <>
               <thead className="bg-gray-100 text-[0.55rem] print:text-[7pt] uppercase font-bold border-b border-black" style={{ backgroundColor: '#E0E0E0' }}>
                 <tr style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                   <th className="p-1 print:p-0.5 border-r border-black w-12 print:w-10" style={{ fontSize: '7pt', width: '8%', border: '1px solid #000', padding: '4px 6px' }}></th>
@@ -1268,7 +1299,7 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
                             <td className={`p-1 print:p-0.5 border-r border-gray-300 text-center font-bold ${grade === 'F' || grade === 'E' || grade === 'U' ? 'text-red-600' : ''}`} style={{ border: '1px solid #d1d5db', padding: '4px 6px', color: (grade === 'F' || grade === 'E' || grade === 'U') ? '#dc2626' : 'inherit' }}>
                               {grade}
                             </td>
-                            <td className={`p-1 print:p-0.5 ${remarks.includes('Fail') || remarks.includes('Weak') || remarks.includes('Very weak') ? 'text-red-600' : 'text-green-700'}`} style={{ padding: '4px 6px', color: (remarks.includes('Fail') || remarks.includes('Weak') || remarks.includes('Very weak')) ? '#dc2626' : '#15803d' }}>
+                            <td className={`p-1 print:p-0.5 ${isNegativeRemark(remarks) ? 'text-red-600' : 'text-green-700'}`} style={{ padding: '4px 6px', color: isNegativeRemark(remarks) ? '#dc2626' : '#15803d' }}>
                               {remarks}
                             </td>
                           </tr>
@@ -1316,6 +1347,8 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
                   <td colSpan={2} className="bg-gray-100" style={{ backgroundColor: '#CCCCCC', padding: '4px 6px' }}></td>
                 </tr>
               </tbody>
+                </>
+              )}
             </table>
           </div>
 

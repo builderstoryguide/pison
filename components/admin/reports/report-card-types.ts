@@ -7,7 +7,16 @@ export interface SubjectGrade {
   coefficient: number
   /** From class_subjects when there are no marks yet (display only; totals use coefficient) */
   plannedCoefficient?: number
-  category?: 'languages' | 'related_trade_subjects' | 'trade_subjects' | 'others'
+  /** True when the server computed a numeric mark for this subject */
+  hasMark?: boolean
+  /** True when this subject's coefficient counts toward annual totals */
+  coefEligible?: boolean
+  category?:
+    | 'general'
+    | 'languages'
+    | 'related_trade_subjects'
+    | 'trade_subjects'
+    | 'others'
   sequences?: {
     seq1?: number
     seq2?: number
@@ -76,6 +85,7 @@ export interface StatsInfo {
   gceSubjectsPassed?: number
 }
 
+/** Placeholder until a discipline/conduct table is wired; defaults come from student-report API. */
 export interface DisciplineInfo {
   absences: number
   suspensions: number
@@ -140,5 +150,6 @@ export interface PisonReportCardData {
   }
   history: HistoryInfo
   stats: StatsInfo
+  discipline?: DisciplineInfo
   watermarkUrl?: string
 }
