@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React, { useState, useRef } from "react"
 import { useForm } from "react-hook-form"
@@ -22,7 +22,6 @@ import {
   Loader2,
   Eye,
   EyeOff,
-  ListOrdered,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -31,7 +30,6 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import {
   Form,
   FormControl,
@@ -51,7 +49,17 @@ import {
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { useAppConfiguration } from "@/lib/app-configuration-context-v2"
-import { useSequenceConfiguration, useUpdateSequenceConfiguration, useReassignSequence, type SequenceAssignment } from "@/hooks/use-sequence-configuration"
+import {
+  useSequenceConfiguration,
+  useUpdateSequenceConfiguration,
+} from "@/hooks/use-sequence-configuration"
+import { SequenceConfigurationPanel } from "@/components/admin/sequence-configuration-panel"
+import {
+  DEFAULT_TERM_COUNTS,
+  DEFAULT_TOTAL_SEQUENCES,
+  type TermSequenceCounts,
+  validateSequenceConfig,
+} from "@/lib/sequence-term-mapping"
 
 // Form validation schema
 const configurationSchema = z.object({
@@ -113,179 +121,13 @@ export function AppConfiguration() {
   // Get academic year from System Settings
   const currentAcademicYear = configuration?.academic_year || academicYearOptions.current
 
-  // Sequence configuration state
-  const [numberOfSequences, setNumberOfSequences] = useState<number>(6)
+  const [totalSequences, setTotalSequences] = useState<5 | 6>(DEFAULT_TOTAL_SEQUENCES)
   const [defaultMaxMarks, setDefaultMaxMarks] = useState<number>(20)
-  const [sequenceAssignments, setSequenceAssignments] = useState<SequenceAssignment[]>([])
+  const [termSequenceCounts, setTermSequenceCounts] = useState<TermSequenceCounts>({
+    ...DEFAULT_TERM_COUNTS,
+  })
 
-  // Fetch sequence configuration (per academic year) - uses academic year from System Settings
-  const { data: seqConfigData, isLoading: loadingSeqConfig } = useSequenceConfiguration(
-    currentAcademicYear
-  )
   const updateSequenceConfig = useUpdateSequenceConfiguration()
-  const reassignSequence = useReassignSequence()
-
-  // Track if we've initialized from loaded data to prevent unnecessary resets during refetches
-  const lastLoadedDataKey = useRef<string>('')
-  const lastAcademicYear = useRef<string>('')
-  const hasLoadedOnce = useRef<boolean>(false)
-
-    // Simplified state synchronization
-    React.useEffect(() => {
-      // Skip if still loading configuration - wait for it to load to get correct academic year
-      if (isLoading) return
-      
-      // Skip if loading sequence config or no data
-      if (loadingSeqConfig || !seqConfigData) return
-
-      // If we have sequences, update state
-      if (seqConfigData.sequences && seqConfigData.sequences.length > 0) {
-        const activeSequences = seqConfigData.sequences.filter(seq => seq.is_active)
-        
-        // Calculate data key to prevent unnecessary updates/loops
-        const dataKey = JSON.stringify(
-          activeSequences.map(seq => ({ num: seq.sequence_number, term: seq.term })).sort((a, b) => a.num - b.num)
-        )
-
-        // Only update if data is different from what we last loaded
-        if (dataKey !== lastLoadedDataKey.current) {
-          setNumberOfSequences(activeSequences.length || 6)
-          
-          if (seqConfigData.configuration) {
-            setDefaultMaxMarks(seqConfigData.configuration.default_max_marks || 20)
-          } else if (activeSequences.length > 0) {
-            setDefaultMaxMarks(activeSequences[0].max_marks || 20)
-          }
-          
-          const assignments: SequenceAssignment[] = activeSequences.map(seq => ({
-            sequenceNumber: seq.sequence_number,
-            term: seq.term
-          }))
-          setSequenceAssignments(assignments)
-          
-          lastLoadedDataKey.current = dataKey
-          lastAcademicYear.current = currentAcademicYear
-          hasLoadedOnce.current = true
-        }
-      } else if (!loadingSeqConfig && (!seqConfigData.sequences || seqConfigData.sequences.length === 0)) {
-        // Only reset to defaults if:
-        // 1. Configuration has actually loaded (has ID or is not default) - not just using fallback
-        // 2. We've loaded at least once (to avoid resetting on initial load with wrong academic year)
-        // 3. The academic year has actually changed
-        const configHasLoaded = configuration && (configuration.id || configuration.school_name !== 'Pison Academy')
-        
-        // Don't reset if configuration hasn't loaded yet - wait for real config to load
-        if (!configHasLoaded && !hasLoadedOnce.current) {
-          return // Wait for configuration to load before making decisions
-        }
-        
-        // Only reset if academic year changed and we've loaded at least once
-        if (lastAcademicYear.current !== currentAcademicYear && hasLoadedOnce.current) {
-          setNumberOfSequences(6)
-          setDefaultMaxMarks(20)
-          setSequenceAssignments([])
-          lastAcademicYear.current = currentAcademicYear
-          lastLoadedDataKey.current = ''
-        } else if (!hasLoadedOnce.current && lastAcademicYear.current !== currentAcademicYear) {
-          // First load with this academic year - mark it but don't reset yet
-          lastAcademicYear.current = currentAcademicYear
-        }
-      }
-    }, [seqConfigData, loadingSeqConfig, currentAcademicYear, isLoading, configuration])
-
-  // Handle sequence reassignment (optimistic update)
-  const handleReassignSequence = (sequenceNumber: number, newTerm: string) => {
-
-    
-    // Validate that term is not empty
-    if (!newTerm || newTerm.trim() === '') {
-
-      toast.error("Reassignment Failed", {
-        description: "Please select a valid term for the sequence."
-      })
-      return
-    }
-    
-    // Validate that configuration is loaded and we have a valid academic year
-    if (isLoading) {
-      toast.error("Reassignment Failed", {
-        description: "Please wait for configuration to load before reassigning sequences."
-      })
-      return
-    }
-    
-    // Validate that we have a valid academic year
-    const academicYearToUse = configuration?.academic_year || currentAcademicYear
-    if (!academicYearToUse || academicYearToUse.trim() === '') {
-
-      toast.error("Reassignment Failed", {
-        description: "Academic year is not available. Please wait for configuration to load or select an academic year."
-      })
-      return
-    }
-    
-    // Update local state immediately for better UX
-    setSequenceAssignments(prev => 
-      prev.map(assignment => 
-        assignment.sequenceNumber === sequenceNumber
-          ? { ...assignment, term: newTerm }
-          : assignment
-      )
-    )
-    
-
-    
-    // Then update on server
-    reassignSequence.mutate({
-      academicYear: academicYearToUse,
-      sequenceNumber,
-      term: newTerm
-    }, {
-      onSuccess: () => {
-        toast.success("Sequence Reassigned", {
-          description: `Sequence ${sequenceNumber} moved to ${newTerm}`
-        })
-      },
-      onError: (error) => {
-
-        // Revert on error
-        // Update local state immediately for better UX
-        const previousAssignments = [...sequenceAssignments]
-        setSequenceAssignments(prev => 
-          prev.map(assignment => 
-            assignment.sequenceNumber === sequenceNumber
-              ? { ...assignment, term: newTerm }
-              : assignment
-          )
-        )
-        
-        
-        
-        // Then update on server
-        reassignSequence.mutate({
-          academicYear: academicYearToUse,
-          sequenceNumber,
-          term: newTerm
-        }, {
-          onSuccess: () => {
-            toast.success("Sequence Reassigned", {
-              description: `Sequence ${sequenceNumber} moved to ${newTerm}`
-            })
-          },
-          onError: (error) => {
-            // Revert on error
-            setSequenceAssignments(previousAssignments)
-            toast.error("Reassignment Failed", {
-              description: error instanceof Error ? error.message : "Failed to reassign sequence"
-            })
-          }
-        })
-        toast.error("Reassignment Failed", {
-          description: error instanceof Error ? error.message : "Failed to reassign sequence"
-        })
-      }
-    })
-  }
 
   const form = useForm<ConfigurationFormData>({
     resolver: zodResolver(configurationSchema),
@@ -308,6 +150,10 @@ export function AppConfiguration() {
       time_format: configuration?.time_format || "24h",
     },
   })
+
+  const { data: loadedSeqConfig } = useSequenceConfiguration(
+    form.watch("academic_year") || currentAcademicYear
+  )
 
   // Update form when configuration changes - only when not loading and configuration has actual data
   React.useEffect(() => {
@@ -348,42 +194,35 @@ export function AppConfiguration() {
       
       if (success) {
         // Also save sequence configuration if sequences are configured
-        try {
-          const sequenceResult = await updateSequenceConfig.mutateAsync({
-            academicYear: data.academic_year || currentAcademicYear,
-            numberOfSequences,
-            defaultMaxMarks,
-            sequenceAssignments: sequenceAssignments.length > 0 
-              ? sequenceAssignments 
-              : undefined, // Auto-distribute if not provided
+        const seqValidation = validateSequenceConfig(totalSequences, termSequenceCounts)
+        if (!seqValidation.valid) {
+          toast.error("Sequence Configuration Error", {
+            description: seqValidation.error,
           })
-
-          if (sequenceResult.success) {
-            
-            // Update local state immediately from the mutation result
-            // This ensures the UI reflects the saved state without waiting for a refetch
-            if (sequenceResult.sequences && sequenceResult.sequences.length > 0) {
-              const activeSequences = sequenceResult.sequences.filter(seq => seq.is_active)
-              
-              // Update sequence assignments from the saved result
-              const savedAssignments: SequenceAssignment[] = activeSequences.map(seq => ({
-                sequenceNumber: seq.sequence_number,
-                term: seq.term
-              }))
-              setSequenceAssignments(savedAssignments)
-              
-              // Update other state if needed
-              if (activeSequences.length !== numberOfSequences) {
-                setNumberOfSequences(activeSequences.length)
-              }
-              
-              // Update the tracking refs to match the saved data
-              const dataKey = JSON.stringify(
-                savedAssignments.sort((a, b) => a.sequenceNumber - b.sequenceNumber)
-              )
-              lastLoadedDataKey.current = dataKey
-              lastAcademicYear.current = data.academic_year || currentAcademicYear
-            }
+        } else {
+        const seq6Count = loadedSeqConfig?.sequence6Usage?.gradeCount ?? 0
+        if (
+          totalSequences === 5 &&
+          seq6Count > 0 &&
+          typeof window !== "undefined" &&
+          !window.confirm(
+            `${seq6Count} grade row(s) still use the 6th sequence. Saving with 5 sequences will deactivate sequence 6 (marks remain in the database). Continue?`
+          )
+        ) {
+          setIsSaving(false)
+          return
+        }
+        try {
+          const seqResult = await updateSequenceConfig.mutateAsync({
+            academicYear: data.academic_year || currentAcademicYear,
+            totalSequences,
+            termSequenceCounts,
+            defaultMaxMarks,
+          })
+          if (seqResult.warning) {
+            toast.warning("6th sequence has existing grades", {
+              description: seqResult.warning,
+            })
           }
         } catch (seqError) {
           // Log sequence save error but don't fail the entire save operation
@@ -391,6 +230,7 @@ export function AppConfiguration() {
           toast.error("Sequence Configuration Error", {
             description: seqError instanceof Error ? seqError.message : "Failed to save sequence configuration",
           })
+        }
         }
 
         toast.success("Configuration Updated", {
@@ -973,8 +813,8 @@ export function AppConfiguration() {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="en">English</SelectItem>
-                            <SelectItem value="fr">Français</SelectItem>
-                            <SelectItem value="es">Español</SelectItem>
+                            <SelectItem value="fr">FranÃ§ais</SelectItem>
+                            <SelectItem value="es">EspaÃ±ol</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -1036,215 +876,15 @@ export function AppConfiguration() {
             </Card>
           </div>
 
-          {/* Sequence Configuration */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ListOrdered className="h-5 w-5" />
-                Sequence Configuration
-              </CardTitle>
-              <CardDescription>
-                Configure sequences for the academic year and assign them to terms
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="rounded-md bg-muted p-3">
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-medium">Academic Year:</span> {currentAcademicYear}
-                  <span className="ml-2 text-xs">(from System Settings)</span>
-                </p>
-              </div>
-
-              {loadingSeqConfig ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                  <span className="ml-2">Loading sequence configuration...</span>
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Number of Sequences *</label>
-                      <Select
-                        value={numberOfSequences.toString()}
-                        onValueChange={(value) => {
-                          const newCount = parseInt(value)
-                          setNumberOfSequences(newCount)
-                          
-                          // Auto-update assignments when count changes
-                          const newAssignments: SequenceAssignment[] = []
-                          for (let i = 1; i <= newCount; i++) {
-                            const existing = sequenceAssignments.find(a => a.sequenceNumber === i)
-                            if (existing) {
-                              newAssignments.push(existing)
-                            } else {
-                              // Auto-assign: 1-2 → Term 1, 3-4 → Term 2, 5-6 → Term 3
-                              let term = 'Term 1'
-                              if (i > 4) term = 'Term 3'
-                              else if (i > 2) term = 'Term 2'
-                              newAssignments.push({ sequenceNumber: i, term })
-                            }
-                          }
-                          setSequenceAssignments(newAssignments)
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 6 }, (_, i) => i + 1).map((num) => (
-                            <SelectItem key={num} value={num.toString()}>
-                              {num} {num === 1 ? 'Sequence' : 'Sequences'}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Total sequences for the academic year (max 6)
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Default Max Marks</label>
-                      <Input
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={defaultMaxMarks}
-                        onChange={(e) => setDefaultMaxMarks(parseInt(e.target.value) || 20)}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Default maximum marks for each sequence
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Sequence Distribution by Term */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">Sequence Distribution</label>
-                      <p className="text-xs text-muted-foreground">
-                        Assign sequences to terms by selecting from the dropdown
-                      </p>
-                    </div>
-                    
-                    {/* All Sequences List - for easy assignment */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">All Sequences</label>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 border rounded-lg p-3 bg-muted/20">
-                        {Array.from({ length: numberOfSequences }, (_, i) => i + 1).map((seqNum) => {
-                          const assignment = sequenceAssignments.find(a => a.sequenceNumber === seqNum)
-                          // Ensure currentTerm is always a valid term value
-                          const currentTerm = (assignment?.term && ['Term 1', 'Term 2', 'Term 3'].includes(assignment.term)) 
-                            ? assignment.term 
-                            : 'Term 1'
-                          const seqName = seqNum + 
-                            (seqNum === 1 ? 'st' : 
-                             seqNum === 2 ? 'nd' : 
-                             seqNum === 3 ? 'rd' : 'th') + 
-                            ' Sequence'
-                          
-                          return (
-                            <div
-                              key={seqNum}
-                              className="flex items-center justify-between p-2 bg-background rounded border"
-                            >
-                              <span className="text-sm font-medium">{seqName}</span>
-                              <Select
-                                value={currentTerm}
-                                onValueChange={(newTerm) => {
-                                  // Only handle if newTerm is a valid term value
-                                  if (newTerm && ['Term 1', 'Term 2', 'Term 3'].includes(newTerm)) {
-                                    handleReassignSequence(seqNum, newTerm)
-                                  }
-                                }}
-                                disabled={reassignSequence.isPending}
-                              >
-                                <SelectTrigger className="h-8 w-[110px]">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Term 1">Term 1</SelectItem>
-                                  <SelectItem value="Term 2">Term 2</SelectItem>
-                                  <SelectItem value="Term 3">Term 3</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Grouped by Term View */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground">Grouped by Term</label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {['Term 1', 'Term 2', 'Term 3'].map((term) => {
-                          const termSequences = sequenceAssignments
-                            .filter(a => a.term === term)
-                            .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
-                          
-                          return (
-                            <div key={term} className="border rounded-lg p-4 bg-muted/30">
-                              <h4 className="font-semibold mb-3 flex items-center justify-between">
-                                <span>{term}</span>
-                                <Badge variant="outline" className="text-xs">
-                                  {termSequences.length} {termSequences.length === 1 ? 'sequence' : 'sequences'}
-                                </Badge>
-                              </h4>
-                              <div className="space-y-2 min-h-[80px]">
-                                {termSequences.length > 0 ? (
-                                  termSequences.map((assignment) => {
-                                    const seqName = assignment.sequenceNumber + 
-                                      (assignment.sequenceNumber === 1 ? 'st' : 
-                                       assignment.sequenceNumber === 2 ? 'nd' : 
-                                       assignment.sequenceNumber === 3 ? 'rd' : 'th') + 
-                                      ' Sequence'
-                                    
-                                    return (
-                                      <div
-                                        key={assignment.sequenceNumber}
-                                        className="flex items-center justify-between p-2 bg-background rounded border"
-                                      >
-                                        <span className="text-sm font-medium">{seqName}</span>
-                                        <Select
-                                          value={assignment.term || 'Term 1'}
-                                          onValueChange={(newTerm) => {
-                                            // Only handle if newTerm is a valid term value
-                                            if (newTerm && ['Term 1', 'Term 2', 'Term 3'].includes(newTerm)) {
-                                              handleReassignSequence(assignment.sequenceNumber, newTerm)
-                                            }
-                                          }}
-                                          disabled={reassignSequence.isPending}
-                                        >
-                                          <SelectTrigger className="h-8 w-[100px]">
-                                            <SelectValue />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            <SelectItem value="Term 1">Term 1</SelectItem>
-                                            <SelectItem value="Term 2">Term 2</SelectItem>
-                                            <SelectItem value="Term 3">Term 3</SelectItem>
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                    )
-                                  })
-                                ) : (
-                                  <p className="text-sm text-muted-foreground text-center py-4">
-                                    No sequences assigned
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+          <SequenceConfigurationPanel
+            academicYear={form.watch("academic_year") || currentAcademicYear}
+            defaultMaxMarks={defaultMaxMarks}
+            onDefaultMaxMarksChange={setDefaultMaxMarks}
+            totalSequences={totalSequences}
+            onTotalSequencesChange={setTotalSequences}
+            termSequenceCounts={termSequenceCounts}
+            onTermSequenceCountsChange={setTermSequenceCounts}
+          />
 
           {/* Preview */}
           {showPreview && (
@@ -1275,10 +915,10 @@ export function AppConfiguration() {
                   )}
                   <div className="flex gap-4 text-xs text-muted-foreground">
                     {form.watch("school_phone") && (
-                      <span>📞 {form.watch("school_phone")}</span>
+                      <span>ðŸ“ž {form.watch("school_phone")}</span>
                     )}
                     {form.watch("school_email") && (
-                      <span>✉️ {form.watch("school_email")}</span>
+                      <span>âœ‰ï¸ {form.watch("school_email")}</span>
                     )}
                   </div>
                 </div>

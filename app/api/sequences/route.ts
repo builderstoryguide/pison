@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { serializeSupabaseError } from '@/lib/safe-error'
 import { getAcademicYearFromConfig } from '@/lib/app-config-server'
+import { loadSequenceYearConfig } from '@/lib/load-sequence-config-server'
+import {
+  getGlobalSlotsForTerm,
+  getSequenceDisplayName,
+  getTermNumber,
+  getActiveGlobalSequenceCount,
+} from '@/lib/sequence-term-mapping'
 
 export const runtime = 'nodejs'
 
@@ -27,39 +34,51 @@ export async function GET(request: NextRequest) {
       p_term: termValue
     })
 
+    const yearConfig = await loadSequenceYearConfig(supabase, year)
+    const termNum = getTermNumber(termValue)
+    const allowedGlobals = new Set(getGlobalSlotsForTerm(termNum, yearConfig.termSequenceCounts))
+
     if (error) {
       console.error('Error fetching sequences:', error)
-      // Fallback: return default sequences if function doesn't exist yet
-      const defaultSequences = [
-        { id: '1st-sequence', sequence_number: 1, sequence_name: '1st Sequence', max_marks: 20, is_active: true },
-        { id: '2nd-sequence', sequence_number: 2, sequence_name: '2nd Sequence', max_marks: 20, is_active: true },
-        { id: '3rd-sequence', sequence_number: 3, sequence_name: '3rd Sequence', max_marks: 20, is_active: true },
-        { id: '4th-sequence', sequence_number: 4, sequence_name: '4th Sequence', max_marks: 20, is_active: true },
-        { id: '5th-sequence', sequence_number: 5, sequence_name: '5th Sequence', max_marks: 20, is_active: true },
-        { id: '6th-sequence', sequence_number: 6, sequence_name: '6th Sequence', max_marks: 20, is_active: true },
-      ].map((seq, idx) => ({
-        ...seq,
-        academic_year: year,
-        term: termValue,
-        start_date: null,
-        end_date: null
-      }))
+      const total = getActiveGlobalSequenceCount(yearConfig.totalSequences)
+      const fallbackSequences = Array.from({ length: total }, (_, i) => i + 1)
+        .filter((n) => allowedGlobals.has(n))
+        .map((n) => ({
+          id: `seq-${n}`,
+          sequence_number: n,
+          sequence_name: getSequenceDisplayName(n),
+          max_marks: yearConfig.totalSequences ? 20 : 20,
+          is_active: true,
+          academic_year: year,
+          term: termValue,
+          start_date: null,
+          end_date: null,
+        }))
 
       return NextResponse.json({
         success: true,
-        sequences: defaultSequences,
+        sequences: fallbackSequences,
         academicYear: year,
         term: termValue,
-        useFixed: true
+        totalSequences: yearConfig.totalSequences,
+        termSequenceCounts: yearConfig.termSequenceCounts,
+        useFixed: true,
       })
     }
 
+    const filtered = (sequences || []).filter(
+      (seq: { sequence_number: number; is_active?: boolean }) =>
+        seq.is_active !== false && allowedGlobals.has(seq.sequence_number)
+    )
+
     return NextResponse.json({
       success: true,
-      sequences: sequences || [],
+      sequences: filtered,
       academicYear: year,
       term: termValue,
-      useFixed: false
+      totalSequences: yearConfig.totalSequences,
+      termSequenceCounts: yearConfig.termSequenceCounts,
+      useFixed: false,
     })
 
   } catch (error: any) {

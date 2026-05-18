@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getAcademicYearFromConfig } from '@/lib/app-config-server';
 import { PisonReportCardData } from '@/components/admin/reports/report-card-types';
+import { loadSequenceYearConfig } from '@/lib/load-sequence-config-server';
+import {
+  DEFAULT_TERM_COUNTS,
+  mapInTermToGlobal,
+  globalToTerm,
+  getGlobalSlotsForTerm,
+  type TermSequenceCounts,
+} from '@/lib/sequence-term-mapping';
+
+let activeTermSequenceCounts: TermSequenceCounts = { ...DEFAULT_TERM_COUNTS };
+let activeTotalSequences: 5 | 6 = 6;
 
 export async function GET(req: NextRequest) {
   /* eslint-disable no-console */
@@ -350,6 +361,10 @@ export async function GET(req: NextRequest) {
     
     // Always use academic year from App Configuration
     const academicYear = await getAcademicYearFromConfig();
+
+    const seqYearConfig = await loadSequenceYearConfig(supabase, academicYear);
+    activeTermSequenceCounts = seqYearConfig.termSequenceCounts;
+    activeTotalSequences = seqYearConfig.totalSequences;
     
     // Fetch academic sequences to create a lookup map (sequence_id -> sequence_number)
     // This is needed because some assessment titles are UUIDs (sequence IDs) instead of names
@@ -1273,7 +1288,7 @@ export async function GET(req: NextRequest) {
                 const marks = gradesBySequence[seqNum];
                 if (marks.length > 0) {
                     const avg = marks.reduce((a, b) => a + b, 0) / marks.length;
-                    if (seqNum >= 1 && seqNum <= 6) {
+                    if (seqNum >= 1 && seqNum <= activeTotalSequences) {
                         sequenceMarks[`seq${seqNum}`] = parseFloat(avg.toFixed(2));
                     }
                 }
@@ -1319,7 +1334,7 @@ export async function GET(req: NextRequest) {
             // Recalculate sequence marks after potential redistribution
             for (const seqNumStr of Object.keys(gradesBySequence)) {
                 const seqNum = parseInt(seqNumStr, 10);
-                if (seqNum >= 1 && seqNum <= 6) {
+                if (seqNum >= 1 && seqNum <= activeTotalSequences) {
                     const marks = gradesBySequence[seqNum];
                     if (marks && marks.length > 0) {
                         const avg = marks.reduce((a, b) => a + b, 0) / marks.length;
@@ -1333,11 +1348,11 @@ export async function GET(req: NextRequest) {
             if (termMode.mode === 'annual') {
                 marksForTermAverage = Object.values(sequenceMarks).filter((m): m is number => m !== undefined);
             } else if (perTermNum !== null) {
-                const [slotA, slotB] = getGlobalSequenceSlotsForTerm(perTermNum);
-                const a = sequenceMarks[`seq${slotA}`];
-                const b = sequenceMarks[`seq${slotB}`];
-                if (a !== undefined) marksForTermAverage.push(a);
-                if (b !== undefined) marksForTermAverage.push(b);
+                const slots = getGlobalSequenceSlotsForTerm(perTermNum);
+                for (const slot of slots) {
+                    const m = sequenceMarks[`seq${slot}`];
+                    if (m !== undefined) marksForTermAverage.push(m);
+                }
             }
 
             if (marksForTermAverage.length > 0) {
@@ -1367,8 +1382,10 @@ export async function GET(req: NextRequest) {
                 hasMark = true;
                 console.log(`[Report Card] Subject "${subjectName}": Using legacy grades (${gradesBySequence[0].length} grades with unknown sequences), average: ${finalMark.toFixed(2)}`);
                 if (termMode.mode === 'per_term' && perTermNum !== null) {
-                    const [slotA] = getGlobalSequenceSlotsForTerm(perTermNum);
-                    sequenceMarks[`seq${slotA}`] = parseFloat(finalMark.toFixed(2));
+                    const slots = getGlobalSequenceSlotsForTerm(perTermNum);
+                    if (slots[0]) {
+                        sequenceMarks[`seq${slots[0]}`] = parseFloat(finalMark.toFixed(2));
+                    }
                 }
                 
                 // Log legacy marks for target subjects
@@ -1430,7 +1447,7 @@ export async function GET(req: NextRequest) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const subjectSequenceMarks: any = {};
             if (!hasSubBranches && computedSequenceMarksForSubject) {
-                for (let i = 1; i <= 6; i++) {
+                for (let i = 1; i <= activeTotalSequences; i++) {
                     const v = computedSequenceMarksForSubject[`seq${i}`];
                     if (v !== undefined) {
                         subjectSequenceMarks[`seq${i}`] = v;
@@ -1461,7 +1478,7 @@ export async function GET(req: NextRequest) {
                             globalSeqNum = resolveGlobalSequenceFromTitle(assessmentTitle, sequenceIdToNumberMap);
                         }
                     }
-                    if (globalSeqNum !== null && globalSeqNum >= 1 && globalSeqNum <= 6) {
+                    if (globalSeqNum !== null && globalSeqNum >= 1 && globalSeqNum <= activeTotalSequences) {
                         if (!gradesBySeq[globalSeqNum]) gradesBySeq[globalSeqNum] = [];
                         gradesBySeq[globalSeqNum].push(grade.marks_obtained);
                     } else {
@@ -1470,19 +1487,16 @@ export async function GET(req: NextRequest) {
                 }
                 if (unknownSeqGrades.length > 0) {
                     const termForDist = termMode.mode === 'per_term' ? termMode.term : 1;
-                    const seq1ForTerm = (termForDist - 1) * 2 + 1;
-                    const seq2ForTerm = (termForDist - 1) * 2 + 2;
-                    if (unknownSeqGrades.length === 2) {
-                        if (!gradesBySeq[seq1ForTerm]) gradesBySeq[seq1ForTerm] = [];
-                        if (!gradesBySeq[seq2ForTerm]) gradesBySeq[seq2ForTerm] = [];
-                        gradesBySeq[seq1ForTerm].push(unknownSeqGrades[0]);
-                        gradesBySeq[seq2ForTerm].push(unknownSeqGrades[1]);
-                    } else if (unknownSeqGrades.length === 1) {
-                        if (!gradesBySeq[seq1ForTerm]) gradesBySeq[seq1ForTerm] = [];
-                        gradesBySeq[seq1ForTerm].push(unknownSeqGrades[0]);
-                    }
+                    const slotsForTerm = getGlobalSequenceSlotsForTerm(termForDist);
+                    unknownSeqGrades.forEach((mark, idx) => {
+                        const slot = slotsForTerm[idx];
+                        if (slot) {
+                            if (!gradesBySeq[slot]) gradesBySeq[slot] = [];
+                            gradesBySeq[slot].push(mark);
+                        }
+                    });
                 }
-                for (let i = 1; i <= 6; i++) {
+                for (let i = 1; i <= activeTotalSequences; i++) {
                     if (gradesBySeq[i] && gradesBySeq[i].length > 0) {
                         const avg = gradesBySeq[i].reduce((a, b) => a + b, 0) / gradesBySeq[i].length;
                         subjectSequenceMarks[`seq${i}`] = parseFloat(avg.toFixed(2));
@@ -1493,10 +1507,10 @@ export async function GET(req: NextRequest) {
             // On term reports, include coefficient only when both sequence marks exist.
             let eligibleForCoef = true;
             if (termMode.mode === 'per_term') {
-                const [slotA, slotB] = getGlobalSequenceSlotsForTerm(termMode.term);
-                const seqA = subjectSequenceMarks[`seq${slotA}`];
-                const seqB = subjectSequenceMarks[`seq${slotB}`];
-                eligibleForCoef = typeof seqA === 'number' && typeof seqB === 'number';
+                const slots = getGlobalSequenceSlotsForTerm(termMode.term);
+                eligibleForCoef =
+                    slots.length > 0 &&
+                    slots.every((slot) => typeof subjectSequenceMarks[`seq${slot}`] === 'number');
             }
 
             const coef = eligibleForCoef ? subjectCoef : '-';
@@ -2059,40 +2073,15 @@ function extractGlobalSequenceNumber(title: string): number | null {
  */
 function extractInTermSequenceNumber(title: string, termNumber: number): number | null {
     if (!title) return null;
-    
-    // First extract the global sequence number
     const globalSeqNum = extractGlobalSequenceNumber(title);
     if (globalSeqNum === null) return null;
-    
-    // Map global sequence number to in-term sequence number based on term
-    // Term 1: seq1, seq2 → 1, 2
-    // Term 2: seq3, seq4 → 1, 2
-    // Term 3: seq5, seq6 → 1, 2
-    if (termNumber === 1) {
-        if (globalSeqNum === 1) return 1;
-        if (globalSeqNum === 2) return 2;
-    } else if (termNumber === 2) {
-        if (globalSeqNum === 3) return 1;
-        if (globalSeqNum === 4) return 2;
-    } else if (termNumber === 3) {
-        if (globalSeqNum === 5) return 1;
-        if (globalSeqNum === 6) return 2;
-    }
-    
-    // If the global sequence doesn't match the current term, return null
-    return null;
+    const mapped = globalToTerm(globalSeqNum, activeTermSequenceCounts);
+    if (!mapped || mapped.termNumber !== termNumber) return null;
+    return mapped.inTermPosition;
 }
 
-/**
- * Map in-term sequence number (1 or 2) to global sequence number (1-6)
- * based on the term
- * - Term 1: Seq 1 → seq1, Seq 2 → seq2
- * - Term 2: Seq 1 → seq3, Seq 2 → seq4
- * - Term 3: Seq 1 → seq5, Seq 2 → seq6
- */
 function mapToGlobalSequence(inTermSeq: number, termNumber: number): number {
-    const baseOffset = (termNumber - 1) * 2;
-    return baseOffset + inTermSeq;
+    return mapInTermToGlobal(inTermSeq, termNumber as 1 | 2 | 3, activeTermSequenceCounts);
 }
 
 /**
@@ -2123,15 +2112,12 @@ function parseAcademicTermMode(academicTermId: string): AcademicReportTermMode {
 }
 
 function globalSequenceToTerm(globalSeq: number): 1 | 2 | 3 | null {
-    if (globalSeq >= 1 && globalSeq <= 2) return 1;
-    if (globalSeq >= 3 && globalSeq <= 4) return 2;
-    if (globalSeq >= 5 && globalSeq <= 6) return 3;
-    return null;
+    const mapped = globalToTerm(globalSeq, activeTermSequenceCounts);
+    return mapped?.termNumber ?? null;
 }
 
-function getGlobalSequenceSlotsForTerm(term: 1 | 2 | 3): [number, number] {
-    const base = (term - 1) * 2 + 1;
-    return [base, base + 1];
+function getGlobalSequenceSlotsForTerm(term: 1 | 2 | 3): number[] {
+    return getGlobalSlotsForTerm(term, activeTermSequenceCounts);
 }
 
 /** Global sequence 1–6 from title text or academic_sequences UUID / name map */

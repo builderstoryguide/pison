@@ -1,0 +1,2 @@
+-- Canonical copy: supabase/migrations/20260518031000_update_initialize_default_sequences.sql
+-- Applied via: npm run db:push

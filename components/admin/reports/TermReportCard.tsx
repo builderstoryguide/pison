@@ -14,6 +14,12 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { useOptionalAuth } from '@/lib/auth-context'
 import { getSequenceName, hasGceSubjectCode } from '@/lib/report-card-utils'
+import { useSequenceConfiguration } from '@/hooks/use-sequence-configuration'
+import {
+  DEFAULT_TERM_COUNTS,
+  averageSequenceMarks,
+  getGlobalSlotsForTerm,
+} from '@/lib/sequence-term-mapping'
 import { EditMarkDialog } from './EditMarkDialog'
 
 import { SubjectGrade } from './report-card-types'
@@ -84,12 +90,6 @@ const TERM_NAMES: Record<number, { en: string, fr: string, ordinal: string }> = 
   1: { en: 'FIRST TERM', fr: 'Premier Trimestre', ordinal: 'FIRST' },
   2: { en: 'SECOND TERM', fr: 'Deuxième Trimestre', ordinal: 'SECOND' },
   3: { en: 'THIRD TERM', fr: 'Troisième Trimestre', ordinal: 'THIRD' },
-}
-
-const SEQUENCE_LABELS: Record<number, { seq1: string, seq2: string }> = {
-  1: { seq1: 'Seq 1', seq2: 'Seq 2' },
-  2: { seq1: 'Seq 3', seq2: 'Seq 4' },
-  3: { seq1: 'Seq 5', seq2: 'Seq 6' },
 }
 
 function calculateGrade(mark: number): string {
@@ -233,36 +233,46 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
 
   const term = data.academic.term
   const termName = TERM_NAMES[term]
-  const seqLabels = SEQUENCE_LABELS[term]
 
-  // Get sequence values based on term
-  const getSequenceValues = React.useCallback((subject: SubjectGrade) => {
-    if (term === 1) {
-      return { seq1: subject.sequences?.seq1 ?? subject.seq1, seq2: subject.sequences?.seq2 ?? subject.seq2 }
-    } else if (term === 2) {
-      return { seq1: subject.sequences?.seq3 ?? subject.seq3, seq2: subject.sequences?.seq4 ?? subject.seq4 }
-    } else {
-      return { seq1: subject.sequences?.seq5, seq2: subject.sequences?.seq6 }
-    }
-  }, [term])
+  const { data: seqConfig } = useSequenceConfiguration(data.academic.year)
+  const termCounts = seqConfig?.termSequenceCounts ?? DEFAULT_TERM_COUNTS
+  const termSlots = React.useMemo(
+    () => getGlobalSlotsForTerm(term, termCounts),
+    [term, termCounts]
+  )
 
-  // Get global sequence number from term and sequence position (1 or 2)
-  const getGlobalSequenceNumber = (term: number, position: 1 | 2): number => {
-    if (term === 1) return position
-    if (term === 2) return position + 2
-    return position + 4
-  }
+  const readGlobalSeqMark = React.useCallback(
+    (subject: SubjectGrade, globalNum: number | undefined): number | undefined => {
+      if (globalNum == null) return undefined
+      const key = `seq${globalNum}` as keyof NonNullable<SubjectGrade['sequences']>
+      const fromNested = subject.sequences?.[key]
+      if (fromNested !== undefined) return fromNested
+      const flat = subject[key as keyof SubjectGrade]
+      return typeof flat === 'number' ? flat : undefined
+    },
+    []
+  )
+
+  const getSequenceValues = React.useCallback(
+    (subject: SubjectGrade) => termSlots.map((globalNum) => readGlobalSeqMark(subject, globalNum)),
+    [termSlots, readGlobalSeqMark]
+  )
+
+  const termAverageFromMarks = React.useCallback(
+    (subject: SubjectGrade) => {
+      if (subject.termAverage !== undefined) return subject.termAverage
+      return averageSequenceMarks(getSequenceValues(subject))
+    },
+    [getSequenceValues]
+  )
 
   // Handle click on sequence cell
-  const handleSequenceClick = (
-    subject: SubjectGrade,
-    sequencePosition: 1 | 2
-  ) => {
+  const handleSequenceClick = (subject: SubjectGrade, sequencePosition: number) => {
     if (!isAdmin || !classId) return
 
-    const seqs = getSequenceValues(subject)
-    const currentMark = sequencePosition === 1 ? seqs.seq1 : seqs.seq2
-    const globalSeqNum = getGlobalSequenceNumber(data.academic.term, sequencePosition)
+    const marks = getSequenceValues(subject)
+    const currentMark = marks[sequencePosition - 1]
+    const globalSeqNum = termSlots[sequencePosition - 1] ?? sequencePosition
     const sequenceName = getSequenceName(globalSeqNum)
 
     setEditingSubject({
@@ -387,11 +397,7 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
     const totalScore = subjects.reduce((sum, s) => {
       // Skip subjects without marks (coefficient = 0)
       if (s.coefficient === 0) return sum
-      const seqs = getSequenceValues(s)
-      const avg = s.termAverage ?? 
-        (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
-          ? (seqs.seq1 + seqs.seq2) / 2 
-          : seqs.seq1 ?? seqs.seq2 ?? 0)
+      const avg = termAverageFromMarks(s)
       return sum + (avg * s.coefficient)
     }, 0)
     const avg = coef > 0 ? totalScore / coef : 0
@@ -400,11 +406,7 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
     const passed = subjects.filter(s => {
       // Skip subjects without marks
       if (s.coefficient === 0) return false
-      const seqs = getSequenceValues(s)
-      const avg = s.termAverage ?? 
-        (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
-          ? (seqs.seq1 + seqs.seq2) / 2 
-          : seqs.seq1 ?? seqs.seq2 ?? 0)
+      const avg = termAverageFromMarks(s)
       return avg >= 10
     }).length
     
@@ -443,11 +445,7 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
     }
 
     const isPassed = (s: SubjectGrade) => {
-      const seqs = getSequenceValues(s)
-      const avg = s.termAverage ?? 
-        (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
-          ? (seqs.seq1 + seqs.seq2) / 2 
-          : seqs.seq1 ?? seqs.seq2 ?? 0)
+      const avg = termAverageFromMarks(s)
       return avg >= 10
     }
 
@@ -1161,8 +1159,15 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
                   <th className="p-1 print:p-0.5 border-r border-black w-12 print:w-10" style={{ fontSize: '7pt', width: '8%', border: '1px solid #000', padding: '4px 6px' }}></th>
                   <th className="p-1 print:p-0.5 border-r border-black w-1/3 text-left" style={{ fontSize: '7pt', width: '25%', border: '1px solid #000', padding: '4px 6px' }}>Subjects</th>
                   <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '6%', border: '1px solid #000', padding: '4px 6px' }}>Coef</th>
-                  <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '7%', border: '1px solid #000', padding: '4px 6px' }}>{seqLabels.seq1}</th>
-                  <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '7%', border: '1px solid #000', padding: '4px 6px' }}>{seqLabels.seq2}</th>
+                  {termSlots.map((globalNum) => (
+                    <th
+                      key={globalNum}
+                      className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8"
+                      style={{ fontSize: '7pt', width: '7%', border: '1px solid #000', padding: '4px 6px' }}
+                    >
+                      Seq {globalNum}
+                    </th>
+                  ))}
                   <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '8%', border: '1px solid #000', padding: '4px 6px' }}>Average</th>
                   <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '8%', border: '1px solid #000', padding: '4px 6px' }}>TOTAL</th>
                   <th className="p-1 print:p-0.5 border-r border-black text-center w-10 print:w-8" style={{ fontSize: '7pt', width: '7%', border: '1px solid #000', padding: '4px 6px' }}>Grade</th>
@@ -1179,11 +1184,8 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
                   return (
                     <React.Fragment key={group.category}>
                       {group.subjects.map((subject, idx) => {
-                        const seqs = getSequenceValues(subject)
-                        const avg = subject.termAverage ?? 
-                          (seqs.seq1 !== undefined && seqs.seq2 !== undefined 
-                            ? (seqs.seq1 + seqs.seq2) / 2 
-                            : seqs.seq1 ?? seqs.seq2 ?? 0)
+                        const seqMarks = getSequenceValues(subject)
+                        const avg = termAverageFromMarks(subject)
                         // Only calculate totalScore if coefficient > 0 (subject has marks)
                         const totalScore = subject.coefficient > 0 ? avg * subject.coefficient : 0
                         const grade = subject.grade || calculateGrade(avg)
@@ -1238,34 +1240,23 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
                                 <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
                               )}
                             </td>
-                            <td 
-                              className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
-                              style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}
-                              onClick={() => {
-                                if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
-                                  handleSequenceClick(subject, 1)
-                                }
-                              }}
-                            >
-                              {seqs.seq1?.toFixed(1) ?? '-'}
-                              {isAdmin && classId && (
-                                <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
-                              )}
-                            </td>
-                            <td 
-                              className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
-                              style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}
-                              onClick={() => {
-                                if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
-                                  handleSequenceClick(subject, 2)
-                                }
-                              }}
-                            >
-                              {seqs.seq2?.toFixed(1) ?? '-'}
-                              {isAdmin && classId && (
-                                <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
-                              )}
-                            </td>
+                            {seqMarks.map((mark, seqIdx) => (
+                              <td
+                                key={termSlots[seqIdx] ?? seqIdx}
+                                className={`p-1 print:p-0.5 border-r border-gray-300 text-center relative ${isAdmin && classId ? 'cursor-pointer hover:bg-blue-50 print:hover:bg-transparent print:cursor-default' : ''}`}
+                                style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}
+                                onClick={() => {
+                                  if (isAdmin && classId && typeof window !== 'undefined' && !window.matchMedia('print').matches) {
+                                    handleSequenceClick(subject, seqIdx + 1)
+                                  }
+                                }}
+                              >
+                                {mark !== undefined ? mark.toFixed(1) : '-'}
+                                {isAdmin && classId && (
+                                  <Pencil className="h-3 w-3 text-gray-400 hover:text-blue-600 absolute top-0 right-0 opacity-0 hover:opacity-100 print:hidden transition-opacity pointer-events-none" style={{ margin: '2px' }} />
+                                )}
+                              </td>
+                            ))}
                             <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}>{avg > 0 ? avg.toFixed(1) : '-'}</td>
                             <td className="p-1 print:p-0.5 border-r border-gray-300 text-center" style={{ border: '1px solid #d1d5db', padding: '4px 6px' }}>{totalScore > 0 ? totalScore.toFixed(0) : '-'}</td>
                             <td className={`p-1 print:p-0.5 border-r border-gray-300 text-center font-bold ${grade === 'F' || grade === 'E' || grade === 'U' ? 'text-red-600' : ''}`} style={{ border: '1px solid #d1d5db', padding: '4px 6px', color: (grade === 'F' || grade === 'E' || grade === 'U') ? '#dc2626' : 'inherit' }}>
@@ -1290,7 +1281,7 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
                       >
                         <td className="p-1 print:p-0.5 border-r border-black uppercase text-[0.55rem] print:text-[6pt] text-left" style={{ border: '1px solid #000', padding: '4px 6px' }}>{getCategoryFullLabel(group.category)} Summary</td>
                         <td className="p-1 print:p-0.5 border-r border-black text-center" style={{ border: '1px solid #000', padding: '4px 6px' }}>{summary.coef}</td>
-                        <td colSpan={2} className="p-1 print:p-0.5 border-r border-black text-center text-gray-400" style={{ border: '1px solid #000', padding: '4px 6px', color: '#9ca3af' }}>/</td>
+                        <td colSpan={termSlots.length || 1} className="p-1 print:p-0.5 border-r border-black text-center text-gray-400" style={{ border: '1px solid #000', padding: '4px 6px', color: '#9ca3af' }}>/</td>
                         <td className="p-1 print:p-0.5 border-r border-black text-center whitespace-nowrap text-[0.55rem] print:text-[6pt]" style={{ border: '1px solid #000', padding: '4px 6px' }}>AV: {summary.avg.toFixed(2)}</td>
                         <td className="p-1 print:p-0.5 border-r border-black text-center" style={{ border: '1px solid #000', padding: '4px 6px' }}>{summary.totalScore.toFixed(0)}</td>
                         <td className="p-1 print:p-0.5 border-r border-black text-center" style={{ border: '1px solid #000', padding: '4px 6px' }}>{summary.rank > 0 ? summary.rank : '-'}</td>
@@ -1313,7 +1304,7 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
                 >
                   <td colSpan={2} className="p-1 print:p-0.5 text-left uppercase border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '4px 6px' }}>Total Summary / Bilan Totale</td>
                   <td className="p-1 print:p-0.5 text-center border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '4px 6px' }}>{data.totals.coefficient}</td>
-                  <td colSpan={2} className="p-1 print:p-0.5 border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '4px 6px' }}></td>
+                  <td colSpan={termSlots.length || 1} className="p-1 print:p-0.5 border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '4px 6px' }}></td>
                   <td className="p-1 print:p-0.5 text-center border-r border-gray-600 font-bold" style={{ border: '1px solid #4b5563', padding: '4px 6px' }}>{data.totals.average.toFixed(2)}</td>
                   <td className="p-1 print:p-0.5 text-center border-r border-gray-600" style={{ border: '1px solid #4b5563', padding: '4px 6px' }}>{data.totals.totalScore.toFixed(0)}</td>
                   <td colSpan={2} className="bg-gray-100" style={{ backgroundColor: '#CCCCCC', padding: '4px 6px' }}></td>

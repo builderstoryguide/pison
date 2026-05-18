@@ -1,20 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { getSequenceGradeUsage } from '@/lib/count-sequence-grade-usage-server'
 import { serializeSupabaseError } from '@/lib/safe-error'
 import { requireRole } from '@/lib/auth/server'
+import {
+  type TermSequenceCounts,
+  type SequenceAssignment,
+  DEFAULT_TERM_COUNTS,
+  DEFAULT_TOTAL_SEQUENCES,
+  deriveTermCountsFromSequences,
+  getSequenceDisplayName,
+  normalizeTermCounts,
+  termCountsToAssignments,
+  assignmentsToTermCounts,
+  validateSequenceConfig,
+  isValidTotalSequences,
+  TERM_KEYS,
+} from '@/lib/sequence-term-mapping'
 
 export const runtime = 'nodejs'
 
-interface SequenceAssignment {
-  sequenceNumber: number
-  term: string
+function groupByTerm<T extends { term: string | null }>(sequences: T[]): Record<string, T[]> {
+  const sequencesByTerm: Record<string, T[]> = {}
+  sequences?.forEach((seq) => {
+    const termKey = seq.term || 'Unassigned'
+    if (!sequencesByTerm[termKey]) {
+      sequencesByTerm[termKey] = []
+    }
+    sequencesByTerm[termKey].push(seq)
+  })
+  return sequencesByTerm
+}
+
+function parseTermCountsFromConfig(config: {
+  term_sequence_counts?: unknown
+  total_sequences?: number | null
+} | null): { totalSequences: number; termSequenceCounts: TermSequenceCounts } {
+  if (config?.term_sequence_counts && typeof config.term_sequence_counts === 'object') {
+    const raw = config.term_sequence_counts as Record<string, number>
+    const total =
+      config.total_sequences && isValidTotalSequences(config.total_sequences)
+        ? config.total_sequences
+        : TERM_KEYS.reduce((s, k) => s + (Number(raw[k]) || 0), 0) || DEFAULT_TOTAL_SEQUENCES
+    return {
+      totalSequences: isValidTotalSequences(total) ? total : DEFAULT_TOTAL_SEQUENCES,
+      termSequenceCounts: normalizeTermCounts(raw, total),
+    }
+  }
+  return {
+    totalSequences: DEFAULT_TOTAL_SEQUENCES,
+    termSequenceCounts: { ...DEFAULT_TERM_COUNTS },
+  }
 }
 
 /**
- * GET /api/sequences/configuration
- * Fetch sequence configuration for an academic year
- * Query params: academicYear
+ * GET /api/sequences/configuration?academicYear=
  */
 export async function GET(request: NextRequest) {
   try {
@@ -29,14 +70,13 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get sequence configuration (per academic year, not per term)
     const { data: config, error: configError } = await supabase
       .from('sequence_configurations')
       .select('*')
       .eq('academic_year', academicYear)
-      .single()
+      .maybeSingle()
 
-    if (configError && configError.code !== 'PGRST116') { // PGRST116 = not found
+    if (configError) {
       console.error('Error fetching sequence configuration:', configError)
       return NextResponse.json(
         { success: false, error: serializeSupabaseError(configError) },
@@ -44,7 +84,6 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get all sequences for this academic year
     const { data: sequences, error: sequencesError } = await supabase
       .from('academic_sequences')
       .select('*')
@@ -60,25 +99,33 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Group sequences by term
-    const sequencesByTerm: Record<string, typeof sequences> = {}
+    const activeSequences = sequences || []
+    let { totalSequences, termSequenceCounts } = parseTermCountsFromConfig(config)
 
-    sequences?.forEach(seq => {
-      const termKey = seq.term || 'Unassigned'
-      if (!sequencesByTerm[termKey]) {
-        sequencesByTerm[termKey] = []
+    if (activeSequences.length > 0) {
+      const derived = deriveTermCountsFromSequences(activeSequences)
+      if (derived.totalSequences > 0) {
+        totalSequences = isValidTotalSequences(derived.totalSequences)
+          ? (derived.totalSequences as 5 | 6)
+          : totalSequences
+        termSequenceCounts = normalizeTermCounts(derived.termSequenceCounts, totalSequences)
       }
-      sequencesByTerm[termKey].push(seq)
-    })
+    }
+
+    const service = createServiceClient()
+    const sequence6Usage = await getSequenceGradeUsage(service, academicYear, 6)
+
     return NextResponse.json({
       success: true,
       configuration: config || null,
-      sequences: sequences || [],
-      sequencesByTerm,
-      academicYear
+      totalSequences,
+      termSequenceCounts,
+      sequences: activeSequences,
+      sequencesByTerm: groupByTerm(activeSequences),
+      academicYear,
+      sequence6Usage,
     })
-
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in GET /api/sequences/configuration:', error)
     return NextResponse.json(
       { success: false, error: serializeSupabaseError(error) },
@@ -89,47 +136,91 @@ export async function GET(request: NextRequest) {
 
 /**
  * PUT /api/sequences/configuration
- * Update sequence configuration for an academic year (admin only)
- * Body: { academicYear, numberOfSequences, defaultMaxMarks?, useFixedSequences?, sequenceAssignments? }
+ * Body: { academicYear, totalSequences?, termSequenceCounts?, numberOfSequences?, sequenceAssignments?, defaultMaxMarks?, useFixedSequences? }
  */
 export async function PUT(request: NextRequest) {
   try {
-    // Check authentication and admin role using requireRole
     const user = await requireRole(request, 'admin')
-    
-    // Use service client to bypass RLS (we've already validated admin access)
     const supabase = createServiceClient()
 
     const body = await request.json()
     const {
       academicYear,
+      totalSequences: totalSequencesBody,
+      termSequenceCounts: termCountsBody,
       numberOfSequences,
       defaultMaxMarks = 20,
       useFixedSequences = true,
-      sequenceAssignments
+      sequenceAssignments,
     } = body
 
-    if (!academicYear || !numberOfSequences || numberOfSequences < 1 || numberOfSequences > 6) {
+    let totalSequences: number =
+      totalSequencesBody ?? numberOfSequences ?? DEFAULT_TOTAL_SEQUENCES
+
+    if (!academicYear || !isValidTotalSequences(totalSequences)) {
       return NextResponse.json(
-        { success: false, error: 'academicYear and numberOfSequences (1-6) are required' },
+        { success: false, error: 'academicYear and totalSequences (5 or 6) are required' },
         { status: 400 }
       )
     }
 
-    // Upsert sequence configuration (per academic year)
-    // Note: The unique constraint should be on academic_year only after migration
+    let termSequenceCounts: TermSequenceCounts
+    let assignments: SequenceAssignment[]
+
+    if (termCountsBody && typeof termCountsBody === 'object') {
+      termSequenceCounts = normalizeTermCounts(termCountsBody, totalSequences)
+      const validation = validateSequenceConfig(totalSequences, termSequenceCounts)
+      if (!validation.valid) {
+        return NextResponse.json({ success: false, error: validation.error }, { status: 400 })
+      }
+      assignments = termCountsToAssignments(totalSequences, termSequenceCounts)
+    } else if (sequenceAssignments && Array.isArray(sequenceAssignments)) {
+      assignments = sequenceAssignments
+      const derived = assignmentsToTermCounts(assignments)
+      termSequenceCounts = derived.termSequenceCounts
+      totalSequences = derived.totalSequences
+      if (!isValidTotalSequences(totalSequences)) {
+        return NextResponse.json(
+          { success: false, error: 'Legacy assignments must sum to 5 or 6 sequences' },
+          { status: 400 }
+        )
+      }
+    } else {
+      termSequenceCounts = normalizeTermCounts(
+        totalSequences === 5
+          ? { 'Term 1': 2, 'Term 2': 2, 'Term 3': 1 }
+          : DEFAULT_TERM_COUNTS,
+        totalSequences
+      )
+      assignments = termCountsToAssignments(totalSequences, termSequenceCounts)
+    }
+
+    const assignedNumbers = assignments.map((a) => a.sequenceNumber).sort((a, b) => a - b)
+    const expectedNumbers = Array.from({ length: totalSequences }, (_, i) => i + 1)
+    if (JSON.stringify(assignedNumbers) !== JSON.stringify(expectedNumbers)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `All sequences from 1 to ${totalSequences} must be assigned exactly once`,
+        },
+        { status: 400 }
+      )
+    }
+
+    const configPayload: Record<string, unknown> = {
+      academic_year: academicYear,
+      term: null,
+      use_fixed_sequences: useFixedSequences,
+      default_max_marks: defaultMaxMarks,
+      total_sequences: totalSequences,
+      term_sequence_counts: termSequenceCounts,
+      created_by: user.id,
+      updated_at: new Date().toISOString(),
+    }
+
     const { data: config, error: configError } = await supabase
       .from('sequence_configurations')
-      .upsert({
-        academic_year: academicYear,
-        term: null, // Config is per year, not per term
-        use_fixed_sequences: useFixedSequences,
-        default_max_marks: defaultMaxMarks,
-        created_by: user.id,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'academic_year'
-      })
+      .upsert(configPayload, { onConflict: 'academic_year' })
       .select()
       .single()
 
@@ -141,72 +232,30 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // Get existing sequences for this academic year
     const { data: existingSequences } = await supabase
       .from('academic_sequences')
       .select('*')
       .eq('academic_year', academicYear)
       .order('sequence_number', { ascending: true })
 
-    const existingCount = existingSequences?.filter(s => s.is_active).length || 0
-
-    // Determine sequence assignments
-    let assignments: SequenceAssignment[] = []
-    
-    if (sequenceAssignments && Array.isArray(sequenceAssignments)) {
-      // Use provided assignments
-      assignments = sequenceAssignments
-    } else {
-      // Auto-distribute: Term 1: 1-2, Term 2: 3-4, Term 3: 5-6
-      for (let i = 1; i <= numberOfSequences; i++) {
-        let term = 'Term 1'
-        if (i > 4) {
-          term = 'Term 3'
-        } else if (i > 2) {
-          term = 'Term 2'
-        }
-        assignments.push({ sequenceNumber: i, term })
-      }
-    }
-
-    // Validate assignments: all sequences 1-N must be assigned exactly once
-    const assignedNumbers = assignments.map(a => a.sequenceNumber).sort()
-    const expectedNumbers = Array.from({ length: numberOfSequences }, (_, i) => i + 1)
-    if (JSON.stringify(assignedNumbers) !== JSON.stringify(expectedNumbers)) {
-      return NextResponse.json(
-        { success: false, error: `All sequences from 1 to ${numberOfSequences} must be assigned exactly once` },
-        { status: 400 }
-      )
-    }
-
-    // Create or update sequences
-    const sequencesToUpsert = assignments.map(assignment => {
+    const sequencesToUpsert = assignments.map((assignment) => {
       const seqNum = assignment.sequenceNumber
-      const seqName = seqNum + (seqNum === 1 ? 'st' : seqNum === 2 ? 'nd' : seqNum === 3 ? 'rd' : 'th') + ' Sequence'
-      
-      // Find existing sequence to preserve ID
-      const existingSeq = existingSequences?.find(s => s.sequence_number === seqNum)
-
+      const existingSeq = existingSequences?.find((s) => s.sequence_number === seqNum)
       return {
-        id: existingSeq?.id, // Includes ID if it exists, triggering an update instead of insert
+        id: existingSeq?.id,
         academic_year: academicYear,
         term: assignment.term,
         sequence_number: seqNum,
-        sequence_name: seqName,
+        sequence_name: getSequenceDisplayName(seqNum),
         max_marks: defaultMaxMarks,
         is_active: true,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       }
     })
 
-    // Supabase accepts column names in onConflict parameter
-    // We use id if available (update), otherwise insert
-    const { data: upsertedSequences, error: upsertError } = await supabase
+    const { error: upsertError } = await supabase
       .from('academic_sequences')
-      .upsert(sequencesToUpsert, {
-        onConflict: 'academic_year,sequence_number'
-      })
-      .select()
+      .upsert(sequencesToUpsert, { onConflict: 'academic_year,sequence_number' })
 
     if (upsertError) {
       console.error('Error upserting sequences:', upsertError)
@@ -216,25 +265,22 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    if (existingCount > numberOfSequences) {
-      const sequencesToDeactivate = existingSequences
-        ?.filter(seq => seq.sequence_number > numberOfSequences)
-        .map(seq => seq.id) || []
+    const toDeactivate =
+      existingSequences
+        ?.filter((seq) => seq.sequence_number > totalSequences && seq.is_active)
+        .map((seq) => seq.id) || []
 
-      if (sequencesToDeactivate.length > 0) {
-        const { error: deactivateError } = await supabase
-          .from('academic_sequences')
-          .update({ is_active: false })
-          .in('id', sequencesToDeactivate)
+    if (toDeactivate.length > 0) {
+      const { error: deactivateError } = await supabase
+        .from('academic_sequences')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .in('id', toDeactivate)
 
-        if (deactivateError) {
-          console.error('Error deactivating sequences:', deactivateError)
-          // Don't fail, just log
-        }
+      if (deactivateError) {
+        console.error('Error deactivating sequences:', deactivateError)
       }
     }
 
-    // Fetch updated sequences
     const { data: updatedSequences } = await supabase
       .from('academic_sequences')
       .select('*')
@@ -242,36 +288,29 @@ export async function PUT(request: NextRequest) {
       .eq('is_active', true)
       .order('sequence_number', { ascending: true })
 
-
-    // Group by term
-    const sequencesByTerm: Record<string, typeof updatedSequences> = {}
-
-    updatedSequences?.forEach(seq => {
-      const termKey = seq.term || 'Unassigned'
-      if (!sequencesByTerm[termKey]) {
-        sequencesByTerm[termKey] = []
+    let sequence6UsageWarning: string | undefined
+    let sequence6Usage: Awaited<ReturnType<typeof getSequenceGradeUsage>> | undefined
+    if (totalSequences === 5) {
+      sequence6Usage = await getSequenceGradeUsage(supabase, academicYear, 6)
+      if (sequence6Usage.gradeCount > 0) {
+        sequence6UsageWarning = `6th sequence is now inactive, but ${sequence6Usage.gradeCount} grade row(s) across ${sequence6Usage.assessmentCount} assessment(s) still reference it. Those marks remain in the database and may still appear on some reports until removed or migrated.`
       }
-      sequencesByTerm[termKey].push(seq)
-    })
-
-    // Log successful save
-    console.log('✅ Sequence configuration saved successfully:', {
-      academicYear,
-      numberOfSequences,
-      sequencesCreated: updatedSequences?.length || 0,
-      sequencesByTerm: Object.keys(sequencesByTerm),
-      message: `Sequence configuration updated successfully. ${numberOfSequences} sequences configured.`
-    })
+    }
 
     return NextResponse.json({
       success: true,
       configuration: config,
+      totalSequences,
+      termSequenceCounts,
       sequences: updatedSequences || [],
-      sequencesByTerm,
-      message: `Sequence configuration updated successfully. ${numberOfSequences} sequences configured.`
+      sequencesByTerm: groupByTerm(updatedSequences || []),
+      sequence6Usage,
+      warning: sequence6UsageWarning,
+      message: sequence6UsageWarning
+        ? `Sequence configuration saved for ${academicYear}. ${sequence6UsageWarning}`
+        : `Sequence configuration updated: ${totalSequences} sequences for ${academicYear}.`,
     })
-
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in PUT /api/sequences/configuration:', error)
     return NextResponse.json(
       { success: false, error: serializeSupabaseError(error) },
