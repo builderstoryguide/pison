@@ -232,6 +232,89 @@ export function averageSequenceMarks(marks: (number | undefined)[]): number {
   return defined.reduce((sum, m) => sum + m, 0) / defined.length
 }
 
+export type TermAverages = {
+  term1?: number
+  term2?: number
+  term3?: number
+}
+
+/** Sequence marks keyed by global slot (seq1..seq6) or nested `sequences`. */
+export type SubjectSequenceMarksInput = {
+  sequences?: Partial<Record<`seq${number}`, number>>
+  seq1?: number
+  seq2?: number
+  seq3?: number
+  seq4?: number
+  seq5?: number
+  seq6?: number
+}
+
+export function readGlobalSeqMark(
+  subject: SubjectSequenceMarksInput,
+  globalNum: number
+): number | undefined {
+  const key = `seq${globalNum}` as keyof NonNullable<SubjectSequenceMarksInput['sequences']>
+  const fromNested = subject.sequences?.[key]
+  if (fromNested !== undefined) return fromNested
+  const flat = subject[key as keyof SubjectSequenceMarksInput]
+  return typeof flat === 'number' ? flat : undefined
+}
+
+/** Per-term averages when every configured slot in that term has a mark. */
+export function getTermAveragesFromSequenceMarks(
+  sequenceMarks: Record<string, number | undefined> | SubjectSequenceMarksInput,
+  counts: TermSequenceCounts
+): TermAverages {
+  const read = (globalNum: number) => {
+    if ('sequences' in sequenceMarks || 'seq1' in sequenceMarks) {
+      return readGlobalSeqMark(sequenceMarks as SubjectSequenceMarksInput, globalNum)
+    }
+    return sequenceMarks[`seq${globalNum}`]
+  }
+
+  const result: TermAverages = {}
+  for (let termNumber = 1; termNumber <= 3; termNumber++) {
+    const slots = getGlobalSlotsForTerm(termNumber as 1 | 2 | 3, counts)
+    if (slots.length === 0) continue
+    const marks = slots.map((slot) => read(slot))
+    if (marks.every((m) => typeof m === 'number' && !Number.isNaN(m))) {
+      const avg = averageSequenceMarks(marks)
+      if (termNumber === 1) result.term1 = parseFloat(avg.toFixed(2))
+      else if (termNumber === 2) result.term2 = parseFloat(avg.toFixed(2))
+      else result.term3 = parseFloat(avg.toFixed(2))
+    }
+  }
+  return result
+}
+
+/** Annual subject average = mean of term1, term2, term3 when all three are defined. */
+export function getAnnualAverageFromTermAverages(termAvgs: TermAverages): number | undefined {
+  const { term1, term2, term3 } = termAvgs
+  if (
+    typeof term1 !== 'number' ||
+    typeof term2 !== 'number' ||
+    typeof term3 !== 'number'
+  ) {
+    return undefined
+  }
+  return parseFloat(averageSequenceMarks([term1, term2, term3]).toFixed(2))
+}
+
+/** Coefficient counts only when every slot in each term has a mark. */
+export function isAnnualCoefEligible(
+  sequenceMarks: Record<string, number | undefined>,
+  counts: TermSequenceCounts
+): boolean {
+  for (let termNumber = 1; termNumber <= 3; termNumber++) {
+    const slots = getGlobalSlotsForTerm(termNumber as 1 | 2 | 3, counts)
+    if (slots.length === 0) return false
+    if (!slots.every((slot) => typeof sequenceMarks[`seq${slot}`] === 'number')) {
+      return false
+    }
+  }
+  return true
+}
+
 export function adjustTermCountsForTotal(
   counts: TermSequenceCounts,
   newTotal: 5 | 6

@@ -8,7 +8,11 @@ import {
   mapInTermToGlobal,
   globalToTerm,
   getGlobalSlotsForTerm,
+  getTermAveragesFromSequenceMarks,
+  getAnnualAverageFromTermAverages,
+  isAnnualCoefEligible,
   type TermSequenceCounts,
+  type TermAverages,
 } from '@/lib/sequence-term-mapping';
 
 let activeTermSequenceCounts: TermSequenceCounts = { ...DEFAULT_TERM_COUNTS };
@@ -1020,6 +1024,7 @@ export async function GET(req: NextRequest) {
         let finalMark = 0;
         let hasMark = false;
         let remark = 'No Grade';
+        let annualTermAvgsForSubject: TermAverages | undefined;
 
         if (hasSubBranches) {
             // Logic for Sub-branches
@@ -1346,7 +1351,14 @@ export async function GET(req: NextRequest) {
             // Calculate term average from sequence marks for this report only (not all six slots on a term bulletin)
             let marksForTermAverage: number[] = [];
             if (termMode.mode === 'annual') {
-                marksForTermAverage = Object.values(sequenceMarks).filter((m): m is number => m !== undefined);
+                annualTermAvgsForSubject = getTermAveragesFromSequenceMarks(
+                    sequenceMarks,
+                    activeTermSequenceCounts
+                );
+                const annualAvg = getAnnualAverageFromTermAverages(annualTermAvgsForSubject);
+                if (annualAvg !== undefined) {
+                    marksForTermAverage = [annualAvg];
+                }
             } else if (perTermNum !== null) {
                 const slots = getGlobalSequenceSlotsForTerm(perTermNum);
                 for (const slot of slots) {
@@ -1504,13 +1516,19 @@ export async function GET(req: NextRequest) {
                 }
             }
 
-            // On term reports, include coefficient only when both sequence marks exist.
+            // On term reports, include coefficient only when all sequence marks exist for that term.
+            // On annual reports, require all slots in each term.
             let eligibleForCoef = true;
             if (termMode.mode === 'per_term') {
                 const slots = getGlobalSequenceSlotsForTerm(termMode.term);
                 eligibleForCoef =
                     slots.length > 0 &&
                     slots.every((slot) => typeof subjectSequenceMarks[`seq${slot}`] === 'number');
+            } else if (termMode.mode === 'annual') {
+                eligibleForCoef = isAnnualCoefEligible(
+                    subjectSequenceMarks,
+                    activeTermSequenceCounts
+                );
             }
 
             const coef = eligibleForCoef ? subjectCoef : '-';
@@ -1525,6 +1543,26 @@ export async function GET(req: NextRequest) {
             // Get subject rank (will be calculated later if not available yet)
             const subjectRank = subjectRanks.get(normalizeSubjectName(subjectName)) || 0;
             
+            if (
+                termMode.mode === 'annual' &&
+                !annualTermAvgsForSubject &&
+                Object.keys(subjectSequenceMarks).length > 0
+            ) {
+                annualTermAvgsForSubject = getTermAveragesFromSequenceMarks(
+                    subjectSequenceMarks,
+                    activeTermSequenceCounts
+                );
+            }
+
+            const annualTermFields =
+                termMode.mode === 'annual' && annualTermAvgsForSubject
+                    ? {
+                          term1: annualTermAvgsForSubject.term1,
+                          term2: annualTermAvgsForSubject.term2,
+                          term3: annualTermAvgsForSubject.term3,
+                      }
+                    : {};
+
             reportItems.push({
                 name: subjectName.trim(), // Ensure trimmed for consistency
                 subjectId: subjectId, // Include subjectId for editing functionality
@@ -1537,7 +1575,8 @@ export async function GET(req: NextRequest) {
                 remark: remark,
                 category: category,
                 // Include individual sequence marks
-                ...subjectSequenceMarks
+                ...subjectSequenceMarks,
+                ...annualTermFields,
             });
         } else {
             // Subject has no marks - don't include it in the average calculation
@@ -1921,6 +1960,32 @@ export async function GET(req: NextRequest) {
         }
     });
 
+    const computeWeightedHistoryAvg = (
+        items: typeof reportItems,
+        field: 'term1' | 'term2' | 'term3'
+    ): number => {
+        let points = 0;
+        let coef = 0;
+        for (const item of items) {
+            if (item.coef > 0 && typeof item[field] === 'number') {
+                points += item[field] * item.coef;
+                coef += item.coef;
+            }
+        }
+        return coef > 0 ? parseFloat((points / coef).toFixed(2)) : 0;
+    };
+
+    const historyTerm1 =
+        termMode.mode === 'annual' ? computeWeightedHistoryAvg(reportItems, 'term1') : 0;
+    const historyTerm2 =
+        termMode.mode === 'annual' ? computeWeightedHistoryAvg(reportItems, 'term2') : 0;
+    const historyTerm3 =
+        termMode.mode === 'annual' ? computeWeightedHistoryAvg(reportItems, 'term3') : 0;
+    const historyAnnualAvg =
+        termMode.mode === 'annual' && totalCoef > 0
+            ? parseFloat((totalScore / totalCoef).toFixed(2))
+            : 0;
+
     const reportData: PisonReportCardData = {
         student: {
             // Mapping to strictly match matching fields
@@ -1952,10 +2017,10 @@ export async function GET(req: NextRequest) {
             average: totalCoef ? parseFloat((totalScore / totalCoef).toFixed(2)) : 0
         },
         history: {
-            term1: 0,
-            term2: 0,
-            term3: 0,
-            annualAvg: 0,
+            term1: historyTerm1,
+            term2: historyTerm2,
+            term3: historyTerm3,
+            annualAvg: historyAnnualAvg,
             rank: studentRank
         },
         stats: {
