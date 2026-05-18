@@ -43,7 +43,24 @@ interface ClassData {
   currentEnrollment?: number
 }
 
-type TermType = '1' | '2' | 'annual'
+type TermType = '1' | '2' | '3' | 'annual'
+
+/** Maps UI term selection to TermReportCard academic.term (1 | 2 | 3). */
+function termTypeToNumber(term: Exclude<TermType, 'annual'>): 1 | 2 | 3 {
+  switch (term) {
+    case '1':
+      return 1
+    case '2':
+      return 2
+    case '3':
+      return 3
+    default: {
+      const _exhaustive: never = term
+      return _exhaustive
+    }
+  }
+}
+
 const SESSION_EXPIRED_MESSAGE = 'Your session has expired. Please log in again to generate report cards.'
 
 export function ReportCardsWrapper() {
@@ -299,7 +316,7 @@ export function ReportCardsWrapper() {
               ...reportData,
               academic: {
                 ...reportData.academic,
-                term: selectedTerm === '1' ? 1 : 2
+                term: termTypeToNumber(selectedTerm),
               }
             }}
             classId={selectedClass}
@@ -361,6 +378,12 @@ export function ReportCardsWrapper() {
                     <span className="flex items-center gap-2">
                       <FileText className="h-4 w-4" />
                       Second Term (Seq 3 + 4)
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="3">
+                    <span className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Third Term
                     </span>
                   </SelectItem>
                   <SelectItem value="annual">

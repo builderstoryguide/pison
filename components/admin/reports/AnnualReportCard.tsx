@@ -356,6 +356,9 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
     return safeInt.toString().padStart(2, '0')
   }, [])
 
+  const annualAvg = data.history.annualAvg ?? data.totals.average
+  const annualPassed = annualAvg >= 10
+
   // Generate QR Code data with report card information
   const qrCodeData = useMemo(() => {
     const reportCardInfo = {
@@ -558,6 +561,13 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
               grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
             }
             .pdf-report-card .grid-cols-12 {
+              grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+            }
+            .pdf-report-card .grid-cols-3,
+            .pdf-report-card .print\\:grid-cols-3 {
+              grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            }
+            .pdf-report-card .print\\:grid-cols-12 {
               grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
             }
             .pdf-report-card .col-span-2 { grid-column: span 2 / span 2 !important; }
@@ -820,6 +830,9 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
             .pdf-report-card.pdf-capture-mode .print\\:space-y-2 > * + * { margin-top: 0.5rem !important; }
             .pdf-report-card.pdf-capture-mode .print\\:pb-0\\.5 { padding-bottom: 0.125rem !important; }
             .pdf-report-card.pdf-capture-mode .print\\:cursor-default { cursor: default !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:grid-cols-3 {
+              grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            }
             .pdf-report-card.pdf-capture-mode [class*="cursor-pointer"] { cursor: default !important; }
             .pdf-report-card.pdf-capture-mode [class*="hover:"] { background-color: transparent !important; }
             
@@ -827,6 +840,12 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
             @media (min-width: 768px) {
               .pdf-report-card .md\\:grid-cols-3 {
                 grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+              }
+              .pdf-report-card .md\\:grid-cols-12 {
+                grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+              }
+              .pdf-report-card .md\\:col-span-4 {
+                grid-column: span 4 / span 4 !important;
               }
               .pdf-report-card .md\\:col-span-12 {
                 grid-column: span 12 / span 12 !important;
@@ -1162,68 +1181,72 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
           </div>
 
           {/* Footer Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-2 print:gap-1 mb-2 print:mb-1 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-12 print:grid-cols-12 gap-2 print:gap-1 mb-2 print:mb-1 relative z-10">
             <div className="col-span-12 md:col-span-4 flex flex-col gap-0">
-            <div className="border border-black bg-white/90">
-              <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
-                Student&apos;s Evaluation Results
-              </div>
-              <table className="w-full text-[0.6rem] print:text-[7pt]">
-                <thead>
-                  <tr className="border-b border-gray-300">
-                    <th className="p-0.5 print:p-0.5 border-r border-gray-300">TERM</th>
-                    <th className="p-0.5 print:p-0.5 border-r border-gray-300">1</th>
-                    <th className="p-0.5 print:p-0.5 border-r border-gray-300">2</th>
-                    <th className="p-0.5 print:p-0.5">3</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-gray-300 font-mono">
-                    <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">AVERAGE</td>
-                    <td className="p-0.5 print:p-0.5 border-r border-gray-300">{data.history.term1 ? data.history.term1.toFixed(1) : '-'}</td>
-                    <td className="p-0.5 print:p-0.5 border-r border-gray-300">{data.history.term2 ? data.history.term2.toFixed(1) : '-'}</td>
-                    <td className="p-0.5 print:p-0.5 font-bold">{data.history.term3 ? data.history.term3.toFixed(1) : '-'}</td>
-                  </tr>
-                  <tr className="font-mono">
-                    <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">RANK</td>
-                    <td className="p-0.5 print:p-0.5 border-r border-gray-300">-</td>
-                    <td className="p-0.5 print:p-0.5 border-r border-gray-300">-</td>
-                    <td className="p-0.5 print:p-0.5">{data.history.rank ?? '-'}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Discipline And Conduct */}
-            <div className="border border-black bg-white/90">
-              <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
-                Discipline And Conduct
-              </div>
-              <div className="text-[0.6rem] print:text-[7pt] p-1 print:p-0.5 space-y-1">
-                <div className="flex justify-between border-b border-gray-200 pb-0.5">
-                  <span>Unjustified Absences</span>
-                  <span className="font-mono font-bold">{data.discipline.absences}hrs</span>
+              <div className="border border-black bg-white/90">
+                <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
+                  Student&apos;s Evaluation Results
                 </div>
-                <div className="flex justify-between">
-                  <span>Suspensions / Warnings</span>
-                  <span className="font-mono font-bold">{data.discipline.suspensions + data.discipline.warnings}</span>
+                <table className="w-full text-[0.6rem] print:text-[7pt]">
+                  <thead>
+                    <tr className="border-b border-gray-300">
+                      <th className="p-0.5 print:p-0.5 border-r border-gray-300">TERM</th>
+                      <th className="p-0.5 print:p-0.5 border-r border-gray-300">1</th>
+                      <th className="p-0.5 print:p-0.5 border-r border-gray-300">2</th>
+                      <th className="p-0.5 print:p-0.5">3</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-gray-300 font-mono">
+                      <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">AVERAGE</td>
+                      <td className="p-0.5 print:p-0.5 border-r border-gray-300">
+                        {data.history.term1 != null ? data.history.term1.toFixed(1) : '-'}
+                      </td>
+                      <td className="p-0.5 print:p-0.5 border-r border-gray-300">
+                        {data.history.term2 != null ? data.history.term2.toFixed(1) : '-'}
+                      </td>
+                      <td className="p-0.5 print:p-0.5 font-bold">
+                        {data.history.term3 != null ? data.history.term3.toFixed(1) : '-'}
+                      </td>
+                    </tr>
+                    <tr className="font-mono">
+                      <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">RANK</td>
+                      <td className="p-0.5 print:p-0.5 border-r border-gray-300">-</td>
+                      <td className="p-0.5 print:p-0.5 border-r border-gray-300">-</td>
+                      <td className="p-0.5 print:p-0.5">{data.history.rank ?? '-'}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="border border-black bg-white/90">
+                <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
+                  Discipline And Conduct
+                </div>
+                <div className="text-[0.6rem] print:text-[7pt] p-1 print:p-0.5 space-y-1">
+                  <div className="flex justify-between border-b border-gray-200 pb-0.5">
+                    <span>Unjustified Absences</span>
+                    <span className="font-mono font-bold">{data.discipline.absences}hrs</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Suspensions / Warnings</span>
+                    <span className="font-mono font-bold">
+                      {data.discipline.suspensions + data.discipline.warnings}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-
             </div>
 
             <div className="col-span-12 md:col-span-4 flex items-center justify-center py-2 print:py-1">
               <div className="flex flex-col gap-0 items-center">
                 <div className="w-24 print:w-20 h-24 print:h-20 rounded-full flex flex-col items-center justify-center z-10">
                   <span className="text-[0.5rem] print:text-[6pt] text-gray-500 uppercase font-bold">Annual Average</span>
-                  <span className="text-2xl print:text-xl font-black">
-                    {(data.history.annualAvg ?? data.totals.average).toFixed(2)}
-                  </span>
+                  <span className="text-2xl print:text-xl font-black">{annualAvg.toFixed(2)}</span>
                   <span
-                    className={`text-[0.5rem] print:text-[6pt] font-bold uppercase ${(data.history.annualAvg ?? data.totals.average) >= 10 ? 'text-green-600' : 'text-red-600'}`}
+                    className={`text-[0.5rem] print:text-[6pt] font-bold uppercase ${annualPassed ? 'text-green-600' : 'text-red-600'}`}
                   >
-                    {(data.history.annualAvg ?? data.totals.average) >= 10 ? 'Passed' : 'Failed'}
+                    {annualPassed ? 'Passed' : 'Failed'}
                   </span>
                 </div>
                 <div className="w-16 print:w-14 h-16 print:h-14 rounded-full flex flex-col items-center justify-center z-10 mt-1">
@@ -1234,19 +1257,19 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
             </div>
 
             <div className="col-span-12 md:col-span-4">
-            <div className="border border-black bg-white/90">
-              <div className="border-b border-gray-300 p-1 print:p-0.5 bg-gray-100">
-                <h4 className="font-bold text-[0.6rem] print:text-[7pt] text-left uppercase">GCE SECTION</h4>
-              </div>
-              <div className="space-y-0.5 font-mono text-[0.6rem] print:text-[7pt] p-1 print:p-0.5">
-                <div className="flex justify-between"><span>Trade Subjects:</span> <span>{formatGceCount(gceCounts.tradeSubjects)}</span></div>
-                <div className="flex justify-between"><span>Related Trade:</span> <span>{formatGceCount(gceCounts.relatedTrade)}</span></div>
-                <div className="flex justify-between"><span>Other Subjects:</span> <span>{formatGceCount(gceCounts.otherSubjects)}</span></div>
-                <div className="flex justify-between font-bold pt-1 border-t border-gray-300 mt-1">
-                  <span>GCE SUBJECTS PASSED:</span> <span>{formatGceCount(gceCounts.passed)}</span>
+              <div className="border border-black bg-white/90">
+                <div className="border-b border-gray-300 p-1 print:p-0.5 bg-gray-100">
+                  <h4 className="font-bold text-[0.6rem] print:text-[7pt] text-left uppercase">GCE SECTION</h4>
+                </div>
+                <div className="space-y-0.5 font-mono text-[0.6rem] print:text-[7pt] p-1 print:p-0.5">
+                  <div className="flex justify-between"><span>Trade Subjects:</span> <span>{formatGceCount(gceCounts.tradeSubjects)}</span></div>
+                  <div className="flex justify-between"><span>Related Trade:</span> <span>{formatGceCount(gceCounts.relatedTrade)}</span></div>
+                  <div className="flex justify-between"><span>Other Subjects:</span> <span>{formatGceCount(gceCounts.otherSubjects)}</span></div>
+                  <div className="flex justify-between font-bold pt-1 border-t border-gray-300 mt-1">
+                    <span>GCE SUBJECTS PASSED:</span> <span>{formatGceCount(gceCounts.passed)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
             </div>
           </div>
 

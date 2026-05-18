@@ -852,6 +852,9 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
               /* Hide edit functionality in print */
               .pdf-report-card [class*="cursor-pointer"] { cursor: default !important; }
               .pdf-report-card [class*="hover:"] { background-color: transparent !important; }
+              .pdf-report-card .print\\:grid-cols-3 {
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+              }
             }
 
             /*
@@ -942,6 +945,9 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
             .pdf-report-card.pdf-capture-mode .print\\:space-y-2 > * + * { margin-top: 0.5rem !important; }
             .pdf-report-card.pdf-capture-mode .print\\:pb-0\\.5 { padding-bottom: 0.125rem !important; }
             .pdf-report-card.pdf-capture-mode .print\\:cursor-default { cursor: default !important; }
+            .pdf-report-card.pdf-capture-mode .print\\:grid-cols-3 {
+              grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            }
             .pdf-report-card.pdf-capture-mode [class*="cursor-pointer"] { cursor: default !important; }
             .pdf-report-card.pdf-capture-mode [class*="hover:"] { background-color: transparent !important; }
             
@@ -1314,7 +1320,7 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
           </div>
 
           {/* Footer Stats */}
-          <div className="grid grid-cols-3 gap-2 print:gap-1 mb-2 print:mb-1 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 print:grid-cols-3 gap-2 print:gap-1 mb-2 print:mb-1 relative z-10">
             
             {/* Student Evaluation Results */}
             <div className="border border-black bg-white/90">
@@ -1351,11 +1357,13 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
               <div className="text-[0.6rem] print:text-[7pt] p-1 print:p-0.5 space-y-1">
                 <div className="flex justify-between border-b border-gray-200 pb-0.5">
                   <span>Unjustified Absences</span>
-                  <span className="font-mono font-bold"></span>
+                  <span className="font-mono font-bold">{data.discipline.absences}hrs</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Suspensions / Warnings</span>
-                  <span className="font-mono font-bold"></span>
+                  <span className="font-mono font-bold">
+                    {data.discipline.suspensions + data.discipline.warnings}
+                  </span>
                 </div>
               </div>
             </div>
