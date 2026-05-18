@@ -6,7 +6,7 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 /**
  * Refreshes the Supabase auth session and returns a response with updated cookies.
- * Call this from the root `middleware.ts`.
+ * Call this from the root `proxy.ts`.
  */
 export async function updateSession(request: NextRequest) {
   if (!supabaseUrl || !supabaseKey) {

@@ -2,10 +2,8 @@
 const nextConfig = {
   // Puppeteer ships native bits; bundling it into Route Handlers can break or crash at runtime (especially with Turbopack).
   serverExternalPackages: ['puppeteer', 'puppeteer-core', '@sparticuz/chromium'],
-  experimental: {
-    // Dev tools can bounce between localhost and 127.0.0.1; allow both loopback origins.
-    allowedDevOrigins: ['localhost', '127.0.0.1', '[::1]'],
-  },
+  // Dev tools can bounce between localhost and 127.0.0.1; allow both loopback origins.
+  allowedDevOrigins: ['localhost', '127.0.0.1', '[::1]'],
 
   // Enable strict mode for better development experience
   reactStrictMode: true,
@@ -19,19 +17,15 @@ const nextConfig = {
   outputFileTracingIncludes: {
     '/api/report-cards/pdf': [
       './node_modules/@sparticuz/chromium/bin/**',
-      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
     ],
     '/app/api/report-cards/pdf/route': [
       './node_modules/@sparticuz/chromium/bin/**',
-      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
     ],
     '/api/financial-reports': [
       './node_modules/@sparticuz/chromium/bin/**',
-      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
     ],
     '/app/api/financial-reports/route': [
       './node_modules/@sparticuz/chromium/bin/**',
-      './node_modules/.pnpm/@sparticuz+chromium@*/node_modules/@sparticuz/chromium/bin/**',
     ],
   },
   

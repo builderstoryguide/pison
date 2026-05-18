@@ -2,15 +2,16 @@
   "name": "my-v0-project",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@11.13.0",
   "scripts": {
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",
     "setup-env": "node scripts/setup-env.js",
-    "db:link": "npx supabase link --project-ref vzpwkfjthjaxotyebmui --yes",
-    "db:push": "npx supabase db push --linked",
-    "db:migrate:sequences": "npx supabase db query -f supabase/migrations/20260518025219_sequence_term_counts.sql --linked"
+    "db:link": "npx supabase@2.98.2 link --project-ref vzpwkfjthjaxotyebmui --yes",
+    "db:push": "npx supabase@2.98.2 db push --linked",
+    "db:migrate:sequences": "npx supabase@2.98.2 db query -f supabase/migrations/20260518025219_sequence_term_counts.sql --linked"
   },
   "dependencies": {
     "@hookform/resolvers": "latest",
@@ -94,8 +95,7 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "globals": "^15.14.0",
     "postcss": "^8.5.6",
-    "supabase": "^2.98.2",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5"
+    "typescript": "^5.9.0"
   }
 }
