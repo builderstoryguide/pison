@@ -189,53 +189,67 @@ export function AppConfiguration() {
   const onSubmit = async (data: ConfigurationFormData) => {
     setIsSaving(true)
     try {
-      // Save the main app configuration
       const success = await updateConfiguration(data)
-      
+
       if (success) {
-        // Also save sequence configuration if sequences are configured
         const seqValidation = validateSequenceConfig(totalSequences, termSequenceCounts)
+        let sequenceSaveOk = false
+
         if (!seqValidation.valid) {
           toast.error("Sequence Configuration Error", {
             description: seqValidation.error,
           })
         } else {
-        const seq6Count = loadedSeqConfig?.sequence6Usage?.gradeCount ?? 0
-        if (
-          totalSequences === 5 &&
-          seq6Count > 0 &&
-          typeof window !== "undefined" &&
-          !window.confirm(
-            `${seq6Count} grade row(s) still use the 6th sequence. Saving with 5 sequences will deactivate sequence 6 (marks remain in the database). Continue?`
-          )
-        ) {
-          setIsSaving(false)
-          return
-        }
-        try {
-          const seqResult = await updateSequenceConfig.mutateAsync({
-            academicYear: data.academic_year || currentAcademicYear,
-            totalSequences,
-            termSequenceCounts,
-            defaultMaxMarks,
-          })
-          if (seqResult.warning) {
-            toast.warning("6th sequence has existing grades", {
-              description: seqResult.warning,
+          const seq6Count = loadedSeqConfig?.sequence6Usage?.gradeCount ?? 0
+          if (
+            totalSequences === 5 &&
+            seq6Count > 0 &&
+            typeof window !== "undefined" &&
+            !window.confirm(
+              `${seq6Count} grade row(s) still use the 6th sequence. Saving with 5 sequences will deactivate sequence 6 (marks remain in the database). Continue?`
+            )
+          ) {
+            setIsSaving(false)
+            return
+          }
+          try {
+            const seqResult = await updateSequenceConfig.mutateAsync({
+              academicYear: data.academic_year || currentAcademicYear,
+              totalSequences,
+              termSequenceCounts,
+              defaultMaxMarks,
+            })
+            sequenceSaveOk = true
+            if (seqResult.warning) {
+              toast.warning("6th sequence has existing grades", {
+                description: seqResult.warning,
+              })
+            }
+          } catch (seqError) {
+            toast.error("Sequence Configuration Error", {
+              description:
+                seqError instanceof Error
+                  ? seqError.message
+                  : "Failed to save sequence configuration",
             })
           }
-        } catch (seqError) {
-          // Log sequence save error but don't fail the entire save operation
+        }
 
-          toast.error("Sequence Configuration Error", {
-            description: seqError instanceof Error ? seqError.message : "Failed to save sequence configuration",
+        if (sequenceSaveOk) {
+          toast.success("Configuration Updated", {
+            description: "App and sequence settings were saved successfully.",
+          })
+        } else if (seqValidation.valid) {
+          toast.warning("Partially saved", {
+            description:
+              "App settings were saved, but sequence configuration could not be saved. Please try again.",
+          })
+        } else {
+          toast.warning("Partially saved", {
+            description:
+              "App settings were saved, but sequence configuration is invalid and was not saved.",
           })
         }
-        }
-
-        toast.success("Configuration Updated", {
-          description: "App configuration has been updated successfully."
-        })
       } else {
         // Use the error from context if available, otherwise show generic message
         const errorMessage = error || "Failed to update configuration. Please try again."

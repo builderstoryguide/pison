@@ -11,7 +11,8 @@
     "setup-env": "node scripts/setup-env.js",
     "db:link": "npx supabase@2.98.2 link --project-ref vzpwkfjthjaxotyebmui --yes",
     "db:push": "npx supabase@2.98.2 db push --linked",
-    "db:migrate:sequences": "npx supabase@2.98.2 db query -f supabase/migrations/20260518025219_sequence_term_counts.sql --linked"
+    "db:migrate:sequences": "npx supabase@2.98.2 db query -f supabase/migrations/20260518025219_sequence_term_counts.sql --linked",
+    "test:sequence-config": "npx --yes tsx --test lib/resolve-sequence-year-config.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "latest",

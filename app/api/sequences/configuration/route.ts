@@ -9,15 +9,14 @@ import {
   type SequenceAssignment,
   DEFAULT_TERM_COUNTS,
   DEFAULT_TOTAL_SEQUENCES,
-  deriveTermCountsFromSequences,
   getSequenceDisplayName,
   normalizeTermCounts,
   termCountsToAssignments,
   assignmentsToTermCounts,
   validateSequenceConfig,
   isValidTotalSequences,
-  TERM_KEYS,
 } from '@/lib/sequence-term-mapping'
+import { resolveSequenceYearConfig } from '@/lib/resolve-sequence-year-config'
 
 export const runtime = 'nodejs'
 
@@ -31,27 +30,6 @@ function groupByTerm<T extends { term: string | null }>(sequences: T[]): Record<
     sequencesByTerm[termKey].push(seq)
   })
   return sequencesByTerm
-}
-
-function parseTermCountsFromConfig(config: {
-  term_sequence_counts?: unknown
-  total_sequences?: number | null
-} | null): { totalSequences: number; termSequenceCounts: TermSequenceCounts } {
-  if (config?.term_sequence_counts && typeof config.term_sequence_counts === 'object') {
-    const raw = config.term_sequence_counts as Record<string, number>
-    const total =
-      config.total_sequences && isValidTotalSequences(config.total_sequences)
-        ? config.total_sequences
-        : TERM_KEYS.reduce((s, k) => s + (Number(raw[k]) || 0), 0) || DEFAULT_TOTAL_SEQUENCES
-    return {
-      totalSequences: isValidTotalSequences(total) ? total : DEFAULT_TOTAL_SEQUENCES,
-      termSequenceCounts: normalizeTermCounts(raw, total),
-    }
-  }
-  return {
-    totalSequences: DEFAULT_TOTAL_SEQUENCES,
-    termSequenceCounts: { ...DEFAULT_TERM_COUNTS },
-  }
 }
 
 /**
@@ -100,17 +78,10 @@ export async function GET(request: NextRequest) {
     }
 
     const activeSequences = sequences || []
-    let { totalSequences, termSequenceCounts } = parseTermCountsFromConfig(config)
-
-    if (activeSequences.length > 0) {
-      const derived = deriveTermCountsFromSequences(activeSequences)
-      if (derived.totalSequences > 0) {
-        totalSequences = isValidTotalSequences(derived.totalSequences)
-          ? (derived.totalSequences as 5 | 6)
-          : totalSequences
-        termSequenceCounts = normalizeTermCounts(derived.termSequenceCounts, totalSequences)
-      }
-    }
+    const { totalSequences, termSequenceCounts } = resolveSequenceYearConfig(
+      config,
+      activeSequences
+    )
 
     const service = createServiceClient()
     const sequence6Usage = await getSequenceGradeUsage(service, academicYear, 6)
