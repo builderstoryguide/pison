@@ -179,6 +179,9 @@ export async function loadReportCardData(options: {
       stats: reportResult.stats,
       discipline,
       watermarkUrl: reportResult.watermarkUrl,
+      reportWarnings: Array.isArray(reportResult.reportWarnings)
+        ? reportResult.reportWarnings
+        : undefined,
     }
 
     return { ok: true, data: transformedData }

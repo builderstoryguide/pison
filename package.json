@@ -12,7 +12,13 @@
     "db:link": "npx supabase@2.98.2 link --project-ref vzpwkfjthjaxotyebmui --yes",
     "db:push": "npx supabase@2.98.2 db push --linked",
     "db:migrate:sequences": "npx supabase@2.98.2 db query -f supabase/migrations/20260518025219_sequence_term_counts.sql --linked",
-    "test:sequence-config": "npx --yes tsx --test lib/resolve-sequence-year-config.test.ts lib/sequence-config-save-state.test.ts lib/report-card-transform.test.ts lib/report-card-year-summary.test.ts"
+    "test:sequence-config": "npx --yes tsx --test lib/resolve-sequence-year-config.test.ts lib/sequence-config-save-state.test.ts lib/report-card-transform.test.ts lib/report-card-year-summary.test.ts lib/report-card-assessment-resolution.test.ts lib/report-card-subject-matching.test.ts lib/report-card-subject-marks.test.ts lib/report-card-ranking.test.ts lib/report-card-marks-list-filters.test.ts lib/report-card-integration.test.ts",
+    "audit:report-cards": "npx tsx scripts/audit-report-card-marks.ts",
+    "audit:report-cards:ci": "npx tsx scripts/audit-report-card-marks.ts",
+    "verify:sequence-config": "npx tsx scripts/verify-sequence-config.ts",
+    "normalize:assessments": "npx tsx scripts/normalize-assessments.ts",
+    "normalize:assessments:apply": "npx tsx scripts/normalize-assessments.ts --apply",
+    "spot-check:report-cards": "npx tsx scripts/spot-check-report-cards.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "latest",

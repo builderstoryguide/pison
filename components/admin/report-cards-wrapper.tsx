@@ -307,6 +307,28 @@ export function ReportCardsWrapper() {
           </Button>
         </div>
 
+        {reportData.reportWarnings && reportData.reportWarnings.length > 0 && (
+          <div className="print:hidden rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p className="font-medium">
+              {reportData.reportWarnings.length} mark data warning
+              {reportData.reportWarnings.length === 1 ? '' : 's'}
+            </p>
+            <ul className="mt-1 list-disc pl-5 space-y-0.5">
+              {reportData.reportWarnings.slice(0, 5).map((w, i) => (
+                <li key={`${w.type}-${i}`}>
+                  {w.subject ? `${w.subject}: ` : ''}
+                  {w.message}
+                </li>
+              ))}
+            </ul>
+            {reportData.reportWarnings.length > 5 && (
+              <p className="mt-1 text-xs text-amber-700">
+                +{reportData.reportWarnings.length - 5} more (see server logs with DEBUG_REPORT_CARD=1)
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Render appropriate report card */}
         {selectedTerm === 'annual' ? (
           <AnnualReportCard data={reportData} onRefresh={handleRefreshReport} />

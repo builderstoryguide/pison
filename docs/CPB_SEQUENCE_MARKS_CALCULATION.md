@@ -18,10 +18,10 @@ CPB (Construction process and Building practice) is a subject with **sub-branche
    - Add to running total
 3. **Final calculation**: Average of all branch averages
 
-**Important Limitation**: 
-- ❌ **Sequence marks are NOT calculated separately** for branch subjects
-- The system takes ALL branch grades for the term and calculates a single term average
-- It does NOT group by sequence number (First Sequence, Second Sequence, etc.)
+**Current behavior (updated)**:
+- Branch grades are averaged per branch for the target term, then averaged across branches for `eval`
+- Sequence columns for that term are filled with the term average (display parity on term bulletins)
+- Per-sequence branch breakdown can be added later if teachers enter branch marks per sequence consistently
 
 ### Code Reference
 

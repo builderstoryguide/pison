@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { authenticateUser, isAdmin } from '@/lib/auth/server'
+import { getAcademicYearFromConfig } from '@/lib/app-config-server'
+import { loadSequenceYearConfig } from '@/lib/load-sequence-config-server'
+import { assessmentMatchesTermFilter } from '@/lib/report-card-marks-list-filters'
 
 export async function GET(request: NextRequest) {
   try {
@@ -145,6 +148,60 @@ export async function GET(request: NextRequest) {
         m.assessmentName?.toLowerCase().includes(searchLower) ||
         m.subjectName?.toLowerCase().includes(searchLower)
       )
+    }
+
+    if (term) {
+      const year = academicYear || (await getAcademicYearFromConfig())
+      const seqConfig = await loadSequenceYearConfig(supabase, year)
+      const { data: academicSequences } = await supabase
+        .from('academic_sequences')
+        .select('id, sequence_number, sequence_name')
+        .eq('academic_year', year)
+
+      const sequenceIdToNumberMap = new Map<string, number>()
+      for (const seq of academicSequences || []) {
+        sequenceIdToNumberMap.set(seq.id, seq.sequence_number)
+        if (seq.sequence_name) {
+          sequenceIdToNumberMap.set(seq.sequence_name.toLowerCase(), seq.sequence_number)
+        }
+      }
+
+      transformedMarks = transformedMarks.filter((m: { assessmentName?: string }) =>
+        assessmentMatchesTermFilter(
+          m.assessmentName,
+          term,
+          sequenceIdToNumberMap,
+          seqConfig.termSequenceCounts
+        )
+      )
+    }
+
+    if (academicYear) {
+      const { data: yearAssessments } = await supabase
+        .from('assessments')
+        .select('id, assessment_date')
+        .in(
+          'id',
+          [...new Set(transformedMarks.map((m: { assessmentId?: string }) => m.assessmentId).filter(Boolean))]
+        )
+
+      const assessmentYearMap = new Map<string, string>()
+      for (const a of yearAssessments || []) {
+        if (a.assessment_date) {
+          const y = String(a.assessment_date).slice(0, 4)
+          assessmentYearMap.set(a.id, y)
+        }
+      }
+
+      const yearStart = academicYear.split('-')[0]
+      if (yearStart) {
+        transformedMarks = transformedMarks.filter((m: { assessmentId?: string; assessmentDate?: string }) => {
+          const dateYear = m.assessmentDate
+            ? String(m.assessmentDate).slice(0, 4)
+            : assessmentYearMap.get(m.assessmentId || '')
+          return !dateYear || dateYear === yearStart || academicYear.includes(dateYear)
+        })
+      }
     }
 
     // Get class names and subject IDs

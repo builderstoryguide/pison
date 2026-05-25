@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getSequenceName, getSequenceNumberFromKey } from '@/lib/report-card-utils'
 
 export async function GET(request: NextRequest) {
   try {
@@ -45,7 +46,8 @@ export async function GET(request: NextRequest) {
         "seq5": "Fifth Sequence",
         "seq6": "Sixth Sequence",
       }
-      title = SEQUENCE_NAMES[sequenceId] || sequenceId
+      const seqNum = getSequenceNumberFromKey(sequenceId)
+      title = seqNum ? getSequenceName(seqNum) : SEQUENCE_NAMES[sequenceId] || sequenceId
     }
 
     // 3. Find Assessment
@@ -156,15 +158,8 @@ export async function POST(request: NextRequest) {
     // ClassGradeEntry sends 'sequenceId' (e.g. 'seq1'). TeacherGradesEntry sends 'examinationName'.
     let title = examinationName
     if (!title && sequenceId) {
-      const SEQUENCE_NAMES: Record<string, string> = {
-        "seq1": "First Sequence",
-        "seq2": "Second Sequence",
-        "seq3": "Third Sequence",
-        "seq4": "Fourth Sequence",
-        "seq5": "Fifth Sequence",
-        "seq6": "Sixth Sequence",
-      }
-      title = SEQUENCE_NAMES[sequenceId] || sequenceId
+      const seqNum = getSequenceNumberFromKey(sequenceId)
+      title = seqNum ? getSequenceName(seqNum) : sequenceId
     }
 
     // 3. Find or Create Assessment
@@ -207,17 +202,24 @@ export async function POST(request: NextRequest) {
     }
 
     if (!assessment) {
+      const { data: subjectRow } = await supabase
+        .from('subjects')
+        .select('id')
+        .eq('id', subjectId)
+        .maybeSingle()
+
       const { data: newAssessment, error: createError } = await supabase
         .from('assessments')
         .insert({
           title: title,
-          type: 'test', // Changed from 'sequence_grade' to 'test' which is allowed by CHECK constraint
-          subject: subjectName, // Storing Name as per schema
+          type: 'test',
+          subject: subjectName,
+          subject_id: subjectRow?.id ?? subjectId,
           class_id: classId,
           teacher_id: teacherId,
           total_marks: 20,
           status: 'published',
-          assessment_date: new Date().toISOString().split('T')[0], // Convert to DATE format (YYYY-MM-DD)
+          assessment_date: new Date().toISOString().split('T')[0],
         })
         .select()
         .single()

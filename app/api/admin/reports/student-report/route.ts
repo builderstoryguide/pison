@@ -20,6 +20,13 @@ import {
   isYearSummaryReport,
   isThirdTermYearSummaryTable,
 } from '@/lib/report-card-year-summary';
+import type { ReportCardWarning } from '@/components/admin/reports/report-card-types';
+import {
+  emptySequenceMarks,
+  fillBranchSequenceSlotsFromTermAverage,
+} from '@/lib/report-card-subject-marks';
+
+const DEBUG_REPORT_CARD = process.env.DEBUG_REPORT_CARD === '1';
 
 let activeTermSequenceCounts: TermSequenceCounts = { ...DEFAULT_TERM_COUNTS };
 let activeTotalSequences: 5 | 6 = 6;
@@ -641,16 +648,20 @@ export async function GET(req: NextRequest) {
         }
 
         const subj = assessSubject ? normalizeSubjectName(assessSubject) : '';
-        if (subj.includes('office practice')) {
-            console.warn(
-                `[Report Card] Office Practice: could not determine term (title: "${title}", term: "${termStr}"). Including for backward compatibility.`
-            );
+        if (subj.includes('office practice') && includeAllTermsGrades) {
+            if (DEBUG_REPORT_CARD) {
+                console.warn(
+                    `[Report Card] Office Practice: could not determine term (title: "${title}", term: "${termStr}"). Included for year-summary only.`
+                );
+            }
             return true;
         }
 
-        console.warn(
-            `[Report Card] Excluding grade: could not determine term (title: "${title}", term: "${termStr}", subject: "${assessSubject ?? ''}").`
-        );
+        if (DEBUG_REPORT_CARD) {
+            console.warn(
+                `[Report Card] Excluding grade: could not determine term (title: "${title}", term: "${termStr}", subject: "${assessSubject ?? ''}").`
+            );
+        }
         return false;
     };
 
@@ -662,6 +673,8 @@ export async function GET(req: NextRequest) {
         if (includeAllTermsGrades) return true;
         return isTargetTerm(termStr, title, assessSubject);
     };
+
+    const reportWarnings: ReportCardWarning[] = [];
 
     // Process Subjects
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -718,10 +731,28 @@ export async function GET(req: NextRequest) {
         );
         
         if (missingInAssessments.length > 0) {
-            console.warn(`[Report Card] Class subjects with NO matching assessments:`, missingInAssessments);
+            if (DEBUG_REPORT_CARD) {
+                console.warn(`[Report Card] Class subjects with NO matching assessments:`, missingInAssessments);
+            }
+            for (const subj of missingInAssessments) {
+                reportWarnings.push({
+                    type: 'NO_MATCHING_ASSESSMENT',
+                    message: `Class subject has no matching assessment records`,
+                    subject: subj,
+                });
+            }
         }
         if (missingInClassSubjects.length > 0) {
-            console.warn(`[Report Card] Assessment subjects with NO matching class subjects:`, missingInClassSubjects);
+            if (DEBUG_REPORT_CARD) {
+                console.warn(`[Report Card] Assessment subjects with NO matching class subjects:`, missingInClassSubjects);
+            }
+            for (const subj of missingInClassSubjects) {
+                reportWarnings.push({
+                    type: 'ORPHAN_ASSESSMENT_SUBJECT',
+                    message: `Assessment subject not in class_subjects`,
+                    subject: subj,
+                });
+            }
         }
     }
 
@@ -1067,9 +1098,19 @@ export async function GET(req: NextRequest) {
                     // Average of available branches
                     finalMark = sumScaledMarks / countBranchedGraded;
                     hasMark = true;
+
+                    const perTermForBranch = termMode.mode === 'per_term' ? termMode.term : null;
+                    const branchSeqMarks = emptySequenceMarks();
+                    fillBranchSequenceSlotsFromTermAverage(
+                        branchSeqMarks,
+                        finalMark,
+                        perTermForBranch,
+                        activeTermSequenceCounts
+                    );
+                    computedSequenceMarksForSubject = branchSeqMarks;
                     
                     // Log CPB calculation result
-                    if (isCPB) {
+                    if (isCPB && DEBUG_REPORT_CARD) {
                       console.log(`[CPB DIAGNOSTIC] Calculated final mark: ${finalMark}, from ${countBranchedGraded} branches`);
                     }
                 } else {
@@ -1425,7 +1466,7 @@ export async function GET(req: NextRequest) {
             // Get sequence marks for this subject (for normal subjects only)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const subjectSequenceMarks: any = {};
-            if (!hasSubBranches && computedSequenceMarksForSubject) {
+            if (computedSequenceMarksForSubject) {
                 for (let i = 1; i <= activeTotalSequences; i++) {
                     const v = computedSequenceMarksForSubject[`seq${i}`];
                     if (v !== undefined) {
@@ -2027,6 +2068,7 @@ export async function GET(req: NextRequest) {
             suspensions: 0,
             warnings: 0,
         },
+        reportWarnings,
     };
 
     return NextResponse.json(reportData, {

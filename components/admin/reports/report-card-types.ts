@@ -100,7 +100,14 @@ export interface HistoryInfo {
   rank?: number
 }
 
+export interface ReportCardWarning {
+  type: string
+  message: string
+  subject?: string
+}
+
 export interface ReportCardData {
+  reportWarnings?: ReportCardWarning[]
   student: StudentInfo
   academic: AcademicInfo
   subjects: SubjectGrade[]
@@ -152,4 +159,6 @@ export interface PisonReportCardData {
   stats: StatsInfo
   discipline?: DisciplineInfo
   watermarkUrl?: string
+  /** Non-fatal issues detected while building the report (audit / admin UI) */
+  reportWarnings?: ReportCardWarning[]
 }

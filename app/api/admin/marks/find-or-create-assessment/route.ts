@@ -86,16 +86,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const { data: subjectRow } = await supabase
+      .from('subjects')
+      .select('id')
+      .ilike('name', subjectName)
+      .maybeSingle()
+
     // Create assessment if it doesn't exist
     if (!assessment) {
-      // Use 'test' as the type for sequence assessments (valid types: quiz, test, exam, assignment, project)
-      // The sequence information is stored in the title field
       const { data: newAssessment, error: createError } = await supabase
         .from('assessments')
         .insert({
           title: normalizedSequenceName,
-          type: 'exam', // Use 'exam' for sequence assessments (valid types: quiz, test, exam, assignment, project)
+          type: 'test',
           subject: subjectName,
+          subject_id: subjectRow?.id ?? null,
           class_id: classId,
           teacher_id: user.id,
           total_marks: 20,
