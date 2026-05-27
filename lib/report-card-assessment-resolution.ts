@@ -1,3 +1,5 @@
+import { globalToTerm, type TermSequenceCounts } from './sequence-term-mapping'
+
 /**
  * Resolve assessment titles to global sequence numbers (1–6) for report cards.
  */
@@ -62,6 +64,25 @@ export function resolveGlobalSequenceFromTitle(
   }
 
   return extractGlobalSequenceNumber(t)
+}
+
+export function getTermFromAssessment(
+  title: string | null | undefined,
+  termStr: string | null | undefined,
+  sequenceIdToNumberMap: Map<string, number>,
+  termSequenceCounts: TermSequenceCounts
+): number | null {
+  const globalSeq = resolveGlobalSequenceFromTitle(title, sequenceIdToNumberMap)
+  if (globalSeq !== null) {
+    return globalToTerm(globalSeq, termSequenceCounts)?.termNumber ?? null
+  }
+
+  if (!termStr) return null
+  const normalizedTerm = termStr.trim().toLowerCase()
+  if (normalizedTerm.includes('1st') || normalizedTerm.includes('first') || normalizedTerm === '1' || normalizedTerm.includes('term 1')) return 1
+  if (normalizedTerm.includes('2nd') || normalizedTerm.includes('second') || normalizedTerm === '2' || normalizedTerm.includes('term 2')) return 2
+  if (normalizedTerm.includes('3rd') || normalizedTerm.includes('third') || normalizedTerm === '3' || normalizedTerm.includes('term 3')) return 3
+  return null
 }
 
 export function getTermNumber(termStr: string): 1 | 2 | 3 {

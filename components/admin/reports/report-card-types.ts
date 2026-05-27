@@ -97,6 +97,10 @@ export interface HistoryInfo {
   term2?: number
   term3?: number
   annualAvg?: number
+  rank1?: number
+  rank2?: number
+  rank3?: number
+  /** Term-3 rank on T3 bulletin; year-wide rank on annual report. */
   rank?: number
 }
 

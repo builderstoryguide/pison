@@ -5,6 +5,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { flattenPisonSubjects } from './report-card-transform'
+import { isSubjectExcludedForClass } from './report-card-subject-matching'
 import { computeWeightedTotal } from './report-card-totals'
 import { DEFAULT_TERM_COUNTS } from './sequence-term-mapping'
 import { buildSequenceMarksFromGrades } from './report-card-subject-marks'
@@ -50,5 +51,44 @@ describe('report card integration', () => {
     })
     assert.equal(hasMark, true)
     assert.equal(finalMark, 12)
+  })
+
+  it('flatten omits legacy Excluded for class rows from API sections', () => {
+    const flat = flattenPisonSubjects({
+      general: {
+        items: [
+          {
+            name: 'Mathematics',
+            eval: 10,
+            coef: 4,
+            hasMark: true,
+            coefEligible: true,
+          },
+          {
+            name: 'Computer Science',
+            eval: '-',
+            coef: 0,
+            remark: 'Excluded for class',
+            hasMark: false,
+            coefEligible: false,
+          },
+        ],
+      },
+    })
+    assert.equal(flat.length, 1)
+    assert.equal(flat[0].subjectName, 'Mathematics')
+  })
+
+  it('HEC 1 curriculum filter drops Computer Science from offered list', () => {
+    const subjects = [
+      { name: 'Family Life Education and Gerontology (FLEG)' },
+      { name: 'Computer Science' },
+      { name: 'Introduction to Marketing' },
+    ]
+    const offered = subjects.filter(
+      (s) => !isSubjectExcludedForClass('HEC 1', s.name)
+    )
+    assert.equal(offered.length, 2)
+    assert.ok(offered.every((s) => !/computer science/i.test(s.name)))
   })
 })

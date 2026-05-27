@@ -132,7 +132,9 @@ export function flattenPisonSubjects(
   const items: PisonReportSubjectItem[] = []
   for (const section of Object.values(sections)) {
     if (section?.items && Array.isArray(section.items)) {
-      items.push(...section.items)
+      items.push(
+        ...section.items.filter((item) => item.remark !== 'Excluded for class')
+      )
     }
   }
   return items.map(normalizeReportItem)

@@ -15,6 +15,7 @@ import {
   type TermAverages,
 } from '@/lib/sequence-term-mapping';
 import { calculateGrade, getRemarkForMark } from '@/lib/grading-utils';
+import { getTermFromAssessment } from '@/lib/report-card-assessment-resolution';
 import { REPORT_CARD_CATEGORIES } from '@/lib/report-card-transform';
 import {
   isYearSummaryReport,
@@ -25,6 +26,11 @@ import {
   emptySequenceMarks,
   fillBranchSequenceSlotsFromTermAverage,
 } from '@/lib/report-card-subject-marks';
+import {
+  subjectNamesMatch,
+  normalizeSubjectName,
+  isSubjectExcludedForClass,
+} from '@/lib/report-card-subject-matching';
 
 const DEBUG_REPORT_CARD = process.env.DEBUG_REPORT_CARD === '1';
 
@@ -409,7 +415,7 @@ export async function GET(req: NextRequest) {
     const typedGradesData = (gradesData as unknown as GradeRow[]) || [];
 
     if (gradesError) {
-      console.warn('Failed to fetch grades', gradesError);
+      console.error('Failed to fetch grades', gradesError);
     }
 
     // Filter grades to only include those entered by teachers assigned to teach the subject
@@ -601,24 +607,6 @@ export async function GET(req: NextRequest) {
     /** Load marks from every term when building year-summary columns (annual or term 3 table). */
     const includeAllTermsGrades = yearSummary;
 
-    // Helper to determine term from assessment title / UUID map / optional DB term string
-    const getTermFromAssessment = (
-        title: string | null,
-        termStr: string | null
-    ): number | null => {
-        const g = resolveGlobalSequenceFromTitle(title, sequenceIdToNumberMap);
-        if (g !== null) {
-            return globalSequenceToTerm(g);
-        }
-        if (termStr) {
-            const normalizedDb = termStr.toLowerCase();
-            if (normalizedDb.includes('1st') || normalizedDb.includes('first')) return 1;
-            if (normalizedDb.includes('2nd') || normalizedDb.includes('second')) return 2;
-            if (normalizedDb.includes('3rd') || normalizedDb.includes('third')) return 3;
-        }
-        return null;
-    };
-
     // Helper to normalize term matching (strict for per-term reports; loose for annual)
     const isTargetTerm = (
         termStr: string | null,
@@ -630,7 +618,7 @@ export async function GET(req: NextRequest) {
         }
         const requestedTerm = termMode.term;
 
-        const termFromData = getTermFromAssessment(title ?? null, termStr);
+        const termFromData = getTermFromAssessment(title ?? null, termStr ?? null, sequenceIdToNumberMap, activeTermSequenceCounts);
         if (termFromData !== null) {
             return termFromData === requestedTerm;
         }
@@ -676,6 +664,13 @@ export async function GET(req: NextRequest) {
 
     const reportWarnings: ReportCardWarning[] = [];
 
+    if (gradesError) {
+      reportWarnings.push({
+        type: 'GRADES_FETCH_FAILED',
+        message: `Could not load student grades: ${gradesError.message}. Report marks may be incomplete.`,
+      });
+    }
+
     // Process Subjects
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const reportItems: any[] = [];
@@ -695,10 +690,20 @@ export async function GET(req: NextRequest) {
     });
     
     // Convert map to array (already deduplicated)
-    const subjectsList = Array.from(subjectsMap.values());
-    
+    let subjectsList = Array.from(subjectsMap.values());
+
     // Resolve class label once for class-specific subject exclusion rules.
     const currentClassLabel = String(classData?.class_name || classData?.name || student.class || '').trim();
+
+    const beforeExclusionCount = subjectsList.length;
+    subjectsList = subjectsList.filter(
+        (s: { name?: string }) => !isSubjectExcludedForClass(currentClassLabel, s.name)
+    );
+    if (subjectsList.length < beforeExclusionCount) {
+        console.log(
+            `[Report Card] Omitted ${beforeExclusionCount - subjectsList.length} excluded subject(s) for class "${currentClassLabel}"`
+        );
+    }
 
     // Log subjects found for debugging
     console.log(`[Report Card] Found ${subjectsList.length} subjects for class ${classId}:`, 
@@ -1007,22 +1012,6 @@ export async function GET(req: NextRequest) {
         }
 
         if (isSubjectExcludedForClass(currentClassLabel, subjectName)) {
-            console.log(`[Report Card] Excluding subject "${subjectName}" for class "${currentClassLabel}"`);
-            reportItems.push({
-                name: subjectName.trim(),
-                subjectId: subjectId,
-                code: subjectCode || undefined,
-                eval: '-',
-                coef: 0,
-                plannedCoef: subjectCoef,
-                total: '-',
-                grade: '-',
-                rank: '-',
-                remark: 'Excluded for class',
-                category: category,
-                hasMark: false,
-                coefEligible: false,
-            });
             continue;
         }
 
@@ -1373,6 +1362,19 @@ export async function GET(req: NextRequest) {
                 const annualAvg = getAnnualAverageFromTermAverages(annualTermAvgsForSubject);
                 if (annualAvg !== undefined) {
                     marksForTermAverage = [annualAvg];
+                } else {
+                    const partialTermMarks = [
+                        annualTermAvgsForSubject.term1,
+                        annualTermAvgsForSubject.term2,
+                        annualTermAvgsForSubject.term3,
+                    ].filter((m): m is number => typeof m === 'number');
+                    if (partialTermMarks.length > 0) {
+                        marksForTermAverage =
+                            thirdTermTable &&
+                            typeof annualTermAvgsForSubject.term3 === 'number'
+                                ? [annualTermAvgsForSubject.term3]
+                                : partialTermMarks;
+                    }
                 }
             } else if (perTermNum !== null) {
                 const slots = getGlobalSequenceSlotsForTerm(perTermNum);
@@ -1622,12 +1624,38 @@ export async function GET(req: NextRequest) {
 
     // Calculate student's rank in class (overall and per subject) using normalized points ranking
     let studentRank = 0;
+    let rank1 = 0;
+    let rank2 = 0;
+    let rank3 = 0;
     let classSize = 0;
 
     try {
         const rankingEpsilon = 1e-6;
         const scoresAreEqual = (a: number, b: number) => Math.abs(a - b) <= rankingEpsilon;
         const normalizeAverage = (value: number) => (Number.isFinite(value) ? value : 0);
+        const gradeBelongsToTerm = (
+            term: 1 | 2 | 3,
+            assessmentTerm: string | null | undefined,
+            assessmentTitle: string | null | undefined,
+            assessmentSubject: string | null | undefined
+        ): boolean => {
+            const resolved = getTermFromAssessment(
+                assessmentTitle ?? null,
+                assessmentTerm ?? null,
+                sequenceIdToNumberMap,
+                activeTermSequenceCounts
+            );
+            if (resolved !== null) return resolved === term;
+            if (assessmentTerm) {
+                const normalizedDb = assessmentTerm.toLowerCase();
+                if (term === 1 && (normalizedDb.includes('1st') || normalizedDb.includes('first') || normalizedDb.includes('term 1'))) return true;
+                if (term === 2 && (normalizedDb.includes('2nd') || normalizedDb.includes('second') || normalizedDb.includes('term 2'))) return true;
+                if (term === 3 && (normalizedDb.includes('3rd') || normalizedDb.includes('third') || normalizedDb.includes('term 3'))) return true;
+            }
+            const subj = assessmentSubject ? normalizeSubjectName(assessmentSubject) : '';
+            if (subj.includes('office practice') && includeAllTermsGrades) return true;
+            return false;
+        };
         const isAssessmentInReportTerm = (
             assessmentTerm: string | null | undefined,
             assessmentTitle: string | null | undefined,
@@ -1841,6 +1869,114 @@ export async function GET(req: NextRequest) {
         }
         studentRank = rankByStudent.get(studentId) || 0;
 
+        const computeClassRankForFilter = (
+            includeGrade: (
+                assessmentTerm: string | null | undefined,
+                assessmentTitle: string | null | undefined,
+                assessmentSubject: string | null | undefined
+            ) => boolean,
+            currentStudentTermField?: 'term1' | 'term2' | 'term3'
+        ): number => {
+            const marksByStudent = new Map<string, Map<string, number[]>>();
+            const pushMarkForRank = (targetStudentId: string, normalizedSubject: string, mark: number) => {
+                if (!subjectCoefByName.has(normalizedSubject) || !Number.isFinite(mark)) return;
+                if (!marksByStudent.has(targetStudentId)) {
+                    marksByStudent.set(targetStudentId, new Map<string, number[]>());
+                }
+                const bySubject = marksByStudent.get(targetStudentId)!;
+                if (!bySubject.has(normalizedSubject)) {
+                    bySubject.set(normalizedSubject, []);
+                }
+                bySubject.get(normalizedSubject)!.push(mark);
+            };
+
+            if (currentStudentTermField) {
+                for (const item of reportItems) {
+                    const mark = item[currentStudentTermField];
+                    if (typeof mark === 'number' && item.coef > 0) {
+                        pushMarkForRank(studentId, normalizeSubjectName(item.name), mark);
+                    }
+                }
+            } else {
+                for (const item of reportItems) {
+                    if (typeof item.eval === 'number' && item.coef > 0) {
+                        pushMarkForRank(studentId, normalizeSubjectName(item.name), item.eval);
+                    }
+                }
+            }
+
+            for (const grade of allClassGrades) {
+                const subjectName = grade.assessment?.subject || '';
+                if (!subjectName) continue;
+                if (!includeGrade(null, grade.assessment?.title, subjectName)) continue;
+                if (grade.student_id === studentId) continue;
+                pushMarkForRank(grade.student_id, normalizeSubjectName(subjectName), grade.marks_obtained);
+            }
+
+            for (const bg of allClassBranchGrades) {
+                const subjectId = branchIdToSubjectId.get(bg.branch_id);
+                if (!subjectId) continue;
+                const subjectName = subjectIdToName.get(subjectId);
+                if (!subjectName) continue;
+                if (!includeGrade(bg.assessment?.term ?? null, bg.assessment?.title, subjectName)) continue;
+                if (bg.student_id === studentId) continue;
+                pushMarkForRank(bg.student_id, normalizeSubjectName(subjectName), bg.marks_obtained);
+            }
+
+            const metrics = new Map<string, { avg: number; hasMarks: boolean }>();
+            for (const classStudent of allClassStudents) {
+                const marksBySubject = marksByStudent.get(classStudent.id) || new Map<string, number[]>();
+                let totalPoints = 0;
+                let totalCoef = 0;
+                for (const [normalizedSubject, marks] of marksBySubject.entries()) {
+                    if (!marks.length) continue;
+                    const subjectCoef = subjectCoefByName.get(normalizedSubject) || 0;
+                    if (subjectCoef <= 0) continue;
+                    const subjectAverage = marks.reduce((sum, value) => sum + value, 0) / marks.length;
+                    totalPoints += subjectAverage * subjectCoef;
+                    totalCoef += subjectCoef;
+                }
+                metrics.set(classStudent.id, {
+                    avg: normalizeAverage(totalCoef > 0 ? totalPoints / totalCoef : 0),
+                    hasMarks: totalCoef > 0,
+                });
+            }
+
+            const ranked = Array.from(metrics.entries())
+                .filter(([, m]) => m.hasMarks)
+                .map(([id, m]) => ({ studentId: id, avg: m.avg }))
+                .sort((a, b) => b.avg - a.avg);
+
+            const rankMap = new Map<string, number>();
+            let denseRank = 1;
+            for (let i = 0; i < ranked.length; i++) {
+                if (i > 0 && !scoresAreEqual(ranked[i].avg, ranked[i - 1].avg)) {
+                    denseRank += 1;
+                }
+                rankMap.set(ranked[i].studentId, denseRank);
+            }
+            return rankMap.get(studentId) || 0;
+        };
+
+        if (yearSummary) {
+            rank1 = computeClassRankForFilter(
+                (t, title, subj) => gradeBelongsToTerm(1, t, title, subj),
+                'term1'
+            );
+            rank2 = computeClassRankForFilter(
+                (t, title, subj) => gradeBelongsToTerm(2, t, title, subj),
+                'term2'
+            );
+            rank3 = computeClassRankForFilter(
+                (t, title, subj) => gradeBelongsToTerm(3, t, title, subj),
+                'term3'
+            );
+            // Term 3 bulletin: overall badge uses term-3 rank; annual keeps year-wide rank from above.
+            if (termMode.mode === 'per_term' && termMode.term === 3) {
+                studentRank = rank3;
+            }
+        }
+
         // Subject-level ranks
         for (const subject of subjectsList as DbSubject[]) {
             const normalizedSubject = normalizeSubjectName(subject.name);
@@ -1924,6 +2060,7 @@ export async function GET(req: NextRequest) {
     reportItems.sort((a: any, b: any) => a.name.localeCompare(b.name));
 
     for (const item of reportItems) {
+        if (item.remark === 'Excluded for class') continue;
         const rawCat = (item.category || 'others').toLowerCase().trim();
         // Ensure category key is valid or default to 'others'
         const category = categoryTitles[rawCat] ? rawCat : 'others';
@@ -2040,7 +2177,10 @@ export async function GET(req: NextRequest) {
             term2: historyTerm2,
             term3: historyTerm3,
             annualAvg: historyAnnualAvg,
-            rank: studentRank
+            ...(yearSummary
+                ? { rank1, rank2, rank3 }
+                : {}),
+            rank: studentRank,
         },
         stats: {
             // Fill required fields with defaults if not calculated for whole class
@@ -2178,11 +2318,6 @@ function parseAcademicTermMode(academicTermId: string): AcademicReportTermMode {
     return { mode: 'per_term', term: getTermNumber(academicTermId) as 1 | 2 | 3 };
 }
 
-function globalSequenceToTerm(globalSeq: number): 1 | 2 | 3 | null {
-    const mapped = globalToTerm(globalSeq, activeTermSequenceCounts);
-    return mapped?.termNumber ?? null;
-}
-
 function getGlobalSequenceSlotsForTerm(term: 1 | 2 | 3): number[] {
     return getGlobalSlotsForTerm(term, activeTermSequenceCounts);
 }
@@ -2194,178 +2329,20 @@ function resolveGlobalSequenceFromTitle(
 ): number | null {
     if (!title) return null;
     const t = title.trim();
+    const normalizedTitle = t.toLowerCase();
     if (isUuidString(t) && sequenceIdToNumberMap.has(t)) {
         const n = sequenceIdToNumberMap.get(t);
         if (n !== undefined && n >= 1 && n <= 6) return n;
     }
+    if (isUuidString(normalizedTitle) && sequenceIdToNumberMap.has(normalizedTitle)) {
+        const n = sequenceIdToNumberMap.get(normalizedTitle);
+        if (n !== undefined && n >= 1 && n <= 6) return n;
+    }
+    if (sequenceIdToNumberMap.has(normalizedTitle)) {
+        const n = sequenceIdToNumberMap.get(normalizedTitle);
+        if (n !== undefined && n >= 1 && n <= 6) return n;
+    }
     return extractGlobalSequenceNumber(t);
-}
-
-/**
- * Subject alias mapping for common abbreviations
- * Maps abbreviations and variations to canonical subject names
- */
-const SUBJECT_ALIASES: Record<string, string[]> = {
-    'building construction': ['bc', 'b.c.', 'b.c', 'buildingconstruction', 'construction'],
-    'physical education': ['eps', 'e.p.s.', 'e.p.s', 'pe', 'p.e.', 'p.e', 'physicaleducation', 'sport'],
-    'accounting': ['ac', 'a.c.', 'a.c', 'accountancy', 'accounts'],
-    'home economics': ['hec', 'h.e.c.', 'h.e.c', 'homeeconomics', 'home ec', 'homeec'],
-    'office practice': ['op', 'o.p.', 'o.p', 'officepractice', 'office prac', 'off practice'],
-    'mathematics': ['math', 'maths', 'general mathematics', 'general math', 'gen math'],
-    'business mathematics': ['business math', 'biz math', 'business maths', 'bm', 'b.m.', 'commercial math', 'commercial mathematics'],
-    'resource management': ['resource management on home studies (rmhs)', 'resource management on home studies', 'rmhs', 'r.m.h.s.', 'r.m.h.s'],
-    'family life': ['family life education and gerontology (fleg)', 'family life education and gerontology', 'fleg', 'f.l.e.g.', 'f.l.e.g'],
-    'food and nutrition': ['food, nutrition and health (fnh)', 'food nutrition and health (fnh)', 'food, nutrition and health', 'food nutrition and health', 'fnh', 'f.n.h.', 'f.n.h'],
-};
-
-function normalizeClassName(name: string | null | undefined): string {
-    if (!name) return '';
-    return name.toUpperCase().replace(/[^A-Z0-9]/g, '');
-}
-
-function isSubjectExcludedForClass(className: string | null | undefined, subjectName: string | null | undefined): boolean {
-    const normalizedClass = normalizeClassName(className);
-    if (!normalizedClass || !subjectName) {
-        return false;
-    }
-
-    const ac1Ac2Excluded = ['entrepreneurship', 'computer science'];
-    const ac4Excluded = ['introduction to marketing', 'computer science'];
-    const hec1Hec2Excluded = ['computer science'];
-    const hec3Hec4Excluded = ['introduction to marketing', 'office practice', 'computer science'];
-    const bcEpsExcluded = ['industrial computing'];
-    const isSubjectInRule = (ruleSubjects: string[]) =>
-        ruleSubjects.some((ruleSubject) => subjectNamesMatch(subjectName, ruleSubject));
-
-    if (normalizedClass === 'AC1' || normalizedClass === 'AC2') {
-        return isSubjectInRule(ac1Ac2Excluded);
-    }
-    if (normalizedClass === 'AC4') {
-        return isSubjectInRule(ac4Excluded);
-    }
-    if (normalizedClass === 'HEC1' || normalizedClass === 'HEC2') {
-        return isSubjectInRule(hec1Hec2Excluded);
-    }
-    if (normalizedClass === 'HEC3' || normalizedClass === 'HEC4') {
-        return isSubjectInRule(hec3Hec4Excluded);
-    }
-    if (normalizedClass.startsWith('BC') || normalizedClass.startsWith('EPS')) {
-        return isSubjectInRule(bcEpsExcluded);
-    }
-
-    return false;
-}
-
-/**
- * Get all possible variations of a subject name (including aliases)
- */
-function getSubjectVariations(name: string): string[] {
-    const normalized = normalizeSubjectName(name);
-    const variations = [normalized];
-    
-    // Check if this name is an alias for another subject
-    for (const [canonical, aliases] of Object.entries(SUBJECT_ALIASES)) {
-        if (normalized === canonical || aliases.includes(normalized)) {
-            // Add canonical name and all aliases
-            variations.push(canonical);
-            variations.push(...aliases);
-        }
-    }
-    
-    // Also check if normalized name matches any canonical name
-    if (SUBJECT_ALIASES[normalized]) {
-        variations.push(...SUBJECT_ALIASES[normalized]);
-    }
-    
-    return [...new Set(variations)]; // Remove duplicates
-}
-
-/**
- * Normalize subject name for consistent comparison
- * Trims whitespace and converts to lowercase
- * Also handles common abbreviations via alias mapping
- */
-function normalizeSubjectName(name: string | null | undefined): string {
-    if (!name) return '';
-    const trimmed = name.trim().toLowerCase();
-    
-    // Check if this is a known alias and return canonical name
-    for (const [canonical, aliases] of Object.entries(SUBJECT_ALIASES)) {
-        if (trimmed === canonical || aliases.includes(trimmed)) {
-            return canonical;
-        }
-    }
-    
-    return trimmed;
-}
-
-/**
- * Check if two subject names match (case-insensitive, trimmed, with alias support)
- * Also handles partial matches for longer subject names
- */
-function subjectNamesMatch(name1: string | null | undefined, name2: string | null | undefined): boolean {
-    if (!name1 || !name2) return false;
-    
-    const norm1 = normalizeSubjectName(name1);
-    const norm2 = normalizeSubjectName(name2);
-    
-    // Exact match
-    if (norm1 === norm2) return true;
-    
-    // Check if they're aliases of the same subject
-    const variations1 = getSubjectVariations(name1);
-    const variations2 = getSubjectVariations(name2);
-    
-    if (variations1.some(v1 => variations2.includes(v1))) return true;
-    
-    // For longer subject names, try partial matching
-    // If one name contains the other (after removing common words), consider it a match
-    const removeCommonWords = (str: string): string => {
-        const commonWords = ['the', 'and', 'or', 'of', 'in', 'on', 'at', 'to', 'for', 'with', 'a', 'an'];
-        return str.split(' ')
-            .filter(word => !commonWords.includes(word))
-            .join(' ')
-            .trim();
-    };
-    
-    const cleaned1 = removeCommonWords(norm1);
-    const cleaned2 = removeCommonWords(norm2);
-    
-    // Word-by-word matching for multi-word subjects
-    const words1 = cleaned1.split(' ').filter(w => w.length > 2);
-    const words2 = cleaned2.split(' ').filter(w => w.length > 2);
-    
-    // IMPORTANT: Prevent false matches between single-word and multi-word subjects
-    // "Mathematics" should NOT match "Business Mathematics"
-    // Only allow exact match for single-word subjects unless they're aliases
-    if (words1.length === 1 && words2.length === 1) {
-        // Both are single words - exact match only
-        return words1[0] === words2[0];
-    }
-    
-    // If one is single-word and other is multi-word, don't match by substring
-    // (This prevents "Mathematics" from matching "Business Mathematics")
-    if ((words1.length === 1 && words2.length > 1) || (words1.length > 1 && words2.length === 1)) {
-        // Only match if the single word equals ALL words in the multi-word subject (very rare case)
-        return false;
-    }
-    
-    // For multi-word subjects (both have multiple words), check if they share significant words
-    if (words1.length > 1 && words2.length > 1) {
-        const matchingWords = words1.filter(w1 => words2.some(w2 => w1 === w2));
-        // Require at least 2 exact word matches, or all words from one subject present in the other
-        if (matchingWords.length >= 2) {
-            return true;
-        }
-        // Check if one is a subset of the other (all words match exactly)
-        const allWords1Match = words1.every(w1 => words2.includes(w1));
-        const allWords2Match = words2.every(w2 => words1.includes(w2));
-        if (allWords1Match || allWords2Match) {
-            return true;
-        }
-    }
-    
-    return false;
 }
 
 /**

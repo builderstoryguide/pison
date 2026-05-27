@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'path';
+import { isSubjectExcludedForClass } from '../lib/report-card-subject-matching';
+import { classGroups, subjectMap, type ClassGroup } from '../lib/class-curriculum';
 
 // Load environment variables from .env.local
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
@@ -14,88 +16,6 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Map User Subject Names -> Database Subject Names (Target Names)
-// These are the names we WANT to insert if missing.
-const subjectMap: { [key: string]: string } = {
-  'French Language': 'French Language',
-  'English Language': 'ENGLISH LANGUAGE (ENG LAN)',
-  'Mathematics': 'MATHEMATICS',
-  'Computer Aided Management': 'Computer Aided Management (CAM)',
-  'Introduction to Marketing': 'Introduction to Marketing',
-  'Accounting': 'ACCOUNTING',
-  'Office Practice': 'OFFICE PRACTICE',
-  'Citizenship': 'Citizenship (CTZ)',
-  'Physical Education': 'Physical Education (PE)',
-  'Manual Labour': 'Manual Labour (LB)',
-  
-  // BC Mapping
-  'Drawing': 'Building Construction Drawing (BCD)', // Defaulting to BCD for BC classes
-  'Building Drawing': 'Building Construction Drawing (BCD)',
-  'Construction Process': 'Construction process and Building practice (CPB)',
-  'Engineering Science': 'ENGINEERING SCIENCE',
-  'Industrial Computing': 'INDUSTRIAL COMPUTING',
-  'Soil Survey Material': 'Survey, Soil Mechanics and Material ( SMS)',
-  'Health and Safety': 'QUALITY HYGINE AND SAFTY ENVIRONMENT',
-
-  // AC 3+ Mappings
-  'QFA': 'OHADA Finance Accounting (OFA)', 
-  'IFA': 'International  Finance Accounting  (IFA)', 
-  'QFR': 'OHADA Finance Reporting (OFR)', 
-  'Business Mathematics': 'Business Mathematics',
-  'Economics': 'Economics',
-  'Commerce': 'COMMENCE',
-  'Entrepreneurship': 'Entrepreneurship',
-  'Law and Government': 'Law and government (LG)',
-
-  // HEC Mappings
-  'Natural Science': 'Natural Science',
-  'Family Life': 'Family Life Education and Gerontology (FLEG)',
-  'Food and Nutrition': 'Food, Nutrition and Health (FNH)',
-  'Resource Management': 'Resource Management on Home Studies (RMHS)',
-
-  // EPS Mappings
-  'Engineering Drawing': 'ENGINEERING DRAWING',
-  'Electrical Technology': 'Electrical Technology and Diagrams (ETD)',
-  'Electrical Circuit': 'Electrical and Electronic Circuit (EEC)',
-  'Electric Machine': 'Electrical Machines (EM)',
-};
-
-type ClassGroup = {
-  userClassName: string;
-  dbSearchName: string;
-  subjects: string[];
-};
-
-const classGroups: ClassGroup[] = [
-  // AC
-  { userClassName: 'Ac 1', dbSearchName: 'AC 1', subjects: ['French Language', 'English Language', 'Mathematics', 'Computer Aided Management', 'Introduction to Marketing', 'Accounting', 'Office Practice', 'Citizenship', 'Physical Education', 'Manual Labour'] },
-  { userClassName: 'Ac 2', dbSearchName: 'AC 2', subjects: ['French Language', 'English Language', 'Mathematics', 'Computer Aided Management', 'Introduction to Marketing', 'Accounting', 'Office Practice', 'Citizenship', 'Physical Education', 'Manual Labour'] },
-  { userClassName: 'Ac 3', dbSearchName: 'AC 3', subjects: ['French Language', 'English Language', 'Mathematics', 'QFA', 'IFA', 'QFR', 'Business Mathematics', 'Economics', 'Commerce', 'Entrepreneurship', 'Citizenship', 'Law and Government', 'Physical Education', 'Manual Labour'] },
-  { userClassName: 'Ac 4', dbSearchName: 'AC 4', subjects: ['French Language', 'English Language', 'Mathematics', 'QFA', 'IFA', 'QFR', 'Business Mathematics', 'Economics', 'Commerce', 'Entrepreneurship', 'Citizenship', 'Law and Government', 'Physical Education', 'Manual Labour'] },
-  { userClassName: 'Ac 5', dbSearchName: 'AC 5', subjects: ['French Language', 'English Language', 'Mathematics', 'QFA', 'IFA', 'QFR', 'Business Mathematics', 'Economics', 'Commerce', 'Entrepreneurship', 'Citizenship', 'Law and Government', 'Physical Education', 'Manual Labour'] },
-
-  // BC
-  { userClassName: 'Bc 1', dbSearchName: 'Form 1 BC', subjects: ['Drawing', 'Construction Process', 'French Language', 'English Language', 'Mathematics', 'Engineering Science', 'Industrial Computing', 'Citizenship', 'Physical Education', 'Manual Labour', 'Soil Survey Material', 'Health and Safety'] },
-  { userClassName: 'Bc 2', dbSearchName: 'Form 2 BC', subjects: ['Drawing', 'Construction Process', 'French Language', 'English Language', 'Mathematics', 'Engineering Science', 'Industrial Computing', 'Citizenship', 'Physical Education', 'Manual Labour', 'Soil Survey Material', 'Health and Safety'] },
-  { userClassName: 'Bc 3', dbSearchName: 'Form 3 BC', subjects: ['Building Drawing', 'Construction Process', 'Soil Survey Material', 'Mathematics', 'Health and Safety', 'Industrial Computing', 'Engineering Science', 'French Language', 'English Language', 'Citizenship', 'Law and Government', 'Physical Education', 'Manual Labour'] },
-  { userClassName: 'Bc 4', dbSearchName: 'Form 4 BC', subjects: ['Building Drawing', 'Construction Process', 'Soil Survey Material', 'Mathematics', 'Health and Safety', 'Industrial Computing', 'Engineering Science', 'French Language', 'English Language', 'Citizenship', 'Law and Government', 'Physical Education', 'Manual Labour'] },
-  { userClassName: 'Bc 5', dbSearchName: 'Form 5 BC', subjects: ['Building Drawing', 'Construction Process', 'Soil Survey Material', 'Mathematics', 'Health and Safety', 'Industrial Computing', 'Engineering Science', 'French Language', 'English Language', 'Citizenship', 'Law and Government', 'Physical Education', 'Manual Labour'] },
-
-  // HEC
-  { userClassName: 'Hec 1', dbSearchName: 'HEC 1', subjects: ['French Language', 'English Language', 'Mathematics', 'Natural Science', 'Family Life', 'Food and Nutrition', 'Resource Management', 'Citizenship', 'Physical Education', 'Manual Labour'] },
-  { userClassName: 'Hec 2', dbSearchName: 'HEC 2', subjects: ['French Language', 'English Language', 'Mathematics', 'Natural Science', 'Family Life', 'Food and Nutrition', 'Resource Management', 'Citizenship', 'Physical Education', 'Manual Labour'] },
-  { userClassName: 'Hec 3', dbSearchName: 'HEC 3', subjects: ['French Language', 'English Language', 'Mathematics', 'Natural Science', 'Business Mathematics', 'Entrepreneurship', 'Family Life', 'Resource Management', 'Food and Nutrition', 'Citizenship', 'Law and Government', 'Physical Education', 'Manual Labour'] },
-  { userClassName: 'Hec 4', dbSearchName: 'HEC 4', subjects: ['French Language', 'English Language', 'Mathematics', 'Natural Science', 'Business Mathematics', 'Entrepreneurship', 'Family Life', 'Resource Management', 'Food and Nutrition', 'Citizenship', 'Law and Government', 'Physical Education', 'Manual Labour'] },
-  { userClassName: 'Hec 5', dbSearchName: 'HEC 5', subjects: ['French Language', 'English Language', 'Mathematics', 'Natural Science', 'Business Mathematics', 'Entrepreneurship', 'Family Life', 'Resource Management', 'Food and Nutrition', 'Citizenship', 'Law and Government', 'Physical Education', 'Manual Labour'] },
-
-  // EPS
-  { userClassName: 'EPS 1', dbSearchName: 'form 1 EPS', subjects: ['French Language', 'English Language', 'Mathematics', 'Engineering Science', 'Engineering Drawing', 'Electrical Technology', 'Industrial Computing', 'Citizenship', 'Manual Labour', 'Physical Education'] },
-  { userClassName: 'EPS 2', dbSearchName: 'Form 2 EPS', subjects: ['French Language', 'English Language', 'Mathematics', 'Engineering Science', 'Engineering Drawing', 'Electrical Technology', 'Industrial Computing', 'Citizenship', 'Manual Labour', 'Physical Education'] },
-  { userClassName: 'EPS 3', dbSearchName: 'FORM 3 EPS', subjects: ['French Language', 'English Language', 'Mathematics', 'Engineering Science', 'Engineering Drawing', 'Industrial Computing', 'Electrical Circuit', 'Electrical Technology', 'Electric Machine', 'Citizenship', 'Law and Government', 'Physical Education', 'Manual Labour'] },
-  { userClassName: 'EPS 4', dbSearchName: 'form 4 EPS', subjects: ['French Language', 'English Language', 'Mathematics', 'Engineering Science', 'Engineering Drawing', 'Industrial Computing', 'Electrical Circuit', 'Electrical Technology', 'Electric Machine', 'Citizenship', 'Law and Government', 'Physical Education', 'Manual Labour'] },
-  { userClassName: 'EPS 5', dbSearchName: 'Form 5 EPS', subjects: ['French Language', 'English Language', 'Mathematics', 'Engineering Science', 'Engineering Drawing', 'Industrial Computing', 'Electrical Circuit', 'Electrical Technology', 'Electric Machine', 'Citizenship', 'Law and Government', 'Physical Education', 'Manual Labour'] },
-];
 
 function normalize(str: string): string {
   return str.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -139,7 +59,11 @@ async function fixClassSubjects(group: ClassGroup) {
     name: cs.subjects?.name
   })) || [];
 
-  const requiredSubjectNames = group.subjects.map(shortName => subjectMap[shortName] || shortName);
+  const requiredSubjectNames = group.subjects
+    .map((shortName) => subjectMap[shortName] || shortName)
+    .filter(
+      (dbName) => !isSubjectExcludedForClass(group.dbSearchName, dbName)
+    );
 
   // 3. Identify Missing & Extra
   const toAdd: string[] = [];
@@ -155,15 +79,17 @@ async function fixClassSubjects(group: ClassGroup) {
     }
   }
 
-  // Find Extras (Check if assigned is NOT in required list)
+  // Find Extras (not in required list, or excluded for this class)
   for (const assigned of assignedSubjects) {
-     const isRequired = requiredSubjectNames.some(
-        req => normalize(req) === normalize(assigned.name)
-     );
-     if (!isRequired) {
-       console.log(`   Running deletion for Extra: ${assigned.name}`);
-       toRemoveIds.push(assigned.subject_id);
-     }
+    const isRequired = requiredSubjectNames.some(
+      (req) => normalize(req) === normalize(assigned.name)
+    );
+    const isExcluded = isSubjectExcludedForClass(group.dbSearchName, assigned.name);
+    if (!isRequired || isExcluded) {
+      const reason = isExcluded ? 'Excluded' : 'Extra';
+      console.log(`   Removing (${reason}): ${assigned.name}`);
+      toRemoveIds.push(assigned.subject_id);
+    }
   }
 
   // 4. Perform Fixes
@@ -218,10 +144,32 @@ async function fixClassSubjects(group: ClassGroup) {
 }
 
 async function runFix() {
-  for (const group of classGroups) {
+  const bcOnly = process.argv.includes('--bc-only');
+  const hecOnly = process.argv.includes('--hec-only');
+  const epsOnly = process.argv.includes('--eps-only');
+  const groups = epsOnly
+    ? classGroups.filter((g) => g.userClassName.startsWith('EPS'))
+    : hecOnly
+      ? classGroups.filter((g) => g.userClassName.startsWith('Hec'))
+      : bcOnly
+        ? classGroups.filter((g) => g.userClassName.startsWith('Bc'))
+        : classGroups;
+
+  if (epsOnly) {
+    console.log(`EPS-only mode: processing ${groups.length} class(es)\n`);
+  } else if (hecOnly) {
+    console.log(`HEC-only mode: processing ${groups.length} class(es)\n`);
+  } else if (bcOnly) {
+    console.log(`BC-only mode: processing ${groups.length} class(es)\n`);
+  }
+
+  for (const group of groups) {
     await fixClassSubjects(group);
   }
   console.log('\nFix Complete.');
 }
 
-runFix().catch(console.error);
+const isDirectRun = process.argv[1]?.replace(/\\/g, '/').includes('fix_class_subjects');
+if (isDirectRun) {
+  runFix().catch(console.error);
+}

@@ -8,6 +8,7 @@ import {
   QrCode
 } from 'lucide-react';
 import { PisonReportCardData } from './report-card-types';
+import { StudentEvaluationResultsTable } from './StudentEvaluationResultsTable';
 
 interface PisonReportCardProps {
   reportData: PisonReportCardData
@@ -335,35 +336,15 @@ const PisonReportCard = ({ reportData }: PisonReportCardProps) => {
             
             {/* Left Column: Term History & Discipline */}
             <div className="col-span-12 md:col-span-4 flex flex-col gap-0">
-              <div className="border border-black bg-white/90 backdrop-blur-sm">
-                 <div className="bg-gray-100 p-0.5 print:p-0.5 text-center text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
-                   Student&apos;s Evaluation Results
-                 </div>
-                 <table className="w-full text-[0.6rem] print:text-[7pt] text-center">
-                   <thead>
-                     <tr className="border-b border-gray-300">
-                       <th className="p-0.5 print:p-0.5 border-r border-gray-300">TERM</th>
-                       <th className="p-0.5 print:p-0.5 border-r border-gray-300">1</th>
-                       <th className="p-0.5 print:p-0.5 border-r border-gray-300">2</th>
-                       <th className="p-0.5 print:p-0.5">3</th>
-                     </tr>
-                   </thead>
-                   <tbody>
-                      <tr className="border-b border-gray-300 font-mono">
-                        <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">AVERAGE</td>
-                        <td className="p-0.5 print:p-0.5 border-r border-gray-300">{data.history.term1}</td>
-                        <td className="p-0.5 print:p-0.5 border-r border-gray-300">{data.history.term2}</td>
-                        <td className="p-0.5 print:p-0.5 font-bold">{data.history.term3}</td>
-                      </tr>
-                      <tr className="font-mono">
-                        <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">RANK</td>
-                        <td className="p-0.5 print:p-0.5 border-r border-gray-300">-</td>
-                        <td className="p-0.5 print:p-0.5 border-r border-gray-300">-</td>
-                        <td className="p-0.5 print:p-0.5">{data.history.rank}</td>
-                      </tr>
-                   </tbody>
-                 </table>
-              </div>
+              <StudentEvaluationResultsTable
+                term1={data.history.term1}
+                term2={data.history.term2}
+                term3={data.history.term3}
+                rank1={data.history.rank1}
+                rank2={data.history.rank2}
+                rank3={data.history.rank3 ?? data.history.rank}
+                headerAlign="center"
+              />
 
               <div className="border border-black bg-white/90 backdrop-blur-sm">
                  <div className="bg-gray-100 p-0.5 print:p-0.5 text-center text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">

@@ -23,6 +23,7 @@ import { calculateGrade, getGradeRemarks, isNegativeRemark } from '@/lib/grading
 import { REPORT_CARD_CATEGORIES } from '@/lib/report-card-transform'
 
 import { SubjectGrade } from './report-card-types'
+import { StudentEvaluationResultsTable } from './StudentEvaluationResultsTable'
 import {
   buildReportCardPdfFilename,
   fetchReportCardPdfBlob,
@@ -79,6 +80,9 @@ interface AnnualReportCardProps {
       term2?: number
       term3?: number
       annualAvg?: number
+      rank1?: number
+      rank2?: number
+      rank3?: number
       rank?: number
     }
   }
@@ -1197,41 +1201,14 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
           {/* Footer Stats */}
           <div className="grid grid-cols-1 md:grid-cols-12 print:grid-cols-12 gap-2 print:gap-1 mb-2 print:mb-1 relative z-10">
             <div className="col-span-12 md:col-span-4 flex flex-col gap-0">
-              <div className="border border-black bg-white/90">
-                <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
-                  Student&apos;s Evaluation Results
-                </div>
-                <table className="w-full text-[0.6rem] print:text-[7pt]">
-                  <thead>
-                    <tr className="border-b border-gray-300">
-                      <th className="p-0.5 print:p-0.5 border-r border-gray-300">TERM</th>
-                      <th className="p-0.5 print:p-0.5 border-r border-gray-300">1</th>
-                      <th className="p-0.5 print:p-0.5 border-r border-gray-300">2</th>
-                      <th className="p-0.5 print:p-0.5">3</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-gray-300 font-mono">
-                      <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">AVERAGE</td>
-                      <td className="p-0.5 print:p-0.5 border-r border-gray-300">
-                        {data.history.term1 != null ? data.history.term1.toFixed(1) : '-'}
-                      </td>
-                      <td className="p-0.5 print:p-0.5 border-r border-gray-300">
-                        {data.history.term2 != null ? data.history.term2.toFixed(1) : '-'}
-                      </td>
-                      <td className="p-0.5 print:p-0.5 font-bold">
-                        {data.history.term3 != null ? data.history.term3.toFixed(1) : '-'}
-                      </td>
-                    </tr>
-                    <tr className="font-mono">
-                      <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">RANK</td>
-                      <td className="p-0.5 print:p-0.5 border-r border-gray-300">-</td>
-                      <td className="p-0.5 print:p-0.5 border-r border-gray-300">-</td>
-                      <td className="p-0.5 print:p-0.5">{data.history.rank ?? '-'}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <StudentEvaluationResultsTable
+                term1={data.history.term1}
+                term2={data.history.term2}
+                term3={data.history.term3}
+                rank1={data.history.rank1}
+                rank2={data.history.rank2}
+                rank3={data.history.rank3}
+              />
 
               <div className="border border-black bg-white/90">
                 <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">

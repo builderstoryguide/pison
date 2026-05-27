@@ -12,6 +12,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { loadSequenceYearConfig } from '../lib/load-sequence-config-server'
 import {
+  getTermFromAssessment,
   resolveGlobalSequenceFromTitle,
   parseAcademicTermMode,
 } from '../lib/report-card-assessment-resolution'
@@ -127,13 +128,12 @@ async function main() {
       })
       .filter((name): name is string => Boolean(name))
 
-    const { data: allActiveStudents } = await supabase
+    const { data: allStudents } = await supabase
       .from('students')
       .select('id, first_name, last_name, class, status')
-      .eq('status', 'active')
 
-    const activeStudents: typeof allActiveStudents = []
-    for (const s of allActiveStudents || []) {
+    const activeStudents: typeof allStudents = []
+    for (const s of allStudents || []) {
       const resolved = await resolveClassId(supabase, s.class || '')
       if (resolved === classId) activeStudents.push(s)
     }
@@ -220,12 +220,15 @@ async function main() {
         const termMode = parseAcademicTermMode(term)
         const termGrades = (grades || []).filter((g) => {
           const a = (g as { assessment?: { title?: string; term?: string } }).assessment
-          const title = a?.title || ''
-          const globalSeq = resolveGlobalSequenceFromTitle(title, sequenceIdToNumberMap)
-          if (globalSeq === null) return termMode.mode === 'annual'
-          const mapped = globalToTerm(globalSeq, seqConfig.termSequenceCounts)
           if (termMode.mode === 'annual') return true
-          return mapped?.termNumber === termMode.term
+
+          const resolvedTerm = getTermFromAssessment(
+            a?.title ?? null,
+            a?.term ?? null,
+            sequenceIdToNumberMap,
+            seqConfig.termSequenceCounts
+          )
+          return resolvedTerm === termMode.term
         })
 
         const subjectsWithGrades = new Set<string>()

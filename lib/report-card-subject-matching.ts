@@ -41,10 +41,71 @@ export const SUBJECT_ALIASES: Record<string, string[]> = {
     'f.n.h.',
     'f.n.h',
   ],
+  'law and government': [
+    'law and government (lg)',
+    'law and government',
+    'lg',
+  ],
+  'natural science': ['natural science', 'natural sciences'],
   'construction process and building practice': [
     'cpb',
     'construction process',
     'building practice',
+    'construction process and building practice (cpb)',
+  ],
+  'building construction drawing': [
+    'bcd',
+    'drawing',
+    'building drawing',
+    'building construction drawing (bcd)',
+  ],
+  'survey, soil mechanics and material': [
+    'sms',
+    'soil survey material',
+    'soil survey',
+    'survey soil mechanics and material',
+    'survey, soil mechanics and material ( sms)',
+  ],
+  'quality hygine and safty environment': [
+    'qhse',
+    'health and safety',
+    'quality hygiene and safety environment',
+    'quality hygine and safty environment',
+  ],
+  'engineering science': [
+    'engineering science',
+    'eng science',
+    'engineering science (?)',
+  ],
+  'engineering drawing': [
+    'engineering drawing',
+    'eng drawing',
+    'engineering drawing (?)',
+    'technical drawing',
+  ],
+  'electrical technology': [
+    'electrical technology',
+    'etd',
+    'electrical technology and diagrams',
+    'electrical technology and diagrams (etd)',
+  ],
+  'electrical and electronic circuit': [
+    'electrical circuit',
+    'electronic circuit',
+    'eec',
+    'electrical and electronic circuit',
+    'electrical and electronic circuit (eec)',
+  ],
+  'electrical machines': [
+    'electric machine',
+    'electrical machines',
+    'em',
+    'electrical machines (em)',
+  ],
+  'industrial computing': [
+    'industrial computing',
+    'ic',
+    'industrial computing (?)',
   ],
 }
 
@@ -147,7 +208,7 @@ export function isSubjectExcludedForClass(
   const ac4Excluded = ['introduction to marketing', 'computer science']
   const hec1Hec2Excluded = ['computer science']
   const hec3Hec4Excluded = ['introduction to marketing', 'office practice', 'computer science']
-  const bcEpsExcluded = ['industrial computing']
+  const bcExcluded = ['industrial computing']
   const isSubjectInRule = (ruleSubjects: string[]) =>
     ruleSubjects.some((ruleSubject) => subjectNamesMatch(subjectName, ruleSubject))
 
@@ -163,9 +224,28 @@ export function isSubjectExcludedForClass(
   if (normalizedClass === 'HEC3' || normalizedClass === 'HEC4') {
     return isSubjectInRule(hec3Hec4Excluded)
   }
-  if (normalizedClass.startsWith('BC') || normalizedClass.startsWith('EPS')) {
-    return isSubjectInRule(bcEpsExcluded)
+  if (isBcClass(normalizedClass)) {
+    return isSubjectInRule(bcExcluded)
   }
 
   return false
+}
+
+/** Matches BC1–BC5 and FORM1BC–FORM5BC. */
+export function isBcClass(normalizedClass: string): boolean {
+  if (/^BC\d+$/.test(normalizedClass)) return true
+  if (/^FORM\d+BC$/.test(normalizedClass)) return true
+  return false
+}
+
+/** Matches EPS1–EPS5 and FORM1EPS–FORM5EPS. */
+export function isEpsClass(normalizedClass: string): boolean {
+  if (/^EPS\d+$/.test(normalizedClass)) return true
+  if (/^FORM\d+EPS$/.test(normalizedClass)) return true
+  return false
+}
+
+/** Matches BC1–BC5, FORM1BC–FORM5BC, EPS*, FORM*EPS. */
+export function isBcOrEpsClass(normalizedClass: string): boolean {
+  return isBcClass(normalizedClass) || isEpsClass(normalizedClass)
 }
