@@ -30,6 +30,20 @@ export function averageMarks(marks: number[]): number {
   return marks.reduce((a, b) => a + b, 0) / marks.length
 }
 
+/** Mean of any populated seq1…seqN slots (year-summary partial-data fallback). */
+export function getAverageFromPopulatedSequenceMarks(
+  sequenceMarks: SequenceMarks,
+  totalSequences: 5 | 6
+): number | undefined {
+  const values: number[] = []
+  for (let slot = 1; slot <= totalSequences; slot++) {
+    const m = sequenceMarks[`seq${slot}`]
+    if (typeof m === 'number' && !Number.isNaN(m)) values.push(m)
+  }
+  if (values.length === 0) return undefined
+  return parseFloat(averageMarks(values).toFixed(2))
+}
+
 export function buildSequenceMarksFromGrades(options: {
   grades: { marks_obtained: number; title: string }[]
   sequenceIdToNumberMap: Map<string, number>
@@ -99,6 +113,23 @@ export function buildSequenceMarksFromGrades(options: {
     const annualAvg = getAnnualAverageFromTermAverages(annualTermAvgs)
     if (annualAvg !== undefined) {
       marksForTermAverage.push(annualAvg)
+    } else {
+      const partialTermMarks = [
+        annualTermAvgs.term1,
+        annualTermAvgs.term2,
+        annualTermAvgs.term3,
+      ].filter((m): m is number => typeof m === 'number')
+      if (partialTermMarks.length > 0) {
+        marksForTermAverage.push(...partialTermMarks)
+      } else {
+        const populatedAvg = getAverageFromPopulatedSequenceMarks(
+          sequenceMarks,
+          totalSequences
+        )
+        if (populatedAvg !== undefined) {
+          marksForTermAverage.push(populatedAvg)
+        }
+      }
     }
   } else if (perTermNum !== null) {
     const slots = getGlobalSlotsForTerm(perTermNum, termSequenceCounts)
@@ -176,6 +207,24 @@ function distributeUnknownGrades(
   }
 }
 
+/** Average per-slot marks across branches (year-summary branch subjects). */
+export function mergeBranchSequenceMarksAcrossBranches(
+  branchMarks: SequenceMarks[],
+  totalSequences: 5 | 6
+): SequenceMarks {
+  const merged = emptySequenceMarks()
+  for (let slot = 1; slot <= totalSequences; slot++) {
+    const key = `seq${slot}` as keyof SequenceMarks
+    const values = branchMarks
+      .map((m) => m[key])
+      .filter((v): v is number => typeof v === 'number' && !Number.isNaN(v))
+    if (values.length > 0) {
+      merged[key] = parseFloat(averageMarks(values).toFixed(2))
+    }
+  }
+  return merged
+}
+
 /** Fill term sequence slots with branch term average (display parity for branched subjects). */
 export function fillBranchSequenceSlotsFromTermAverage(
   sequenceMarks: SequenceMarks,
@@ -213,12 +262,13 @@ export function computeBranchSubjectMarks(options: {
   } = options
 
   const branchSequenceAvgs: number[] = []
+  const branchSlotMarks: SequenceMarks[] = []
 
   for (const branchId of branchIds) {
     const bGrades = branchGrades.filter((bg) => bg.branch_id === branchId)
     if (bGrades.length === 0) continue
 
-    const { finalMark, hasMark } = buildSequenceMarksFromGrades({
+    const { sequenceMarks, finalMark, hasMark } = buildSequenceMarksFromGrades({
       grades: bGrades.map((g) => ({ marks_obtained: g.marks_obtained, title: g.title })),
       sequenceIdToNumberMap,
       termSequenceCounts,
@@ -227,7 +277,10 @@ export function computeBranchSubjectMarks(options: {
       yearSummary,
     })
 
-    if (hasMark) branchSequenceAvgs.push(finalMark)
+    if (hasMark) {
+      branchSequenceAvgs.push(finalMark)
+      if (yearSummary) branchSlotMarks.push(sequenceMarks)
+    }
   }
 
   if (branchSequenceAvgs.length === 0) {
@@ -235,8 +288,18 @@ export function computeBranchSubjectMarks(options: {
   }
 
   const finalMark = averageMarks(branchSequenceAvgs)
-  const sequenceMarks = emptySequenceMarks()
-  fillBranchSequenceSlotsFromTermAverage(sequenceMarks, finalMark, perTermNum, termSequenceCounts)
+  let sequenceMarks = emptySequenceMarks()
+
+  if (yearSummary && branchSlotMarks.length > 0) {
+    sequenceMarks = mergeBranchSequenceMarksAcrossBranches(branchSlotMarks, totalSequences)
+  } else if (perTermNum !== null) {
+    fillBranchSequenceSlotsFromTermAverage(
+      sequenceMarks,
+      finalMark,
+      perTermNum,
+      termSequenceCounts
+    )
+  }
 
   return { sequenceMarks, finalMark, hasMark: true }
 }

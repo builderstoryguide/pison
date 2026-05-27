@@ -1,7 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'path';
-import { isSubjectExcludedForClass } from '../lib/report-card-subject-matching';
+import {
+  isSubjectExcludedForClass,
+  subjectNamesMatch,
+  normalizeSubjectName,
+} from '../lib/report-card-subject-matching';
 import { classGroups, subjectMap, type ClassGroup } from '../lib/class-curriculum';
 
 // Load environment variables from .env.local
@@ -40,6 +44,7 @@ async function fixClassSubjects(group: ClassGroup) {
   const { data: classSubjects, error: subjectsError } = await supabase
     .from('class_subjects')
     .select(`
+        id,
         subject_id,
         subjects (
           id,
@@ -54,10 +59,18 @@ async function fixClassSubjects(group: ClassGroup) {
     return;
   }
 
-  const assignedSubjects = classSubjects?.map((cs: any) => ({
-    subject_id: cs.subject_id,
-    name: cs.subjects?.name
-  })) || [];
+  const assignedSubjects = (classSubjects ?? []).map((cs: {
+    id: string
+    subject_id: string
+    subjects?: { name?: string } | { name?: string }[]
+  }) => {
+    const subj = Array.isArray(cs.subjects) ? cs.subjects[0] : cs.subjects
+    return {
+      row_id: cs.id,
+      subject_id: cs.subject_id,
+      name: subj?.name,
+    }
+  });
 
   const requiredSubjectNames = group.subjects
     .map((shortName) => subjectMap[shortName] || shortName)
@@ -67,41 +80,51 @@ async function fixClassSubjects(group: ClassGroup) {
 
   // 3. Identify Missing & Extra
   const toAdd: string[] = [];
-  const toRemoveIds: string[] = [];
+  const toRemoveRowIds: string[] = [];
+  const satisfiedCanonical = new Set<string>();
 
-  // Find Missing (Check if required DB name exists in assigned)
+  // Find Missing (alias-aware: e.g. TECHNICAL DRAWING satisfies ENGINEERING DRAWING)
   for (const reqDbName of requiredSubjectNames) {
     const exists = assignedSubjects.some(
-      as => normalize(as.name) === normalize(reqDbName)
+      (as) => subjectNamesMatch(as.name, reqDbName)
     );
     if (!exists) {
       toAdd.push(reqDbName);
     }
   }
 
-  // Find Extras (not in required list, or excluded for this class)
+  // Find Extras, duplicates, and excluded subjects (delete by class_subjects row id)
   for (const assigned of assignedSubjects) {
     const isRequired = requiredSubjectNames.some(
-      (req) => normalize(req) === normalize(assigned.name)
+      (req) => subjectNamesMatch(req, assigned.name)
     );
     const isExcluded = isSubjectExcludedForClass(group.dbSearchName, assigned.name);
     if (!isRequired || isExcluded) {
       const reason = isExcluded ? 'Excluded' : 'Extra';
       console.log(`   Removing (${reason}): ${assigned.name}`);
-      toRemoveIds.push(assigned.subject_id);
+      toRemoveRowIds.push(assigned.row_id);
+      continue;
+    }
+
+    const canon = normalizeSubjectName(assigned.name || '');
+    if (satisfiedCanonical.has(canon)) {
+      console.log(`   Removing (duplicate): ${assigned.name}`);
+      toRemoveRowIds.push(assigned.row_id);
+    } else {
+      satisfiedCanonical.add(canon);
     }
   }
 
   // 4. Perform Fixes
   
   // REMOVE
-  if (toRemoveIds.length > 0) {
-    console.log(`   🗑️  Removing ${toRemoveIds.length} extra subjects...`);
+  if (toRemoveRowIds.length > 0) {
+    console.log(`   🗑️  Removing ${toRemoveRowIds.length} class_subjects row(s)...`);
     const { error: delError } = await supabase
       .from('class_subjects')
       .delete()
       .eq('class_id', classId)
-      .in('subject_id', toRemoveIds);
+      .in('id', toRemoveRowIds);
     
     if (delError) console.error('   ❌ Error removing:', delError);
     else console.log('   ✅ Removed extras.');
@@ -138,7 +161,7 @@ async function fixClassSubjects(group: ClassGroup) {
     }
   }
 
-  if (toAdd.length === 0 && toRemoveIds.length === 0) {
+  if (toAdd.length === 0 && toRemoveRowIds.length === 0) {
     console.log('   ✅ No changes needed.');
   }
 }

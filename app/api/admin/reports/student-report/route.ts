@@ -29,7 +29,8 @@ import {
 import type { ReportCardWarning } from '@/components/admin/reports/report-card-types';
 import {
   emptySequenceMarks,
-  fillBranchSequenceSlotsFromTermAverage,
+  computeBranchSubjectMarks,
+  getAverageFromPopulatedSequenceMarks,
 } from '@/lib/report-card-subject-marks';
 import {
   subjectNamesMatch,
@@ -1011,47 +1012,49 @@ export async function GET(req: NextRequest) {
             }
             
             if (branches.length > 0) {
-                let sumScaledMarks = 0;
-                let countBranchedGraded = 0;
-
-                for (const branch of branches) {
-                    const bGrades = branchGradesData?.filter(bg => {
+                const branchIds = branches.map((b) => b.id);
+                const filteredBranchGrades =
+                    branchGradesData?.filter((bg) => {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const assessment = bg.assessment as any;
-                        return bg.branch_id === branch.id && 
-                            gradeIncludedForReport(assessment?.term || null, assessment?.title || null, assessment?.subject || null);
+                        return (
+                            branchIds.includes(bg.branch_id) &&
+                            gradeIncludedForReport(
+                                assessment?.term || null,
+                                assessment?.title || null,
+                                assessment?.subject || null
+                            )
+                        );
                     }) || [];
 
-                    if (bGrades.length > 0) {
-                        // Average marks for this branch
-                        const branchAvgRaw = bGrades.reduce((acc, curr) => acc + curr.marks_obtained, 0) / bGrades.length;
-                        
-                        // Marks are already out of 20
-                        const scaledTo20 = branchAvgRaw; 
-                        
-                        sumScaledMarks += scaledTo20;
-                        countBranchedGraded++;
-                    }
-                }
+                const perTermForBranch = termMode.mode === 'per_term' ? termMode.term : null;
+                const branchResult = computeBranchSubjectMarks({
+                    branchGrades: filteredBranchGrades.map((bg) => {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const assessment = bg.assessment as any;
+                        return {
+                            marks_obtained: bg.marks_obtained,
+                            branch_id: bg.branch_id,
+                            title: assessment?.title || '',
+                        };
+                    }),
+                    branchIds,
+                    sequenceIdToNumberMap,
+                    termSequenceCounts: activeTermSequenceCounts,
+                    totalSequences: activeTotalSequences,
+                    perTermNum: perTermForBranch,
+                    yearSummary,
+                });
 
-                if (countBranchedGraded > 0) {
-                    // Average of available branches
-                    finalMark = sumScaledMarks / countBranchedGraded;
+                if (branchResult.hasMark) {
+                    finalMark = branchResult.finalMark;
                     hasMark = true;
+                    computedSequenceMarksForSubject = branchResult.sequenceMarks;
 
-                    const perTermForBranch = termMode.mode === 'per_term' ? termMode.term : null;
-                    const branchSeqMarks = emptySequenceMarks();
-                    fillBranchSequenceSlotsFromTermAverage(
-                        branchSeqMarks,
-                        finalMark,
-                        perTermForBranch,
-                        activeTermSequenceCounts
-                    );
-                    computedSequenceMarksForSubject = branchSeqMarks;
-                    
-                    // Log CPB calculation result
                     if (isCPB && DEBUG_REPORT_CARD) {
-                      console.log(`[CPB DIAGNOSTIC] Calculated final mark: ${finalMark}, from ${countBranchedGraded} branches`);
+                      console.log(
+                          `[CPB DIAGNOSTIC] Calculated final mark: ${finalMark}, branches: ${branchIds.length}, yearSummary: ${yearSummary}`
+                      );
                     }
                 } else {
                     // Log if no branches had grades
@@ -1342,6 +1345,14 @@ export async function GET(req: NextRequest) {
                             typeof annualTermAvgsForSubject.term3 === 'number'
                                 ? [annualTermAvgsForSubject.term3]
                                 : partialTermMarks;
+                    } else {
+                        const populatedAvg = getAverageFromPopulatedSequenceMarks(
+                            sequenceMarks,
+                            activeTotalSequences
+                        );
+                        if (populatedAvg !== undefined) {
+                            marksForTermAverage = [populatedAvg];
+                        }
                     }
                 }
             } else if (perTermNum !== null) {
