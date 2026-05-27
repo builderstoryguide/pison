@@ -2,6 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'path';
+import { classGroups, subjectMap } from '../lib/class-curriculum';
+import { isSubjectExcludedForClass } from '../lib/report-card-subject-matching';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
@@ -48,7 +50,46 @@ async function deduplicate(className: string) {
   }
 }
 
+async function removeOrphanAssessments(className: string, allowedSubjectNorms: Set<string>) {
+  console.log(`Checking orphan assessments for ${className}...`);
+  const { data: classes } = await supabase.from('classes').select('id').or(`name.eq.${className},class_name.eq.${className}`).single();
+  if (!classes) return;
+  const classId = classes.id;
+
+  const { data: assessments } = await supabase
+    .from('assessments')
+    .select('id, subject')
+    .eq('class_id', classId);
+
+  const orphanIds: string[] = [];
+  for (const a of assessments || []) {
+    const norm = (a.subject || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    if (!allowedSubjectNorms.has(norm)) orphanIds.push(a.id);
+  }
+
+  if (orphanIds.length === 0) {
+    console.log('No orphan assessments found.');
+    return;
+  }
+
+  console.log(`Found ${orphanIds.length} orphan assessments. Removing grades then assessments...`);
+  await supabase.from('grades').delete().in('assessment_id', orphanIds);
+  const { error } = await supabase.from('assessments').delete().in('id', orphanIds);
+  if (error) console.error(error);
+  else console.log('Orphan assessments removed.');
+}
+
 async function run() {
+  const ac5Group = classGroups.find((g) => g.dbSearchName === 'AC 5');
+  const ac5Subjects = new Set(
+    (ac5Group?.subjects ?? [])
+      .map((short) => subjectMap[short] || short)
+      .filter((name) => !isSubjectExcludedForClass('AC 5', name))
+      .map((s) => s.trim().toLowerCase().replace(/\s+/g, ' '))
+  );
+
+  await deduplicate('AC 5');
+  await removeOrphanAssessments('AC 5', ac5Subjects);
   await deduplicate('AC 1');
   await deduplicate('AC 2');
 }

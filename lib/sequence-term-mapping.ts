@@ -306,13 +306,34 @@ export function isAnnualCoefEligible(
   counts: TermSequenceCounts
 ): boolean {
   for (let termNumber = 1; termNumber <= 3; termNumber++) {
-    const slots = getGlobalSlotsForTerm(termNumber as 1 | 2 | 3, counts)
-    if (slots.length === 0) return false
-    if (!slots.every((slot) => typeof sequenceMarks[`seq${slot}`] === 'number')) {
+    if (!isTermCoefEligible(sequenceMarks, termNumber as 1 | 2 | 3, counts)) {
       return false
     }
   }
   return true
+}
+
+/** Coefficient counts when every configured slot in one term has a mark. */
+export function isTermCoefEligible(
+  sequenceMarks: Record<string, number | undefined>,
+  termNumber: 1 | 2 | 3,
+  counts: TermSequenceCounts
+): boolean {
+  const slots = getGlobalSlotsForTerm(termNumber, counts)
+  if (slots.length === 0) return false
+  return slots.every((slot) => typeof sequenceMarks[`seq${slot}`] === 'number')
+}
+
+/** Mean of completed term averages (partial year when not all three terms exist). */
+export function getPartialAnnualAverageFromTermAverages(
+  termAvgs: TermAverages
+): number | undefined {
+  const partial: number[] = []
+  if (typeof termAvgs.term1 === 'number') partial.push(termAvgs.term1)
+  if (typeof termAvgs.term2 === 'number') partial.push(termAvgs.term2)
+  if (typeof termAvgs.term3 === 'number') partial.push(termAvgs.term3)
+  if (partial.length === 0) return undefined
+  return parseFloat(averageSequenceMarks(partial).toFixed(2))
 }
 
 export function adjustTermCountsForTotal(

@@ -1395,7 +1395,12 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
                   <tbody>
                     <tr className="border-b border-gray-300 font-mono">
                       <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">AVERAGE</td>
-                      <td className="p-0.5 print:p-0.5 font-bold">
+                      <td
+                        className={`p-0.5 print:p-0.5 font-bold ${
+                          data.totals.average >= 10 ? 'text-green-700' : 'text-red-600'
+                        }`}
+                        style={{ color: data.totals.average >= 10 ? '#15803d' : '#dc2626' }}
+                      >
                         {data.totals.average.toFixed(1)}
                       </td>
                     </tr>

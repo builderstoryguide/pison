@@ -1,5 +1,7 @@
 'use client'
 
+import type { CSSProperties } from 'react'
+
 export interface StudentEvaluationResultsProps {
   term1?: number
   term2?: number
@@ -20,18 +22,35 @@ export interface StudentEvaluationResultsProps {
 }
 
 function formatAverage(value: number | undefined): string {
-  if (value == null || value <= 0) return '-'
+  if (value == null || Number.isNaN(value)) return '-'
   return value.toFixed(1)
 }
 
 function formatAnnualAverage(value: number | undefined): string {
-  if (value == null || value <= 0) return '-'
+  if (value == null || Number.isNaN(value)) return '-'
   return value.toFixed(2)
 }
 
 function formatRank(value: number | undefined): string {
   if (value == null || value <= 0) return '-'
   return String(value)
+}
+
+function averagePassed(value: number | undefined): boolean | null {
+  if (value == null || Number.isNaN(value)) return null
+  return value >= 10
+}
+
+function averageColorClass(value: number | undefined): string {
+  const passed = averagePassed(value)
+  if (passed === null) return ''
+  return passed ? 'text-green-700' : 'text-red-600'
+}
+
+function averageColorStyle(value: number | undefined): CSSProperties | undefined {
+  const passed = averagePassed(value)
+  if (passed === null) return undefined
+  return { color: passed ? '#15803d' : '#dc2626' }
 }
 
 function termCellClass(highlightTerm: 1 | 2 | 3 | undefined, term: 1 | 2 | 3): string {
@@ -93,9 +112,24 @@ function LegacyEvaluationTable({
             <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">
               AVERAGE
             </td>
-            <td className={termCellClass(highlightTerm, 1)}>{formatAverage(term1)}</td>
-            <td className={termCellClass(highlightTerm, 2)}>{formatAverage(term2)}</td>
-            <td className={termCellClassLast(highlightTerm, 3)}>{formatAverage(term3)}</td>
+            <td
+              className={`${termCellClass(highlightTerm, 1)} ${averageColorClass(term1)}`}
+              style={averageColorStyle(term1)}
+            >
+              {formatAverage(term1)}
+            </td>
+            <td
+              className={`${termCellClass(highlightTerm, 2)} ${averageColorClass(term2)}`}
+              style={averageColorStyle(term2)}
+            >
+              {formatAverage(term2)}
+            </td>
+            <td
+              className={`${termCellClassLast(highlightTerm, 3)} ${averageColorClass(term3)}`}
+              style={averageColorStyle(term3)}
+            >
+              {formatAverage(term3)}
+            </td>
           </tr>
           <tr className="font-mono">
             <td className="p-0.5 print:p-0.5 font-bold border-r border-gray-300 text-left pl-1">
@@ -170,7 +204,10 @@ export function StudentEvaluationResultsTable(props: StudentEvaluationResultsPro
                   <span>Annual</span>
                   <span>Avg</span>
                 </span>
-                <span className="text-xl print:text-lg font-black font-mono shrink-0">
+                <span
+                  className={`text-xl print:text-lg font-black font-mono shrink-0 ${averageColorClass(annualAvg)}`}
+                  style={averageColorStyle(annualAvg)}
+                >
                   {formatAnnualAverage(annualAvg)}
                 </span>
               </div>
@@ -180,9 +217,22 @@ export function StudentEvaluationResultsTable(props: StudentEvaluationResultsPro
             <td className={annualLabelCellClass()}>
               AVERAGE
             </td>
-            <td className={annualTermCellClass(highlightTerm, 1)}>{formatAverage(term1)}</td>
-            <td className={annualTermCellClass(highlightTerm, 2)}>{formatAverage(term2)}</td>
-            <td className={`${annualTermCellClass(highlightTerm, 3)} border-r border-gray-300`}>
+            <td
+              className={`${annualTermCellClass(highlightTerm, 1)} ${averageColorClass(term1)}`}
+              style={averageColorStyle(term1)}
+            >
+              {formatAverage(term1)}
+            </td>
+            <td
+              className={`${annualTermCellClass(highlightTerm, 2)} ${averageColorClass(term2)}`}
+              style={averageColorStyle(term2)}
+            >
+              {formatAverage(term2)}
+            </td>
+            <td
+              className={`${annualTermCellClass(highlightTerm, 3)} border-r border-gray-300 ${averageColorClass(term3)}`}
+              style={averageColorStyle(term3)}
+            >
               {formatAverage(term3)}
             </td>
           </tr>

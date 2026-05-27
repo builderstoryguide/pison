@@ -164,6 +164,12 @@ function coefficientCellDisplay(subject: SubjectGrade): string | number {
   return '-'
 }
 
+/** Include in weighted totals on partial-year annual cards when marks exist. */
+function subjectIncludedInWeightedTotals(subject: SubjectGrade): boolean {
+  if (subjectCoefEligible(subject)) return true
+  return subjectHasMark(subject) && effectiveCoefficient(subject) > 0
+}
+
 function getSpecialityFromClass(className: string | undefined, speciality: string | undefined): string {
   // If speciality is provided, use it
   if (speciality && speciality.trim() !== '') {
@@ -262,20 +268,21 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
 
   const calculateCategorySummary = (subjects: typeof data.subjects, category: string) => {
     const coef = subjects.reduce(
-      (sum, s) => sum + (subjectCoefEligible(s) ? s.coefficient : 0),
+      (sum, s) =>
+        sum + (subjectIncludedInWeightedTotals(s) ? effectiveCoefficient(s) : 0),
       0
     )
     const totalScore = subjects.reduce((sum, s) => {
-      if (!subjectCoefEligible(s)) return sum
+      if (!subjectIncludedInWeightedTotals(s)) return sum
       const avg = annualAverageFromSubject(s)
       if (avg === undefined) return sum
-      return sum + avg * s.coefficient
+      return sum + avg * effectiveCoefficient(s)
     }, 0)
     const avg = coef > 0 ? totalScore / coef : 0
     const validRanks = subjects.map(s => s.rank ?? 0).filter(r => r > 0)
     const rank = validRanks.length > 0 ? Math.min(...validRanks) : 0
     const passed = subjects.filter(s => {
-      if (!subjectCoefEligible(s)) return false
+      if (!subjectIncludedInWeightedTotals(s)) return false
       const avg = annualAverageFromSubject(s)
       return avg !== undefined && avg >= 10
     }).length
@@ -1084,10 +1091,11 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
                         const t2 = getSubjectTermAvg(subject, 2, termCounts)
                         const t3 = getSubjectTermAvg(subject, 3, termCounts)
                         const avg = annualAverageFromSubject(subject)
-                        const eligible = subjectCoefEligible(subject)
+                        const eligible = subjectIncludedInWeightedTotals(subject)
                         const hasMark = subjectHasMark(subject)
+                        const rowCoef = effectiveCoefficient(subject)
                         const totalScore =
-                          eligible && avg !== undefined ? avg * subject.coefficient : undefined
+                          eligible && avg !== undefined ? avg * rowCoef : undefined
                         const grade =
                           hasMark && subject.grade && subject.grade !== '-'
                             ? subject.grade

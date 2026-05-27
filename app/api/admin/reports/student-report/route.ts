@@ -11,9 +11,14 @@ import {
   getTermAveragesFromSequenceMarks,
   getAnnualAverageFromTermAverages,
   isAnnualCoefEligible,
+  isTermCoefEligible,
   type TermSequenceCounts,
   type TermAverages,
 } from '@/lib/sequence-term-mapping';
+import {
+  computeWeightedTermHistory,
+  accumulatePartialAnnualSection,
+} from '@/lib/report-card-totals';
 import { calculateGrade, getRemarkForMark } from '@/lib/grading-utils';
 import { getTermFromAssessment } from '@/lib/report-card-assessment-resolution';
 import { REPORT_CARD_CATEGORIES } from '@/lib/report-card-transform';
@@ -31,6 +36,19 @@ import {
   normalizeSubjectName,
   isSubjectExcludedForClass,
 } from '@/lib/report-card-subject-matching';
+import {
+  buildCohortRankingMetrics,
+  rankCohortByMetrics,
+  rankSubjectsForCohort,
+  type RankingScope,
+  type StudentGradeRow,
+  type StudentBranchGradeRow,
+} from '@/lib/report-card-class-ranking';
+import {
+  shouldIncludeReportCardGrade,
+  shouldIncludeReportCardBranchGrade,
+  type ReportCardGradeFilterContext,
+} from '@/lib/report-card-grade-filter';
 
 const DEBUG_REPORT_CARD = process.env.DEBUG_REPORT_CARD === '1';
 
@@ -314,6 +332,17 @@ export async function GET(req: NextRequest) {
       }))
     );
 
+    const gradeFilterCtx: ReportCardGradeFilterContext = {
+      classSubjects: classSubjects
+        .map((cs) => {
+          const subj = Array.isArray(cs.subjects) ? cs.subjects[0] : cs.subjects;
+          return subj ? { id: subj.id, name: subj.name } : null;
+        })
+        .filter((s): s is { id: string; name: string } => s !== null),
+      subjectTeacherMap,
+      adminUserIds,
+    };
+
     // 5. Fetch Sub-branches for these subjects
     // Try both tables: subject_sub_branches (older) and subject_branches (newer)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -418,85 +447,18 @@ export async function GET(req: NextRequest) {
       console.error('Failed to fetch grades', gradesError);
     }
 
-    // Filter grades to only include those entered by teachers assigned to teach the subject
-    // This ensures data integrity - only marks from authorized teachers appear on report cards
-    // EXCEPTION: Office Practice grades are always included regardless of teacher assignment
-    let filteredGradesData = typedGradesData;
-
-    if (gradesData && subjectTeacherMap.size > 0) {
-      filteredGradesData = typedGradesData.filter((grade) => {
-        try {
-          const assessment = grade.assessment;
-          const assessSubject = assessment?.subject || '';
-          const assessTeacherId = assessment?.teacher_id;
-          const normalizedSubject = normalizeSubjectName(assessSubject);
-          const isOfficePractice = normalizedSubject.includes('office practice') || normalizedSubject === 'office practice';
-          
-          // ALWAYS include Office Practice grades regardless of teacher assignment
-          if (isOfficePractice) {
-            console.log(`[OFFICE PRACTICE] ✓ Including grade (marks: ${grade.marks_obtained}) - Office Practice grades are always included regardless of teacher assignment`);
-            return true;
-          }
-          
-          // ALWAYS include grades entered by admin users
-          if (assessTeacherId) {
-            const isAdmin = typeof adminUserIds !== 'undefined' && adminUserIds.has(assessTeacherId);
-            if (isAdmin) {
-              console.log(`[ADMIN MARK] ✓ Including grade (marks: ${grade.marks_obtained}) for subject "${assessSubject}" - Admin-entered marks are always included`);
-              return true;
-            }
-          }
-          
-          // Find the subject ID for this grade's subject name
-          let matchingSubjectId: string | null = null;
-          for (const cs of classSubjects) {
-            const subj = Array.isArray(cs.subjects) ? cs.subjects[0] : cs.subjects;
-            if (subj && subjectNamesMatch(subj.name, assessSubject)) {
-              matchingSubjectId = subj.id;
-              break;
-            }
-          }
-          
-          if (!matchingSubjectId) {
-            console.warn(`[Report Card] No matching subject found for grade subject: "${assessSubject}"`);
-            return false;
-          }
-          
-          // Check if the teacher who entered this grade is assigned to teach this subject
-          const assignedTeachers = subjectTeacherMap.get(matchingSubjectId);
-          if (!assignedTeachers || assignedTeachers.size === 0) {
-            // No teachers assigned to this subject - log warning but include the grade
-            // (might be legacy data or subject without explicit assignment)
-            console.warn(`[Report Card] No teachers assigned to subject "${assessSubject}" (ID: ${matchingSubjectId}). Including grade for backward compatibility.`);
-            return true; // Include it anyway to avoid losing data
-          }
-          
-          if (assessTeacherId && !assignedTeachers.has(assessTeacherId)) {
-            console.warn(`[Report Card] Grade for subject "${assessSubject}" entered by teacher ${assessTeacherId} who is not assigned to teach this subject. Including per relaxed rules.`);
-            // Relaxed rule: Include these grades to handle Admin-entered or migrated data
-            return true; 
-          }
-          
-          // If teacher_id is null/undefined, we can't verify, so include it (might be legacy data)
-          if (!assessTeacherId) {
-            console.warn(`[Report Card] Grade for subject "${assessSubject}" has no teacher_id. Including for backward compatibility.`);
-          }
-          
-          return true;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (error: any) {
-          console.error(`[Report Card] Error filtering grade:`, error);
-          return false; // Exclude on error to be safe
-        }
-      });
-      
-      if (filteredGradesData.length !== gradesData.length) {
-        console.log(`[Report Card] Filtered ${gradesData.length - filteredGradesData.length} grades that don't match teacher assignments`);
-      }
-    }
-
     // Use filtered grades data (only marks from assigned teachers)
-    const validGradesData = filteredGradesData;
+    const validGradesData = typedGradesData.filter((grade) => {
+      const assessment = grade.assessment;
+      const assessSubject = assessment?.subject || '';
+      return shouldIncludeReportCardGrade(assessSubject, assessment?.teacher_id, gradeFilterCtx);
+    });
+
+    if (validGradesData.length !== typedGradesData.length) {
+      console.log(
+        `[Report Card] Filtered ${typedGradesData.length - validGradesData.length} grades that don't match teacher assignments`
+      );
+    }
 
     // Fetch Branch Grades (if table exists)
     // Branch grades work similarly - teachers select subject branch, term, sequence, and enter marks
@@ -580,23 +542,12 @@ export async function GET(req: NextRequest) {
             console.warn(`[Report Card] Branch ${bg.branch_id} has no subject_id. Excluding from report card.`);
             return false;
           }
-          
-          const assignedTeachers = subjectTeacherMap.get(branchSubjectId);
-          if (!assignedTeachers || assignedTeachers.size === 0) {
-            // No teachers assigned - include for backward compatibility
-            return true;
-          }
-          
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const assessment = bg.assessment as any;
-          const assessTeacherId = assessment?.teacher_id;
-          
-          if (assessTeacherId && !assignedTeachers.has(assessTeacherId)) {
-            console.warn(`[Report Card] Branch grade entered by teacher ${assessTeacherId} who is not assigned to subject ${branchSubjectId}. Including per relaxed rules.`);
-            return true;
-          }
-          
-          return true;
+          const assessment = bg.assessment as { teacher_id?: string | null } | null;
+          return shouldIncludeReportCardBranchGrade(
+            branchSubjectId,
+            assessment?.teacher_id,
+            gradeFilterCtx
+          );
         });
       }
     }
@@ -1246,10 +1197,12 @@ export async function GET(req: NextRequest) {
 
             // Group grades by GLOBAL sequence number (1-6)
             const gradesBySequence: Record<number, number[]> = {};
+            const unknownGradesByTerm: Array<{ mark: number; term: number }> = [];
             
             for (const grade of sGrades) {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const assessmentTitle = (grade.assessment as any).title || '';
+                const assessment = grade.assessment as any;
+                const assessmentTitle = assessment?.title || '';
                 let globalSeqNum: number | null = null;
 
                 if (yearSummary) {
@@ -1272,13 +1225,27 @@ export async function GET(req: NextRequest) {
                         console.log(`[Report Card] Resolved UUID title "${assessmentTitle}" to sequence ${globalSeqNum} for subject "${subjectName}"`);
                     }
                 } else {
-                    // Fallback: if no sequence number found
-                    // For legacy data without sequence in title
-                    console.warn(`[Report Card] Could not determine sequence for grade (title: "${assessmentTitle}", subject: "${subjectName}"). Using fallback.`);
-                    if (!gradesBySequence[0]) {
-                        gradesBySequence[0] = [];
+                    const resolvedTerm =
+                        getTermFromAssessment(
+                            assessmentTitle,
+                            assessment?.term ?? null,
+                            sequenceIdToNumberMap,
+                            activeTermSequenceCounts
+                        ) ??
+                        (termMode.mode === 'per_term' ? termMode.term : null);
+
+                    if (resolvedTerm !== null) {
+                        unknownGradesByTerm.push({
+                            mark: grade.marks_obtained,
+                            term: resolvedTerm,
+                        });
+                    } else {
+                        console.warn(`[Report Card] Could not determine sequence for grade (title: "${assessmentTitle}", subject: "${subjectName}"). Using fallback.`);
+                        unknownGradesByTerm.push({
+                            mark: grade.marks_obtained,
+                            term: termMode.mode === 'per_term' ? termMode.term : 1,
+                        });
                     }
-                    gradesBySequence[0].push(grade.marks_obtained);
                 }
             }
 
@@ -1303,41 +1270,42 @@ export async function GET(req: NextRequest) {
                 }
             }
 
-            // FALLBACK: If we have unknown grades (in gradesBySequence[0]), distribute them to sequences
-            // This handles cases where assessment titles are UUIDs or otherwise unrecognizable
-            if (gradesBySequence[0] && gradesBySequence[0].length > 0) {
-                const unknownGrades = gradesBySequence[0];
-                const termForDistribution =
-                    termMode.mode === 'per_term' ? termMode.term : 1;
-                
-                // Calculate which global sequences to use based on term
-                // Term 1: seq1, seq2 | Term 2: seq3, seq4 | Term 3: seq5, seq6 (annual → term 1 slots)
-                const seq1ForTerm = (termForDistribution - 1) * 2 + 1; // 1, 3, or 5
-                const seq2ForTerm = (termForDistribution - 1) * 2 + 2; // 2, 4, or 6
-                
-                if (unknownGrades.length === 2) {
-                    // Exactly 2 grades - distribute to seq1 and seq2 for the current term
-                    if (!gradesBySequence[seq1ForTerm]) gradesBySequence[seq1ForTerm] = [];
-                    if (!gradesBySequence[seq2ForTerm]) gradesBySequence[seq2ForTerm] = [];
-                    
-                    gradesBySequence[seq1ForTerm].push(unknownGrades[0]);
-                    gradesBySequence[seq2ForTerm].push(unknownGrades[1]);
-                    
-                    console.log(`[Report Card] Subject "${subjectName}": Distributed 2 unknown grades to seq${seq1ForTerm} (${unknownGrades[0]}) and seq${seq2ForTerm} (${unknownGrades[1]})`);
-                    
-                    // Clear the fallback bucket since we've distributed the grades
-                    delete gradesBySequence[0];
-                } else if (unknownGrades.length === 1) {
-                    // Only 1 grade - assign to seq1 for the current term
-                    if (!gradesBySequence[seq1ForTerm]) gradesBySequence[seq1ForTerm] = [];
-                    gradesBySequence[seq1ForTerm].push(unknownGrades[0]);
-                    
-                    console.log(`[Report Card] Subject "${subjectName}": Assigned 1 unknown grade to seq${seq1ForTerm} (${unknownGrades[0]})`);
-                    
-                    // Clear the fallback bucket
-                    delete gradesBySequence[0];
+            // FALLBACK: distribute unmapped grades to the correct term's sequence slots
+            if (unknownGradesByTerm.length > 0) {
+                const marksByTerm = new Map<number, number[]>();
+                for (const entry of unknownGradesByTerm) {
+                    if (!marksByTerm.has(entry.term)) marksByTerm.set(entry.term, []);
+                    marksByTerm.get(entry.term)!.push(entry.mark);
                 }
-                // For more than 2 grades, we leave them in gradesBySequence[0] for legacy averaging
+
+                for (const [termNum, unknownGrades] of marksByTerm) {
+                    const slots = getGlobalSlotsForTerm(termNum as 1 | 2 | 3, activeTermSequenceCounts);
+                    if (slots.length === 0) continue;
+
+                    if (unknownGrades.length === 2 && slots.length >= 2) {
+                        if (!gradesBySequence[slots[0]]) gradesBySequence[slots[0]] = [];
+                        if (!gradesBySequence[slots[1]]) gradesBySequence[slots[1]] = [];
+                        gradesBySequence[slots[0]].push(unknownGrades[0]);
+                        gradesBySequence[slots[1]].push(unknownGrades[1]);
+                        console.log(
+                            `[Report Card] Subject "${subjectName}": Distributed 2 unknown Term ${termNum} grades to seq${slots[0]} (${unknownGrades[0]}) and seq${slots[1]} (${unknownGrades[1]})`
+                        );
+                    } else if (unknownGrades.length === 1) {
+                        if (!gradesBySequence[slots[0]]) gradesBySequence[slots[0]] = [];
+                        gradesBySequence[slots[0]].push(unknownGrades[0]);
+                        console.log(
+                            `[Report Card] Subject "${subjectName}": Assigned 1 unknown Term ${termNum} grade to seq${slots[0]} (${unknownGrades[0]})`
+                        );
+                    } else if (unknownGrades.length > 2) {
+                        for (let i = 0; i < Math.min(unknownGrades.length, slots.length); i++) {
+                            if (!gradesBySequence[slots[i]]) gradesBySequence[slots[i]] = [];
+                            gradesBySequence[slots[i]].push(unknownGrades[i]);
+                        }
+                        console.log(
+                            `[Report Card] Subject "${subjectName}": Distributed ${unknownGrades.length} unknown Term ${termNum} grades across seq${slots.join(', seq')}`
+                        );
+                    }
+                }
             }
             
             // Recalculate sequence marks after potential redistribution
@@ -1527,11 +1495,29 @@ export async function GET(req: NextRequest) {
             }
 
             // On term reports, include coefficient only when all sequence marks exist for that term.
-            // On annual / third-term summary table, require all slots in each term.
+            // On annual / third-term summary table, full-year coef requires all slots; partial year uses plannedCoef.
             let eligibleForCoef = true;
+            let term1CoefEligible = false;
+            let term2CoefEligible = false;
+            let term3CoefEligible = false;
             if (yearSummary) {
                 eligibleForCoef = isAnnualCoefEligible(
                     subjectSequenceMarks,
+                    activeTermSequenceCounts
+                );
+                term1CoefEligible = isTermCoefEligible(
+                    subjectSequenceMarks,
+                    1,
+                    activeTermSequenceCounts
+                );
+                term2CoefEligible = isTermCoefEligible(
+                    subjectSequenceMarks,
+                    2,
+                    activeTermSequenceCounts
+                );
+                term3CoefEligible = isTermCoefEligible(
+                    subjectSequenceMarks,
+                    3,
                     activeTermSequenceCounts
                 );
             } else if (termMode.mode === 'per_term') {
@@ -1541,10 +1527,20 @@ export async function GET(req: NextRequest) {
                     slots.every((slot) => typeof subjectSequenceMarks[`seq${slot}`] === 'number');
             }
 
-            const coef = eligibleForCoef ? subjectCoef : '-';
-            const total = eligibleForCoef ? parseFloat((finalMark * subjectCoef).toFixed(2)) : '-';
+            const partialAnnualEligible =
+                yearSummary &&
+                (eligibleForCoef ||
+                    term1CoefEligible ||
+                    term2CoefEligible ||
+                    term3CoefEligible);
 
-            if (eligibleForCoef) {
+            const coef = eligibleForCoef ? subjectCoef : '-';
+            const total =
+                eligibleForCoef || partialAnnualEligible
+                    ? parseFloat((finalMark * subjectCoef).toFixed(2))
+                    : '-';
+
+            if (eligibleForCoef || partialAnnualEligible) {
                 totalScore += finalMark * subjectCoef;
                 totalCoef += subjectCoef;
                 if (thirdTermTable && annualTermAvgsForSubject?.term3 !== undefined) {
@@ -1589,6 +1585,7 @@ export async function GET(req: NextRequest) {
                 code: subjectCode || undefined, // Include subject code for GCE identification
                 eval: parseFloat(finalMark.toFixed(2)),
                 coef: coef,
+                plannedCoef: subjectCoef,
                 total: total,
                 grade: calculateGrade(finalMark),
                 rank: subjectRank, 
@@ -1596,6 +1593,10 @@ export async function GET(req: NextRequest) {
                 category: category,
                 hasMark: true,
                 coefEligible: eligibleForCoef,
+                partialAnnualEligible: Boolean(partialAnnualEligible),
+                term1CoefEligible,
+                term2CoefEligible,
+                term3CoefEligible,
                 // Include individual sequence marks
                 ...subjectSequenceMarks,
                 ...annualTermFields,
@@ -1628,11 +1629,13 @@ export async function GET(req: NextRequest) {
     let rank2 = 0;
     let rank3 = 0;
     let classSize = 0;
+    let cohortAnnualAvg: number | undefined;
+    let cohortTerm1Avg: number | undefined;
+    let cohortTerm2Avg: number | undefined;
+    let cohortTerm3Avg: number | undefined;
+    let cohortFooterAvg: number | undefined;
 
     try {
-        const rankingEpsilon = 1e-6;
-        const scoresAreEqual = (a: number, b: number) => Math.abs(a - b) <= rankingEpsilon;
-        const normalizeAverage = (value: number) => (Number.isFinite(value) ? value : 0);
         const gradeBelongsToTerm = (
             term: 1 | 2 | 3,
             assessmentTerm: string | null | undefined,
@@ -1656,11 +1659,6 @@ export async function GET(req: NextRequest) {
             if (subj.includes('office practice') && includeAllTermsGrades) return true;
             return false;
         };
-        const isAssessmentInReportTerm = (
-            assessmentTerm: string | null | undefined,
-            assessmentTitle: string | null | undefined,
-            assessmentSubject: string | null | undefined
-        ) => isTargetTerm(assessmentTerm ?? null, assessmentTitle ?? null, assessmentSubject ?? null);
 
         // Restrict ranking cohort to canonical class references only.
         const { data: classData } = await supabase
@@ -1699,7 +1697,9 @@ export async function GET(req: NextRequest) {
         interface RankingAssessment {
             subject: string | null;
             title: string | null;
+            term?: string | null;
             class_id: string;
+            teacher_id?: string | null;
         }
         interface RankingGradeRow {
             marks_obtained: number;
@@ -1721,7 +1721,8 @@ export async function GET(req: NextRequest) {
                 assessment:assessments!inner (
                     subject,
                     title,
-                    class_id
+                    class_id,
+                    teacher_id
                 )
             `)
             .in('student_id', allStudentIds)
@@ -1742,7 +1743,8 @@ export async function GET(req: NextRequest) {
                     title,
                     term,
                     class_id,
-                    academic_year
+                    academic_year,
+                    teacher_id
                 )
             `)
             .in('student_id', allStudentIds)
@@ -1752,264 +1754,173 @@ export async function GET(req: NextRequest) {
         }
         const allClassBranchGrades = (allClassBranchGradesRaw as unknown as RankingBranchGradeRow[]) || [];
 
-        const subjectCoefByName = new Map<string, number>();
-        const subjectIdToName = new Map<string, string>();
-        for (const subject of subjectsList as DbSubject[]) {
-            const normalized = normalizeSubjectName(subject.name);
-            subjectCoefByName.set(normalized, subject.coefficient || 1);
-            subjectIdToName.set(subject.id, subject.name);
-        }
+        const branchIdsBySubjectId = new Map<string, string[]>();
+        const rankingSubjects = (subjectsList as DbSubject[]).map((subject) => {
+            const subjectId = subject.id;
+            const branchesOld = subBranches?.filter((sb) => sb.subject_id === subjectId) || [];
+            const branchesNew =
+                typeof subjectBranchesNew !== 'undefined' && subjectBranchesNew
+                    ? subjectBranchesNew.filter((sb: { subject_id: string }) => sb.subject_id === subjectId)
+                    : [];
+            const branchIds = [
+                ...branchesOld.map((b) => b.id),
+                ...branchesNew.map((b: { id: string }) => b.id),
+            ];
+            if (branchIds.length > 0) {
+                branchIdsBySubjectId.set(subjectId, branchIds);
+            }
+            const hasSubBranches =
+                Boolean(subject.has_sub_branches) ||
+                branchesOld.length > 0 ||
+                branchesNew.length > 0;
+            return {
+                id: subjectId,
+                name: subject.name,
+                coefficient: subject.coefficient || 1,
+                hasSubBranches,
+            };
+        });
 
-        const branchIds = [...new Set(allClassBranchGrades.map((bg) => bg.branch_id).filter(Boolean))];
         const branchIdToSubjectId = new Map<string, string>();
-        if (branchIds.length > 0) {
-            const { data: oldBranches } = await supabase
-                .from('subject_sub_branches')
-                .select('id, subject_id')
-                .in('id', branchIds);
-            for (const branch of oldBranches || []) {
-                branchIdToSubjectId.set(branch.id, branch.subject_id);
-            }
-            const { data: newBranches } = await supabase
-                .from('subject_branches')
-                .select('id, subject_id')
-                .in('id', branchIds);
-            for (const branch of newBranches || []) {
-                if (!branchIdToSubjectId.has(branch.id)) {
-                    branchIdToSubjectId.set(branch.id, branch.subject_id);
-                }
+        for (const [subjectId, ids] of branchIdsBySubjectId) {
+            for (const branchId of ids) {
+                branchIdToSubjectId.set(branchId, subjectId);
             }
         }
 
-        // subjectMarksByStudent[studentId][normalizedSubject] = marks[]
-        const subjectMarksByStudent = new Map<string, Map<string, number[]>>();
-        const pushMark = (targetStudentId: string, normalizedSubject: string, mark: number) => {
-            if (!subjectCoefByName.has(normalizedSubject) || !Number.isFinite(mark)) return;
-            if (!subjectMarksByStudent.has(targetStudentId)) {
-                subjectMarksByStudent.set(targetStudentId, new Map<string, number[]>());
-            }
-            const bySubject = subjectMarksByStudent.get(targetStudentId)!;
-            if (!bySubject.has(normalizedSubject)) {
-                bySubject.set(normalizedSubject, []);
-            }
-            bySubject.get(normalizedSubject)!.push(mark);
-        };
-
-        // Use generated report marks for the current student to ensure ranking matches rendered report values.
-        for (const item of reportItems) {
-            if (typeof item.eval === 'number' && item.coef > 0) {
-                pushMark(studentId, normalizeSubjectName(item.name), item.eval);
-            }
-        }
-
+        const gradesByStudentId = new Map<string, StudentGradeRow[]>();
         for (const grade of allClassGrades) {
             const subjectName = grade.assessment?.subject || '';
             if (!subjectName) continue;
-            if (!isAssessmentInReportTerm(null, grade.assessment?.title, subjectName)) continue;
-            if (grade.student_id === studentId) continue;
-            pushMark(grade.student_id, normalizeSubjectName(subjectName), grade.marks_obtained);
-        }
-
-        for (const bg of allClassBranchGrades) {
-            const subjectId = branchIdToSubjectId.get(bg.branch_id);
-            if (!subjectId) continue;
-            const subjectName = subjectIdToName.get(subjectId);
-            if (!subjectName) continue;
-            if (!isAssessmentInReportTerm(null, bg.assessment?.title, subjectName)) continue;
-            if (bg.student_id === studentId) continue;
-            pushMark(bg.student_id, normalizeSubjectName(subjectName), bg.marks_obtained);
-        }
-
-        interface RankingMetrics {
-            studentId: string;
-            avg: number;
-            totalPoints: number;
-            totalCoef: number;
-            passedSubjects: number;
-            hasMarks: boolean;
-        }
-
-        const metricsByStudent = new Map<string, RankingMetrics>();
-        for (const classStudent of allClassStudents) {
-            const marksBySubject = subjectMarksByStudent.get(classStudent.id) || new Map<string, number[]>();
-            let totalPoints = 0;
-            let totalCoef = 0;
-            let passedSubjects = 0;
-
-            for (const [normalizedSubject, marks] of marksBySubject.entries()) {
-                if (!marks.length) continue;
-                const subjectCoef = subjectCoefByName.get(normalizedSubject) || 0;
-                if (subjectCoef <= 0) continue;
-                const subjectAverage = marks.reduce((sum, value) => sum + value, 0) / marks.length;
-                totalPoints += subjectAverage * subjectCoef;
-                totalCoef += subjectCoef;
-                if (subjectAverage >= 10) passedSubjects += 1;
+            if (
+                !gradeIncludedForReport(
+                    null,
+                    grade.assessment?.title,
+                    subjectName
+                )
+            ) {
+                continue;
             }
-
-            metricsByStudent.set(classStudent.id, {
-                studentId: classStudent.id,
-                avg: normalizeAverage(totalCoef > 0 ? totalPoints / totalCoef : 0),
-                totalPoints: normalizeAverage(totalPoints),
-                totalCoef,
-                passedSubjects,
-                hasMarks: totalCoef > 0
+            if (
+                !shouldIncludeReportCardGrade(
+                    subjectName,
+                    grade.assessment?.teacher_id,
+                    gradeFilterCtx
+                )
+            ) {
+                continue;
+            }
+            const sid = grade.student_id;
+            if (!gradesByStudentId.has(sid)) gradesByStudentId.set(sid, []);
+            gradesByStudentId.get(sid)!.push({
+                marks_obtained: grade.marks_obtained,
+                title: grade.assessment?.title || '',
+                subject: subjectName,
+                term: null,
             });
         }
 
-        const rankedStudents = Array.from(metricsByStudent.values()).filter((entry) => entry.hasMarks);
-        rankedStudents.sort((a, b) => b.avg - a.avg);
-
-        const rankByStudent = new Map<string, number>();
-        let currentDenseRank = 1;
-        for (let i = 0; i < rankedStudents.length; i++) {
-            if (i > 0 && !scoresAreEqual(rankedStudents[i].avg, rankedStudents[i - 1].avg)) {
-                currentDenseRank += 1;
+        const branchGradesByStudentId = new Map<string, StudentBranchGradeRow[]>();
+        const subjectNameById = new Map(
+            (subjectsList as DbSubject[]).map((s) => [s.id, s.name] as const)
+        );
+        for (const bg of allClassBranchGrades) {
+            const branchSubjectId = branchIdToSubjectId.get(bg.branch_id);
+            if (!branchSubjectId) continue;
+            const branchSubjectName = subjectNameById.get(branchSubjectId);
+            if (
+                !gradeIncludedForReport(
+                    bg.assessment?.term ?? null,
+                    bg.assessment?.title,
+                    branchSubjectName
+                )
+            ) {
+                continue;
             }
-            rankByStudent.set(rankedStudents[i].studentId, currentDenseRank);
+            if (
+                !shouldIncludeReportCardBranchGrade(
+                    branchSubjectId,
+                    bg.assessment?.teacher_id,
+                    gradeFilterCtx
+                )
+            ) {
+                continue;
+            }
+            const sid = bg.student_id;
+            if (!branchGradesByStudentId.has(sid)) branchGradesByStudentId.set(sid, []);
+            branchGradesByStudentId.get(sid)!.push({
+                marks_obtained: bg.marks_obtained,
+                branch_id: bg.branch_id,
+                title: bg.assessment?.title || '',
+                term: bg.assessment?.term ?? null,
+            });
         }
-        studentRank = rankByStudent.get(studentId) || 0;
 
-        const computeClassRankForFilter = (
-            includeGrade: (
-                assessmentTerm: string | null | undefined,
-                assessmentTitle: string | null | undefined,
-                assessmentSubject: string | null | undefined
-            ) => boolean,
-            currentStudentTermField?: 'term1' | 'term2' | 'term3'
-        ): number => {
-            const marksByStudent = new Map<string, Map<string, number[]>>();
-            const pushMarkForRank = (targetStudentId: string, normalizedSubject: string, mark: number) => {
-                if (!subjectCoefByName.has(normalizedSubject) || !Number.isFinite(mark)) return;
-                if (!marksByStudent.has(targetStudentId)) {
-                    marksByStudent.set(targetStudentId, new Map<string, number[]>());
-                }
-                const bySubject = marksByStudent.get(targetStudentId)!;
-                if (!bySubject.has(normalizedSubject)) {
-                    bySubject.set(normalizedSubject, []);
-                }
-                bySubject.get(normalizedSubject)!.push(mark);
-            };
+        const activeTerm = termMode.mode === 'per_term' ? termMode.term : null;
+        const overallScope: RankingScope = yearSummary ? 'annual' : 'active_term';
 
-            if (currentStudentTermField) {
-                for (const item of reportItems) {
-                    const mark = item[currentStudentTermField];
-                    if (typeof mark === 'number' && item.coef > 0) {
-                        pushMarkForRank(studentId, normalizeSubjectName(item.name), mark);
-                    }
-                }
-            } else {
-                for (const item of reportItems) {
-                    if (typeof item.eval === 'number' && item.coef > 0) {
-                        pushMarkForRank(studentId, normalizeSubjectName(item.name), item.eval);
-                    }
-                }
-            }
-
-            for (const grade of allClassGrades) {
-                const subjectName = grade.assessment?.subject || '';
-                if (!subjectName) continue;
-                if (!includeGrade(null, grade.assessment?.title, subjectName)) continue;
-                if (grade.student_id === studentId) continue;
-                pushMarkForRank(grade.student_id, normalizeSubjectName(subjectName), grade.marks_obtained);
-            }
-
-            for (const bg of allClassBranchGrades) {
-                const subjectId = branchIdToSubjectId.get(bg.branch_id);
-                if (!subjectId) continue;
-                const subjectName = subjectIdToName.get(subjectId);
-                if (!subjectName) continue;
-                if (!includeGrade(bg.assessment?.term ?? null, bg.assessment?.title, subjectName)) continue;
-                if (bg.student_id === studentId) continue;
-                pushMarkForRank(bg.student_id, normalizeSubjectName(subjectName), bg.marks_obtained);
-            }
-
-            const metrics = new Map<string, { avg: number; hasMarks: boolean }>();
-            for (const classStudent of allClassStudents) {
-                const marksBySubject = marksByStudent.get(classStudent.id) || new Map<string, number[]>();
-                let totalPoints = 0;
-                let totalCoef = 0;
-                for (const [normalizedSubject, marks] of marksBySubject.entries()) {
-                    if (!marks.length) continue;
-                    const subjectCoef = subjectCoefByName.get(normalizedSubject) || 0;
-                    if (subjectCoef <= 0) continue;
-                    const subjectAverage = marks.reduce((sum, value) => sum + value, 0) / marks.length;
-                    totalPoints += subjectAverage * subjectCoef;
-                    totalCoef += subjectCoef;
-                }
-                metrics.set(classStudent.id, {
-                    avg: normalizeAverage(totalCoef > 0 ? totalPoints / totalCoef : 0),
-                    hasMarks: totalCoef > 0,
-                });
-            }
-
-            const ranked = Array.from(metrics.entries())
-                .filter(([, m]) => m.hasMarks)
-                .map(([id, m]) => ({ studentId: id, avg: m.avg }))
-                .sort((a, b) => b.avg - a.avg);
-
-            const rankMap = new Map<string, number>();
-            let denseRank = 1;
-            for (let i = 0; i < ranked.length; i++) {
-                if (i > 0 && !scoresAreEqual(ranked[i].avg, ranked[i - 1].avg)) {
-                    denseRank += 1;
-                }
-                rankMap.set(ranked[i].studentId, denseRank);
-            }
-            return rankMap.get(studentId) || 0;
+        const cohortBase = {
+            studentIds: allStudentIds,
+            subjects: rankingSubjects,
+            gradesByStudentId,
+            branchGradesByStudentId,
+            branchIdsBySubjectId,
+            yearSummary,
+            activeTerm,
+            sequenceIdToNumberMap,
+            termSequenceCounts: activeTermSequenceCounts,
+            totalSequences: activeTotalSequences,
+            gradeIncluded: gradeIncludedForReport,
+            gradeBelongsToTerm,
+            includeAllTermsGrades,
+            academicTermId,
         };
 
+        const overallMetrics = buildCohortRankingMetrics({
+            ...cohortBase,
+            scope: overallScope,
+        });
+        const overallRankMap = rankCohortByMetrics(overallMetrics);
+        studentRank = overallRankMap.get(studentId) || 0;
+        const rankedStudents = [...overallMetrics.values()].filter((m) => m.hasMarks);
+
+        const selfOverall = overallMetrics.get(studentId);
+        if (selfOverall?.hasMarks) {
+            if (yearSummary) {
+                cohortAnnualAvg = selfOverall.weightedAvg;
+            } else {
+                cohortFooterAvg = selfOverall.weightedAvg;
+            }
+        }
+
         if (yearSummary) {
-            rank1 = computeClassRankForFilter(
-                (t, title, subj) => gradeBelongsToTerm(1, t, title, subj),
-                'term1'
-            );
-            rank2 = computeClassRankForFilter(
-                (t, title, subj) => gradeBelongsToTerm(2, t, title, subj),
-                'term2'
-            );
-            rank3 = computeClassRankForFilter(
-                (t, title, subj) => gradeBelongsToTerm(3, t, title, subj),
-                'term3'
-            );
-            // Term 3 bulletin: overall badge uses term-3 rank; annual keeps year-wide rank from above.
+            const term1Metrics = buildCohortRankingMetrics({ ...cohortBase, scope: 'term1' });
+            const term2Metrics = buildCohortRankingMetrics({ ...cohortBase, scope: 'term2' });
+            const term3Metrics = buildCohortRankingMetrics({ ...cohortBase, scope: 'term3' });
+            const rank1Map = rankCohortByMetrics(term1Metrics);
+            const rank2Map = rankCohortByMetrics(term2Metrics);
+            const rank3Map = rankCohortByMetrics(term3Metrics);
+            rank1 = rank1Map.get(studentId) || 0;
+            rank2 = rank2Map.get(studentId) || 0;
+            rank3 = rank3Map.get(studentId) || 0;
+            const t1 = term1Metrics.get(studentId);
+            const t2 = term2Metrics.get(studentId);
+            const t3 = term3Metrics.get(studentId);
+            if (t1?.hasMarks) cohortTerm1Avg = t1.weightedAvg;
+            if (t2?.hasMarks) cohortTerm2Avg = t2.weightedAvg;
+            if (t3?.hasMarks) cohortTerm3Avg = t3.weightedAvg;
             if (termMode.mode === 'per_term' && termMode.term === 3) {
                 studentRank = rank3;
             }
         }
 
-        // Subject-level ranks
+        // Subject-level ranks (same subject evals as overall cohort metrics)
         for (const subject of subjectsList as DbSubject[]) {
             const normalizedSubject = normalizeSubjectName(subject.name);
-            const subjectRows: Array<{ studentId: string; subjectAvg: number; totalPoints: number; passedSubjects: number }> = [];
-
-            for (const entry of rankedStudents) {
-                const marks = subjectMarksByStudent.get(entry.studentId)?.get(normalizedSubject);
-                if (!marks || marks.length === 0) continue;
-                const subjectAvg = marks.reduce((sum, value) => sum + value, 0) / marks.length;
-                subjectRows.push({
-                    studentId: entry.studentId,
-                    subjectAvg,
-                    totalPoints: entry.totalPoints,
-                    passedSubjects: entry.passedSubjects
-                });
-            }
-
-            subjectRows.sort((a, b) => {
-                if (!scoresAreEqual(a.subjectAvg, b.subjectAvg)) return b.subjectAvg - a.subjectAvg;
-                if (!scoresAreEqual(a.totalPoints, b.totalPoints)) return b.totalPoints - a.totalPoints;
-                if (a.passedSubjects !== b.passedSubjects) return b.passedSubjects - a.passedSubjects;
-                return a.studentId.localeCompare(b.studentId);
-            });
-
-            let subjectRank = 1;
-            for (let i = 0; i < subjectRows.length; i++) {
-                if (i > 0 && !scoresAreEqual(subjectRows[i].subjectAvg, subjectRows[i - 1].subjectAvg)) {
-                    subjectRank += 1;
-                }
-                if (subjectRows[i].studentId === studentId) {
-                    subjectRanks.set(normalizedSubject, subjectRank);
-                    break;
-                }
+            const subjectRankMap = rankSubjectsForCohort(overallMetrics, normalizedSubject);
+            const subjectRank = subjectRankMap.get(studentId);
+            if (subjectRank !== undefined && subjectRank > 0) {
+                subjectRanks.set(normalizedSubject, subjectRank);
             }
         }
 
@@ -2088,10 +1999,10 @@ export async function GET(req: NextRequest) {
             
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             items.forEach((item: any) => {
-                 // Only count subjects that have marks (coef > 0) and are not excluded
-                 if (item.coef > 0 && typeof item.eval === 'number') {
-                     sectionCoef += item.coef;
-                     sectionTotal += item.total;
+                 const sectionPart = accumulatePartialAnnualSection(item);
+                 if (sectionPart) {
+                     sectionCoef += sectionPart.coef;
+                     sectionTotal += sectionPart.total;
                  }
             });
             
@@ -2111,28 +2022,19 @@ export async function GET(req: NextRequest) {
         }
     });
 
-    const computeWeightedHistoryAvg = (
-        items: typeof reportItems,
-        field: 'term1' | 'term2' | 'term3'
-    ): number => {
-        let points = 0;
-        let coef = 0;
-        for (const item of items) {
-            if (item.coef > 0 && typeof item[field] === 'number') {
-                points += item[field] * item.coef;
-                coef += item.coef;
-            }
-        }
-        return coef > 0 ? parseFloat((points / coef).toFixed(2)) : 0;
-    };
-
-    const historyTerm1 = yearSummary ? computeWeightedHistoryAvg(reportItems, 'term1') : 0;
-    const historyTerm2 = yearSummary ? computeWeightedHistoryAvg(reportItems, 'term2') : 0;
-    const historyTerm3 = yearSummary ? computeWeightedHistoryAvg(reportItems, 'term3') : 0;
-    const historyAnnualAvg =
-        yearSummary && totalCoef > 0
-            ? parseFloat((totalScore / totalCoef).toFixed(2))
-            : 0;
+    const historyTerm1 = yearSummary
+        ? (cohortTerm1Avg ?? computeWeightedTermHistory(reportItems, 'term1'))
+        : 0;
+    const historyTerm2 = yearSummary
+        ? (cohortTerm2Avg ?? computeWeightedTermHistory(reportItems, 'term2'))
+        : 0;
+    const historyTerm3 = yearSummary
+        ? (cohortTerm3Avg ?? computeWeightedTermHistory(reportItems, 'term3'))
+        : 0;
+    const historyAnnualAvg = yearSummary
+        ? (cohortAnnualAvg ??
+          (totalCoef > 0 ? parseFloat((totalScore / totalCoef).toFixed(2)) : 0))
+        : 0;
 
     const footerCoef = thirdTermTable && footerTotalCoef > 0 ? footerTotalCoef : totalCoef;
     const footerScore =
@@ -2140,7 +2042,8 @@ export async function GET(req: NextRequest) {
             ? parseFloat(footerTotalScore.toFixed(2))
             : parseFloat(totalScore.toFixed(2));
     const footerAverage =
-        footerCoef > 0 ? parseFloat((footerScore / footerCoef).toFixed(2)) : 0;
+        cohortFooterAvg ??
+        (footerCoef > 0 ? parseFloat((footerScore / footerCoef).toFixed(2)) : 0);
 
     const reportData: PisonReportCardData = {
         student: {
