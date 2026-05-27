@@ -205,16 +205,16 @@ export function ThirdTermYearSummaryGradesTable({
                 const rowTotal =
                   eligible && avg !== undefined ? avg * subject.coefficient : undefined
                 const grade =
-                  hasMark && subject.grade && subject.grade !== '-'
-                    ? subject.grade
-                    : hasMark && avg !== undefined
-                      ? calculateGrade(avg)
+                  hasMark && avg !== undefined
+                    ? calculateGrade(avg)
+                    : hasMark && subject.grade && subject.grade !== '-'
+                      ? subject.grade
                       : '-'
                 const remarks =
-                  hasMark && subject.remarks && subject.remarks !== 'No Grade'
-                    ? subject.remarks
-                    : hasMark && avg !== undefined
-                      ? getGradeRemarks(calculateGrade(avg))
+                  hasMark && avg !== undefined
+                    ? getGradeRemarks(calculateGrade(avg))
+                    : hasMark && subject.remarks && subject.remarks !== 'No Grade'
+                      ? subject.remarks
                       : subject.remarks || '-'
 
                 return (

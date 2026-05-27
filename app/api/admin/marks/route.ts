@@ -1,28 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { authenticateUser, isAdmin } from '@/lib/auth/server'
-
-function calculateGrade(mark: number, totalMarks: number = 20): string {
-  const percentage = (mark / totalMarks) * 100
-  if (percentage >= 85) return 'A'
-  if (percentage >= 70) return 'B'
-  if (percentage >= 60) return 'C'
-  if (percentage >= 50) return 'D'
-  if (percentage >= 40) return 'E'
-  return 'F'
-}
-
-function calculateRemarks(grade: string): string {
-  switch (grade) {
-    case 'A': return 'Excellent'
-    case 'B': return 'Very Good'
-    case 'C': return 'Good'
-    case 'D': return 'Pass'
-    case 'E': return 'Weak'
-    case 'F': return 'Fail'
-    default: return ''
-  }
-}
+import {
+  calculateGradeFromMarks,
+  getGradeRemarks,
+} from '@/lib/grading-utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -102,8 +84,8 @@ export async function POST(request: NextRequest) {
     // Calculate percentage and grade
     const totalMarks = assessment.total_marks || 20
     const percentage = Math.round((marksObtained / totalMarks) * 100 * 100) / 100
-    const gradeLetter = calculateGrade(marksObtained, totalMarks)
-    const gradeRemarks = remarks || calculateRemarks(gradeLetter)
+    const gradeLetter = calculateGradeFromMarks(marksObtained, totalMarks)
+    const gradeRemarks = remarks || getGradeRemarks(gradeLetter)
 
     // Create grade
     const { data: newGrade, error: insertError } = await supabase

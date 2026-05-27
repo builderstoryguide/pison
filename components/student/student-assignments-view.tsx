@@ -353,13 +353,12 @@ export function StudentAssignmentsView() {
 
   const getGradeDescription = (gradeLetter: string): string => {
     switch (gradeLetter) {
-      case "A": return "Excellent (16-20)"
-      case "B": return "Very Good (14-15.99)"
-      case "C": return "Good (12-13.99)"
-      case "D": return "Fair (10-11.99)"
-      case "E": return "Poor (8-9.99)"
-      case "F": return "Very Poor (0-7.99)"
-      default: return "Unknown"
+      case "A": return "Excellent (17-20)"
+      case "B": return "V.good (14-16.99)"
+      case "C": return "Pass (10-13.99)"
+      case "D": return "Failed (7-9.99)"
+      case "U": return "Very weak (0-6.99)"
+      default: return gradeLetter || "Unknown"
     }
   }
 

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getSequenceName, getSequenceNumberFromKey } from '@/lib/report-card-utils'
+import { calculateGrade, getGradeRemarks } from '@/lib/grading-utils'
 
 export async function GET(request: NextRequest) {
   try {
@@ -256,7 +257,7 @@ export async function POST(request: NextRequest) {
       marks_obtained: g.marks, // Raw mark
       percentage: (g.marks / 20) * 100,
       grade_letter: g.grade || calculateGrade(g.marks),
-      remarks: g.remarks || calculateRemarks(g.grade || calculateGrade(g.marks)),
+      remarks: g.remarks || getGradeRemarks(g.grade || calculateGrade(g.marks)),
       submitted_at: new Date().toISOString()
     }))
 
@@ -339,25 +340,6 @@ async function triggerAdminNotifications(
 
   } catch (error) {
     console.error("Error in triggerAdminNotifications:", error)
-  }
-}
-
-function calculateGrade(mark: number) {
-  if (mark >= 17) return 'A'
-  if (mark >= 14) return 'B'
-  if (mark >= 10) return 'C'
-  if (mark >= 7) return 'D'
-  return 'U'
-}
-
-function calculateRemarks(grade: string) {
-  switch (grade) {
-    case 'A': return 'Excellent'
-    case 'B': return 'Very Good'
-    case 'C': return 'Pass'
-    case 'D': return 'Failed'
-    case 'U': return 'Very Weak'
-    default: return ''
   }
 }
 

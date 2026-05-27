@@ -82,6 +82,16 @@ export function normalizeReportItem(item: PisonReportSubjectItem): SubjectGrade 
 
   const evalNum = typeof item.eval === 'number' ? item.eval : undefined
   const rank = typeof item.rank === 'number' ? item.rank : undefined
+  const hasSequenceOrTermData =
+    readSeq(item, 1) !== undefined ||
+    readSeq(item, 2) !== undefined ||
+    readSeq(item, 3) !== undefined ||
+    readSeq(item, 4) !== undefined ||
+    readSeq(item, 5) !== undefined ||
+    readSeq(item, 6) !== undefined ||
+    typeof item.term1 === 'number' ||
+    typeof item.term2 === 'number' ||
+    typeof item.term3 === 'number'
 
   return {
     subjectName: item.name,
@@ -110,7 +120,9 @@ export function normalizeReportItem(item: PisonReportSubjectItem): SubjectGrade 
     annualAverage:
       typeof item.annualAverage === 'number' && !Number.isNaN(item.annualAverage)
         ? item.annualAverage
-        : evalNum,
+        : hasSequenceOrTermData
+          ? undefined
+          : evalNum,
     term1: typeof item.term1 === 'number' ? item.term1 : undefined,
     term2: typeof item.term2 === 'number' ? item.term2 : undefined,
     term3: typeof item.term3 === 'number' ? item.term3 : undefined,

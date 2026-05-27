@@ -27,7 +27,11 @@ import {
 import { EditMarkDialog } from './EditMarkDialog'
 import { ThirdTermYearSummaryGradesTable } from './ThirdTermYearSummaryGradesTable'
 import { StudentEvaluationResultsTable } from './StudentEvaluationResultsTable'
-import { isNegativeRemark } from '@/lib/grading-utils'
+import {
+  calculateGrade,
+  getGradeRemarks,
+  isNegativeRemark,
+} from '@/lib/grading-utils'
 
 import { SubjectGrade } from './report-card-types'
 import {
@@ -101,27 +105,6 @@ const TERM_NAMES: Record<number, { en: string, fr: string, ordinal: string }> = 
   1: { en: 'FIRST TERM', fr: 'Premier Trimestre', ordinal: 'FIRST' },
   2: { en: 'SECOND TERM', fr: 'Deuxième Trimestre', ordinal: 'SECOND' },
   3: { en: 'THIRD TERM', fr: 'Troisième Trimestre', ordinal: 'THIRD' },
-}
-
-function calculateGrade(mark: number): string {
-  if (mark >= 17) return 'A'
-  if (mark >= 14) return 'B'
-  if (mark >= 12) return 'C'
-  if (mark >= 10) return 'D'
-  if (mark >= 7) return 'E'
-  return 'F'
-}
-
-function calculateRemarks(grade: string): string {
-  switch (grade) {
-    case 'A': return 'Excellent'
-    case 'B': return 'Very Good'
-    case 'C': return 'Good'
-    case 'D': return 'Pass'
-    case 'E': return 'Weak'
-    case 'F': return 'Fail'
-    default: return ''
-  }
 }
 
 function getCategoryLabel(category: string | undefined): string {
@@ -1231,7 +1214,7 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
                         // Only calculate totalScore if coefficient > 0 (subject has marks)
                         const totalScore = subject.coefficient > 0 ? avg * subject.coefficient : 0
                         const grade = subject.grade || calculateGrade(avg)
-                        const remarks = subject.remarks || calculateRemarks(grade)
+                        const remarks = subject.remarks || getGradeRemarks(grade)
 
                         return (
                           <tr 

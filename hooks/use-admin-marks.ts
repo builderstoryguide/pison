@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useToast } from '@/hooks/use-toast'
+import { calculateGradeFromMarks } from '@/lib/grading-utils'
 
 export interface Mark {
   id: string
@@ -460,7 +461,7 @@ export function useCreateMark() {
         marksObtained: newMark.marksObtained,
         totalMarks: 20,
         percentage: (newMark.marksObtained / 20) * 100,
-        gradeLetter: newMark.marksObtained >= 17 ? 'A' : newMark.marksObtained >= 14 ? 'B' : newMark.marksObtained >= 12 ? 'C' : newMark.marksObtained >= 10 ? 'D' : newMark.marksObtained >= 8 ? 'E' : 'F',
+        gradeLetter: calculateGradeFromMarks(newMark.marksObtained, 20),
         remarks: newMark.remarks,
         submittedAt: new Date().toISOString(),
       }
@@ -518,7 +519,10 @@ export function useUpdateMark() {
           if (mark.id === gradeId) {
             const totalMarks = mark.totalMarks || 20
             const percentage = (data.marksObtained / totalMarks) * 100
-            const gradeLetter = percentage >= 85 ? 'A' : percentage >= 70 ? 'B' : percentage >= 60 ? 'C' : percentage >= 50 ? 'D' : percentage >= 40 ? 'E' : 'F'
+            const gradeLetter = calculateGradeFromMarks(
+              data.marksObtained,
+              totalMarks
+            )
             return {
               ...mark,
               marksObtained: data.marksObtained,

@@ -6,6 +6,7 @@ import { supabase, isSupabaseAvailable } from "./supabase"
 import { useAuth } from "@/lib/auth-context"
 import { validateDatabaseSetup, createDatabaseSetupErrorResponse } from "./database-validation"
 import { serializeSupabaseError } from "@/lib/safe-error"
+import { calculateGradeFromMarks } from "@/lib/grading-utils"
 
 // Types
 export interface Assessment {
@@ -1486,16 +1487,7 @@ export function TeacherGradesProvider({ children }: { children: React.ReactNode 
 
   // Utility functions (defined early so they can be used in other callbacks)
   const calculateGrade = useCallback((marks: number, totalMarks: number): string => {
-    const percentage = (marks / totalMarks) * 100
-    // Convert percentage to Cameroonian scale of 20
-    const averageOn20 = (percentage / 100) * 20
-    
-    if (averageOn20 >= 16) return "A" // 16-20: Excellent
-    if (averageOn20 >= 14) return "B" // 14-15.99: Very Good
-    if (averageOn20 >= 12) return "C" // 12-13.99: Good
-    if (averageOn20 >= 10) return "D" // 10-11.99: Fair
-    if (averageOn20 >= 8) return "E"  // 8-9.99: Poor
-    return "F" // 0-7.99: Very Poor
+    return calculateGradeFromMarks(marks, totalMarks)
   }, [])
 
   // Grade functions

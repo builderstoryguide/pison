@@ -10,6 +10,7 @@ import {
   getGlobalSlotsForTerm,
   getTermAveragesFromSequenceMarks,
   getAnnualAverageFromTermAverages,
+  getPartialAnnualAverageFromTermAverages,
   isAnnualCoefEligible,
   isTermCoefEligible,
   type TermSequenceCounts,
@@ -30,7 +31,7 @@ import type { ReportCardWarning } from '@/components/admin/reports/report-card-t
 import {
   emptySequenceMarks,
   computeBranchSubjectMarks,
-  getAverageFromPopulatedSequenceMarks,
+  resolveYearSummaryFinalMark,
 } from '@/lib/report-card-subject-marks';
 import {
   subjectNamesMatch,
@@ -1326,34 +1327,14 @@ export async function GET(req: NextRequest) {
             // Calculate term average from sequence marks for this report only (not all six slots on a term bulletin)
             let marksForTermAverage: number[] = [];
             if (yearSummary) {
-                annualTermAvgsForSubject = getTermAveragesFromSequenceMarks(
+                const resolved = resolveYearSummaryFinalMark(
                     sequenceMarks,
-                    activeTermSequenceCounts
+                    activeTermSequenceCounts,
+                    activeTotalSequences
                 );
-                const annualAvg = getAnnualAverageFromTermAverages(annualTermAvgsForSubject);
-                if (annualAvg !== undefined) {
-                    marksForTermAverage = [annualAvg];
-                } else {
-                    const partialTermMarks = [
-                        annualTermAvgsForSubject.term1,
-                        annualTermAvgsForSubject.term2,
-                        annualTermAvgsForSubject.term3,
-                    ].filter((m): m is number => typeof m === 'number');
-                    if (partialTermMarks.length > 0) {
-                        marksForTermAverage =
-                            thirdTermTable &&
-                            typeof annualTermAvgsForSubject.term3 === 'number'
-                                ? [annualTermAvgsForSubject.term3]
-                                : partialTermMarks;
-                    } else {
-                        const populatedAvg = getAverageFromPopulatedSequenceMarks(
-                            sequenceMarks,
-                            activeTotalSequences
-                        );
-                        if (populatedAvg !== undefined) {
-                            marksForTermAverage = [populatedAvg];
-                        }
-                    }
+                if (resolved !== null) {
+                    annualTermAvgsForSubject = resolved.termAvgs;
+                    marksForTermAverage = [resolved.finalMark];
                 }
             } else if (perTermNum !== null) {
                 const slots = getGlobalSequenceSlotsForTerm(perTermNum);
@@ -1577,7 +1558,8 @@ export async function GET(req: NextRequest) {
 
             const annualAvgForSubject =
                 annualTermAvgsForSubject !== undefined
-                    ? getAnnualAverageFromTermAverages(annualTermAvgsForSubject)
+                    ? getAnnualAverageFromTermAverages(annualTermAvgsForSubject) ??
+                      getPartialAnnualAverageFromTermAverages(annualTermAvgsForSubject)
                     : undefined;
 
             const annualTermFields =
@@ -1586,7 +1568,8 @@ export async function GET(req: NextRequest) {
                           term1: annualTermAvgsForSubject.term1,
                           term2: annualTermAvgsForSubject.term2,
                           term3: annualTermAvgsForSubject.term3,
-                          annualAverage: annualAvgForSubject,
+                          annualAverage:
+                              annualAvgForSubject ?? parseFloat(finalMark.toFixed(2)),
                       }
                     : {};
 

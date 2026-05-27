@@ -16,6 +16,7 @@ import { classGroups, subjectMap } from '../lib/class-curriculum'
 import { isSubjectExcludedForClass } from '../lib/report-card-subject-matching'
 import { getSequenceName } from '../lib/report-card-utils'
 import { extractGlobalSequenceNumber } from '../lib/report-card-assessment-resolution'
+import { processGradeFromMarks } from '../lib/grading-utils'
 
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') })
 
@@ -35,22 +36,14 @@ function normalize(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-function calculateGrade(mark: number, total = 20): string {
-  const pct = (mark / total) * 100
-  if (pct >= 80) return 'A'
-  if (pct >= 70) return 'B'
-  if (pct >= 60) return 'C'
-  if (pct >= 50) return 'D'
-  return 'U'
-}
-
 function gradePayload(mark: number) {
   const pct = (mark / 20) * 100
+  const { grade, remarks } = processGradeFromMarks(mark, 20)
   return {
     marks_obtained: mark,
     percentage: Math.round(pct * 100) / 100,
-    grade_letter: calculateGrade(mark),
-    remarks: mark >= 10 ? 'Pass' : 'Fail',
+    grade_letter: grade,
+    remarks,
   }
 }
 

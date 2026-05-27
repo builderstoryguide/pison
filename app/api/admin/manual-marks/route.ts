@@ -5,6 +5,10 @@ import { createClient } from '@/lib/supabase/server'
 import { authenticateUser, isAdmin } from '@/lib/auth/server'
 import { getAcademicYearFromConfig } from '@/lib/app-config-server'
 import { getSequenceName } from '@/lib/report-card-utils'
+import {
+  calculateGradeFromMarks,
+  getGradeRemarks,
+} from '@/lib/grading-utils'
 
 /**
  * POST /api/admin/manual-marks
@@ -246,8 +250,8 @@ async function handleRegularSubjectMark(
 
   const totalMarks = assessment.total_marks || 20
   const percentage = (mark / totalMarks) * 100
-  const gradeLetter = calculateGrade(mark, totalMarks)
-  const remarks = calculateRemarks(gradeLetter)
+  const gradeLetter = calculateGradeFromMarks(mark, totalMarks)
+  const remarks = getGradeRemarks(gradeLetter)
 
   // Check if grade already exists
   const { data: existingGrade } = await supabase
@@ -431,8 +435,8 @@ async function handleBranchSubjectMark(
 
     const totalMarks = branchAssessment.total_marks || 20
     const percentage = (mark / totalMarks) * 100
-    const gradeLetter = calculateGrade(mark, totalMarks)
-    const remarks = calculateRemarks(gradeLetter)
+    const gradeLetter = calculateGradeFromMarks(mark, totalMarks)
+    const remarks = getGradeRemarks(gradeLetter)
     const gradePoint = calculateGradePoint(percentage)
 
     // Check if branch grade already exists
@@ -513,34 +517,6 @@ async function handleBranchSubjectMark(
     message: `Grade created/updated for ${gradeResults.length} branch(es)`,
     gradeResults,
   })
-}
-
-/**
- * Calculate grade letter based on mark
- */
-function calculateGrade(mark: number, totalMarks: number = 20): string {
-  const percentage = (mark / totalMarks) * 100
-  if (percentage >= 85) return 'A'
-  if (percentage >= 70) return 'B'
-  if (percentage >= 60) return 'C'
-  if (percentage >= 50) return 'D'
-  if (percentage >= 40) return 'E'
-  return 'F'
-}
-
-/**
- * Calculate remarks based on grade
- */
-function calculateRemarks(grade: string): string {
-  switch (grade) {
-    case 'A': return 'Excellent'
-    case 'B': return 'Very Good'
-    case 'C': return 'Good'
-    case 'D': return 'Pass'
-    case 'E': return 'Weak'
-    case 'F': return 'Fail'
-    default: return ''
-  }
 }
 
 /**

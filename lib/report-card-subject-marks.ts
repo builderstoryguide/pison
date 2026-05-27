@@ -1,6 +1,7 @@
 import {
   getTermAveragesFromSequenceMarks,
   getAnnualAverageFromTermAverages,
+  getPartialAnnualAverageFromTermAverages,
   getGlobalSlotsForTerm,
   mapInTermToGlobal,
   globalToTerm,
@@ -42,6 +43,28 @@ export function getAverageFromPopulatedSequenceMarks(
   }
   if (values.length === 0) return undefined
   return parseFloat(averageMarks(values).toFixed(2))
+}
+
+/** Annual eval: full-year term mean, else partial terms, else populated sequence slots. */
+export function resolveYearSummaryFinalMark(
+  sequenceMarks: SequenceMarks,
+  termSequenceCounts: TermSequenceCounts,
+  totalSequences: 5 | 6
+): { finalMark: number; termAvgs: TermAverages } | null {
+  const termAvgs = getTermAveragesFromSequenceMarks(sequenceMarks, termSequenceCounts)
+  const annualAvg = getAnnualAverageFromTermAverages(termAvgs)
+  if (annualAvg !== undefined) {
+    return { finalMark: annualAvg, termAvgs }
+  }
+  const partialAvg = getPartialAnnualAverageFromTermAverages(termAvgs)
+  if (partialAvg !== undefined) {
+    return { finalMark: partialAvg, termAvgs }
+  }
+  const populatedAvg = getAverageFromPopulatedSequenceMarks(sequenceMarks, totalSequences)
+  if (populatedAvg !== undefined) {
+    return { finalMark: populatedAvg, termAvgs }
+  }
+  return null
 }
 
 export function buildSequenceMarksFromGrades(options: {
@@ -109,27 +132,13 @@ export function buildSequenceMarksFromGrades(options: {
   const marksForTermAverage: number[] = []
 
   if (yearSummary) {
-    const annualTermAvgs = getTermAveragesFromSequenceMarks(sequenceMarks, termSequenceCounts)
-    const annualAvg = getAnnualAverageFromTermAverages(annualTermAvgs)
-    if (annualAvg !== undefined) {
-      marksForTermAverage.push(annualAvg)
-    } else {
-      const partialTermMarks = [
-        annualTermAvgs.term1,
-        annualTermAvgs.term2,
-        annualTermAvgs.term3,
-      ].filter((m): m is number => typeof m === 'number')
-      if (partialTermMarks.length > 0) {
-        marksForTermAverage.push(...partialTermMarks)
-      } else {
-        const populatedAvg = getAverageFromPopulatedSequenceMarks(
-          sequenceMarks,
-          totalSequences
-        )
-        if (populatedAvg !== undefined) {
-          marksForTermAverage.push(populatedAvg)
-        }
-      }
+    const resolved = resolveYearSummaryFinalMark(
+      sequenceMarks,
+      termSequenceCounts,
+      totalSequences
+    )
+    if (resolved !== null) {
+      marksForTermAverage.push(resolved.finalMark)
     }
   } else if (perTermNum !== null) {
     const slots = getGlobalSlotsForTerm(perTermNum, termSequenceCounts)

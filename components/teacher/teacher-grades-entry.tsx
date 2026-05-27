@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context"
 import { useToast } from "@/hooks/use-toast"
 // import { apiCall } from "@/lib/utils/api-client"
 import { useSequenceConfiguration } from "@/hooks/use-sequence-configuration"
+import { calculateGrade, getGradeRemarks } from "@/lib/grading-utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -424,26 +425,6 @@ export function TeacherGradesEntry({ preSelectedClassId }: TeacherGradesEntryPro
     fetchSubjects()
   }, [selectedClass, classes, toast, user?.id])
 
-  // Helper function to calculate grade based on mark (0-20)
-  const calculateGrade = (mark: number): string => {
-    if (mark >= 17) return 'A'
-    if (mark > 14 && mark < 17) return 'B'
-    if (mark >= 10 && mark < 14) return 'C'
-    if (mark >= 7 && mark < 10) return 'D'
-    return 'U'
-  }
-
-  // Helper function to get grade remarks
-  const getGradeRemarks = (grade: string): string => {
-    switch (grade) {
-      case 'A': return 'Excellent'
-      case 'B': return 'V.good'
-      case 'C': return 'Pass'
-      case 'D': return 'Failed'
-      case 'U': return 'Very weak'
-      default: return ''
-    }
-  }
 
   // Helper function to calculate total marks
   const calculateTotalMarks = (mark: number, coefficient: number): number => {

@@ -1,8 +1,10 @@
 /**
- * Grading Utilities
- * 
- * Pure functions for grade calculations, validation, and processing.
- * These functions have no dependencies on React or external state.
+ * Grading Utilities — canonical Cameroon report scale (0–20).
+ *
+ * Letter grades: A, B, C, D, U. All `grades.grade_letter` writes and report
+ * cards should use these functions; do not duplicate scale logic elsewhere.
+ *
+ * Pure functions with no React or external state dependencies.
  */
 
 export interface GradeEntry {
@@ -27,7 +29,7 @@ export interface StudentWithMarks {
  */
 export function calculateGrade(mark: number): string {
   if (mark >= 17) return 'A'
-  if (mark > 14 && mark < 17) return 'B'
+  if (mark >= 14 && mark < 17) return 'B'
   if (mark >= 10 && mark < 14) return 'C'
   if (mark >= 7 && mark < 10) return 'D'
   return 'U'
@@ -52,6 +54,32 @@ export function getGradeRemarks(grade: string): string {
 /** Letter-grade remark from a numeric mark (report cards, student-report). */
 export function getRemarkForMark(mark: number): string {
   return getGradeRemarks(calculateGrade(mark))
+}
+
+/** @alias getGradeRemarks — for API routes that name the parameter "grade". */
+export const getRemarkForGrade = getGradeRemarks
+
+/** Convert raw score to equivalent mark on a 0–20 scale. */
+export function markOnScaleOf20(marksObtained: number, totalMarks = 20): number {
+  if (totalMarks <= 0) return 0
+  return (marksObtained / totalMarks) * 20
+}
+
+/** Letter grade from raw marks and assessment total (default 20). */
+export function calculateGradeFromMarks(
+  marksObtained: number,
+  totalMarks = 20
+): string {
+  return calculateGrade(markOnScaleOf20(marksObtained, totalMarks))
+}
+
+/** Grade + remark from raw marks (for grade insert/update APIs). */
+export function processGradeFromMarks(
+  marksObtained: number,
+  totalMarks = 20
+): { grade: string; remarks: string } {
+  const grade = calculateGradeFromMarks(marksObtained, totalMarks)
+  return { grade, remarks: getGradeRemarks(grade) }
 }
 
 /** Whether a remark should use negative (red) styling on report cards. */

@@ -260,7 +260,7 @@ export function readGlobalSeqMark(
   return typeof flat === 'number' ? flat : undefined
 }
 
-/** Per-term averages when every configured slot in that term has a mark. */
+/** Per-term averages from populated sequence slots in each term (partial slots allowed). */
 export function getTermAveragesFromSequenceMarks(
   sequenceMarks: Record<string, number | undefined> | SubjectSequenceMarksInput,
   counts: TermSequenceCounts
@@ -277,8 +277,11 @@ export function getTermAveragesFromSequenceMarks(
     const slots = getGlobalSlotsForTerm(termNumber as 1 | 2 | 3, counts)
     if (slots.length === 0) continue
     const marks = slots.map((slot) => read(slot))
-    if (marks.every((m) => typeof m === 'number' && !Number.isNaN(m))) {
-      const avg = averageSequenceMarks(marks)
+    const populatedMarks = marks.filter(
+      (m): m is number => typeof m === 'number' && !Number.isNaN(m)
+    )
+    if (populatedMarks.length > 0) {
+      const avg = averageSequenceMarks(populatedMarks)
       if (termNumber === 1) result.term1 = parseFloat(avg.toFixed(2))
       else if (termNumber === 2) result.term2 = parseFloat(avg.toFixed(2))
       else result.term3 = parseFloat(avg.toFixed(2))

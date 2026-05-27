@@ -82,6 +82,24 @@ describe('subjectNamesMatch', () => {
     )
   })
 
+  it('matches Citizenship to CTZ class subject', () => {
+    assert.equal(subjectNamesMatch('Citizenship', 'Citizenship (CTZ)'), true)
+    assert.equal(subjectNamesMatch('Citizenship (CTZ)', 'CTZ'), true)
+  })
+
+  it('matches Computer Aided Management to CAM class subject', () => {
+    assert.equal(
+      subjectNamesMatch('Computer Aided Management', 'Computer Aided Management (CAM)'),
+      true
+    )
+    assert.equal(subjectNamesMatch('CAM', 'Computer Aided Management (CAM)'), true)
+  })
+
+  it('matches Manual Labour to LB class subject', () => {
+    assert.equal(subjectNamesMatch('Manual Labour', 'Manual Labour (LB)'), true)
+    assert.equal(subjectNamesMatch('Manual Labor', 'Manual Labour (LB)'), true)
+  })
+
   it('matches EPS Engineering Drawing to ENGINEERING DRAWING class subject', () => {
     assert.equal(subjectNamesMatch('Engineering Drawing', 'ENGINEERING DRAWING'), true)
   })
@@ -127,6 +145,9 @@ describe('normalizeSubjectName', () => {
     assert.equal(normalizeSubjectName('FLEG'), 'family life')
     assert.equal(normalizeSubjectName('FNH'), 'food and nutrition')
     assert.equal(normalizeSubjectName('RMHS'), 'resource management')
+    assert.equal(normalizeSubjectName('CTZ'), 'citizenship')
+    assert.equal(normalizeSubjectName('CAM'), 'computer aided management')
+    assert.equal(normalizeSubjectName('LB'), 'manual labour')
   })
 
   it('canonicalizes eps trade subject shorthand', () => {

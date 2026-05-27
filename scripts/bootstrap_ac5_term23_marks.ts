@@ -16,6 +16,7 @@ import {
   isUuidString,
 } from '../lib/report-card-assessment-resolution'
 import { isSubjectExcludedForClass } from '../lib/report-card-subject-matching'
+import { calculateGrade, getGradeRemarks } from '../lib/grading-utils'
 
 dotenv.config({ path: path.resolve(__dirname, '../.env.local') })
 
@@ -34,15 +35,6 @@ function resolveSeqFromTitle(
   const t = title.trim()
   if (isUuidString(t) && uuidToSeq.has(t)) return uuidToSeq.get(t)!
   return extractGlobalSequenceNumber(t)
-}
-
-function calculateGrade(mark: number, total = 20): string {
-  const pct = (mark / total) * 100
-  if (pct >= 80) return 'A'
-  if (pct >= 70) return 'B'
-  if (pct >= 60) return 'C'
-  if (pct >= 50) return 'D'
-  return 'U'
 }
 
 async function main() {
@@ -228,7 +220,7 @@ async function main() {
           marks_obtained: mark,
           percentage: Math.round(pct * 100) / 100,
           grade_letter: gradeLetter,
-          remarks: mark >= 10 ? 'Pass' : 'Fail',
+          remarks: getGradeRemarks(gradeLetter),
         }
 
         if (existing) {

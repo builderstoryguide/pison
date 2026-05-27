@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input"
 import { ArrowLeft, Save, Loader2, X } from "lucide-react"
 import { toast } from "sonner"
+import { calculateGrade, getGradeRemarks } from "@/lib/grading-utils"
 
 interface GradeViewEditProps {
   assessmentId: string
@@ -84,26 +85,7 @@ export function GradeViewEdit({
     }
   }
 
-  // Helper to calculate grade based on mark (0-20 scale)
-  const calculateGrade = (mark: number) => {
-    if (mark >= 17) return 'A'
-    if (mark >= 14) return 'B'
-    if (mark >= 10) return 'C'
-    if (mark >= 7) return 'D'
-    return 'U'
-  }
-
-  // Helper to calculate remarks based on grade
-  const calculateRemarks = (grade: string) => {
-    switch (grade) {
-      case 'A': return 'Excellent'
-      case 'B': return 'Very Good'
-      case 'C': return 'Pass'
-      case 'D': return 'Failed'
-      case 'U': return 'Very Weak'
-      default: return ''
-    }
-  }
+  const calculateRemarks = getGradeRemarks
 
   // Helper to calculate ranks for all students
   const calculateRanks = (currentStudents: StudentGrade[]) => {

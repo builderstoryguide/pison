@@ -21,6 +21,10 @@ import type { Mark } from '@/hooks/use-admin-marks'
 import { StudentSearch } from '@/components/ui/student-search'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { usePrefetchMarks } from '@/hooks/use-admin-marks'
+import {
+  calculateGradeFromMarks,
+  getGradeRemarks,
+} from '@/lib/grading-utils'
 
 interface MarkEntryDialogProps {
   open: boolean
@@ -337,16 +341,6 @@ export function MarkEntryDialog({
     }
   }
 
-  const calculateGrade = (mark: number, totalMarks: number = 20): string => {
-    const percentage = (mark / totalMarks) * 100
-    if (percentage >= 85) return 'A'
-    if (percentage >= 70) return 'B'
-    if (percentage >= 60) return 'C'
-    if (percentage >= 50) return 'D'
-    if (percentage >= 40) return 'E'
-    return 'F'
-  }
-
   const getGradeInfo = () => {
     if (!markValue) return null
     const markNum = parseFloat(markValue)
@@ -355,9 +349,10 @@ export function MarkEntryDialog({
     // Default to 20 marks for sequence assessments
     const totalMarks = 20
     const percentage = Math.round((markNum / totalMarks) * 100 * 100) / 100
-    const gradeLetter = calculateGrade(markNum, totalMarks)
+    const gradeLetter = calculateGradeFromMarks(markNum, totalMarks)
+    const remark = getGradeRemarks(gradeLetter)
 
-    return { percentage, gradeLetter, totalMarks }
+    return { percentage, gradeLetter, remark, totalMarks }
   }
 
   // Find or create assessment based on student class, subject, and sequence type
