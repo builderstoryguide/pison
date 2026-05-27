@@ -281,6 +281,7 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
   )
 
   const tableAnnualAvg = data.history?.annualAvg ?? data.totals.average
+  const tableAnnualPassed = tableAnnualAvg >= 10
 
   const yearSummaryTableTotalScore = React.useMemo(() => {
     return data.subjects.reduce((sum, s) => {
@@ -1356,8 +1357,14 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
             </table>
           </div>
 
-          {/* Footer Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 print:grid-cols-3 gap-2 print:gap-1 mb-2 print:mb-1 relative z-10">
+          {/* Footer Stats — 3-panel horizontal row */}
+          <div
+            className={`grid gap-2 print:gap-1 mb-2 print:mb-1 relative z-10 items-stretch ${
+              isThirdTermSummary
+                ? 'grid-cols-[162fr_68fr_70fr] print:grid-cols-[162fr_68fr_70fr] min-h-[4.5rem] print:min-h-[4.25rem]'
+                : 'grid-cols-3 print:grid-cols-3'
+            }`}
+          >
             
             {/* Student Evaluation Results */}
             {isThirdTermSummary ? (
@@ -1368,6 +1375,9 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
                 rank1={data.history?.rank1}
                 rank2={data.history?.rank2}
                 rank3={data.history?.rank3 ?? data.history?.rank}
+                annualAvg={tableAnnualAvg}
+                annualRank={data.history?.rank}
+                passed={tableAnnualPassed}
                 highlightTerm={3}
               />
             ) : (
@@ -1398,12 +1408,12 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
               </div>
             )}
 
-            {/* Discipline And Conduct */}
-            <div className="border border-black bg-white/90">
+            {/* Discipline & Conduct */}
+            <div className="border border-black bg-white/90 h-full flex flex-col">
               <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
-                Discipline And Conduct
+                Discipline & Conduct
               </div>
-              <div className="text-[0.6rem] print:text-[7pt] p-1 print:p-0.5 space-y-1">
+              <div className="text-[0.6rem] print:text-[7pt] p-1.5 print:p-1 space-y-1 flex-1">
                 <div className="flex justify-between border-b border-gray-200 pb-0.5">
                   <span>Unjustified Absences</span>
                   <span className="font-mono font-bold">{data.discipline.absences}hrs</span>
@@ -1418,11 +1428,11 @@ export function TermReportCard({ data, classId, onRefresh, variant = 'default' }
             </div>
 
             {/* GCE Section */}
-            <div className="border border-black bg-white/90">
+            <div className="border border-black bg-white/90 h-full flex flex-col">
               <div className="border-b border-gray-300 p-1 print:p-0.5 bg-gray-100">
                 <h4 className="font-bold text-[0.6rem] print:text-[7pt] text-left uppercase">GCE SECTION</h4>
               </div>
-              <div className="space-y-0.5 font-mono text-[0.6rem] print:text-[7pt] p-1 print:p-0.5">
+              <div className="space-y-0.5 font-mono text-[0.6rem] print:text-[7pt] p-1.5 print:p-1 flex-1">
                 <div className="flex justify-between"><span>Trade Subjects:</span> <span>{formatGceCount(gceCounts.tradeSubjects)}</span></div>
                 <div className="flex justify-between"><span>Related Trade:</span> <span>{formatGceCount(gceCounts.relatedTrade)}</span></div>
                 <div className="flex justify-between"><span>Other Subjects:</span> <span>{formatGceCount(gceCounts.otherSubjects)}</span></div>

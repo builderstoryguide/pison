@@ -1198,67 +1198,48 @@ export function AnnualReportCard({ data, onRefresh: _onRefresh, variant = 'defau
             </table>
           </div>
 
-          {/* Footer Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-12 print:grid-cols-12 gap-2 print:gap-1 mb-2 print:mb-1 relative z-10">
-            <div className="col-span-12 md:col-span-4 flex flex-col gap-0">
-              <StudentEvaluationResultsTable
-                term1={data.history.term1}
-                term2={data.history.term2}
-                term3={data.history.term3}
-                rank1={data.history.rank1}
-                rank2={data.history.rank2}
-                rank3={data.history.rank3}
-              />
+          {/* Footer Stats — 3-panel horizontal row */}
+          <div className="grid grid-cols-[162fr_68fr_70fr] print:grid-cols-[162fr_68fr_70fr] gap-2 print:gap-1 mb-2 print:mb-1 relative z-10 items-stretch min-h-[4.5rem] print:min-h-[4.25rem]">
+            <StudentEvaluationResultsTable
+              term1={data.history.term1}
+              term2={data.history.term2}
+              term3={data.history.term3}
+              rank1={data.history.rank1}
+              rank2={data.history.rank2}
+              rank3={data.history.rank3}
+              annualAvg={annualAvg}
+              annualRank={data.history.rank}
+              passed={annualPassed}
+            />
 
-              <div className="border border-black bg-white/90">
-                <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
-                  Discipline And Conduct
-                </div>
-                <div className="text-[0.6rem] print:text-[7pt] p-1 print:p-0.5 space-y-1">
-                  <div className="flex justify-between border-b border-gray-200 pb-0.5">
-                    <span>Unjustified Absences</span>
-                    <span className="font-mono font-bold">{data.discipline.absences}hrs</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Suspensions / Warnings</span>
-                    <span className="font-mono font-bold">
-                      {data.discipline.suspensions + data.discipline.warnings}
-                    </span>
-                  </div>
-                </div>
+            <div className="border border-black bg-white/90 h-full flex flex-col">
+              <div className="bg-gray-100 p-0.5 print:p-0.5 text-left text-[0.55rem] print:text-[6pt] font-bold uppercase border-b border-black">
+                Discipline & Conduct
               </div>
-            </div>
-
-            <div className="col-span-12 md:col-span-4 flex items-center justify-center py-2 print:py-1">
-              <div className="flex flex-col gap-0 items-center">
-                <div className="w-24 print:w-20 h-24 print:h-20 rounded-full flex flex-col items-center justify-center z-10">
-                  <span className="text-[0.5rem] print:text-[6pt] text-gray-500 uppercase font-bold">Annual Average</span>
-                  <span className="text-2xl print:text-xl font-black">{annualAvg.toFixed(2)}</span>
-                  <span
-                    className={`text-[0.5rem] print:text-[6pt] font-bold uppercase ${annualPassed ? 'text-green-600' : 'text-red-600'}`}
-                  >
-                    {annualPassed ? 'Passed' : 'Failed'}
+              <div className="text-[0.6rem] print:text-[7pt] p-1.5 print:p-1 space-y-1 flex-1">
+                <div className="flex justify-between border-b border-gray-200 pb-0.5">
+                  <span>Unjustified Absences</span>
+                  <span className="font-mono font-bold">{data.discipline.absences}hrs</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Suspensions / Warnings</span>
+                  <span className="font-mono font-bold">
+                    {data.discipline.suspensions + data.discipline.warnings}
                   </span>
                 </div>
-                <div className="w-16 print:w-14 h-16 print:h-14 rounded-full flex flex-col items-center justify-center z-10 mt-1">
-                  <span className="text-[0.5rem] print:text-[6pt] text-gray-500 uppercase font-bold">Rank</span>
-                  <span className="text-lg print:text-base font-black">{data.history.rank ?? '-'}</span>
-                </div>
               </div>
             </div>
 
-            <div className="col-span-12 md:col-span-4">
-              <div className="border border-black bg-white/90">
-                <div className="border-b border-gray-300 p-1 print:p-0.5 bg-gray-100">
-                  <h4 className="font-bold text-[0.6rem] print:text-[7pt] text-left uppercase">GCE SECTION</h4>
-                </div>
-                <div className="space-y-0.5 font-mono text-[0.6rem] print:text-[7pt] p-1 print:p-0.5">
-                  <div className="flex justify-between"><span>Trade Subjects:</span> <span>{formatGceCount(gceCounts.tradeSubjects)}</span></div>
-                  <div className="flex justify-between"><span>Related Trade:</span> <span>{formatGceCount(gceCounts.relatedTrade)}</span></div>
-                  <div className="flex justify-between"><span>Other Subjects:</span> <span>{formatGceCount(gceCounts.otherSubjects)}</span></div>
-                  <div className="flex justify-between font-bold pt-1 border-t border-gray-300 mt-1">
-                    <span>GCE SUBJECTS PASSED:</span> <span>{formatGceCount(gceCounts.passed)}</span>
-                  </div>
+            <div className="border border-black bg-white/90 h-full flex flex-col">
+              <div className="border-b border-gray-300 p-1 print:p-0.5 bg-gray-100">
+                <h4 className="font-bold text-[0.6rem] print:text-[7pt] text-left uppercase">GCE SECTION</h4>
+              </div>
+              <div className="space-y-0.5 font-mono text-[0.6rem] print:text-[7pt] p-1.5 print:p-1 flex-1">
+                <div className="flex justify-between"><span>Trade Subjects:</span> <span>{formatGceCount(gceCounts.tradeSubjects)}</span></div>
+                <div className="flex justify-between"><span>Related Trade:</span> <span>{formatGceCount(gceCounts.relatedTrade)}</span></div>
+                <div className="flex justify-between"><span>Other Subjects:</span> <span>{formatGceCount(gceCounts.otherSubjects)}</span></div>
+                <div className="flex justify-between font-bold pt-1 border-t border-gray-300 mt-1">
+                  <span>GCE SUBJECTS PASSED:</span> <span>{formatGceCount(gceCounts.passed)}</span>
                 </div>
               </div>
             </div>
